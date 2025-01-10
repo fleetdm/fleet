@@ -26,6 +26,7 @@ import { PADDING } from "styles/var/padding";
 import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 const getOptionBackgroundColor = (state: any) => {
   return state.isSelected || state.isFocused
@@ -39,6 +40,7 @@ export interface CustomOptionType {
   tooltipContent?: string;
   helpText?: string;
   isDisabled?: boolean;
+  iconName?: IconNames;
 }
 
 export interface IDropdownWrapper {
@@ -53,8 +55,10 @@ export interface IDropdownWrapper {
   helpText?: JSX.Element | string;
   isSearchable?: boolean;
   isDisabled?: boolean;
+  iconName?: IconNames;
   placeholder?: string;
-  menuPortalTarget?: HTMLElement | null;
+  /** E.g. scroll to view dropdown menu in a scrollable parent container */
+  onMenuOpen?: () => void;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -69,10 +73,11 @@ const DropdownWrapper = ({
   error,
   label,
   helpText,
-  isSearchable,
+  isSearchable = false,
   isDisabled = false,
+  iconName,
   placeholder,
-  menuPortalTarget,
+  onMenuOpen,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
 
@@ -119,7 +124,7 @@ const DropdownWrapper = ({
   };
 
   const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<any, false, any>
+    props: DropdownIndicatorProps<CustomOptionType, false, any>
   ) => {
     const { isFocused, selectProps } = props;
     const color =
@@ -138,6 +143,19 @@ const DropdownWrapper = ({
           className={`${baseClass}__icon`}
         />
       </components.DropdownIndicator>
+    );
+  };
+
+  const ValueContainer = ({ children, ...props }: any) => {
+    return (
+      components.ValueContainer && (
+        <components.ValueContainer {...props}>
+          {!!children && iconName && (
+            <Icon name={iconName} className="filter-icon" />
+          )}
+          {children}
+        </components.ValueContainer>
+      )
     );
   };
 
@@ -234,10 +252,13 @@ const DropdownWrapper = ({
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
+      maxHeight: "none",
     }),
     valueContainer: (provided) => ({
       ...provided,
       padding: 0,
+      display: "flex",
+      gap: PADDING["pad-small"],
     }),
     option: (provided, state) => ({
       ...provided,
@@ -259,7 +280,6 @@ const DropdownWrapper = ({
         color: COLORS["ui-fleet-black-50"],
         fontStyle: "italic",
         cursor: "not-allowed",
-        pointerEvents: "none",
       }),
       // Styles for custom option
       ".dropdown-wrapper__option": {
@@ -322,16 +342,15 @@ const DropdownWrapper = ({
           Option: CustomOption,
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
+          ValueContainer,
         }}
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}
-        menuPortalTarget={
-          menuPortalTarget === undefined ? document.body : menuPortalTarget
-        }
         noOptionsMessage={() => "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
+        onMenuOpen={onMenuOpen}
       />
     </FormField>
   );

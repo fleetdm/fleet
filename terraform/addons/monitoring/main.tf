@@ -376,9 +376,11 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_DATABASE              = var.cron_monitoring.mysql_database
       MYSQL_USER                  = var.cron_monitoring.mysql_user
       MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
-      SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                   = var.customer_prefix
       CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance
+      CRON_MONITOR_RUN_INTERVAL        = var.cron_monitoring.run_interval
     }
   }
 
@@ -446,7 +448,10 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "sns:Publish"
     ]
 
-    resources = lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns)
+    resources = distinct(concat(
+      lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns),
+      lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns)
+    ))
 
     effect = "Allow"
   }
@@ -464,7 +469,7 @@ resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
   count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
   schedule_expression = "rate(${var.cron_monitoring.run_interval})"
-  is_enabled          = true
+  state               = "ENABLED"
 }
 
 resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {

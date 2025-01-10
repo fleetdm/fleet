@@ -323,7 +323,8 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			}
 
 			if expandEnv {
-				fileContents, err = spec.ExpandEnvBytes(fileContents)
+				// Secrets are handled earlier in the flow when config files are initially read
+				fileContents, err = spec.ExpandEnvBytesIgnoreSecrets(fileContents)
 				if err != nil {
 					return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
 				}
@@ -1006,6 +1007,8 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			PostInstallScript:  string(pc),
 			UninstallScript:    string(us),
 			InstallDuringSetup: installDuringSetup,
+			LabelsIncludeAny:   si.LabelsIncludeAny,
+			LabelsExcludeAny:   si.LabelsExcludeAny,
 		}
 	}
 

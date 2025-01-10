@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
+import { formatDistanceToNowStrict } from "date-fns";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
 
@@ -44,6 +45,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -560,9 +562,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id": 0 will unset software install for the policy
+            // "software_title_id": null will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
-            software_title_id: changedPolicy.swIdToInstall || 0,
+            software_title_id: changedPolicy.swIdToInstall || null,
             team_id: teamIdForApi,
           });
         })
@@ -613,9 +615,9 @@ const ManagePolicyPage = ({
       responses.concat(
         changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id": 0 will unset running a script for the policy (a script never has ID 0)
+            // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || 0,
+            script_id: changedPolicy.scriptIdToRun || null,
             team_id: teamIdForApi,
           });
         })
@@ -776,22 +778,43 @@ const ManagePolicyPage = ({
     }
   }
 
-  const renderPoliciesCount = (count?: number) => {
+  const renderPoliciesCountAndLastUpdated = (
+    count?: number,
+    policies?: IPolicyStats[]
+  ) => {
     // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
     const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
 
-    const hideCount =
+    const hide =
       isFetchingCount ||
       policiesErrors ||
       (!policyResults && searchQuery === "");
 
-    if (hideCount) {
+    if (hide) {
       return null;
     }
+    // Figure the time since the host counts were updated by finding first policy item with host_count_updated_at.
+    const updatedAt =
+      policies?.find((p) => !!p.host_count_updated_at)?.host_count_updated_at ||
+      "";
 
-    return <TableCount name="policies" count={count} />;
+    return (
+      <>
+        <TableCount name="policies" count={count} />
+        <LastUpdatedText
+          lastUpdatedAt={updatedAt}
+          customTooltipText={
+            <>
+              Counts are updated hourly. Click host
+              <br />
+              counts for the most up-to-date count.
+            </>
+          }
+        />
+      </>
+    );
   };
 
   const renderMainTable = () => {
@@ -815,7 +838,12 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
-          renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
+          renderPoliciesCount={() =>
+            renderPoliciesCountAndLastUpdated(
+              globalPoliciesCount,
+              globalPolicies
+            )
+          }
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -844,7 +872,10 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
-            renderPoliciesCount(teamPoliciesCountMergeInherited)
+            renderPoliciesCountAndLastUpdated(
+              teamPoliciesCountMergeInherited,
+              teamPolicies
+            )
           }
           isPremiumTier={isPremiumTier}
           searchQuery={searchQuery}

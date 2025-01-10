@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
@@ -148,7 +149,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if p.TeamID != nil {
-		if err := ds.assertTeamMatches(ctx, *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
+		if err := assertTeamMatches(ctx, ds.writer(ctx), *p.TeamID, p.SoftwareInstallerID, p.ScriptID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -184,10 +185,10 @@ var (
 	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
 )
 
-func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
+func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
-		err := sqlx.GetContext(ctx, ds.reader(ctx), &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
+		err := sqlx.GetContext(ctx, db, &softwareInstallerTeamID, "SELECT global_or_team_id FROM software_installers WHERE id = ?", softwareInstallerID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -201,7 +202,7 @@ func (ds *Datastore) assertTeamMatches(ctx context.Context, teamID uint, softwar
 
 	if scriptID != nil {
 		var scriptTeamID uint
-		err := sqlx.GetContext(ctx, ds.reader(ctx), &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
+		err := sqlx.GetContext(ctx, db, &scriptTeamID, "SELECT global_or_team_id FROM scripts WHERE id = ?", scriptID)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -238,7 +239,7 @@ func cleanupPolicy(
 		}
 		if _, isDB := extContext.(*sqlx.DB); isDB {
 			// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-			err = withRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
+			err = common_mysql.WithRetryTxx(ctx, extContext.(*sqlx.DB), fn, logger)
 		} else {
 			err = fn(extContext)
 		}
@@ -415,6 +416,34 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	return nil
 }
 
+func (ds *Datastore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	policies p
+	JOIN policy_membership pm ON pm.policy_id = p.id
+SET
+	passes = NULL
+WHERE
+	p.software_installer_id = ?
+	AND pm.host_id IN (?)
+		`
+
+	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing auto install policy status")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts)
 }
@@ -583,6 +612,15 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 }
 
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, nil, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }
 
@@ -637,8 +675,12 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 }
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	return newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
+}
+
+func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
-		q, err := ds.Query(ctx, *args.QueryID)
+		q, err := query(ctx, db, *args.QueryID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
@@ -649,7 +691,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// Check team exists.
 	if teamID > 0 {
 		var ok bool
-		err := ds.writer(ctx).GetContext(ctx, &ok, `SELECT COUNT(*) = 1 FROM teams WHERE id = ?`, teamID)
+		err := sqlx.GetContext(ctx, db, &ok, `SELECT COUNT(*) = 1 FROM teams WHERE id = ?`, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team id")
 		}
@@ -661,11 +703,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
-	if err := ds.assertTeamMatches(ctx, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
+	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx,
+	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, software_installer_id, script_id, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
@@ -685,7 +727,7 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
-	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
+	return policyDB(ctx, db, uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
@@ -736,6 +778,15 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 }
 
 func (ds *Datastore) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	for _, id := range ids {
+		if err := ds.deletePendingSoftwareInstallsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+		}
+		if err := ds.deletePendingHostScriptExecutionsForPolicy(ctx, &teamID, id); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+		}
+	}
+
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, &teamID)
 }
 

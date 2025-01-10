@@ -33,7 +33,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
 For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [MySQL configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql) documentation.
 
-Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47).
+Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.3, and 9.1.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47).
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
 
@@ -111,7 +111,7 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 
 ## Using a proxy
 
-If you are in an enterprise environment where Fleet is behind a proxy and you would like to be able to retrieve vulnerability data for [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing), it may be necessary to configure the proxy settings. Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
 
 For example, to configure the proxy in a systemd service file:
 
@@ -179,7 +179,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.t4g.small | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium   | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.t4g.medium   | 2     |
 
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
@@ -191,7 +191,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large    | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.large    | 2     |
 
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
@@ -203,7 +203,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge  | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.4xlarge  | 2     |
 
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
@@ -215,7 +215,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/terraform/example). This configuration includes:
 

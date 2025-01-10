@@ -70,11 +70,6 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
-
-      // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
-      // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
-      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/|\/announcements\/|\/success-stories\/|\/securing\/|\/engineering\/|\/podcasts\/*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
-
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
       sails.after('hook:organics:loaded', ()=>{

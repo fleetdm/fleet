@@ -28,18 +28,27 @@ Learn more about automatically installing software in a separate guide [here](ht
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
-> Software installer uploads will fail if Fleet is unable to extract information from the installer package such as bundle ID and version number.
-> - [.pkg extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/xar.go#:~:text=func%20ExtractXARMetadata)
-> - [.msi extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/msi.go#:~:text=func%20ExtractMSIMetadata)
-> - [.exe extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/pe.go#:~:text=func%20ExtractPEMetadata)
-> - [.deb extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/deb.go#:~:text=func%20ExtractDebMetadata)
-> - [.rpm extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/rpm.go#:~:text=func%20ExtractRPMMetadata)
+* Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
 * To customize installer behavior, click on “Advanced options.”
 
 > After the initial package upload, all options can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package.
+
+### Package metadata extraction
+
+The following metadata is used in uninstall scripts and policies that trigger automatic installation to check whether the software is already installed:
+- bundle identifier (`.pkg`)
+- product code (`.msi`)
+- name (`.deb`, `.rpm`)
+
+Software installer uploads will fail if Fleet can't extract this metadata and version number. For more details check the extractor code for each package type.
+- [.pkg extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/xar.go#:~:text=func%20ExtractXARMetadata)
+- [.msi extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/msi.go#:~:text=func%20ExtractMSIMetadata)
+- [.exe extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/pe.go#:~:text=func%20ExtractPEMetadata)
+- [.deb extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/deb.go#:~:text=func%20ExtractDebMetadata)
+- [.rpm extractor code](https://github.com/fleetdm/fleet/blob/main/pkg/file/rpm.go#:~:text=func%20ExtractRPMMetadata) 
 
 ### Pre-install query
 
@@ -55,7 +64,7 @@ A post-install script will run after the installation, allowing you to, for exam
 
 ### Uninstall script
 
-An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if an install fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
+An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if the post-install script (if supplied) fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
 
 In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). The Fleet server will substitute `$PACKAGE_ID` on upload.
 

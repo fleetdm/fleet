@@ -159,7 +159,7 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/observability">Observability &nbsp; <small>(+ scripting)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
                     <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
@@ -187,6 +187,7 @@
                     <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
                     <a purpose="mobile-dropdown-link" href="/announcements">News</a>
                     <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
+                    <a purpose="mobile-dropdown-link" href="/meetups">Meetups</a>
                     <span class="mt-2 mb-2">COMPANY</span>
                     <div purpose="indented-mobile-links">
                       <a purpose="mobile-dropdown-link" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
@@ -220,7 +221,7 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/observability">Observability <small>+ scripting, monitoring</small></a>
+                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
                     <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
                     <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
@@ -249,6 +250,7 @@
                     <a class="dropdown-item" href="/announcements">News</a>
                     <a class="dropdown-item" href="/support">Ask around</a>
                     <a class="dropdown-item" href="/contact">Take a tour</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
+                    <a class="dropdown-item" href="/meetups">Meetups</a>
                     <span class="muted dropdown-header">COMPANY</span>
                     <a class="dropdown-item" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
                     <a class="dropdown-item" href="/handbook">The handbook</a>
@@ -287,6 +289,7 @@
                 <span>Admin pages</span>
               </div>
               <div class="d-flex flex-row align-self-end justify-content-between">
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
               </div>
@@ -310,7 +313,7 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/observability">Observability</a>
+              <a href="/observability">Orchestration</a>
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
@@ -468,6 +471,7 @@
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
+    <script src="/js/pages/admin/query-generator.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/app-details.page.js"></script>
     <script src="/js/pages/app-library.page.js"></script>
@@ -493,6 +497,7 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>

@@ -2,10 +2,13 @@ import React from "react";
 
 import PATHS from "router/paths";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import LinkWithContext from "components/LinkWithContext";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "add-install-software";
 
@@ -45,9 +48,17 @@ const AddInstallSoftware = ({
         software.app_store_app?.install_during_setup
     ).length;
 
-    return installDuringSetupCount === 0
-      ? "No software added."
-      : `${installDuringSetupCount} software will be installed during setup.`;
+    return installDuringSetupCount === 0 ? (
+      "No software added."
+    ) : (
+      <>
+        {installDuringSetupCount} software will be{" "}
+        <TooltipWrapper position="top" tipContent="Software order will vary.">
+          installed during setup
+        </TooltipWrapper>
+        .
+      </>
+    );
   };
 
   const getButtonText = () => {
@@ -75,7 +86,11 @@ const AddInstallSoftware = ({
         <p className={`${baseClass}__description`}>
           Install software on hosts that automatically enroll to Fleet.
         </p>
-        <CustomLink newTab url="" text="Learn how" />
+        <CustomLink
+          newTab
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
+          text="Learn how"
+        />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
       <div>

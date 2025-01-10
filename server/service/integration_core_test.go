@@ -2404,16 +2404,18 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, "admin1@example.com", gpResp.Policy.AuthorEmail)
 	assert.Equal(t, "darwin", gpResp.Policy.Platform)
 
-	mgpParams := modifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("TestQuery4"),
-			Query:       ptr.String("select * from osquery_info;"),
-			Description: ptr.String("Some description updated"),
-			Resolution:  ptr.String("some global resolution updated"),
-		},
-	}
-	mgpResp := modifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), mgpParams, http.StatusOK, &mgpResp)
+	response := s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), []byte(`{
+		"name": "TestQuery4",
+		"query": "select * from osquery_info;",
+		"description": "Some description updated",
+		"resolution": "some global resolution updated"
+	}`), http.StatusOK)
+	var mgpResp modifyGlobalPolicyResponse
+	responseBody, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &mgpResp)
+	require.NoError(t, err)
+
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, "TestQuery4", mgpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", mgpResp.Policy.Query)
@@ -2473,13 +2475,14 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 1)
 
-	mgpParams = modifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("select * from users;"),
-		},
-	}
-	mgpResp = modifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), mgpParams, http.StatusOK, &mgpResp)
+	response = s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), []byte(`{
+		"query": "select * from users;"
+	}`), http.StatusOK)
+	responseBody, err = io.ReadAll(response.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &mgpResp)
+	require.NoError(t, err)
+
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, "TestQuery4", mgpResp.Policy.Name)
 	assert.Equal(t, "select * from users;", mgpResp.Policy.Query)
@@ -2538,13 +2541,14 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	require.Len(t, listHostsResp.Hosts, 1)
 
 	// Modify the platform for the policy, which should clear the policy stats
-	mgpParams = modifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Platform: ptr.String("linux"),
-		},
-	}
-	mgpResp = modifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), mgpParams, http.StatusOK, &mgpResp)
+	response = s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), []byte(`{
+		"platform": "linux"
+	}`), http.StatusOK)
+	responseBody, err = io.ReadAll(response.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &mgpResp)
+	require.NoError(t, err)
+
 	require.NotNil(t, gpResp.Policy)
 	assert.Equal(t, "TestQuery4", mgpResp.Policy.Name)
 	assert.Equal(t, "select * from users;", mgpResp.Policy.Query)
@@ -2630,16 +2634,19 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "admin1@example.com", tpResp.Policy.AuthorEmail)
 
 	tpNameNew := "TestPolicy4"
-	mtpParams := modifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String(tpNameNew),
-			Query:       ptr.String("select * from osquery_info;"),
-			Description: ptr.String("Some description updated"),
-			Resolution:  ptr.String("some team resolution updated"),
-		},
-	}
-	mtpResp := modifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), mtpParams, http.StatusOK, &mtpResp)
+
+	response := s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), []byte(fmt.Sprintf(`{
+		"name": "%s",
+		"query": "select * from osquery_info;",
+		"description": "Some description updated",
+		"resolution": "some team resolution updated"
+	}`, tpNameNew)), http.StatusOK)
+	var mtpResp modifyGlobalPolicyResponse
+	responseBody, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &mtpResp)
+	require.NoError(t, err)
+
 	require.NotNil(t, mtpResp.Policy)
 	assert.Equal(t, tpNameNew, mtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", mtpResp.Policy.Query)
@@ -4648,6 +4655,93 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, getMeResp.User.Teams, 0)
 	assert.Len(t, getMeResp.AvailableTeams, 0)
 
+	// test user settings from 2 endpoints
+
+	// get session user with ui settings, which should be empty, two endpoints
+	var getResp getUserResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Empty(t, getResp.User.Settings)
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	// session user id 1
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	// settings should only be present in dedicated settings field, not in user object
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Empty(t, getMeResp.Settings)
+
+	// modify session user - add ui setting
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["osquery_version"]}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be present, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	// modify user ui settings, check they are returned modified
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["hostname", "osquery_version"]}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	// modify user ui settings, empty array, check they are returned correctly
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": []}	
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -4705,7 +4799,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
 
 	// turn off MFA
-	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
 	require.False(t, modResp.User.MFAEnabled)
 
@@ -4719,7 +4812,6 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, loginResp.AvailableTeams, 0)
 
 	// get that user from `/users` endpoint and check that teams info is empty
-	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
 	assert.Len(t, getResp.User.Teams, 0)
@@ -10861,6 +10953,12 @@ func (s *integrationTestSuite) TestQueryReports() {
 		Description: "desc team1",
 	})
 	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          43,
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
 
 	host1Global, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -10909,6 +11007,25 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, err)
 
 	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host2Team1.ID})
+	require.NoError(t, err)
+
+	host1Team2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("4"),
+		UUID:            "4",
+		ComputerName:    "Foo Local4",
+		Hostname:        "foo.local4",
+		OsqueryHostID:   ptr.String("4"),
+		PrimaryIP:       "192.168.1.4",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team2.ID, []uint{host1Team2.ID})
 	require.NoError(t, err)
 
 	osqueryInfoQuery, err := s.ds.NewQuery(ctx, &fleet.Query{
@@ -11076,6 +11193,44 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
+	slreq = submitLogsRequest{
+		NodeKey: *host1Team2.NodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[{
+  "snapshot": [
+    {
+      "build_distro": "10.14",
+      "build_platform": "darwin",
+      "config_hash": "ca2bc81cd5e79132cb0f842c433ad7f84c056c12",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "975f2ce1-8672-4932-85f8-340272820e79",
+      "pid": "1039",
+      "platform_mask": "21",
+      "start_time": "1733334052",
+      "uuid": "` + host1Team2.UUID + `",
+      "version": "5.14.1",
+      "watcher": "1037"
+    }
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Team2.OsqueryHostID + `",
+  "calendarTime": "Mon Dec  16 13:28:00 2024 UTC",
+  "unixTime": 1734377280,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "` + host1Team2.UUID + `",
+    "hostname": "` + host1Team2.Hostname + `"
+  }
+}]`),
+	}
+	slres = submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
 	emptyslreq := submitLogsRequest{
 		NodeKey: *host2Global.NodeKey,
 		LogType: "result",
@@ -11188,7 +11343,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.NoError(t, gqrr.Err)
 	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
-	require.Len(t, gqrr.Results, 2)
+	require.Len(t, gqrr.Results, 3)
 	sort.Slice(gqrr.Results, func(i, j int) bool {
 		// Let's just pick a known column of the query to sort.
 		return gqrr.Results[i].Columns["version"] > gqrr.Results[j].Columns["version"]
@@ -11227,6 +11382,29 @@ func (s *integrationTestSuite) TestQueryReports() {
 		"version":        "5.9.1",
 		"watcher":        "95636",
 	}, gqrr.Results[1].Columns)
+	require.Equal(t, host1Team2.ID, gqrr.Results[2].HostID)
+	require.Equal(t, host1Team2.DisplayName(), gqrr.Results[2].Hostname)
+	require.NotZero(t, gqrr.Results[2].LastFetched)
+	require.Equal(t, map[string]string{
+		"build_distro":   "10.14",
+		"build_platform": "darwin",
+		"config_hash":    "ca2bc81cd5e79132cb0f842c433ad7f84c056c12",
+		"config_valid":   "1",
+		"extensions":     "active",
+		"instance_id":    "975f2ce1-8672-4932-85f8-340272820e79",
+		"pid":            "1039",
+		"platform_mask":  "21",
+		"start_time":     "1733334052",
+		"uuid":           host1Team2.UUID,
+		"version":        "5.14.1",
+		"watcher":        "1037",
+	}, gqrr.Results[2].Columns)
+
+	gqrr = getQueryReportResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report?team_id=%d", osqueryInfoQuery.ID, team2.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.NoError(t, gqrr.Err)
+	require.Equal(t, osqueryInfoQuery.ID, gqrr.QueryID)
+	require.Len(t, gqrr.Results, 1)
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
@@ -11266,7 +11444,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{Description: &updatedDesc}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, updatedDesc, modifyQueryResp.Query.Description)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, 2)
+	require.Len(t, gqrr.Results, 3)
 
 	// now update the query and verify that results are deleted
 	updatedQuery := "SELECT * FROM some_new_table;"
@@ -11897,14 +12075,15 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
 	require.NoError(t, err)
 	sw1, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install foo",
-		InstallerFile: tfr1,
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.pkg",
-		Title:         "foo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        adminUser.ID,
+		InstallScript:   "install foo",
+		InstallerFile:   tfr1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          adminUser.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
@@ -12663,5 +12842,4 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
-
 }

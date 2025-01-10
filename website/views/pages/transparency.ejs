@@ -35,105 +35,124 @@
       <div purpose="accordion-body" class="mx-auto">
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
-            System settings
+            On/off status
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body1" class="collapse" aria-labelledby="accordion__header1">
-            Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your Mac up to date so you don’t have to.
+            Fleet knows when your device is on or off. This is shown via the online/offline status in Fleet Desktop. This is useful for understanding the state of your device and for troubleshooting should a problem ever arise.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body2" aria-controls="accordion__body2">
-            Remote actions
+            Browser history
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
-            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted, locked or even wiped remotely by your administrator.
+            Fleet can see browser history to protect you in the rare event of bad actors gaining access to you device and personal information.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body3" aria-controls="accordion__body3">
-            Shell scripts
+            System settings
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body3" class="collapse" aria-labelledby="accordion__header3">
-            Fleet can run any shell script on your device remotely. This is useful for IT teams to help you troubleshoot remotely if you run into any issues with your device.
+            Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your Mac up to date so you don’t have to.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body4" aria-controls="accordion__body4">
-            User account logins
+            Remote actions
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body4" class="collapse" aria-labelledby="accordion__header4">
-            Fleet can see details about the user accounts associated with your device, including which accounts have logged in recently. This is useful for IT and security teams to identify logins from suspicious accounts.
+            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted, locked or even wiped remotely by your administrator.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body5" aria-controls="accordion__body5">
-            Device health & performance
+            Shell scripts
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body5" class="collapse" aria-labelledby="accordion__header5">
-            Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
+            Fleet can run any shell script on your device remotely. This is useful for IT teams to help you troubleshoot remotely if you run into any issues with your device.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body6" aria-controls="accordion__body6">
-            Installed software packages
+            User account logins
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body6" class="collapse" aria-labelledby="accordion__header6">
-            Fleet can access a detailed list of the software installed on your device. With this information, IT teams can better manage software update schedules, and reduce disruption to your workflow. Security teams can also use this data to determine if any of your software has been compromised, by referencing your software’s version number against known vulnerable software databases.
+            Fleet can see details about the user accounts associated with your device, including which accounts have logged in recently. This is useful for IT and security teams to identify logins from suspicious accounts.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body7" aria-controls="accordion__body7">
-            Running processes
+            Device health & performance
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body7" class="collapse" aria-labelledby="accordion__header7">
-            Fleet can access a list of processes running on your device. These are processes you interact with graphically i.e., opened software; and processes that are running tasks in the background, such as sending data over network connections, running backups, or scheduled auto-updates. IT and security teams can use osquery to view this list in order to detect suspicious activity that may be a threat to your system.
+            Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body8" aria-controls="accordion__body8">
-            Security configurations
+            Installed software packages
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body8" class="collapse" aria-labelledby="accordion__header8">
-            Fleet can see information about the status of firewalls and other security software installed on your device.
+            Fleet can access a detailed list of the software installed on your device. With this information, IT teams can better manage software update schedules, and reduce disruption to your workflow. Security teams can also use this data to determine if any of your software has been compromised, by referencing your software’s version number against known vulnerable software databases.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header9" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body9" aria-controls="accordion__body9">
-            Connected hardware devices
+            Running processes
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body9" class="collapse" aria-labelledby="accordion__header9">
-            Fleet can see information about connected hardware devices. This is typically limited to only the type of hardware connected, and not specific details about the device. E.g., connected smartphones, USB devices, network devices, audio/visual hardware.
+            Fleet can access a list of processes running on your device. These are processes you interact with graphically i.e., opened software; and processes that are running tasks in the background, such as sending data over network connections, running backups, or scheduled auto-updates. IT and security teams can use osquery to view this list in order to detect suspicious activity that may be a threat to your system.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header10" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body10" aria-controls="accordion__body10">
-            Device location
+            Security configurations
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body10" class="collapse" aria-labelledby="accordion__header10">
-            Fleet uses IP geolocation to provide an approximate location of your device. Accuracy of IP geolocation services vary depending on where you are, but can typically be pinpointed within the nearest state or city. Organizations typically use this feature to track stolen or misplaced devices, and in some cases to ensure the safety of employees.
+            Fleet can see information about the status of firewalls and other security software installed on your device.
           </p>
         </div>
         <div purpose="accordion-item">
           <p purpose="accordion-header" id="accordion__header11" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body11" aria-controls="accordion__body11">
-            File contents
+            Connected hardware devices
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body11" class="collapse" aria-labelledby="accordion__header11">
+            Fleet can see information about connected hardware devices. This is typically limited to only the type of hardware connected, and not specific details about the device. E.g., connected smartphones, USB devices, network devices, audio/visual hardware.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header12" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body12" aria-controls="accordion__body12">
+            Device location
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body12" class="collapse" aria-labelledby="accordion__header12">
+            Fleet uses IP geolocation to provide an approximate location of your device. Accuracy of IP geolocation services vary depending on where you are, but can typically be pinpointed within the nearest state or city. Organizations typically use this feature to track stolen or misplaced devices, and in some cases to ensure the safety of employees.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header13" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body13" aria-controls="accordion__body13">
+            File contents
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body13" class="collapse" aria-labelledby="accordion__header13">
             In the case of a cyber attack, it is possible with Fleet to gain read access to files on your system. This is not a feature designed for privacy invasion, but rather a means for security teams to locate files on your device that may have been created or affected by a malicious virus.<br/><br/>
             Additionally, Fleet can be configured to store disk encryption keys that can be used to recover encrypted data from a macOS device.
           </p>
         </div>
       </div>
+      <p purpose="agents-note">Fleet can't guarantee that your personal data isn't being tracked by other common cybersecurity tools like Veriato, CrowdStrike, SentinelOne, and Sophos.</p>
     </div>
   </div>
   <div purpose="secureframe-section" v-if="showSecureframeBanner">

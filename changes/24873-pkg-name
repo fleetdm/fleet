@@ -1,0 +1,1 @@
+- Added a fallback for extracting app name from .pkg installers that have default or incorrect title attributes in their distribution file.

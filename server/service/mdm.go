@@ -4,11 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -34,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
@@ -1425,9 +1422,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		cp.LabelsIncludeAll = labelMap
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
 	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating Windows profile")
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
@@ -1595,10 +1596,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
 
-	if err := validateProfiles(profiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "validating profiles")
-	}
-
+	// Process labels first, since we do not need to expand secrets in the profiles for this validation.
 	labels := []string{}
 	for i := range profiles {
 		// from this point on (after this condition), only LabelsIncludeAll, LabelsIncludeAny or
@@ -1618,12 +1616,44 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating labels")
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profiles, labelMap)
+	// We will not validate the profiles containing secret variables during dry run.
+	// This is because the secret variables may not be available (or correct) in the gitops dry run.
+	if dryRun {
+		var profilesWithoutSecrets []fleet.MDMProfileBatchPayload
+		for _, p := range profiles {
+			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
+				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
+			}
+		}
+		profiles = profilesWithoutSecrets
+	}
+
+	// Expand secret variables so that profiles can be properly validated.
+	// Important: secret variables should never be exposed or saved in the database unencrypted
+	// In order to map the expanded profiles back to the original profiles, we will use the index.
+	profilesWithSecrets := make(map[int]fleet.MDMProfileBatchPayload, len(profiles))
+	for i, p := range profiles {
+		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(p.Contents))
+		if err != nil {
+			return err
+		}
+		p.SecretsUpdatedAt = secretsUpdatedAt
+		pCopy := p
+		// If the profile does not contain secrets, then expanded and original content point to the same slice/memory location.
+		pCopy.Contents = []byte(expanded)
+		profilesWithSecrets[i] = pCopy
+	}
+
+	if err := validateProfiles(profilesWithSecrets); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating profiles")
+	}
+
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profiles, labelMap)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -1632,17 +1662,34 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
+	if dryRun {
+		return nil
+	}
+
 	err = validateFleetVariables(ctx, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
-		return nil
+	// Now that validation is done, we remove the exposed secret variables from the profiles
+	appleProfilesSlice := make([]*fleet.MDMAppleConfigProfile, 0, len(appleProfiles))
+	for i, p := range appleProfiles {
+		p.Mobileconfig = profiles[i].Contents
+		appleProfilesSlice = append(appleProfilesSlice, p)
+	}
+	appleDeclsSlice := make([]*fleet.MDMAppleDeclaration, 0, len(appleDecls))
+	for i, p := range appleDecls {
+		p.RawJSON = profiles[i].Contents
+		appleDeclsSlice = append(appleDeclsSlice, p)
+	}
+	windowsProfilesSlice := make([]*fleet.MDMWindowsConfigProfile, 0, len(windowsProfiles))
+	for i, p := range windowsProfiles {
+		p.SyncML = profiles[i].Contents
+		windowsProfilesSlice = append(windowsProfilesSlice, p)
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
-	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
+	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -1702,10 +1749,11 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile,
-	windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration,
+func validateFleetVariables(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) error {
 	var err error
+
 	for _, p := range appleProfiles {
 		err = validateConfigProfileFleetVariables(string(p.Mobileconfig))
 		if err != nil {
@@ -1727,7 +1775,8 @@ func validateFleetVariables(ctx context.Context, appleProfiles []*fleet.MDMApple
 	return nil
 }
 
-func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles []*fleet.MDMAppleConfigProfile, windowsProfiles []*fleet.MDMWindowsConfigProfile, appleDecls []*fleet.MDMAppleDeclaration) error {
+func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration) error {
 	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
 	// ".mobileconfig" or ".json" or ".xml"
 	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
@@ -1834,17 +1883,17 @@ func getAppleProfiles(
 	ctx context.Context,
 	tmID *uint,
 	appCfg *fleet.AppConfig,
-	profiles []fleet.MDMProfileBatchPayload,
+	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-) ([]*fleet.MDMAppleConfigProfile, []*fleet.MDMAppleDeclaration, error) {
+) (map[int]*fleet.MDMAppleConfigProfile, map[int]*fleet.MDMAppleDeclaration, error) {
 	// any duplicate identifier or name in the provided set results in an error
-	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
-	decls := make([]*fleet.MDMAppleDeclaration, 0, len(profiles))
+	profs := make(map[int]*fleet.MDMAppleConfigProfile, len(profiles))
+	decls := make(map[int]*fleet.MDMAppleDeclaration, len(profiles))
 	// we need to keep track of the names and identifiers to check for duplicates so we will use
 	// a map where the key is the name oridentifier and the value is either "mobileconfig" or
 	// "declaration" to differentiate between the two types of profiles
 	byName, byIdent := make(map[string]string, len(profiles)), make(map[string]string, len(profiles))
-	for _, prof := range profiles {
+	for i, prof := range profiles {
 		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
 			continue
 		}
@@ -1861,6 +1910,7 @@ func getAppleProfiles(
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
+			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
@@ -1910,12 +1960,13 @@ func getAppleProfiles(
 					"duplicate identifier by identifier")
 			}
 
-			decls = append(decls, mdmDecl)
+			decls[i] = mdmDecl
 
 			continue
 		}
 
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
+		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
@@ -1979,7 +2030,7 @@ func getAppleProfiles(
 		}
 		byIdent[mdmProf.Identifier] = "mobileconfig"
 
-		profs = append(profs, mdmProf)
+		profs[i] = mdmProf
 	}
 
 	if !appCfg.MDM.EnabledAndConfigured {
@@ -1989,7 +2040,7 @@ func getAppleProfiles(
 		// custom_settings key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
-			return []*fleet.MDMAppleConfigProfile{}, []*fleet.MDMAppleDeclaration{}, nil
+			return nil, nil, nil
 		}
 
 		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
@@ -2002,12 +2053,12 @@ func getWindowsProfiles(
 	ctx context.Context,
 	tmID *uint,
 	appCfg *fleet.AppConfig,
-	profiles []fleet.MDMProfileBatchPayload,
+	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-) ([]*fleet.MDMWindowsConfigProfile, error) {
-	profs := make([]*fleet.MDMWindowsConfigProfile, 0, len(profiles))
+) (map[int]*fleet.MDMWindowsConfigProfile, error) {
+	profs := make(map[int]*fleet.MDMWindowsConfigProfile, len(profiles))
 
-	for _, profile := range profiles {
+	for i, profile := range profiles {
 		if mdm.GetRawProfilePlatform(profile.Contents) != "windows" {
 			continue
 		}
@@ -2052,7 +2103,7 @@ func getWindowsProfiles(
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
 		}
 
-		profs = append(profs, mdmProf)
+		profs[i] = mdmProf
 	}
 
 	if !appCfg.MDM.WindowsEnabledAndConfigured {
@@ -2071,7 +2122,7 @@ func getWindowsProfiles(
 	return profs, nil
 }
 
-func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
+func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
 		var count int
@@ -2442,10 +2493,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		}
 	} else {
 		rawApnsKey := savedAssets[fleet.MDMAssetAPNSKey]
-		block, _ := pem.Decode(rawApnsKey.Value)
-		apnsKey, err = parseAPNSPrivateKey(ctx, block)
+		apnsKey, err = cryptoutil.ParsePrivateKey(rawApnsKey.Value, "APNS private key")
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "parse APNS private key")
 		}
 	}
 
@@ -2490,31 +2540,6 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 
 	// Return signed CSR
 	return signedCSRB64, nil
-}
-
-func parseAPNSPrivateKey(ctx context.Context, block *pem.Block) (crypto.PrivateKey, error) {
-	if block == nil {
-		return nil, ctxerr.New(ctx, "failed to decode saved APNS key")
-	}
-
-	// The code below is based on tls.parsePrivateKey
-	// https://cs.opensource.google/go/go/+/release-branch.go1.23:src/crypto/tls/tls.go;l=355-372
-	if key, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
-			return key, nil
-		default:
-			return nil, errors.New("unmarshaled PKCS8 APNS key is not an RSA, ECDSA, or Ed25519 private key")
-		}
-	}
-	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
-		return key, nil
-	}
-
-	return nil, ctxerr.New(ctx, fmt.Sprintf("failed to parse APNS private key of type %s", block.Type))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

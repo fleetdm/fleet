@@ -423,6 +423,10 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 
 // Query returns a single Query identified by id, if such exists.
 func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
+	return query(ctx, ds.reader(ctx), id)
+}
+
+func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, error) {
 	sqlQuery := `
 		SELECT 
 			q.id,
@@ -457,14 +461,14 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
+	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
@@ -576,6 +580,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
 func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
+	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
+}
+
+func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
@@ -609,7 +617,7 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...)
+	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}

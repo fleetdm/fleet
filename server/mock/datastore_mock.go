@@ -49,6 +49,8 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
+
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -451,6 +453,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 
 type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
+type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -581,7 +585,7 @@ type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.Cron
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
-type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 
 type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
@@ -1029,11 +1033,13 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
+type NewInternalScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
+
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
-type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error)
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1072,6 +1078,12 @@ type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRe
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
+
+type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type GetExcludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
+
+type ClearAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
@@ -1161,7 +1173,7 @@ type MaybeUpdateSetupExperienceSoftwareInstallStatusFunc func(ctx context.Contex
 
 type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error)
 
-type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
+type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
 
@@ -1176,6 +1188,12 @@ type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
+
+type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) error
+
+type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
+
+type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1219,6 +1237,9 @@ type DataStore struct {
 
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
+
+	UserSettingsFunc				UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
@@ -1822,6 +1843,9 @@ type DataStore struct {
 
 	ListHostSoftwareFunc        ListHostSoftwareFunc
 	ListHostSoftwareFuncInvoked bool
+
+	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
+	IsSoftwareInstallerLabelScopedFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -2690,6 +2714,9 @@ type DataStore struct {
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
 
+	NewInternalScriptExecutionRequestFunc        NewInternalScriptExecutionRequestFunc
+	NewInternalScriptExecutionRequestFuncInvoked bool
+
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
 
@@ -2755,6 +2782,15 @@ type DataStore struct {
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
+
+	GetIncludedHostIDMapForSoftwareInstallerFunc        GetIncludedHostIDMapForSoftwareInstallerFunc
+	GetIncludedHostIDMapForSoftwareInstallerFuncInvoked bool
+
+	GetExcludedHostIDMapForSoftwareInstallerFunc        GetExcludedHostIDMapForSoftwareInstallerFunc
+	GetExcludedHostIDMapForSoftwareInstallerFuncInvoked bool
+
+	ClearAutoInstallPolicyStatusForHostsFunc        ClearAutoInstallPolicyStatusForHostsFunc
+	ClearAutoInstallPolicyStatusForHostsFuncInvoked bool
 
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
@@ -2912,6 +2948,15 @@ type DataStore struct {
 	GetSecretVariablesFunc        GetSecretVariablesFunc
 	GetSecretVariablesFuncInvoked bool
 
+	ValidateEmbeddedSecretsFunc        ValidateEmbeddedSecretsFunc
+	ValidateEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsFunc        ExpandEmbeddedSecretsFunc
+	ExpandEmbeddedSecretsFuncInvoked bool
+
+	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
+	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3011,6 +3056,13 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	s.UserByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
@@ -4420,6 +4472,13 @@ func (s *DataStore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts
 	return s.ListHostSoftwareFunc(ctx, host, opts)
 }
 
+func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsSoftwareInstallerLabelScopedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
+}
+
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
@@ -4875,11 +4934,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 	return s.InsertCronStatsFunc(ctx, statsType, name, instance, status)
 }
 
-func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	s.mu.Lock()
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCronStatsFunc(ctx, id, status)
+	return s.UpdateCronStatsFunc(ctx, id, status, cronErrors)
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
@@ -6443,6 +6502,13 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
+func (s *DataStore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.NewInternalScriptExecutionRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewInternalScriptExecutionRequestFunc(ctx, request)
+}
+
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
@@ -6457,11 +6523,11 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
 }
 
-func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID)
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -6595,6 +6661,27 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
+}
+
+func (s *DataStore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetIncludedHostIDMapForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetIncludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetExcludedHostIDMapForSoftwareInstallerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetExcludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ClearAutoInstallPolicyStatusForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearAutoInstallPolicyStatusForHostsFunc(ctx, installerID, hostIDs)
 }
 
 func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
@@ -6905,7 +6992,7 @@ func (s *DataStore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hos
 	return s.MaybeUpdateSetupExperienceVPPStatusFunc(ctx, hostUUID, commandUUID, status)
 }
 
-func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
@@ -6959,4 +7046,25 @@ func (s *DataStore) GetSecretVariables(ctx context.Context, names []string) ([]f
 	s.GetSecretVariablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSecretVariablesFunc(ctx, names)
+}
+
+func (s *DataStore) ValidateEmbeddedSecrets(ctx context.Context, documents []string) error {
+	s.mu.Lock()
+	s.ValidateEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ValidateEmbeddedSecretsFunc(ctx, documents)
+}
+
+func (s *DataStore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsFunc(ctx, document)
+}
+
+func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
+	s.mu.Lock()
+	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
 }

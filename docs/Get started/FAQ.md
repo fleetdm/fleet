@@ -45,7 +45,7 @@ When you collect data with Fleet, the [performance impact](https://fleetdm.com/r
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
-## What browsers does Fleet supported?
+## What browsers does Fleet support?
 
 Fleet supports the latest, stable releases of all major browsers and platforms.
 
@@ -94,7 +94,7 @@ If a table is not available for your host, Fleet will generally handle things be
 
 Fleet Desktop is supported on Ubuntu and Fedora.
 
-Fedora requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
 
 Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
@@ -105,6 +105,36 @@ The `fleetctl package` command is not supported on DISA-STIG distribution.
 ## Is Fleet MIT licensed?
 
 Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
+
+## How do I contact Fleet for support?
+
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs) or [guides](https://fleetdm.com/guides).
+
+To get help from the community, visit https://fleetdm.com/support.
+
+If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
+
+## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
+
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
+
+## Where's the data stored?
+
+Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+
+## Can I fork Fleet's source code and build upon it myself to create my own features?
+
+Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
+
+Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
+
+
+## Can I buy support or services separate from Fleet Premium?
+
+The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
+
+## How can I uninstall fleetd?
+To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 ## What is your commitment to open source stewardship?
 
@@ -125,48 +155,6 @@ Different portions of the Fleet software are licensed differently, as noted in t
 - The product will be available for download without leaving an email address or logging in.
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
-
-## How do I contact Fleet for support?
-
-A lot of questions can be answered [in the documentation](https://fleetdm.com/docs) or [guides](https://fleetdm.com/guides).
-
-To get help from the community, visit https://fleetdm.com/support.
-
-If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
-
-## What if we choose not to renew?
-
-If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
-
-## Can we buy a license to access premium features with reduced support for a reduced cost?
-
-We aren’t able to sell licenses and support separately.
-
-## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
-
-For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
-
-## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
-
-Like any modern application, Fleet scales horizontally. The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when testing. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
-
-## Where's the data stored?
-
-Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
-
-## Can I fork Fleet's source code and build upon it myself to create my own features?
-
-Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
-
-Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
-
-
-## Can I buy support or services separate from Fleet Premium?
-
-The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
-
-## How can I uninstall fleetd?
-To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
@@ -659,7 +647,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36 and 8.4.2. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.3, and 9.1.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 

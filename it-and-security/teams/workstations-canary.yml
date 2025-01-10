@@ -88,18 +88,24 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/configuration-profiles/automatically-update-1Password.mobileconfig
+        labels_include_any:
+          - "Macs with 1Password8 installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-12-04"
-    minimum_version: "15.1.1"
+    deadline: "2025-01-07"
+    minimum_version: "15.2"
   windows_settings:
     custom_settings:
-      - path: ../lib/windows/configuration-profiles/windows-firewall.xml
-      - path: ../lib/windows/configuration-profiles/windows-password.xml
-      - path: ../lib/windows/configuration-profiles/windows-screen-lock.xml
+      - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
+      - path: ../lib/windows/configuration-profiles/password.xml
+      - path: ../lib/windows/configuration-profiles/screen-lock.xml
+      - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
+      - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
+      - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -151,9 +157,13 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
-    - path: ../lib/linux/software/zoom.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
+    - path: ../lib/windows/software/slack.yml # Slack for Windows
+    - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+    - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
       - app_store_id: '1333542190' # 1Password 7 Desktop
-      - app_store_id: '1477376905' # GitHub
-      - app_store_id: '1152747299' # Figma

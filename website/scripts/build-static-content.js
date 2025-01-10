@@ -259,10 +259,11 @@ module.exports = {
               if(mdString.match(/(-|\d\.)\s.*\n<!-+\n/g)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
               }
-              // Look for anything in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
-              if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
-                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              // Look for anything outside of code blocks in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
+              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
+
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               // [?] Looking for code that used to be here related to syntax highlighting?  Please see https://github.com/fleetdm/fleet/pull/14124/files  -mikermcneil, 2023-09-25
               let htmlString = await sails.helpers.strings.toHtml(mdString);
@@ -511,24 +512,30 @@ module.exports = {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
                     } else { // If the value is a link to an image that will not be hosted on fleetdm.com, we'll throw an error.
-                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
                   // Throwing an error if the article's description meta tag value is over 150 characters long
                   throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
                 }
+                if(embeddedMetadata.showOnTestimonialsPageWithEmoji){
+                  // Throw an error if a showOnTestimonialsPageWithEmoji value is not one of: 🥀, 🔌, 🚪, or 🪟.
+                  if(!['🥀', '🔌', '🚪', '🪟'].includes(embeddedMetadata.showOnTestimonialsPageWithEmoji)){
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
+                  }
+                }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
                   (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
-                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
+                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                 );
               }
 

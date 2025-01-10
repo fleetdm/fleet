@@ -16,7 +16,7 @@ echo words${FLEET_SECRET_BAR}words
 $FLEET_SECRET_BAZ
 ${FLEET_SECRET_QUX}
 `
-	secrets := ContainsPrefixVars(script, FLEET_SECRET_PREFIX)
+	secrets := ContainsPrefixVars(script, ServerSecretPrefix)
 	require.Contains(t, secrets, "FOO")
 	require.Contains(t, secrets, "BAR")
 	require.Contains(t, secrets, "BAZ")
@@ -39,8 +39,8 @@ We want to remember BREAD and alsoSHORTCAKEare important.
 	}
 
 	mapper := func(s string) (string, bool) {
-		if strings.HasPrefix(s, FLEET_SECRET_PREFIX) {
-			return mapping[strings.TrimPrefix(s, FLEET_SECRET_PREFIX)], true
+		if strings.HasPrefix(s, ServerSecretPrefix) {
+			return mapping[strings.TrimPrefix(s, ServerSecretPrefix)], true
 		}
 		return "", false
 	}

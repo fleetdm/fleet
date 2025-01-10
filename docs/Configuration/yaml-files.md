@@ -203,6 +203,7 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 
 #### Example
@@ -214,6 +215,7 @@ controls:
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
+  windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
@@ -284,7 +286,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
 
-Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels, `labels_include_any` to apply profiles to hosts that have any of those labels, or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
+Use `labels_include_all` to target hosts that have all labels in the array, `labels_include_any` to target hosts that have any label in the array, or `labels_exclude_any` to target hosts that don't have any of the labels in the array. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### macos_setup
 
@@ -327,10 +329,16 @@ Currently, one app for each of an App Store app's supported platforms are added.
 software:
   packages:
     - path: ../lib/software-name.package.yml
+    - path: ../lib/software-name2.package.yml
+      labels_include_any:
+        - Engineering
+        - Customer Support
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
 ```
+
+Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 ### packages
 
@@ -359,7 +367,7 @@ self_service: true
 
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-`self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
 ## org_settings and team_settings
 
@@ -384,7 +392,7 @@ org_settings:
 
 ### fleet_desktop
 
-Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+Direct end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 
 Can only be configured for all teams (`org_settings`).
 
@@ -709,6 +717,26 @@ org_settings:
 ```
 
 Can only be configured for all teams (`org_settings`).
+
+#### yara_rules
+
+The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
+YARA rule functionality. Learn more about authenticated YARA rules in Fleet
+[here](https://fleetdm.com/guides/remote-yara-rules).
+
+Each entry should be the relative path to a valid YARA rule file.
+
+##### Example
+
+```yaml
+org_settings:
+  yara_rules:
+    - path: ./lib/rule1.yar
+    - path: ./lib/rule2.yar
+```
+
+Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
+queries referencing the rules to the desired teams.
 
 <meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">

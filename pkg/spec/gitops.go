@@ -434,6 +434,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	controlsTop.Defined = true
+	controlsDir := baseDir
 	if controlsTop.Path == nil {
 		controlsTop.Scripts, err = resolveScriptPaths(controlsTop.Scripts, baseDir)
 		if err != nil {
@@ -470,6 +471,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			result.Controls = pathControls
 		}
+		controlsDir = filepath.Dir(controlsFilePath)
 	}
 
 	// Find Fleet secrets in scripts.
@@ -481,6 +483,50 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		fileBytes, err := os.ReadFile(*script.Path)
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read scripts file %s: %v", *script.Path, err))
+		}
+		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+	}
+
+	// Find Fleet secrets in profiles
+	var profiles []fleet.MDMProfileSpec
+	if result.Controls.MacOSSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var macOSSettings fleet.MacOSSettings
+		data, err := json.Marshal(result.Controls.MacOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &macOSSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
+		}
+		profiles = append(profiles, macOSSettings.CustomSettings...)
+	}
+	if result.Controls.WindowsSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var windowsSettings fleet.WindowsSettings
+		data, err := json.Marshal(result.Controls.WindowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &windowsSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+		}
+		if windowsSettings.CustomSettings.Valid {
+			profiles = append(profiles, windowsSettings.CustomSettings.Value...)
+		}
+	}
+	for _, profile := range profiles {
+		resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
+		fileBytes, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err))
 		}
 		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 		if err != nil {
@@ -807,18 +853,54 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			softwarePackageSpec = resolveSoftwarePackagePaths(baseDir, item.SoftwarePackageSpec)
 		}
+		if softwarePackageSpec.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if softwarePackageSpec.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.PostInstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
+		if softwarePackageSpec.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+		}
 		if softwarePackageSpec.URL == "" {
 			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
-			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be less than 256 characters", softwarePackageSpec.URL))
+			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
+			continue
+		}
+		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 			continue
 		}
 		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 
 	return multiError
+}
+
+func gatherFileSecrets(result *GitOps, filePath string) error {
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+	if err != nil {
+		return fmt.Errorf("failed to lookup environment secrets for %s: %w", filePath, err)
+	}
+
+	return nil
 }
 
 func resolveSoftwarePackagePaths(baseDir string, softwareSpec fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {

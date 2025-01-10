@@ -22,6 +22,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
 		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
+		{"TestOSVersionsByCVEFailsGracefullyWithNoOSVersionRows", testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows},
 		{"TestOSVersionsByCVE", testOSVersionsByCVE},
 		{"TestSoftwareByCVE", testSoftwareByCVE},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
@@ -897,6 +898,12 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	for _, vuln := range list {
 		require.Equal(t, uint(2), vuln.HostsCount)
 	}
+}
+
+func testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows(t *testing.T, ds *Datastore) {
+	osv, _, err := ds.OSVersionsByCVE(context.Background(), "CVE-2020-1238", nil)
+	require.NoError(t, err)
+	require.Nil(t, osv)
 }
 
 func testOSVersionsByCVE(t *testing.T, ds *Datastore) {
