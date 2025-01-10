@@ -51,7 +51,8 @@ jobs:
           make generate-doc
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run `make generate-doc` and commit the changes"
+            echo "please run 'make generate-doc' and commit the changes"
+            git --no-pager diff
             exit 1
           fi
 
@@ -62,6 +63,7 @@ jobs:
           ./node_modules/sails/bin/sails.js run generate-merged-schema
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run `cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema` and commit the changes"
+            echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
             exit 1
           fi

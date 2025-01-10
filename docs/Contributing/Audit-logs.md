@@ -1257,6 +1257,7 @@ Generated when a software installer is uploaded to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
+- "software_title_id": ID of the added software title.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software is available for installation by the end user.
@@ -1270,6 +1271,7 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
+  "software_title_id": 2344,
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
@@ -1294,10 +1296,10 @@ Generated when a software installer is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
+- "software_title_id": ID of the edited software title.
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
-- "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 
@@ -1307,10 +1309,10 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
+  "software_title_id": 2344,
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
-  "software_title_id": 2234,
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1414,6 +1416,7 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
+  "software_title_id": 3537,
   "team_name": "Workstations",
   "team_id": 1,
   "labels_include_any": [
