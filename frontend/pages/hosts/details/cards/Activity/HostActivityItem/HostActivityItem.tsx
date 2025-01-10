@@ -27,6 +27,10 @@ interface IHostActivityItemProps {
    * change the styles for the activity item for solo rendering.
    * @default false */
   soloActivity?: boolean;
+  /** Set this to `true` to hide the close button and prevent from rendering
+   * @default false
+   */
+  hideClose?: boolean;
   className?: string;
   onShowDetails?: ShowActivityDetailsHandler;
   onCancel?: () => void;
@@ -43,6 +47,7 @@ const HostActivityItem = ({
   children,
   className,
   soloActivity,
+  hideClose = false,
   onShowDetails = noop,
   onCancel = noop,
 }: IHostActivityItemProps) => {
@@ -117,13 +122,15 @@ const HostActivityItem = ({
           <Button variant="icon" onClick={onShowActivityDetails}>
             <Icon name="info" size="medium" color="ui-fleet-black-75" />
           </Button>
-          <Button variant="icon" onClick={onCancelActivity}>
-            <Icon
-              name="close"
-              color="ui-fleet-black-75"
-              className={`${baseClass}__close-icon`}
-            />
-          </Button>
+          {!hideClose && (
+            <Button variant="icon" onClick={onCancelActivity}>
+              <Icon
+                name="close"
+                color="ui-fleet-black-75"
+                className={`${baseClass}__close-icon`}
+              />
+            </Button>
+          )}
         </div>
       </div>
       {/* <div className={`${baseClass}__dash`} /> */}

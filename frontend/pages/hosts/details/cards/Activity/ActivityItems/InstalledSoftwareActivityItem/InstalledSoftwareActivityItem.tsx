@@ -4,13 +4,13 @@ import { getInstallStatusPredicate } from "interfaces/software";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 import HostActivityItem from "../../HostActivityItem";
-import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "installed-software-activity-item";
 
 const InstalledSoftwareActivityItem = ({
   activity,
   onShowDetails,
+  hideClose,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
   const { self_service, software_title: title } = details;
@@ -24,10 +24,14 @@ const InstalledSoftwareActivityItem = ({
   );
 
   return (
-    <HostActivityItem className={baseClass} activity={activity}>
+    <HostActivityItem
+      className={baseClass}
+      activity={activity}
+      hideClose={hideClose}
+      onShowDetails={onShowDetails}
+    >
       <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
       on this host.{" "}
-      <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>
   );
 };

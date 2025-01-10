@@ -78,9 +78,7 @@ const Activity = ({
       <h2>Activity</h2>
       <TabsWrapper>
         <Tabs
-          // selectedIndex={activeTab === "past" ? 0 : 1}
-          // TODO: REMOVE WHEN DONE
-          selectedIndex={1}
+          selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
         >
           <TabList>
