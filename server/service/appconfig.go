@@ -486,6 +486,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Webhook settings should always come from the new config,
+	// if there are no settings, disable webhooks. The unmarshal
+	// that merges the settings doesn't set the fields to the
+	// default values.
+	appConfig.WebhookSettings = newAppConfig.WebhookSettings
+
 	// If the license is Premium, we should always send usage statisics.
 	if license.IsPremium() {
 		appConfig.ServerSettings.EnableAnalytics = true
