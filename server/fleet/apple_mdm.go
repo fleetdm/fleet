@@ -913,6 +913,7 @@ type MDMBootstrapPackageStore interface {
 	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, packageID string) (bool, error)
 	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
+	Sign(ctx context.Context, fileID string) (string, error)
 }
 
 // MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request

@@ -19,11 +19,15 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 	formats := strings.Split(app.InstallerFormat, ":")
 	sb.Extract(formats[0])
 
+	var includeQuitFunc bool
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
+			sb.Writef("quit_application '%s'", app.BundleIdentifier)
+			includeQuitFunc = true
 			for _, appPath := range artifact.App {
+				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
 
@@ -53,6 +57,10 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 				}
 			}
 		}
+	}
+
+	if includeQuitFunc {
+		sb.AddFunction("quit_application", quitApplicationFunc)
 	}
 
 	return sb.String(), nil
@@ -252,7 +260,6 @@ func (s *scriptBuilder) Writef(format string, args ...any) {
 // Supported formats are "dmg" and "zip". It adds the necessary extraction
 // commands to the script.
 func (s *scriptBuilder) Extract(format string) {
-
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")

@@ -133,6 +133,10 @@ func (i *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs [
 	return count, ctxerr.Wrap(ctx, errors.Join(errs...), "delete unused software installers")
 }
 
+func (i *SoftwareInstallerStore) Sign(ctx context.Context, _ string) (string, error) {
+	return "", ctxerr.New(ctx, "signing not supported for software installers in filesystem store")
+}
+
 // pathForInstaller builds local filesystem path to identify the software
 // installer.
 func (i *SoftwareInstallerStore) pathForInstaller(installerID string) string {
