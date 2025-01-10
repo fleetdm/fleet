@@ -107,10 +107,11 @@ type xmlFile struct {
 
 // distributionXML represents the structure of the distributionXML.xml
 type distributionXML struct {
-	Title   string               `xml:"title"`
-	Product distributionProduct  `xml:"product"`
-	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
-	Choices []distributionChoice `xml:"choice"`
+	Title          string                     `xml:"title"`
+	Product        distributionProduct        `xml:"product"`
+	PkgRefs        []distributionPkgRef       `xml:"pkg-ref"`
+	Choices        []distributionChoice       `xml:"choice"`
+	ChoicesOutline distributionChoicesOutline `xml:"choices-outline"`
 }
 
 type packageInfoXML struct {
@@ -139,6 +140,15 @@ type distributionPkgRef struct {
 type distributionChoice struct {
 	PkgRef distributionPkgRef `xml:"pkg-ref"`
 	Title  string             `xml:"title,attr"`
+	ID     string             `xml:"id,attr"`
+}
+
+type distributionChoicesOutline struct {
+	Lines []distributionLine `xml:"line"`
+}
+
+type distributionLine struct {
+	Choice string `xml:"choice,attr"`
 }
 
 // distributionBundleVersion represents the bundle-version element
@@ -347,6 +357,33 @@ out:
 		for _, pkg := range d.PkgRefs {
 			if len(pkg.MustClose.Apps) > 0 {
 				identifier = pkg.MustClose.Apps[0].ID
+				break
+			}
+		}
+	}
+
+	// Try to get the identifier based on the choices list, if we have one. Some .pkgs have multiple
+	// sub-pkgs inside, so the choices list helps us be a bit smarter.
+	if identifier == "" && len(d.ChoicesOutline.Lines) > 0 {
+		choicesByID := make(map[string]distributionChoice, len(d.Choices))
+		for _, c := range d.Choices {
+			choicesByID[c.ID] = c
+		}
+
+		for _, l := range d.ChoicesOutline.Lines {
+			c := choicesByID[l.Choice]
+			for _, p := range d.PkgRefs {
+				if p.ID == c.PkgRef.ID {
+					identifier = p.PackageIdentifier
+					if identifier == "" {
+						identifier = p.ID
+					}
+					break
+				}
+			}
+
+			if identifier != "" {
+				// we found it, so we can quit looping
 				break
 			}
 		}

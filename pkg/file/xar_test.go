@@ -214,6 +214,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedBundleID:   "com.sentinelone.pkg.sentinel-agent",
 			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent"},
 		},
+		{
+			file:               "distribution-cold-turkey.xml",
+			expectedName:       "Cold Turkey Blocker",
+			expectedVersion:    "4.5",
+			expectedBundleID:   "com.getcoldturkey.coldturkeyblocker",
+			expectedPackageIDs: []string{"com.getcoldturkey.coldturkeyblocker", "com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.blocker-edge-ext", "com.getcoldturkey.blocker-chrome-ext"},
+		},
 	}
 
 	for _, tt := range tests {
