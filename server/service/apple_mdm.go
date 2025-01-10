@@ -2988,7 +2988,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			user, act, err := svc.ds.GetActivityDataForVPPAppUnInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Then this isn't a VPP uninstall, so no activity generated
 					return nil, nil
 				}
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for uninstalled app store app activity")
@@ -3021,7 +3021,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP uninstall, so no activity generated
+					// Then this isn't a VPP install, so no activity generated
 					return nil, nil
 				}
 
