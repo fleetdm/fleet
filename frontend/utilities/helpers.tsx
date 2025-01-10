@@ -20,13 +20,11 @@ import {
   isAfter,
   addDays,
 } from "date-fns";
-import yaml from "js-yaml";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
