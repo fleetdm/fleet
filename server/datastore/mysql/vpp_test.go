@@ -919,7 +919,21 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
 
-	// TODO make sure policies are unaffected
+	// make sure renewing a VPP token doesn't affect associated VPP install automations
+	t1app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, &team.ID)
+	require.NoError(t, err)
+	t1meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, t1app.TitleID)
+	require.NoError(t, err)
+
+	t1Policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "p1",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &t1meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
 
 	// Renew flow
 	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)
@@ -933,6 +947,10 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, team.ID, upTok.Teams[0].ID)
 	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+
+	t1Policy, err = ds.Policy(ctx, t1Policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1Policy.VPPAppsTeamsID, &t1meta.VPPAppsTeamsID)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -1112,16 +1130,16 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 
 	// make sure deleting a VPP token auto-clears associated VPP install automations
-	t1app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+	t1app, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
 	}, &team.ID)
 	require.NoError(t, err)
-	t1meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, t1app.TitleID)
+	t1meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, t1app.TitleID)
 	require.NoError(t, err)
 
-	t1Policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
-		Name:           "p1",
+	t1Policy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "t1p2",
 		Query:          "SELECT 1;",
 		VPPAppsTeamsID: &t1meta.VPPAppsTeamsID,
 	})
@@ -1130,9 +1148,9 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	err = ds.DeleteVPPToken(ctx, tokTeam.ID)
 	assert.NoError(t, err)
 
-	t1Policy, err = ds.Policy(ctx, t1Policy.ID)
+	t1Policy2, err = ds.Policy(ctx, t1Policy2.ID)
 	assert.NoError(t, err)
-	assert.Nil(t, t1Policy.VPPAppsTeamsID)
+	assert.Nil(t, t1Policy2.VPPAppsTeamsID)
 
 	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.NoError(t, err)
