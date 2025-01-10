@@ -59,6 +59,7 @@
     &:hover {
       border-radius: $border-radius-large;
       background-color: $ui-off-white;
+      cursor: pointer;
 
       .host-activity-item__details-actions {
         visibility: visible;
@@ -117,6 +118,7 @@
    * Starting here are the styles for the host activity item when it is the
    * only activity that is being displayed (controlled by the `soloActivity prop`.
    * We switch from grid to flexbox since we don't need the dashed lines anymore.
+   * we also dont show to actions on hover
    */
   &__solo-activity {
     border: 1px solid $ui-fleet-black-10;
@@ -139,6 +141,7 @@
       margin-bottom: 0;
 
       &:hover {
+        cursor: auto;
         background-color: transparent;
       }
     }
