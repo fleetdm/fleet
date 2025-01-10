@@ -2103,7 +2103,7 @@ CloudFront URL. Leave blank if you don't use CloudFront distribution.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
+    software_installers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
   ```
 
 ### s3_software_installers_cloudfront_url_signing_public_key_id
@@ -2115,7 +2115,7 @@ Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cloudfront_url_signing_public_key_id: 1babd7e98b03
+    software_installers_cloudfront_url_signing_public_key_id: K1HFGXOMBB6TFF
   ```
 
 ### s3_software_installers_cloudfront_url_signing_private_key
@@ -2127,7 +2127,7 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
 - Config file format:
   ```yaml
   s3:
-    software_intallers_cloudfront_url_signing_private_key: |
+    software_installers_cloudfront_url_signing_private_key: |
       ------BEGIN BEGIN RSA PRIVATE KEY-----
       3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
       7473e62c7aed...
