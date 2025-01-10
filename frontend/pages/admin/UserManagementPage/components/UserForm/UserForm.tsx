@@ -639,12 +639,11 @@ const UserForm = ({
           {renderNameAndEmailSection()}
           {renderAuthenticationSection()}
           {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
-            (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
+            (!isNewUser && !isInvitePending)) &&
             !formData.sso_enabled &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
-            isModifiedByGlobalAdmin &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>
