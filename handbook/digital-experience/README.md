@@ -787,8 +787,7 @@ To check for pending connect requests, perform the following steps:
 
 To add the most recent connections from Linkedin to our CSM, follow these steps:
   1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
-  3. Middle click a person's Linkedin page (this will open it to a new tab).
-  4. Log into our CSM using the "billing@fleetdm.com" login in another tab.
+  4. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
   5. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CSM database. 
   6. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CSM account. 
   7. The "Account rating" on the CSM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
