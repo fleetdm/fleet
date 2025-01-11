@@ -783,16 +783,16 @@ To check for pending connect requests, perform the following steps:
 
 
 
-### Add LinkedIn connections to CRM
+### Add LinkedIn connections to CSM
 
 To add the most recent connections from Linkedin to our CSM, follow these steps:
   1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
   3. Middle click a person's Linkedin page (this will open it to a new tab).
   4. Log into our CSM using the "billing@fleetdm.com" login in another tab.
-  5. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
-  6. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
-  7. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
-  8. If the  CRM account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  5. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CSM database. 
+  6. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CSM account. 
+  7. The "Account rating" on the CSM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  8. If the  CSM account is a 🦄, click "All contacts" and make sure they're not a contact already.
   9. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
   10. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
