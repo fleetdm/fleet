@@ -298,6 +298,7 @@ const UserForm = ({
 
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
+    debugger;
 
     const valid = validate();
     if (valid) {

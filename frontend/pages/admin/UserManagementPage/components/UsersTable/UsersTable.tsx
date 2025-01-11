@@ -211,89 +211,105 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     return userData;
   };
 
-  const onAddUserSubmit = (formData: IUserFormData) => {
-    setIsUpdatingUsers(true);
+  const onAddUserSubmit = useCallback(
+    (formData: IUserFormData) => {
+      debugger;
+      setIsUpdatingUsers(true);
 
-    if (formData.newUserType === NewUserType.AdminInvited) {
-      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
-      const requestData = {
-        ...formData,
-        invited_by: formData.currentUserId,
-      };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
-      delete requestData.password; // this field is not needed for the request
-      invitesAPI
-        .create(requestData)
-        .then(() => {
-          renderFlash("success", `${formData.name} has been invited!`);
-          toggleAddUserModal();
-          refetchInvites();
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setAddUserErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
-          } else {
-            renderFlash("error", "Could not create user. Please try again.");
-          }
-        })
-        .finally(() => {
-          setIsUpdatingUsers(false);
-        });
-    } else {
-      // Do some data formatting deleting unnecessary fields
-      const requestData = {
-        ...formData,
-      };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
-      usersAPI
-        .createUserWithoutInvitation(requestData)
-        .then(() => {
-          renderFlash("success", `${requestData.name} has been created!`);
-          toggleAddUserModal();
-          refetchUsers();
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setAddUserErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
-          } else {
-            renderFlash("error", "Could not create user. Please try again.");
-          }
-        })
-        .finally(() => {
-          setIsUpdatingUsers(false);
-        });
-    }
-  };
+      if (formData.newUserType === NewUserType.AdminInvited) {
+        // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
+        const requestData = {
+          ...formData,
+          invited_by: formData.currentUserId,
+        };
+        delete requestData.currentUserId; // this field is not needed for the request
+        delete requestData.newUserType; // this field is not needed for the request
+        delete requestData.password; // this field is not needed for the request
+        invitesAPI
+          .create(requestData)
+          .then(() => {
+            renderFlash("success", `${formData.name} has been invited!`);
+            toggleAddUserModal();
+            refetchInvites();
+          })
+          .catch((userErrors: { data: IApiError }) => {
+            if (userErrors.data.errors[0].reason.includes("already exists")) {
+              renderFlash(
+                "error",
+                "A user with this email address already exists"
+              );
+              setAddUserErrors({
+                email: "A user with this email address already exists",
+              });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setAddUserErrors({
+                password: "Password must meet the criteria below",
+              });
+            } else if (
+              userErrors.data.errors?.[0].reason.includes("password too long")
+            ) {
+              setAddUserErrors({
+                password: "Password is over the character limit.",
+              });
+            } else {
+              renderFlash("error", "Could not create user. Please try again.");
+            }
+          })
+          .finally(() => {
+            setIsUpdatingUsers(false);
+          });
+      } else {
+        // Do some data formatting deleting unnecessary fields
+        const requestData = {
+          ...formData,
+        };
+        delete requestData.currentUserId; // this field is not needed for the request
+        delete requestData.newUserType; // this field is not needed for the request
+        usersAPI
+          .createUserWithoutInvitation(requestData)
+          .then(() => {
+            debugger;
+            renderFlash("success", `${requestData.name} has been created!`);
+            toggleAddUserModal();
+            refetchUsers();
+          })
+          .catch((userErrors: { data: IApiError }) => {
+            debugger;
+            if (userErrors.data.errors[0].reason.includes("Duplicate")) {
+              // there is something very wrong with the error states here. This flash successfully
+              // fires, and the state is set, but somewhere up/down the chain it gets reset
+              renderFlash(
+                "error",
+                "A user with this email address already exists"
+              );
+              setAddUserErrors({
+                email: "A user with this email address already exists",
+              });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setAddUserErrors({
+                password: "Password must meet the criteria below",
+              });
+            } else if (
+              userErrors.data.errors?.[0].reason.includes("password too long")
+            ) {
+              setAddUserErrors({
+                password: "Password is over the character limit.",
+              });
+            } else {
+              renderFlash("error", "Could not create user. Please try again.");
+            }
+          })
+          .finally(() => {
+            setIsUpdatingUsers(false);
+          });
+      }
+    },
+    [refetchInvites, refetchUsers, renderFlash, toggleAddUserModal]
+  );
 
   const onEditUser = (formData: IUserFormData) => {
     const userData = getUser(userEditing.type, userEditing.id);
