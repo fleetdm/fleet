@@ -781,6 +781,10 @@ To check for pending connect requests, perform the following steps:
   1. Log into the CEO's LinkedIn (if you're not already) and click "My Network".
   2. Bring all pending connect requests to the CEO during the daily roundup.
 
+
+
+### Add LinkedIn connections to CRM
+
 To add the most recent connections from Linkedin to our CSM, follow these steps:
   1. Log into the CEO's Linkedin (if you're not already) and click "My Network".
   2. Click "Connections" under "Manage my network".
