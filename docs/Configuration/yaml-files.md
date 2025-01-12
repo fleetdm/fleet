@@ -330,25 +330,20 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
-      state: present
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
       labels_include_any:
         - Product
         - Marketing
-      state: present
   fleet_maintained_apps:
     - name: Microsoft Excel
       labels_include_any:
         - Design
         - Sales
-      install: auto
 ```
 
 - Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
-
-- Use `install` to specify whether to automatically write a policy to install the software. If `auto`, Fleet will ensure the software is installed, but will not update it if an older version alreday exists on the host. If `manual`, the software will need to be installed manually. 
 
 
 ### packages
@@ -370,7 +365,6 @@ install_script:
 uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 self_service: true
-state: present
 ```
 
 ### app_store_apps
