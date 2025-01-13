@@ -253,7 +253,11 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customControl={showFilterHeaders ? memoizedFilterDropdown : undefined}
+        customControl={
+          !isMyDevicePage && showFilterHeaders
+            ? memoizedFilterDropdown
+            : undefined
+        }
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
