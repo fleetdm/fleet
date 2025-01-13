@@ -11826,6 +11826,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		Query:    "SELECT 1;",
 		Platform: "darwin",
 	})
+	require.NoError(t, err)
 	policy1Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
 		Name:     "policy1Team1",
 		Query:    "SELECT 1;",
