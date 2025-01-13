@@ -1,0 +1,1 @@
+Fix issue when identical MDM commands are sent twice to the same device when replica DB is being used.

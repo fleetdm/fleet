@@ -26,7 +26,7 @@ module.exports = {
 
   fn: async function ({naturalLanguageQuestion}) {
 
-    let completeTables = await sails.helpers.getExtendedOsquerySchema();
+    let completeTables = sails.config.builtStaticContent.schemaTables;
     let prunedTables = completeTables.map((table)=>{
       let newTable = _.pick(table,['name','description','platforms', 'examples']);
       newTable.columns = table.columns.map((column) => _.pick(column, ['name', 'description', 'type', 'platforms', 'required']));

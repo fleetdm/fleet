@@ -11583,6 +11583,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			// Simulate successful installation on the host
 			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+			// No further commands expected
+			assert.Nil(t, cmd)
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
