@@ -196,6 +196,32 @@ export const SOURCE_TYPE_CONVERSION = {
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
 
+/** Map installable software source to platform  */
+export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
+  apt_sources: "linux",
+  deb_packages: "linux",
+  portage_packages: "linux",
+  rpm_packages: "linux",
+  yum_sources: "linux",
+  npm_packages: null,
+  atom_packages: null,
+  python_packages: null,
+  apps: "darwin",
+  ios_apps: "ios",
+  ipados_apps: "ipados",
+  chrome_extensions: null,
+  firefox_addons: null,
+  safari_extensions: null,
+  homebrew_packages: "darwin",
+  programs: "windows",
+  ie_extensions: null,
+  chocolatey_packages: "windows",
+  pkg_packages: "darwin",
+  vscode_extensions: null,
+} as const;
+
+export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
+
 const BROWSER_TYPE_CONVERSION = {
   chrome: "Chrome",
   chromium: "Chromium",

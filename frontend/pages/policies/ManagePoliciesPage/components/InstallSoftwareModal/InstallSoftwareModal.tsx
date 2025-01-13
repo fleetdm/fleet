@@ -24,31 +24,21 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
-import { ISoftwareTitle } from "interfaces/software";
+import {
+  InstallableSoftwareSource,
+  ISoftwareTitle,
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+} from "interfaces/software";
 import TooltipWrapper from "components/TooltipWrapper";
-
-// TODO: Replace this with a PLATFORM_BY_SOURCE and use title.source instead to determine platform
-// Why? It will work for all available software installers including packages AND VPP
-const getPlatformFromExtension = (ext: string | undefined): Platform | null => {
-  switch (ext) {
-    case "pkg":
-    case "zip": // Note: .zip > macOS only, may need platform identifier if .zip > Windows
-    case "dmg":
-      return "darwin";
-    case "deb":
-    case "rpm":
-      return "linux";
-    case "exe":
-    case "msi":
-      return "windows";
-    default:
-      return null;
-  }
-};
 
 const AFI_SOFTWARE_BATCH_SIZE = 1000;
 
 const baseClass = "install-software-modal";
+
+const formatSoftwarePlatform = (source: InstallableSoftwareSource) => {
+  const DICT = INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
+  return DICT[source] || null;
+};
 
 interface ISwDropdownField {
   name: string;
@@ -129,7 +119,7 @@ const InstallSoftwareModal = ({
           const extension = title.software_package?.name.split(".").pop();
           return {
             ...title,
-            platform: getPlatformFromExtension(extension),
+            platform: formatSoftwarePlatform(title.source),
             extension,
           };
         }),
