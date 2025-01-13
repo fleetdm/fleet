@@ -97,13 +97,10 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
-  const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [orgLogoURL, setOrgLogoURL] = useState("");
-  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -113,10 +110,6 @@ const DeviceUserPage = ({
     false
   );
   const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
-  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
-    null
-  );
-  const [hasSelfService, setSelfService] = useState(false);
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
@@ -172,7 +165,7 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: { host } = { host: undefined },
+    data: dupResponse,
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
@@ -191,20 +184,8 @@ const DeviceUserPage = ({
       retry: false,
       // TODO: refactor to use non-refetch data directly in the component and remove
       // unnecesary derived states for values that aren't related to the refetch status
-      onSuccess: ({
-        license,
-        org_logo_url,
-        org_contact_url,
-        global_config,
-        host: responseHost,
-        self_service,
-      }) => {
+      onSuccess: ({ host: responseHost }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
-        setIsPremiumTier(license.tier === "premium");
-        setOrgLogoURL(org_logo_url);
-        setOrgContactURL(org_contact_url);
-        setGlobalConfig(global_config);
-        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -252,6 +233,16 @@ const DeviceUserPage = ({
       },
     }
   );
+
+  const {
+    host,
+    license,
+    org_logo_url: orgLogoURL = "",
+    org_contact_url: orgContactURL = "",
+    global_config: globalConfig = null as IDeviceGlobalConfig | null,
+    self_service: hasSelfService = false,
+  } = dupResponse || {};
+  const isPremiumTier = license?.tier === "premium";
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
