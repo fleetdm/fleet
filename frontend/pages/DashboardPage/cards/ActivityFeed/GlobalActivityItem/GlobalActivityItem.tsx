@@ -1311,6 +1311,7 @@ const GlobalActivityItem = ({
       hideClose
       hideShowDetails={!hasDetails}
       onShowDetails={onDetailsClick}
+      className={baseClass}
     >
       {renderActivityPrefix()}
       {getDetail(activity, isPremiumTier)}
