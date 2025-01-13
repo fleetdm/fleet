@@ -1026,7 +1026,6 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText((content, node) => {
-        console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
           "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."

@@ -20,7 +20,7 @@ import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetail
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import ActivityItem from "./ActivityItem";
+import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
@@ -184,7 +184,7 @@ const ActivityFeed = ({
           )}
           <div style={opacity}>
             {activities?.map((activity) => (
-              <ActivityItem
+              <GlobalActivityItem
                 activity={activity}
                 isPremiumTier={isPremiumTier}
                 onDetailsClick={handleDetailsClick}

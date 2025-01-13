@@ -1,6 +1,5 @@
 import React from "react";
 import { find, lowerCase, noop, trimEnd } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
@@ -10,20 +9,14 @@ import {
 } from "interfaces/platform";
 
 import {
-  addGravatarUrlToResource,
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
-  internationalTimeFormat,
 } from "utilities/helpers";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
-import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import ReactTooltip from "react-tooltip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { COLORS } from "styles/var/colors";
+import ActivityItem from "components/ActivityItem";
 
-const baseClass = "activity-item";
+const baseClass = "global-activity-item";
 
 const PREMIUM_ACTIVITIES = new Set([
   "created_team",
@@ -1475,30 +1468,12 @@ interface IActivityItemProps {
   ) => void;
 }
 
-const ActivityItem = ({
+const GlobalActivityItem = ({
   activity,
   isPremiumTier,
   isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const { actor_email } = activity;
-  const { gravatar_url } = actor_email
-    ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
-
-  // Add the "Fleet" name to the activity if needed.
-  // TODO: remove/refactor this once we have "fleet-initiated" activities.
-  if (
-    !activity.actor_email &&
-    !activity.actor_full_name &&
-    (activity.type === ActivityType.InstalledSoftware ||
-      activity.type === ActivityType.InstalledAppStoreApp ||
-      activity.type === ActivityType.RanScript)
-  ) {
-    activity.actor_full_name = "Fleet";
-  }
-
-  const activityCreatedAt = new Date(activity.created_at);
   const indicatePremiumFeature =
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
@@ -1530,45 +1505,52 @@ const ActivityItem = ({
   };
 
   return (
-    <div className={baseClass}>
-      <Avatar
-        className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url }}
-        size="small"
-        hasWhiteBackground
-      />
-      <div className={`${baseClass}__details-wrapper`}>
-        <div className="activity-details">
-          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
-          <span className={`${baseClass}__details-topline`}>
-            {renderActivityPrefix()}
-            {getDetail(activity, isPremiumTier, onDetailsClick)}
-          </span>
-          <br />
-          <span
-            className={`${baseClass}__details-bottomline`}
-            data-tip
-            data-for={`activity-${activity.id}`}
-          >
-            {formatDistanceToNowStrict(activityCreatedAt, {
-              addSuffix: true,
-            })}
-          </span>
-          <ReactTooltip
-            className="date-tooltip"
-            place="top"
-            type="dark"
-            effect="solid"
-            id={`activity-${activity.id}`}
-            backgroundColor={COLORS["tooltip-bg"]}
-          >
-            {internationalTimeFormat(activityCreatedAt)}
-          </ReactTooltip>
-        </div>
-      </div>
-      <div className={`${baseClass}__dash`} />
-    </div>
+    <ActivityItem activity={activity} hideClose>
+      {renderActivityPrefix()}
+      {getDetail(activity, isPremiumTier, onDetailsClick)}
+    </ActivityItem>
   );
+
+  // return (
+  //   <div className={baseClass}>
+  //     <Avatar
+  //       className={`${baseClass}__avatar-image`}
+  //       user={{ gravatar_url }}
+  //       size="small"
+  //       hasWhiteBackground
+  //     />
+  //     <div className={`${baseClass}__details-wrapper`}>
+  //       <div className="activity-details">
+  //         {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
+  //         <span className={`${baseClass}__details-topline`}>
+  //           {renderActivityPrefix()}
+  //           {getDetail(activity, isPremiumTier, onDetailsClick)}
+  //         </span>
+  //         <br />
+  //         <span
+  //           className={`${baseClass}__details-bottomline`}
+  //           data-tip
+  //           data-for={`activity-${activity.id}`}
+  //         >
+  //           {formatDistanceToNowStrict(activityCreatedAt, {
+  //             addSuffix: true,
+  //           })}
+  //         </span>
+  //         <ReactTooltip
+  //           className="date-tooltip"
+  //           place="top"
+  //           type="dark"
+  //           effect="solid"
+  //           id={`activity-${activity.id}`}
+  //           backgroundColor={COLORS["tooltip-bg"]}
+  //         >
+  //           {internationalTimeFormat(activityCreatedAt)}
+  //         </ReactTooltip>
+  //       </div>
+  //     </div>
+  //     <div className={`${baseClass}__dash`} />
+  //   </div>
+  // );
 };
 
-export default ActivityItem;
+export default GlobalActivityItem;

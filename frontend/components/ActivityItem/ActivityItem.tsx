@@ -16,18 +16,25 @@ import { dateAgo } from "utilities/date_format";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { noop } from "lodash";
-import { ShowActivityDetailsHandler } from "../Activity";
+import { ShowActivityDetailsHandler } from "../../pages/hosts/details/cards/Activity/Activity";
 
-const baseClass = "host-activity-item";
+const baseClass = "activity-item";
 
-interface IHostActivityItemProps {
+interface IActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
-  /** Set this to `true` when rendering only this activity by itself. This will
+  /**
+   * Set this to `true` if the activity is a premium feature. This will change
+   * the styles for the activity item to indicate that it is a premium feature.
+   */
+  isPremiumFeature?: boolean;
+  /**
+   * Set this to `true` when rendering only this activity by itself. This will
    * change the styles for the activity item for solo rendering.
    * @default false */
   soloActivity?: boolean;
-  /** Set this to `true` to hide the close button and prevent from rendering
+  /**
+   * Set this to `true` to hide the close button and prevent from rendering
    * @default false
    */
   hideClose?: boolean;
@@ -42,15 +49,16 @@ interface IHostActivityItemProps {
  * the activity items. The `children` will be the specific details of the activity
  * implemented in the component that uses this wrapper.
  */
-const HostActivityItem = ({
+const ActivityItem = ({
   activity,
   children,
   className,
   soloActivity,
+  isPremiumFeature = false,
   hideClose = false,
   onShowDetails = noop,
   onCancel = noop,
-}: IHostActivityItemProps) => {
+}: IActivityItemProps) => {
   const { actor_email } = activity;
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
@@ -137,4 +145,4 @@ const HostActivityItem = ({
   );
 };
 
-export default HostActivityItem;
+export default ActivityItem;

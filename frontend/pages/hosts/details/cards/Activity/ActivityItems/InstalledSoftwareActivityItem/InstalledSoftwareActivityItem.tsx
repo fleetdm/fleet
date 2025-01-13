@@ -3,7 +3,7 @@ import React from "react";
 import { getInstallStatusPredicate } from "interfaces/software";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
-import HostActivityItem from "../../HostActivityItem";
+import HostActivityItem from "../../../../../../../components/ActivityItem";
 
 const baseClass = "installed-software-activity-item";
 

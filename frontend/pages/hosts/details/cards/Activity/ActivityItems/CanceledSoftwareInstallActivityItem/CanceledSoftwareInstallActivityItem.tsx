@@ -1,6 +1,6 @@
 import React from "react";
 
-import HostActivityItem from "../../HostActivityItem";
+import HostActivityItem from "../../../../../../../components/ActivityItem";
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
 const baseClass = "canceled-software-install-activity-item";

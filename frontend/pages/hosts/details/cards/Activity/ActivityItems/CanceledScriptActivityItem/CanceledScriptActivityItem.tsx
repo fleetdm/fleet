@@ -2,7 +2,7 @@ import React from "react";
 
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
-import HostActivityItem from "../../HostActivityItem";
+import HostActivityItem from "../../../../../../../components/ActivityItem";
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
 const baseClass = "canceled-script-activity-item";
