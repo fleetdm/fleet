@@ -220,12 +220,6 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
 
-	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
-	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-	if err != nil {
-		return payload, err
-	}
-
 	// remove tmp directory and installer
 	defer func() {
 		removeAllFn := r.removeAllFn
@@ -237,6 +231,12 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			log.Err(err)
 		}
 	}()
+
+	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
+	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
+	if err != nil {
+		return payload, err
+	}
 
 	scriptExtension := ".sh"
 	if runtime.GOOS == "windows" {
