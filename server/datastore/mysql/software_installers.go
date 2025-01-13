@@ -918,6 +918,11 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		// TODO(mna): To be reviewed once software uninstsall is better understood,
 		// as it is it wouldn't work because the same execution_id is used to
 		// insert a script execution request and the software uninstall request.
+		// Although I think one way to solve this would be to enqueue an uninstall
+		// activity in upcoming_activities, and when it's ready to run, insert in
+		// both host_script_results and host_software_installs, as it does today.
+		// So while it's pending, it's a single row in upcoming_activities, and when
+		// it's about to run, it's exactly the same as today.
 		insertUAStmt = `
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
@@ -1046,9 +1051,9 @@ SELECT
 	ua.updated_at as updated_at
 FROM
 	upcoming_activities ua
-	INNER JOIN software_install_upcoming_activities siua 
+	INNER JOIN software_install_upcoming_activities siua
 		ON ua.id = siua.upcoming_activity_id
-	LEFT JOIN software_titles st 
+	LEFT JOIN software_titles st
 		ON siua.software_title_id = st.id
 WHERE
 	ua.execution_id = :execution_id AND

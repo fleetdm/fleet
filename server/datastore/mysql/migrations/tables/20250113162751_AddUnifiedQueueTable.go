@@ -37,6 +37,7 @@ CREATE TABLE upcoming_activities (
 	payload        JSON NOT NULL,
 
 	-- Using DATETIME instead of TIMESTAMP to prevent future Y2K38 issues
+	activated_at DATETIME(6) NULL,
 	created_at   DATETIME(6) NOT NULL DEFAULT NOW(6),
 	updated_at   DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
 

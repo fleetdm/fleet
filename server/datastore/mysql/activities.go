@@ -252,6 +252,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// TODO(mna): use the upcoming queue instead (but also include in-execution stuff
 	// that have no results yet)?
 	countStmts := []string{
+		// everything in upcoming_activities is pending for that host
+		`SELECT
+			COUNT(*) c 
+			FROM upcoming_activities 
+			WHERE host_id = :host_id`,
+
+		// scripts without result that are not "uninstall scripts" for a software install are pending
 		`SELECT
 			COUNT(*) c
 			FROM host_script_results hsr
@@ -261,23 +268,27 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 						exit_code IS NULL AND
 						hsi.execution_id IS NULL AND
 						(sync_request = 0 OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
+
+		// software installs without result are pending
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
 			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_install_pending`,
+
+		// software uninstalls without result are pending
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
 			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
 				hsi.status = :software_status_uninstall_pending`,
-		`
-		SELECT
+
+		// VPP installs without command result are pending
+		`SELECT
 			COUNT(*) c
 			FROM nano_view_queue nvq
 			JOIN host_vpp_software_installs hvsi ON nvq.command_uuid = hvsi.command_uuid
-			WHERE hvsi.host_id = :host_id AND nvq.status IS NULL
-		`,
+			WHERE hvsi.host_id = :host_id AND nvq.status IS NULL`,
 	}
 
 	var count uint

@@ -1961,6 +1961,7 @@ CREATE TABLE `upcoming_activities` (
   `activity_type` enum('script','software_install','software_uninstall','vpp_app_install') COLLATE utf8mb4_unicode_ci NOT NULL,
   `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `payload` json NOT NULL,
+  `activated_at` datetime(6) DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
