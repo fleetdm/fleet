@@ -1890,13 +1890,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	}
 
 	// Filter out results of policies that are not associated to VPP apps.
-	policiesWithAPPMap := make(map[uint]fleet.PolicyVPPData)
+	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
 	for _, policyWithVPP := range policiesWithVPP {
-		policiesWithAPPMap[policyWithVPP.ID] = policyWithVPP
+		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
 	}
 	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
 	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithAPPMap[policyID]; !ok {
+		if _, ok := policiesWithVPPMap[policyID]; !ok {
 			continue
 		}
 		policyResultsOfPoliciesWithVPP[policyID] = passes

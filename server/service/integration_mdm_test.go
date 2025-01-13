@@ -11821,6 +11821,11 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Len(t, listSw.SoftwareTitles, len(expectedApps))
 	iOSTitleID := uint(99999)
 
+	policy0Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "policy0Team1",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
 	policy1Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
 		Name:     "policy1Team1",
 		Query:    "SELECT 1;",
@@ -11906,10 +11911,11 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
 
-	// MDM host passing policy should not queue install
+	// MDM host passing policy should not queue install, nor should failing non-VPP policy
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
+			policy0Team1.ID: ptr.Bool(false),
 			policy1Team1.ID: ptr.Bool(true),
 		},
 	), http.StatusOK, &distributedResp)
