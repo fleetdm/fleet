@@ -530,9 +530,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "uuid",
     id: "uuid",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} />
-    ),
+    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
+      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
   },
   {
     title: "Last restarted",

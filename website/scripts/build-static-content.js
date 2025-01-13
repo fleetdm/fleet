@@ -725,7 +725,8 @@ module.exports = {
         } else {
           expandedTables = await sails.helpers.getExtendedOsquerySchema();
         }
-
+        // Add the expanded tables to the website's configuration as builtStaticContent.osqueryTables.
+        builtStaticContent.schemaTables = expandedTables;
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
           let keywordsForSyntaxHighlighting = [];

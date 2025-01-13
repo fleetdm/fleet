@@ -39,6 +39,11 @@ type RunnerOptions struct {
 	// An expired signature for the "timestamp" role does not cause issues
 	// at start up (the go-tuf libary allows loading the targets).
 	SignaturesExpiredAtStartup bool
+
+	// CheckAccessToNewTUF, if set to true, will perform a check of access to the new Fleet TUF
+	// server on every update interval (once the access is confirmed it will store the confirmation
+	// of access to disk and will exit to restart).
+	CheckAccessToNewTUF bool
 }
 
 // Runner is a specialized runner for an Updater. It is designed with Execute and
@@ -118,6 +123,14 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	if runner.opt.SignaturesExpiredAtStartup {
 		// Return early as we will only check for signature
 		// expiration on every check interval.
+		return runner, nil
+	}
+
+	if _, err := updater.Lookup(constant.OrbitTUFTargetName); errors.Is(err, client.ErrNoLocalSnapshot) {
+		// Return early and skip optimization, this will cause an unnecessary auto-update of orbit
+		// but allows orbit to start up if there's no local metadata AND if the TUF server is down
+		// (which may be the case during the migration from https://tuf.fleetctl.com to
+		// https://updates.fleetdm.com).
 		return runner, nil
 	}
 
@@ -203,6 +216,13 @@ func (r *Runner) Execute() error {
 			return nil
 		case <-ticker.C:
 			ticker.Reset(r.opt.CheckInterval)
+
+			if r.opt.CheckAccessToNewTUF {
+				if HasAccessToNewTUFServer(r.updater.opt) {
+					log.Info().Msg("detected access to new TUF repository, exiting")
+					return nil
+				}
+			}
 
 			if r.opt.SignaturesExpiredAtStartup {
 				if r.updater.SignaturesExpired() {
