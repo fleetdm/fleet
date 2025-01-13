@@ -1,13 +1,13 @@
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
 import { IPolicyStats } from "interfaces/policy";
 import {
+  CommaSeparatedPlatformString,
   Platform,
   PLATFORM_DISPLAY_NAMES,
-  CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
@@ -25,19 +25,18 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import {
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   InstallableSoftwareSource,
   ISoftwareTitle,
-  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
 } from "interfaces/software";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const AFI_SOFTWARE_BATCH_SIZE = 1000;
+const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
 const baseClass = "install-software-modal";
 
 const formatSoftwarePlatform = (source: InstallableSoftwareSource) => {
-  const DICT = INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
-  return DICT[source] || null;
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] || null;
 };
 
 interface ISwDropdownField {
@@ -89,9 +88,9 @@ const InstallSoftwareModal = ({
   );
 
   const {
-    data: titlesAFI,
-    isLoading: isTitlesAFILoading,
-    isError: isTitlesAFIError,
+    data: titlesAvailableForInstall,
+    isLoading: isTitlesAvailableForInstallLoading,
+    isError: isTitlesAvailableForInstallError,
   } = useQuery<
     ISoftwareTitlesResponse,
     Error,
@@ -102,7 +101,7 @@ const InstallSoftwareModal = ({
       {
         scope: "software-titles",
         page: 0,
-        perPage: AFI_SOFTWARE_BATCH_SIZE,
+        perPage: SOFTWARE_TITLE_LIST_LENGTH,
         query: "",
         orderDirection: "desc",
         orderKey: "hosts_count",
@@ -170,7 +169,7 @@ const InstallSoftwareModal = ({
   const availableSoftwareOptions = useCallback(
     (policy: IFormPolicy) => {
       const policyPlatforms = policy.platform.split(",");
-      return titlesAFI
+      return titlesAvailableForInstall
         ?.filter(
           (title) => title.platform && policyPlatforms.includes(title.platform)
         )
@@ -200,7 +199,7 @@ const InstallSoftwareModal = ({
           };
         });
     },
-    [titlesAFI]
+    [titlesAvailableForInstall]
   );
 
   // Cache availableSoftwareOptions for each unique platform
@@ -257,13 +256,13 @@ const InstallSoftwareModal = ({
   };
 
   const renderContent = () => {
-    if (isTitlesAFIError) {
+    if (isTitlesAvailableForInstallError) {
       return <DataError />;
     }
-    if (isTitlesAFILoading) {
+    if (isTitlesAvailableForInstallLoading) {
       return <Spinner />;
     }
-    if (!titlesAFI?.length) {
+    if (!titlesAvailableForInstall?.length) {
       return (
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
