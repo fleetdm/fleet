@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250106162751, Down_20250106162751)
+	MigrationClient.AddMigration(Up_20250113162751, Down_20250113162751)
 }
 
-func Up_20250106162751(tx *sql.Tx) error {
+func Up_20250113162751(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE upcoming_activities (
 	id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -124,6 +124,6 @@ CREATE TABLE software_install_upcoming_activities (
 	return nil
 }
 
-func Down_20250106162751(tx *sql.Tx) error {
+func Down_20250113162751(tx *sql.Tx) error {
 	return nil
 }
