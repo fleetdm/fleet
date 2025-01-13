@@ -15,6 +15,7 @@ import {
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ActivityItem from "components/ActivityItem";
+import Activity from "pages/hosts/details/cards/Activity";
 
 const baseClass = "global-activity-item";
 
@@ -32,6 +33,18 @@ const PREMIUM_ACTIVITIES = new Set([
   "tranferred_hosts",
   "enabled_windows_mdm_migration",
   "disabled_windows_mdm_migration",
+]);
+
+const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanScript,
+  ActivityType.AddedSoftware,
+  ActivityType.EditedSoftware,
+  ActivityType.DeletedSoftware,
+  ActivityType.InstalledSoftware,
+  ActivityType.UninstalledSoftware,
+  ActivityType.EnabledActivityAutomations,
+  ActivityType.EditedActivityAutomations,
+  ActivityType.LiveQuery,
 ]);
 
 const getProfileMessageSuffix = (
@@ -1456,7 +1469,6 @@ const getDetail = (
 interface IActivityItemProps {
   activity: IActivity;
   isPremiumTier: boolean;
-  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -1471,11 +1483,10 @@ interface IActivityItemProps {
 const GlobalActivityItem = ({
   activity,
   isPremiumTier,
-  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const indicatePremiumFeature =
-    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
+  const indicatePremiumFeature = PREMIUM_ACTIVITIES.has(activity.type);
+  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
@@ -1505,7 +1516,7 @@ const GlobalActivityItem = ({
   };
 
   return (
-    <ActivityItem activity={activity} hideClose>
+    <ActivityItem activity={activity} hideClose hideShowDetails={!hasDetails}>
       {renderActivityPrefix()}
       {getDetail(activity, isPremiumTier, onDetailsClick)}
     </ActivityItem>

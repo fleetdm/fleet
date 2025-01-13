@@ -26,6 +26,7 @@ interface IActivityItemProps {
   /**
    * Set this to `true` if the activity is a premium feature. This will change
    * the styles for the activity item to indicate that it is a premium feature.
+   * @default false
    */
   isPremiumFeature?: boolean;
   /**
@@ -34,10 +35,22 @@ interface IActivityItemProps {
    * @default false */
   soloActivity?: boolean;
   /**
+   * Set this to `true` to hide the show details button and prevent from rendering.
+   * Not all activities can show details, so this is a way to hide the button.
+   * @default false
+   */
+  hideShowDetails?: boolean;
+  /**
    * Set this to `true` to hide the close button and prevent from rendering
    * @default false
    */
   hideClose?: boolean;
+  /**
+   * Set this to `true` to disable the close button. It will still render but
+   * will not be clickable.
+   * @default false
+   */
+  disableClose?: boolean;
   className?: string;
   onShowDetails?: ShowActivityDetailsHandler;
   onCancel?: () => void;
@@ -55,7 +68,9 @@ const ActivityItem = ({
   className,
   soloActivity,
   isPremiumFeature = false,
+  hideShowDetails = false,
   hideClose = false,
+  disableClose = false,
   onShowDetails = noop,
   onCancel = noop,
 }: IActivityItemProps) => {
@@ -127,11 +142,17 @@ const ActivityItem = ({
           )}
         </div>
         <div className={`${baseClass}__details-actions`}>
-          <Button variant="icon" onClick={onShowActivityDetails}>
-            <Icon name="info" size="medium" color="ui-fleet-black-75" />
-          </Button>
+          {!hideShowDetails && (
+            <Button variant="icon" onClick={onShowActivityDetails}>
+              <Icon name="info" size="medium" color="ui-fleet-black-75" />
+            </Button>
+          )}
           {!hideClose && (
-            <Button variant="icon" onClick={onCancelActivity}>
+            <Button
+              variant="icon"
+              onClick={onCancelActivity}
+              disabled={disableClose}
+            >
               <Icon
                 name="close"
                 color="ui-fleet-black-75"
