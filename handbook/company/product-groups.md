@@ -490,7 +490,7 @@ A bug is in engineering after it has been assigned to a product team and reprodu
 
 During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" column, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.
 
-When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change. The steps to reproduce will generally function as the QA Test plan, but if the proposed solution requires additional testing, the assigned engineer and QA will work together to ensure an approved test plan is in place.
+When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change. The steps to reproduce will generally function as the QA test plan, but if the proposed solution requires additional testing, the assigned engineer and QA will work together to ensure an approved test plan is in place.
 
 
 #### Awaiting QA
