@@ -1503,50 +1503,45 @@ func (c *Client) DoGitOps(
 		// Ensure webhooks settings exists
 		webhookSettings, ok := group.AppConfig.(map[string]any)["webhook_settings"]
 		if !ok || webhookSettings == nil {
-			webhookSettings = fleet.WebhookSettings{}
+			webhookSettings = map[string]any{}
 			group.AppConfig.(map[string]any)["webhook_settings"] = webhookSettings
 		}
 
 		activitiesWebhook, ok := webhookSettings.(map[string]any)["activities_webhook"]
 		if !ok || activitiesWebhook == nil {
-			activitiesWebhook = fleet.ActivitiesWebhookSettings{}
+			activitiesWebhook = map[string]any{}
 			webhookSettings.(map[string]any)["activities_webhook"] = activitiesWebhook
-		} else {
-			// exists, make sure the "enable" key wither
-			// exists, or we create it with "false"
-			if _, ok := activitiesWebhook.(map[string]any)["enable_activities_webhook"]; !ok {
-				activitiesWebhook.(map[string]any)["enable_activities_webhook"] = false
-			}
+		}
+		// make sure the "enable" key either exists, or set to false
+		if _, ok := activitiesWebhook.(map[string]any)["enable_activities_webhook"]; !ok {
+			activitiesWebhook.(map[string]any)["enable_activities_webhook"] = false
 		}
 
 		hostStatusWebhook, ok := webhookSettings.(map[string]any)["host_status_webhook"]
 		if !ok || hostStatusWebhook == nil {
-			hostStatusWebhook = fleet.HostStatusWebhookSettings{}
+			hostStatusWebhook = map[string]any{}
 			webhookSettings.(map[string]any)["host_status_webhook"] = hostStatusWebhook
-		} else {
-			if _, ok := hostStatusWebhook.(map[string]any)["enable_host_status_webhook"]; !ok {
-				hostStatusWebhook.(map[string]any)["enable_host_status_webhook"] = false
-			}
+		}
+		if _, ok := hostStatusWebhook.(map[string]any)["enable_host_status_webhook"]; !ok {
+			hostStatusWebhook.(map[string]any)["enable_host_status_webhook"] = false
 		}
 
 		failingPoliciesWebhook, ok := webhookSettings.(map[string]any)["failing_policies_webhook"]
 		if !ok || failingPoliciesWebhook == nil {
-			failingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{}
+			failingPoliciesWebhook = map[string]any{}
 			webhookSettings.(map[string]any)["failing_policies_webhook"] = failingPoliciesWebhook
-		} else {
-			if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
-				failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
-			}
+		}
+		if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
+			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
 		}
 
 		vulnerabilitiesWebhook, ok := webhookSettings.(map[string]any)["vulnerabilities_webhook"]
 		if !ok || failingPoliciesWebhook == nil {
-			vulnerabilitiesWebhook = fleet.VulnerabilitiesWebhookSettings{}
+			vulnerabilitiesWebhook = map[string]any{}
 			webhookSettings.(map[string]any)["vulnerabilities_webhook"] = vulnerabilitiesWebhook
-		} else {
-			if _, ok := vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"]; !ok {
-				vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"] = false
-			}
+		}
+		if _, ok := vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"]; !ok {
+			vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"] = false
 		}
 
 		// Ensure mdm config exists
