@@ -49,8 +49,6 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
-type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
-
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -60,6 +58,8 @@ type DeleteUserFunc func(ctx context.Context, id uint) error
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
+
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
 
 type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
@@ -1115,6 +1115,8 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
+type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
+
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
 type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
@@ -1244,9 +1246,6 @@ type DataStore struct {
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
 
-	UserSettingsFunc        UserSettingsFunc
-	UserSettingsFuncInvoked bool
-
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
 
@@ -1261,6 +1260,9 @@ type DataStore struct {
 
 	ConfirmPendingEmailChangeFunc        ConfirmPendingEmailChangeFunc
 	ConfirmPendingEmailChangeFuncInvoked bool
+
+	UserSettingsFunc        UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	ApplyQueriesFunc        ApplyQueriesFunc
 	ApplyQueriesFuncInvoked bool
@@ -2843,6 +2845,9 @@ type DataStore struct {
 	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
 	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
 
+	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
+	MapAdamIDsPendingInstallFuncInvoked bool
+
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
@@ -3073,13 +3078,6 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	return s.UserByIDFunc(ctx, id)
 }
 
-func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
-	s.mu.Lock()
-	s.UserSettingsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UserSettingsFunc(ctx, userID)
-}
-
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	s.mu.Lock()
 	s.SaveUserFuncInvoked = true
@@ -3113,6 +3111,13 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	s.ConfirmPendingEmailChangeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -6802,6 +6807,13 @@ func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamI
 	s.GetVPPAppMetadataByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.MapAdamIDsPendingInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsPendingInstallFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {

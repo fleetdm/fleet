@@ -36,6 +36,8 @@ type EnterpriseOverrides struct {
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
+	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
 }
 
 type OsqueryService interface {

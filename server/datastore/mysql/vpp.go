@@ -565,6 +565,22 @@ VALUES
 	return nil
 }
 
+func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+	var adamIds []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
+			FROM host_vpp_software_installs hvsi
+			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
+			WHERE hvsi.host_id = ?`, hostID); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list pending VPP installs")
+	}
+	adamMap := map[string]struct{}{}
+	for _, id := range adamIds {
+		adamMap[id] = struct{}{}
+	}
+
+	return adamMap, nil
+}
+
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	if commandResults == nil {
 		return nil, nil, nil

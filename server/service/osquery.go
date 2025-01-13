@@ -1010,8 +1010,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if host.Platform == "darwin" {
-			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -1857,14 +1857,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostPlatform string,
-	hostOrbitNodeKey *string,
 	incomingPolicyResults map[uint]*bool,
 ) error {
-	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
-		// We do not want to queue software installations on vanilla osquery hosts.
-		return nil
-	}
-
 	var policyTeamID uint
 	if hostTeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID
@@ -1942,9 +1936,14 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
-	vppToken, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
+	}
+
+	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
 	}
 
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
@@ -1958,6 +1957,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			"software_title_id", failingPolicyWithVPP.Platform,
 		)
 
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			level.Debug(svc.logger).Log(
+				"msg", "install of app is already pending",
+			)
+			continue
+		}
+
 		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
 		if err != nil {
 			level.Error(svc.logger).Log(
@@ -1967,7 +1973,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get install VPP app",

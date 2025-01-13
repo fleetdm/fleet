@@ -1776,6 +1776,9 @@ type Datastore interface {
 	// specified team and title ids.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 
+	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
+	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
+
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
