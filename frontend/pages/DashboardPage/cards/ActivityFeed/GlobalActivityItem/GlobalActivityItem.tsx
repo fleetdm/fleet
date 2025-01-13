@@ -1,7 +1,7 @@
 import React from "react";
 import { find, lowerCase, noop, trimEnd } from "lodash";
 
-import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { ActivityType, IActivity } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
 import {
   AppleDisplayPlatform,
@@ -12,11 +12,8 @@ import {
   getPerformanceImpactDescription,
 } from "utilities/helpers";
 
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 const baseClass = "global-activity-item";
 
@@ -1279,7 +1276,6 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const indicatePremiumFeature = PREMIUM_ACTIVITIES.has(activity.type);
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
@@ -1316,7 +1312,6 @@ const GlobalActivityItem = ({
       hideShowDetails={!hasDetails}
       onShowDetails={onDetailsClick}
     >
-      {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
       {renderActivityPrefix()}
       {getDetail(activity, isPremiumTier)}
     </ActivityItem>

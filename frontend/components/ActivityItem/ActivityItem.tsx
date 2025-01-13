@@ -38,12 +38,6 @@ interface IActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
   /**
-   * Set this to `true` if the activity is a premium feature. This will change
-   * the styles for the activity item to indicate that it is a premium feature.
-   * @default false
-   */
-  isPremiumFeature?: boolean;
-  /**
    * Set this to `true` when rendering only this activity by itself. This will
    * change the styles for the activity item for solo rendering.
    * @default false */
@@ -81,7 +75,6 @@ const ActivityItem = ({
   children,
   className,
   soloActivity,
-  isPremiumFeature = false,
   hideShowDetails = false,
   hideClose = false,
   disableClose = false,
