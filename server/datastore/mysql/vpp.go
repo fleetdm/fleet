@@ -53,6 +53,12 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 	}
 
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	}
+	app.AutomaticInstallPolicies = policies
+
 	return &app, nil
 }
 

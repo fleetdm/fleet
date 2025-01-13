@@ -65,6 +65,9 @@ type VPPAppStoreApp struct {
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID
 	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	// AutomaticInstallPolicies is the list of policies that trigger automatic
+	// installation of this software.
+	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
