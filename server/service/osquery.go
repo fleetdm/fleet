@@ -2084,7 +2084,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 
 	case "result":
-		var results []json.RawMessage
+		var results []*fleet.ScheduledQueryResult
 		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
 		// Maybe there's a reason for it, we need to test such a change before fixing what appears
 		// to be a bug because the `err` is lost.
@@ -2115,33 +2115,16 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 // If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
-	osqueryResults []json.RawMessage,
+	osqueryResults []*fleet.ScheduledQueryResult,
 	queryReportsDisabled bool,
 ) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	lograw := func(raw json.RawMessage) string {
-		logr := raw
-		if len(raw) >= 64 {
-			logr = raw[:64]
-		}
-		return string(logr)
-	}
-
-	for _, raw := range osqueryResults {
-		var result *fleet.ScheduledQueryResult
-		if err := json.Unmarshal(raw, &result); err != nil {
-			level.Debug(svc.logger).Log("msg", "unmarshalling result", "err", err, "result", lograw(raw))
-			// Note that if err != nil we have two scenarios:
-			// 	- result == nil: which means the result could not be unmarshalled, e.g. not JSON.
-			//	- result != nil: which means that the result was (partially) unmarshalled but some specific
-			// 	field could not be unmarshalled.
-			//
-			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else if result != nil && result.QueryName == "" {
+	for _, result := range osqueryResults {
+		if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", fmt.Sprintf("%.64v", result))
 			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
@@ -2194,7 +2177,7 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	return nil
 }
 
-func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) error {
+func (svc *Service) SubmitResultLogs(ctx context.Context, logs []*fleet.ScheduledQueryResult) error {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2225,10 +2208,22 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	var filteredLogs []json.RawMessage
-	for i, unmarshaledResult := range unmarshaledResults {
+	for _, unmarshaledResult := range unmarshaledResults {
 		if unmarshaledResult == nil {
 			// Ignore results that could not be unmarshaled.
 			continue
+		}
+
+		var resmarshalled []byte
+		remarshal := func(query *fleet.ScheduledQueryResult) {
+			if resmarshalled != nil {
+				return
+			}
+			bytes, err := json.Marshal(*unmarshaledResult)
+			resmarshalled = bytes
+			if err != nil {
+				level.Error(svc.logger).Log("err", err, "msg", "failed to re-marshal log results")
+			}
 		}
 
 		if queryReportsDisabled {
@@ -2237,7 +2232,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			// If a query was recently configured with automations_enabled = 0 we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
 			// and thus Fleet won't receive any further results anymore.
-			filteredLogs = append(filteredLogs, logs[i])
+			remarshal(unmarshaledResult)
+			if resmarshalled != nil {
+				filteredLogs = append(filteredLogs, resmarshalled)
+			}
 			continue
 		}
 
@@ -2250,7 +2248,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			// If a query was configured from Fleet but was recently removed, we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
 			// and thus Fleet won't receive any further results anymore.
-			filteredLogs = append(filteredLogs, logs[i])
+			remarshal(unmarshaledResult)
+			if resmarshalled != nil {
+				filteredLogs = append(filteredLogs, resmarshalled)
+			}
 			continue
 		}
 
@@ -2259,7 +2260,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			continue
 		}
 
-		filteredLogs = append(filteredLogs, logs[i])
+		remarshal(unmarshaledResult)
+		if resmarshalled != nil {
+			filteredLogs = append(filteredLogs, resmarshalled)
+		}
 	}
 
 	if len(filteredLogs) == 0 {

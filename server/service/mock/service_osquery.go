@@ -24,7 +24,7 @@ type SubmitDistributedQueryResultsFunc func(ctx context.Context, results fleet.O
 
 type SubmitStatusLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
 
-type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err error)
+type SubmitResultLogsFunc func(ctx context.Context, logs []*fleet.ScheduledQueryResult) (err error)
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
@@ -98,7 +98,7 @@ func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []json.RawMessag
 	return s.SubmitStatusLogsFunc(ctx, logs)
 }
 
-func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error) {
+func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []*fleet.ScheduledQueryResult) (err error) {
 	s.mu.Lock()
 	s.SubmitResultLogsFuncInvoked = true
 	s.mu.Unlock()

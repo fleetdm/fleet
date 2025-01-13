@@ -103,9 +103,14 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 		err = svc.tls.SubmitStatusLogs(newCtx, statuses)
 		return "", "", false, ctxerr.Wrap(ctx, err, "submit status logs from launcher")
 	case logger.LogTypeSnapshot, logger.LogTypeString:
-		var results []json.RawMessage
+		var results []*fleet.ScheduledQueryResult
 		for _, log := range logs {
-			results = append(results, []byte(log))
+			var result *fleet.ScheduledQueryResult
+			err := json.Unmarshal([]byte(log), result)
+			if err != nil {
+				return "", "", false, err
+			}
+			results = append(results, result)
 		}
 		err = svc.tls.SubmitResultLogs(newCtx, results)
 		return "", "", false, ctxerr.Wrap(ctx, err, "submit result logs from launcher")
