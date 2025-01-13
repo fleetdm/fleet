@@ -29,6 +29,7 @@ import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
@@ -37,9 +38,9 @@ const getOptionBackgroundColor = (
 };
 
 export interface CustomOptionType {
-  label: string;
+  label: React.ReactNode;
   value: string;
-  tooltipContent?: string;
+  tooltipContent?: TooltipContent;
   helpText?: string;
   isDisabled?: boolean;
   iconName?: IconNames;
@@ -64,6 +65,7 @@ export interface IDropdownWrapper {
   onMenuOpen?: () => void;
   /** Table filter dropdowns have filter icon and height: 40px  */
   tableFilter?: boolean;
+  variant?: "button";
 }
 
 const baseClass = "dropdown-wrapper";
@@ -85,6 +87,7 @@ const DropdownWrapper = ({
   placeholder,
   onMenuOpen,
   tableFilter = false,
+  variant,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: tableFilter,
