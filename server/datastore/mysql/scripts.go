@@ -282,30 +282,37 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 	}
 	listStmt := fmt.Sprintf(`
   SELECT
-    ua.id,
-    ua.host_id,
-    ua.execution_id,
-    sua.script_id,
-		ua.priority,
-		ua.created_at,
-		IF(ua.activated_at IS NULL, 0, 1) AS topmost
-  FROM
-    upcoming_activities ua
-		INNER JOIN script_upcoming_activities sua
-			ON ua.id = sua.upcoming_activity_id
-  WHERE
-    ua.host_id = ? AND
-		ua.activity_type = 'script' AND
-		(
-			JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
-      ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-		)
-  	%s
-	ODER BY topmost DESC, priority DESC, created_at ASC`, internalWhere)
+    id,
+    host_id,
+    execution_id,
+    script_id,
+		created_at
+	FROM (
+		SELECT
+			ua.id,
+			ua.host_id,
+			ua.execution_id,
+			sua.script_id,
+			ua.priority,
+			ua.created_at,
+			IF(ua.activated_at IS NULL, 0, 1) AS topmost
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.host_id = ? AND
+			ua.activity_type = 'script' AND
+			(
+				JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
+				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+			)
+			%s
+		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, internalWhere)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds, hostID, seconds); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
 	return results, nil
@@ -326,7 +333,7 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 	`
 
 	var results []*uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID, hostID, scriptID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "is execution pending for host")
 	}
 	return len(results) > 0, nil
