@@ -246,6 +246,7 @@ const SoftwareVulnerabilitiesTable = ({
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
         iconName="filter"
+        tableFilter
       />
     );
   };

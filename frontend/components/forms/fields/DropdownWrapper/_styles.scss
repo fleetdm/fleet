@@ -11,4 +11,11 @@
       color: $ui-fleet-black-50;
     }
   }
+
+  // Table dropdowns have height 38px
+  &__table-filter {
+    .react-select__control {
+      height: 38px;
+    }
+  }
 }

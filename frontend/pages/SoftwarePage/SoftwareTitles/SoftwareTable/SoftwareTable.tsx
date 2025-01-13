@@ -308,6 +308,7 @@ const SoftwareTable = ({
             )
           }
           iconName="filter"
+          tableFilter
         />
       </div>
     );

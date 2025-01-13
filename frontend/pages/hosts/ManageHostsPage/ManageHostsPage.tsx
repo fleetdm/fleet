@@ -71,8 +71,9 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -94,7 +95,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  getHostSelectStatuses,
+  hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
@@ -721,7 +722,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleStatusDropdownChange = (statusName: string) => {
+  const handleStatusDropdownChange = (
+    statusName: SingleValue<CustomOptionType>
+  ) => {
     handleResetPageIndex();
 
     router.replace(
@@ -731,7 +734,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName,
+          status: statusName?.value,
           page: 0, // resets page index
         },
       })
@@ -1459,13 +1462,14 @@ const ManageHostsPage = ({
 
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
-        <Dropdown
+        <DropdownWrapper
           value={status || ""}
           className={`${baseClass}__status_dropdown`}
-          options={getHostSelectStatuses(isSandboxMode)}
-          searchable={false}
+          name="status-dropdown"
+          options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
           iconName="filter"
+          tableFilter
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}

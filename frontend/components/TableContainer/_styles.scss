@@ -1,8 +1,4 @@
 .table-container {
-  .form-field {
-    width: initial; // 100% causes weird rendering in dropdown
-  }
-
   // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
@@ -109,7 +105,7 @@
     // filter and search bar height
     .dropdown__select,
     .input-with-icon {
-      height: 40px;
+      height: 38px;
     }
   }
 
@@ -137,11 +133,11 @@
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
-    height: 40px;
+    height: 38px;
     gap: 12px;
 
     > span {
-      line-height: 40px; // Match other header components' height but still align text baseline
+      line-height: 38px; // Match other header components' height but still align text baseline
     }
 
     .count-error {
