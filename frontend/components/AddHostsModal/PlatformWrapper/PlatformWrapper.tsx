@@ -547,7 +547,7 @@ const PlatformWrapper = ({
           value={renderInstallerString(packageType)}
           helpText={`Distribute your package to add hosts to Fleet.${
             packageType === "deb"
-              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
+              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm. For arm64 systems, use the flag --arch=arm64."
               : ""
           }`}
         />
