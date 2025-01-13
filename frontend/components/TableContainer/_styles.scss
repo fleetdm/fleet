@@ -76,6 +76,10 @@
     gap: $pad-small;
     margin-top: 3px; // Fits button highlight during tabbing
 
+    .input-icon-field {
+      height: 38px; // Height 38px on table headers
+    }
+
     &.stack-table-controls {
       align-items: start;
 
