@@ -76,8 +76,7 @@ policies:
   resolution: "Install Logic Pro App Store app if not installed"
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
-    package_path: ../lib/linux-firefox.deb.package.yml
-    # app_store_id: "1487937127" (for App Store apps)
+    app_store_app_id: "1487937127"
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
