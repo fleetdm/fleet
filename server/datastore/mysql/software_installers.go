@@ -24,20 +24,7 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 	FROM (
 		SELECT
 			execution_id,
-			1 as topmost,
-			0 as priority,
-			created_at
-		FROM
-			host_software_installs
-		WHERE
-			host_id = ? AND
-			status = ?
-
-		UNION
-
-		SELECT
-			execution_id,
-			0 as topmost,
+			IF(activated_at IS NULL, 0, 1) as topmost,
 			priority,
 			created_at
 		FROM
@@ -45,12 +32,10 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 		WHERE
 			host_id = ? AND
 			activity_type = 'software_install'
-	) as t
-	ORDER BY topmost DESC, priority ASC, created_at ASC
+		ORDER BY topmost DESC, priority ASC, created_at ASC) as t
 `
 	var results []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results,
-		stmt, hostID, fleet.SoftwareInstallPending, hostID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return results, nil
@@ -113,7 +98,8 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     script_contents pisnt
     ON pisnt.id = si.post_install_script_content_id
   WHERE
-    ua.execution_id = ?
+    ua.execution_id = ? AND
+		ua.activated_at IS NULL -- if already activated, then it is covered by the other SELECT
 `
 
 	result := &fleet.SoftwareInstallDetails{}
@@ -1057,7 +1043,8 @@ FROM
 		ON siua.software_title_id = st.id
 WHERE
 	ua.execution_id = :execution_id AND
-	ua.activity_type = 'software_install'
+	ua.activity_type = 'software_install' AND
+	ua.activated_at IS NULL -- if already activated, covered by the other SELECT
 `
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
