@@ -438,7 +438,8 @@ Fleet uses a human-oriented quality assurance (QA) process to make sure the prod
 You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging). All bugs in Fleet are tracked by QA as [GitHub issues with the "bug" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug).
 
 - **Bug states:** The lifecycle stages of a bug at Fleet correspond to a set of GitHub labels, assignees, and boards.
-  - [Inbox](https://fleetdm.com/handbook/company/product-groups#inbox)
+  - [Incoming](https://fleetdm.com/handbook/company/product-groups#incoming)
+  - [Triaged] (https://fleetdm.com/handbook/company/product-groups#triaged)
   - [Reproduced](https://fleetdm.com/handbook/company/product-groups#reproduced)
   - [In product drafting (as needed)](https://fleetdm.com/handbook/company/product-groups#in-product-drafting-as-needed)
   - [In engineering](https://fleetdm.com/handbook/company/product-groups#in-engineering)
@@ -453,17 +454,19 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 - **Bugs closed this week:** This filter returns all "bug" issues closed after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on Github](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+is%3Aclosed+label%3Abug+closed%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
 
+#### Incoming
 
-#### Inbox
+Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "incoming" state.
 
-Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.
+At this state, Quality Assurance Engineers (QA) are responsible for going through the [newly reported bugs](is:open is:issue label:bug label::reproduce -label:#g-software -label:#g-mdm -label:#g-orchestration) and tagging the correct product group. QA has **1 business day** to move the bug to the next step (triaged).
 
-At this state, each Quality Assurance Engineer (QA) is responsible for going through the [newly reported bugs](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) and tagging the correct product group, documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced).
+#### Triaged
+
+Quality Assurance Engineers (QA) are responsible for documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance on bugs assigned to their product team.
 
 For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At two weeks since last communication QA will ping the reporter for more information on the status of the issue. After four weeks of stale communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state. If QA or the engineering manager feels the bug report may be expected behavior, or if clarity is required on the intended behavior, it is assigned to the group's product manager. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
-
 
 #### Reproduced
 
@@ -471,24 +474,19 @@ QA has reproduced the issue successfully. It should now be transferred to engine
 
 Remove the “reproduce” label, add the following labels:
 
-1. The relevant product group (e.g. `#g-orchestration`, `#g-software`, `#g-mdm`, `#g-digital-experience`).
-3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
+1. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates to the EM that it is a new bug.
 3. The `:release` label will place the bug on the team's release board.
 
-Once the bug is properly labeled, assign it to the [relevant engineering manager](https://fleetdm.com/handbook/company/product-groups#current-product-groups). (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
-
 > **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
-
 
 #### In product drafting (as needed)
 
 If a bug requires input from product the `:product` label is added, the `:release` label is removed, and the PM is assigned to the issue. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
-
 #### In engineering
 
-A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
+A bug is in engineering after it has been assigned to a product team and reproduced. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
 During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.
 
