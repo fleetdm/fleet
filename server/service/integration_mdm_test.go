@@ -11793,7 +11793,6 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add all apps to the team
-	addedApp = expectedApps[0]
 	appSelfService := expectedApps[0]
 	// Add app 1 as self-service
 	addedMacOSApp = addAppStoreAppResponse{}
@@ -11820,17 +11819,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	listSw = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, len(expectedApps))
-	macOSTitleID = 99999
 	iOSTitleID := uint(99999)
-	for _, sw := range listSw.SoftwareTitles {
-		assert.NotNil(t, sw.AppStoreApp)
-		switch {
-		case sw.Name == addedApp.Name && sw.Source == "apps":
-			macOSTitleID = sw.ID
-		case sw.Name == iOSApp.Name && sw.Source == "ios_apps":
-			iOSTitleID = sw.ID
-		}
-	}
 
 	policy1Team1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
 		Name:     "policy1Team1",
@@ -11993,7 +11982,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 
 	s.lastActivityMatches(
