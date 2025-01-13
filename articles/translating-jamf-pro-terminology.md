@@ -29,3 +29,10 @@ Whether you are using Fleet alongside Jamf Pro to manage your Apple devices or p
 | Jamf Log Stream                | Agent options          | [Log destinations](https://fleetdm.com/guides/log-destinations)                                                                                                                                                                                                                            |
 | Access                         | Roles                  | [Role-based access](https://fleetdm.com/guides/role-based-access)                                                                                                                                                                                                                          |
 | Disk encryption configurations | Controls               | Controls > OS settings > Disk encryption                                                                                                                                                                                                                                                   |
+
+<meta name="articleTitle" value="Translating Jamf Pro terminology & capabilities">
+<meta name="authorFullName" value="Allen Houchins">
+<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2025-01-13">
+<meta name="description" value="Translate Jamf Pro terminology and capabilities to Fleet">
