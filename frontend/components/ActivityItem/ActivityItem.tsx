@@ -103,6 +103,7 @@ const ActivityItem = ({
 
   const classNames = classnames(baseClass, className, {
     [`${baseClass}__solo-activity`]: soloActivity,
+    [`${baseClass}__no-details`]: hideShowDetails,
   });
 
   const onShowActivityDetails = () => {

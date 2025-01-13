@@ -158,4 +158,13 @@
       display: none;
     }
   }
+
+  &__no-details {
+    .activity-item__details-wrapper {
+      &:hover {
+        cursor: auto;
+        background-color: transparent;
+      }
+    }
+  }
 }
