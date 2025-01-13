@@ -48,11 +48,13 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] Transparency changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
+- [ ] First draft of test plan added
 - [ ] Other reference documentation changes: TODO <!-- Any other reference doc changes? Specify changes as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
 - [ ] Once shipped, requester has been notified
 - [ ] Once shipped, dogfooding issue has been filed
 
 ### Engineering
+- [ ] Test plan is finalized
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
@@ -67,9 +69,9 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - Risk level: Low / High TODO <!-- Choose one. Consider: Does this change come with performance risks?  Any risk of accidental log spew? Any particular regressions to watch out for?  Any potential compatibility issues, even if it's not technically a breaking change? -->
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->
 
-### Manual testing steps
+### Test plan
 <!-- 
-Add detailed manual testing steps for all affected user roles. 
+Add detailed manual testing steps for all affected user roles.
 -->
 
 1. Step 1
@@ -85,5 +87,5 @@ Add detailed manual testing steps for all affected user roles.
 ### Confirmation
 <!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
 
-1. [ ] Engineer (@____): Added comment to user story confirming successful completion of QA.
-2. [ ] QA (@____): Added comment to user story confirming successful completion of QA.
+1. [ ] Engineer: Added comment to user story confirming successful completion of test plan.
+2. [ ] QA: Added comment to user story confirming successful completion of test plan.

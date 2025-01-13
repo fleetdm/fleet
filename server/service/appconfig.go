@@ -134,13 +134,29 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	// Only the Global Admin should be able to see see SMTP, SSO and osquery agent settings.
+	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
+	isAnyTeamAdmin := false
+	if vc.User.Teams != nil {
+		// check if the user is an admin for any team
+		for _, team := range vc.User.Teams {
+			if team.Role == fleet.RoleAdmin {
+				isAnyTeamAdmin = true
+				break
+			}
+		}
+	}
+
+	// Only admins should see SMTP and SSO settings
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
-	var agentOptions *json.RawMessage
-	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
+	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+
+	// Only global admins should see osquery agent settings.
+	var agentOptions *json.RawMessage
+	if isGlobalAdmin {
 		agentOptions = appConfig.AgentOptions
 	}
 

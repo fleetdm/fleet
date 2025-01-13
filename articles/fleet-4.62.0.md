@@ -22,7 +22,7 @@ Fleet now creates policies automatically when you add a custom package. This eli
 
 ### Hide secrets in configuration profiles and scripts
 
-Fleet ensures that GitHub or GitLab secrets, like API tokens and license keys used in scripts (Shell & PowerShell) and configuration profiles (macOS & Windows), are hidden when viewed or downloaded in Fleet. This protects sensitive information, keeping it secure until it’s deployed to the hosts. Learn more about secrets [here](https://fleetdm.com/secret-variables).
+Fleet ensures that GitHub or GitLab secrets, like API tokens and license keys used in scripts (Shell & PowerShell) and configuration profiles (macOS & Windows), are hidden when viewed or downloaded in Fleet. This protects sensitive information, keeping it secure until it’s deployed to the hosts. Learn more about secrets [here](https://fleetdm.com/guides/secret-variables).
 
 ## Changes
 

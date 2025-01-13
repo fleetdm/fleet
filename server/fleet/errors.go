@@ -477,6 +477,15 @@ func IsJSONUnknownFieldError(err error) bool {
 	return rxJSONUnknownField.MatchString(err.Error())
 }
 
+func GetJSONUnknownField(err error) *string {
+	errCause := Cause(err)
+	if IsJSONUnknownFieldError(errCause) {
+		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
+		return &substr[1]
+	}
+	return nil
+}
+
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.
