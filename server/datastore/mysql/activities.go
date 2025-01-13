@@ -415,10 +415,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.host_id = :host_id AND
 			hsi.status = :software_status_uninstall_pending
 		`,
+		// list pending VPP installs
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
-	u.name AS name,
+	-- policies with automatic installers generate a host_vpp_software_installs with (user_id=NULL,self_service=0),
+	-- so we mark those as "Fleet"
+	IF(hvsi.user_id IS NULL AND NOT hvsi.self_service, 'Fleet', u.name) AS name,
 	u.id AS user_id,
 	u.gravatar_url as gravatar_url,
 	u.email as user_email,

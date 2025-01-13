@@ -67,6 +67,7 @@ func TestPolicies(t *testing.T) {
 		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
 		{"TestPoliciesNewGlobalPolicyWithInstaller", testNewGlobalPolicyWithInstaller},
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
+		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
@@ -4300,6 +4301,134 @@ func testTeamPoliciesWithInstaller(t *testing.T, ds *Datastore) {
 	policiesWithInstallers, err = ds.GetPoliciesWithAssociatedInstaller(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithInstallers)
+}
+
+func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"}) // team2 has no policies
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	// create team1 app
+	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.appy",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
+	require.NoError(t, err)
+
+	// Policy p1 has no associated app.
+	p1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "p1",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	// Create and associate an app to p2.
+	p2, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:           "p2",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &team1Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, team1Meta.VPPAppsTeamsID, *p2.VPPAppsTeamsID)
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.VPPAppsTeamsID)
+	require.Equal(t, team1Meta.VPPAppsTeamsID, *p2.VPPAppsTeamsID)
+
+	// create no-team app
+	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.appy",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), noTeamApp.TitleID)
+	require.NoError(t, err)
+	require.NotEqual(t, noTeamMeta.VPPAppsTeamsID, team1Meta.VPPAppsTeamsID)
+	require.Equal(t, noTeamMeta.AdamID, team1Meta.AdamID)
+
+	// Policy p4 in "No team" with associated app.
+	p4, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:           "p4",
+		Query:          "SELECT 4;",
+		VPPAppsTeamsID: ptr.Uint(noTeamMeta.VPPAppsTeamsID),
+	})
+	require.NoError(t, err)
+
+	// create another team1 app
+	team1App2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp2", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+	team1Meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App2.TitleID)
+	require.NoError(t, err)
+
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &user1.ID, fleet.PolicyPayload{
+		Name:           "p5",
+		Query:          "SELECT 5;",
+		VPPAppsTeamsID: ptr.Uint(team1Meta2.VPPAppsTeamsID),
+	})
+	require.Error(t, err, "app is associated with a different team")
+
+	policiesWithVPPs, err := ds.GetPoliciesWithAssociatedVPP(ctx, fleet.PolicyNoTeamID, []uint{p4.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithVPPs, 1)
+	require.Equal(t, p4.ID, policiesWithVPPs[0].ID)
+	require.Equal(t, noTeamMeta.AdamID, policiesWithVPPs[0].AdamID)
+	require.Equal(t, noTeamMeta.Platform, policiesWithVPPs[0].Platform)
+
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team1.ID, []uint{})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithVPPs)
+
+	// p1 has no associated apps.
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team1.ID, []uint{p1.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithVPPs)
+
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team1.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithVPPs, 1)
+	require.Equal(t, p2.ID, policiesWithVPPs[0].ID)
+	require.Equal(t, team1Meta.AdamID, policiesWithVPPs[0].AdamID)
+
+	// p2 has associated app but belongs to team1.
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team2.ID, []uint{p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithVPPs)
+
+	p1.VPPAppsTeamsID = ptr.Uint(team1Meta.VPPAppsTeamsID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.NoError(t, err)
+
+	p1.VPPAppsTeamsID = ptr.Uint(noTeamMeta.VPPAppsTeamsID)
+	err = ds.SavePolicy(ctx, p1, false, false)
+	require.Error(t, err, "VPP app is associated with a different team")
+
+	p2, err = ds.Policy(ctx, p2.ID)
+	require.NoError(t, err)
+	require.NotNil(t, p2.VPPAppsTeamsID)
+	require.Equal(t, team1Meta.VPPAppsTeamsID, *p2.VPPAppsTeamsID)
+
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team1.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Len(t, policiesWithVPPs, 2)
+	require.Equal(t, p1.ID, policiesWithVPPs[0].ID)
+	require.Equal(t, team1Meta.AdamID, policiesWithVPPs[0].AdamID)
+	require.Equal(t, p2.ID, policiesWithVPPs[1].ID)
+	require.Equal(t, team1Meta.AdamID, policiesWithVPPs[1].AdamID)
+
+	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team2.ID, []uint{p1.ID, p2.ID})
+	require.NoError(t, err)
+	require.Empty(t, policiesWithVPPs)
 }
 
 func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {

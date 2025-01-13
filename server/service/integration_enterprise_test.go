@@ -14587,7 +14587,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	})
 	require.NotZero(t, fleetOsqueryMSIInstallerID)
 
-	// Create a VPP app to test that policies cannot be assigned to them.
+	// Create a VPP app to test that policies *can* be assigned to them (VPP automation is tested in MDM integration test)
 	_, err = s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App123 " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
@@ -14684,13 +14684,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: foobarAppTitleID},
 		},
 	}, http.StatusBadRequest, &mtplr)
-	// Attempt to associate vppApp to policy1Team1 which should fail because we only allow associating software installers.
+	// Associate a VPP app to the policy (which we'll immediately overwrite)
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
 		},
-	}, http.StatusBadRequest, &mtplr)
+	}, http.StatusOK, &mtplr)
 	// Associate dummy_installer.pkg to policy1Team1.
 	mtplr = modifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), modifyTeamPolicyRequest{
