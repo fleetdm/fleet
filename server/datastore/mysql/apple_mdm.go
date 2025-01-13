@@ -4235,10 +4235,10 @@ INSERT INTO mdm_apple_declarations (
 	team_id
 )
 VALUES (
-	?,?,?,?,?,CURRENT_TIMESTAMP(),?
+	?,?,?,?,?,NOW(6),?
 )
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
+  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   identifier = VALUES(identifier),
@@ -4253,22 +4253,7 @@ WHERE
 `
 	andNameNotInList := "name NOT IN (?)" // added to fmtDeleteStmt if needed
 
-	const loadExistingDecls = `
-SELECT
-  name,
-  declaration_uuid,
-  raw_json
-FROM
-  mdm_apple_declarations
-WHERE
-  team_id = ? AND
-  name IN (?)
-`
-
-	var declTeamID uint
-	if tmID != nil {
-		declTeamID = *tmID
-	}
+	declTeamID := ds.teamIDPtrToUint(tmID)
 
 	// build a list of names for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
@@ -4281,23 +4266,9 @@ WHERE
 		incomingDecls[p.Name] = p
 	}
 
-	var existingDecls []*fleet.MDMAppleDeclaration
-
-	if len(incomingNames) > 0 {
-		// load existing declarations that match the incoming declarations by names
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &existingDecls, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, false, ctxerr.Wrap(ctx, err, "load existing declarations")
-		}
+	existingDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, declTeamID)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "load existing declarations")
 	}
 
 	// figure out if we need to delete any declarations
@@ -4309,20 +4280,10 @@ WHERE
 	}
 	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
 
-	var delArgs []any
-	var delStmt string
-	if len(keepNames) == 0 {
-		// delete all declarations for the team
-		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
-		delArgs = []any{declTeamID}
-	} else {
-		// delete the obsolete declarations (all those that are not in keepNames)
-		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
-		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
-		}
-		delStmt = stmt
-		delArgs = args
+	// delete the obsolete declarations (all those that are not in keepNames)
+	delStmt, delArgs, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 	}
 
 	var result sql.Result
@@ -4357,7 +4318,6 @@ WHERE
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	if len(incomingNames) > 0 {
-		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
 		// load current declarations (again) that match the incoming declarations by name to grab their uuids
 		// this is an easy way to grab the identifiers for both the existing declarations and the new ones we generated.
 		//
@@ -4365,11 +4325,8 @@ WHERE
 		// information without this extra request in the previous DB
 		// calls. Due to time constraints, I'm leaving that
 		// optimization for a later iteration.
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
+		newlyInsertedDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, declTeamID)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedDecls, stmt, args...); err != nil {
 			return nil, false, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
 		}
 
@@ -4410,6 +4367,48 @@ WHERE
 	}
 
 	return incomingDeclarations, updatedDB || updatedLabels, nil
+}
+
+func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingNames []string,
+	teamID uint) ([]*fleet.MDMAppleDeclaration, error) {
+	const loadExistingDecls = `
+SELECT
+  name,
+  declaration_uuid,
+  raw_json
+FROM
+  mdm_apple_declarations
+WHERE
+  team_id = ? AND
+  name IN (?)
+`
+	var existingDecls []*fleet.MDMAppleDeclaration
+	if len(incomingNames) > 0 {
+		// load existing declarations that match the incoming declarations by names
+		loadExistingDeclsStmt, args, err := sqlx.In(loadExistingDecls, teamID, incomingNames)
+		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
+			"inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &existingDecls, loadExistingDeclsStmt,
+			args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "load existing declarations")
+		}
+	}
+	return existingDecls, nil
+}
+
+func (ds *Datastore) teamIDPtrToUint(tmID *uint) uint {
+	if tmID != nil {
+		return *tmID
+	}
+	return 0
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {

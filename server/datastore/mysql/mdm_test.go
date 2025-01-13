@@ -361,6 +361,7 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		wantUpdates fleet.MDMProfilesUpdates,
 	) {
 		ctx := context.Background()
+		t.Logf("BatchSetMDMProfiles")
 		updates, err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet, newAppleDeclSet)
 		require.NoError(t, err)
 		expectAppleProfiles(t, ds, tmID, wantApple)
