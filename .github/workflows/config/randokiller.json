@@ -3,6 +3,6 @@
     "mysql:8.0.36"
   ],
   "pkg_to_test": "server/service",
-  "tests_to_run": "^\\\\QTestIntegrationsMDM\\\\E\\$\\/^\\\\QTestVPPApps\\\\E$",
+  "tests_to_run": "^\\\\QTestIntegrationsMDM\\\\E\\$$\\//^\\\\QTestVPPApps\\\\E$",
   "num_tries": 50
 }
