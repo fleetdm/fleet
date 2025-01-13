@@ -2763,11 +2763,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	ctx := context.Background()
 	t := s.T()
-
-	// Skip worker jobs to avoid running into timing issues with this test.
-	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs.Store(true)
-	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+	s.setSkipWorkerJobs(t)
 
 	// list commands should return all the commands we sent
 	var listCmdResp0 listMDMAppleCommandsResponse
@@ -2953,13 +2949,17 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	}, profileListCommands[0])
 }
 
-func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
-	t := s.T()
-
-	// Skip worker jobs to avoid running into timing issues with this test.
-	// We can manually run the jobs if needed with s.runWorker().
+// setSkipWorkerJobs sets the skipWorkerJobs flag to true for the duration of the test.
+// This avoids running into timing issues with the test.
+// We can manually run the jobs if needed with s.runWorker().
+func (s *integrationMDMTestSuite) setSkipWorkerJobs(t *testing.T) {
 	s.skipWorkerJobs.Store(true)
 	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+}
+
+func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
 
 	_, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
@@ -10890,6 +10890,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 func (s *integrationMDMTestSuite) TestVPPApps() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
+
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.", nil)
@@ -11320,12 +11322,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	cmd, err := mdmDevice.Idle()
 	var failedCmdUUID string
 	require.NoError(t, err)
+	assert.NotNil(t, cmd)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			failedCmdUUID = cmd.CommandUUID
+			t.Logf("Failed command UUID: %s", failedCmdUUID)
 			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
 			require.NoError(t, err)
 		}
