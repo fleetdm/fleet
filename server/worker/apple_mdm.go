@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,9 +39,10 @@ const (
 
 // AppleMDM is the job processor for the apple_mdm job.
 type AppleMDM struct {
-	Datastore fleet.Datastore
-	Log       kitlog.Logger
-	Commander *apple_mdm.MDMAppleCommander
+	Datastore             fleet.Datastore
+	Log                   kitlog.Logger
+	Commander             *apple_mdm.MDMAppleCommander
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 }
 
 // Name returns the name of the job.
@@ -323,14 +325,19 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 		return "", err
 	}
 
-	appCfg, err := a.Datastore.AppConfig(ctx)
-	if err != nil {
-		return "", err
-	}
+	// Get CloudFront CDN signed URL if configured
+	url := a.getSignedURL(ctx, meta)
 
-	url, err := meta.URL(appCfg.MDMUrl())
-	if err != nil {
-		return "", err
+	if url == "" {
+		appCfg, err := a.Datastore.AppConfig(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		url, err = meta.URL(appCfg.MDMUrl())
+		if err != nil {
+			return "", err
+		}
 	}
 
 	manifest := appmanifest.NewFromSha(meta.Sha256, url)
@@ -345,6 +352,34 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	}
 	a.Log.Log("info", "sent command to install bootstrap package", "host_uuid", hostUUID)
 	return cmdUUID, nil
+}
+
+func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstrapPackage) string {
+	var url string
+	if a.BootstrapPackageStore != nil {
+		pkgID := hex.EncodeToString(meta.Sha256)
+		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID)
+		switch {
+		case errors.Is(err, fleet.ErrNotConfigured):
+			// no CDN configured, fall back to the MDM URL
+		case err != nil:
+			// log the error but continue with the MDM URL
+			level.Error(a.Log).Log("msg", "failed to sign bootstrap package URL", "err", err)
+		default:
+			exists, err := a.BootstrapPackageStore.Exists(ctx, pkgID)
+			switch {
+			case err != nil:
+				// log the error but continue with the MDM URL
+				level.Error(a.Log).Log("msg", "failed to check if bootstrap package exists", "err", err)
+			case !exists:
+				// log the error but continue with the MDM URL
+				level.Error(a.Log).Log("msg", "bootstrap package does not exist in package store", "pkg_id", pkgID)
+			default:
+				url = signedURL
+			}
+		}
+	}
+	return url
 }
 
 // QueueAppleMDMJob queues a apple_mdm job for one of the supported tasks, to
