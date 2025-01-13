@@ -172,11 +172,7 @@ const InstallSoftwareModal = ({
       const policyPlatforms = policy.platform.split(",");
       return titlesAFI
         ?.filter(
-          (title) =>
-            (title.platform && policyPlatforms.includes(title.platform)) ||
-            (policyPlatforms.includes("darwin") &&
-              title.source === "apps" &&
-              title.app_store_app)
+          (title) => title.platform && policyPlatforms.includes(title.platform)
         )
         .map((title) => {
           const vppOption = title.source === "apps" && !!title.app_store_app;
