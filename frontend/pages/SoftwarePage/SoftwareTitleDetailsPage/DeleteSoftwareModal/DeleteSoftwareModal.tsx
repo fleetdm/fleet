@@ -63,7 +63,7 @@ const DeleteSoftwareModal = ({
       <>
         <p>
           Software won&apos;t be uninstalled from existing hosts, but any
-          pending pending installs and uninstalls{" "}
+          pending installs and uninstalls{" "}
           {softwarePackageName ? (
             <>
               for <b> {softwarePackageName}</b>{" "}
