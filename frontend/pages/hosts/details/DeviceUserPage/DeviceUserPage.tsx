@@ -182,8 +182,6 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      // TODO: refactor to use non-refetch data directly in the component and remove
-      // unnecesary derived states for values that aren't related to the refetch status
       onSuccess: ({ host: responseHost }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         if (isRefetching(responseHost)) {
