@@ -1319,47 +1319,6 @@ const GlobalActivityItem = ({
       {getDetail(activity, isPremiumTier)}
     </ActivityItem>
   );
-
-  // return (
-  //   <div className={baseClass}>
-  //     <Avatar
-  //       className={`${baseClass}__avatar-image`}
-  //       user={{ gravatar_url }}
-  //       size="small"
-  //       hasWhiteBackground
-  //     />
-  //     <div className={`${baseClass}__details-wrapper`}>
-  //       <div className="activity-details">
-  //         {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
-  //         <span className={`${baseClass}__details-topline`}>
-  //           {renderActivityPrefix()}
-  //           {getDetail(activity, isPremiumTier, onDetailsClick)}
-  //         </span>
-  //         <br />
-  //         <span
-  //           className={`${baseClass}__details-bottomline`}
-  //           data-tip
-  //           data-for={`activity-${activity.id}`}
-  //         >
-  //           {formatDistanceToNowStrict(activityCreatedAt, {
-  //             addSuffix: true,
-  //           })}
-  //         </span>
-  //         <ReactTooltip
-  //           className="date-tooltip"
-  //           place="top"
-  //           type="dark"
-  //           effect="solid"
-  //           id={`activity-${activity.id}`}
-  //           backgroundColor={COLORS["tooltip-bg"]}
-  //         >
-  //           {internationalTimeFormat(activityCreatedAt)}
-  //         </ReactTooltip>
-  //       </div>
-  //     </div>
-  //     <div className={`${baseClass}__dash`} />
-  //   </div>
-  // );
 };
 
 export default GlobalActivityItem;
