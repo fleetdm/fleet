@@ -1,4 +1,5 @@
 name: Stress Test Go Test
+# A tool to test/debug/reproduce flaky tests. Update randokiller.json to point at a specific test.
 
 on:
   push:
