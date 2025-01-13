@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
@@ -249,62 +248,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// NOTE: Be sure to update both the count (here) and list statements (below)
 	// if the query condition is modified.
 
-	// TODO(mna): use the upcoming queue instead (but also include in-execution stuff
-	// that have no results yet)?
-	countStmts := []string{
-		// everything in upcoming_activities is pending for that host
-		`SELECT
-			COUNT(*) c 
-			FROM upcoming_activities 
-			WHERE host_id = :host_id`,
-
-		// scripts without result that are not "uninstall scripts" for a software install are pending
-		`SELECT
-			COUNT(*) c
-			FROM host_script_results hsr
-			LEFT OUTER JOIN
-		    	host_software_installs hsi ON hsi.execution_id = hsr.execution_id
-			WHERE hsr.host_id = :host_id AND
-						exit_code IS NULL AND
-						hsi.execution_id IS NULL AND
-						(sync_request = 0 OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
-
-		// software installs without result are pending
-		`SELECT
-			COUNT(*) c
-			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
-				hsi.status = :software_status_install_pending`,
-
-		// software uninstalls without result are pending
-		`SELECT
-			COUNT(*) c
-			FROM host_software_installs hsi
-			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
-				hsi.status = :software_status_uninstall_pending`,
-
-		// VPP installs without command result are pending
-		`SELECT
-			COUNT(*) c
-			FROM nano_view_queue nvq
-			JOIN host_vpp_software_installs hvsi ON nvq.command_uuid = hvsi.command_uuid
-			WHERE hvsi.host_id = :host_id AND nvq.status IS NULL`,
-	}
+	const countStmt = `SELECT
+	COUNT(*) c
+	FROM upcoming_activities
+	WHERE host_id = ?`
 
 	var count uint
-	countStmt := `SELECT SUM(c) FROM ( ` + strings.Join(countStmts, " UNION ALL ") + ` ) AS counts`
-
-	seconds := int(scripts.MaxServerWaitTime.Seconds())
-	countStmt, args, err := sqlx.Named(countStmt, map[string]any{
-		"host_id":                           hostID,
-		"max_wait_time":                     seconds,
-		"software_status_install_pending":   fleet.SoftwareInstallPending,
-		"software_status_uninstall_pending": fleet.SoftwareUninstallPending,
-	})
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "build count query from named args")
-	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
 	if count == 0 {
@@ -319,154 +269,161 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	listStmts := []string{
 		// list pending scripts
 		`SELECT
-			hsr.execution_id as uuid,
-			IF(hsr.policy_id IS NOT NULL, 'Fleet', u.name) as name,
+			ua.execution_id as uuid,
+			IF(sua.policy_id IS NOT NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) as name, -- TODO: should that use fleet_initiated
 			u.id as user_id,
-			u.gravatar_url as gravatar_url,
-			u.email as user_email,
+			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
+			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
 			:ran_script_type as activity_type,
-			hsr.created_at as created_at,
+			ua.created_at as created_at,
 			JSON_OBJECT(
-				'host_id', hsr.host_id,
+				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
-				'script_execution_id', hsr.execution_id,
-				'async', NOT hsr.sync_request,
-			    'policy_id', hsr.policy_id,
-			    'policy_name', p.name
-			) as details
+				'script_execution_id', ua.execution_id,
+				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request),
+				'policy_id', sua.policy_id,
+				'policy_name', p.name
+			) as details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
+			ua.priority as priority
 		FROM
-			host_script_results hsr
+			upcoming_activities ua
+		INNER JOIN 
+			script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
-			users u ON u.id = hsr.user_id
+			users u ON u.id = ua.user_id
 		LEFT OUTER JOIN
-			policies p ON p.id = hsr.policy_id
+			policies p ON p.id = sua.policy_id
 		LEFT OUTER JOIN
-			host_display_names hdn ON hdn.host_id = hsr.host_id
+			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
-			scripts scr ON scr.id = hsr.script_id
+			scripts scr ON scr.id = sua.script_id
 		LEFT OUTER JOIN
-		    host_software_installs hsi ON hsi.execution_id = hsr.execution_id
-		LEFT OUTER JOIN
-			setup_experience_scripts ses ON ses.id = hsr.setup_experience_script_id
+			setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
 		WHERE
-			hsr.host_id = :host_id AND
-			hsr.exit_code IS NULL AND
-			(
-				hsr.sync_request = 0 OR
-				hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND)
-			) AND
-			hsi.execution_id IS NULL
+			ua.host_id = :host_id AND
+			ua.activity_type = 'script'
 `,
 		// list pending software installs
 		`SELECT
-			hsi.execution_id as uuid,
+			ua.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, 'Fleet', u.name) AS name,
-			hsi.user_id as user_id,
-			u.gravatar_url as gravatar_url,
-			u.email AS user_email,
+			-- TODO: should we use fleet_initiated instead
+			IF(ua.user_id IS NULL AND NOT JSON_EXTRACT(ua.payload, '$.self_service), 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			ua.user_id as user_id,
+			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
+			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
 			:installed_software_type as activity_type,
-			hsi.created_at as created_at,
+			ua.created_at as created_at,
 			JSON_OBJECT(
-				'host_id', hsi.host_id,
+				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, ''),
-				'software_package', si.filename,
-				'install_uuid', hsi.execution_id,
-				'status', CAST(hsi.status AS CHAR),
-				'self_service', hsi.self_service IS TRUE,
-				'policy_id', hsi.policy_id,
-			    'policy_name', p.name
-			) as details
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
+				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename')),
+				'install_uuid', ua.execution_id,
+				'status', 'pending_install',
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service) IS TRUE,
+				'policy_id', siua.policy_id,
+				'policy_name', p.name
+			) as details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
+			ua.priority as priority
 		FROM
-			host_software_installs hsi
+			upcoming_activities ua
 		INNER JOIN
-			software_installers si ON si.id = hsi.software_installer_id
+			software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+		LEFT OUTER JOIN
+			software_installers si ON si.id = siua.software_installer_id
 		LEFT OUTER JOIN
 			software_titles st ON st.id = si.title_id
 		LEFT OUTER JOIN
-			users u ON u.id = hsi.user_id
+			users u ON u.id = ua.user_id
 		LEFT OUTER JOIN
-			policies p ON p.id = hsi.policy_id
+			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
-			host_display_names hdn ON hdn.host_id = hsi.host_id
+			host_display_names hdn ON hdn.host_id = ua.host_id
 		WHERE
-			hsi.host_id = :host_id AND
-			hsi.status = :software_status_install_pending
+			ua.host_id = :host_id AND
+			ua.activity_type = 'software_install'
 		`,
 		// list pending software uninstalls
 		`SELECT
-			hsi.execution_id as uuid,
+			ua.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
-			IF(hsi.user_id IS NULL AND NOT hsi.self_service, 'Fleet', u.name) AS name,
-			hsi.user_id as user_id,
-			u.gravatar_url as gravatar_url,
-			u.email AS user_email,
+			-- TODO: should we use fleet_initiated instead
+			IF(ua.user_id IS NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			ua.user_id as user_id,
+			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
+			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
 			:uninstalled_software_type as activity_type,
-			hsi.created_at as created_at,
+			ua.created_at as created_at,
 			JSON_OBJECT(
-				'host_id', hsi.host_id,
+				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, ''),
-				'script_execution_id', hsi.execution_id,
-				'status', CAST(hsi.status AS CHAR),
-				'policy_id', hsi.policy_id,
-			    'policy_name', p.name
-			) as details
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
+				'script_execution_id', ua.execution_id,
+				'status', 'pending_uninstall',
+				'policy_id', siua.policy_id,
+				'policy_name', p.name
+			) as details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
+			ua.priority as priority
 		FROM
-			host_software_installs hsi
+			upcoming_activities ua
 		INNER JOIN
-			software_installers si ON si.id = hsi.software_installer_id
+			software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+		LEFT OUTER JOIN
+			software_installers si ON si.id = siua.software_installer_id
 		LEFT OUTER JOIN
 			software_titles st ON st.id = si.title_id
 		LEFT OUTER JOIN
-			users u ON u.id = hsi.user_id
+			users u ON u.id = ua.user_id
 		LEFT OUTER JOIN
-			policies p ON p.id = hsi.policy_id
+			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
-			host_display_names hdn ON hdn.host_id = hsi.host_id
+			host_display_names hdn ON hdn.host_id = ua.host_id
 		WHERE
-			hsi.host_id = :host_id AND
-			hsi.status = :software_status_uninstall_pending
+			ua.host_id = :host_id AND
+			activity_type = 'software_uninstall'
 		`,
-		`
-SELECT
-	hvsi.command_uuid AS uuid,
-	u.name AS name,
-	u.id AS user_id,
-	u.gravatar_url as gravatar_url,
-	u.email as user_email,
-	:installed_app_store_app_type AS activity_type,
-	hvsi.created_at AS created_at,
-	JSON_OBJECT(
-		'host_id', hvsi.host_id,
-		'host_display_name', hdn.display_name,
-		'software_title', st.name,
-		'app_store_id', hvsi.adam_id,
-		'command_uuid', hvsi.command_uuid,
-		'self_service', hvsi.self_service IS TRUE,
-		-- status is always pending because only pending MDM commands are upcoming.
-		'status', :software_status_install_pending
-	) AS details
-FROM
-	host_vpp_software_installs hvsi
-INNER JOIN
-	nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
-LEFT OUTER JOIN
-	users u ON hvsi.user_id = u.id
-LEFT OUTER JOIN
-	host_display_names hdn ON hdn.host_id = hvsi.host_id
-LEFT OUTER JOIN
-	vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
-LEFT OUTER JOIN
-	software_titles st ON st.id = vpa.title_id
-WHERE
-	nvq.status IS NULL
-	AND hvsi.host_id = :host_id
-`,
+		// TODO(mna): complete the VPP apps UNION when VPP apps are ready
+		`SELECT
+			ua.execution_id AS uuid,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			u.id AS user_id,
+			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
+			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
+			:installed_app_store_app_type AS activity_type,
+			ua.created_at AS created_at,
+			JSON_OBJECT(
+				'host_id', ua.host_id,
+				'host_display_name', hdn.display_name,
+				-- 'software_title', st.name,
+				-- 'app_store_id', hvsi.adam_id,
+				'command_uuid', ua.execution_id,
+				-- 'self_service', hvsi.self_service IS TRUE,
+				-- status is always pending because only pending MDM commands are upcoming.
+				'status', 'pending_install'
+			) AS details,
+			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
+			ua.priority as priority
+		FROM
+			upcoming_activities ua
+		LEFT OUTER JOIN
+			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = ua.host_id
+		-- LEFT OUTER JOIN
+			-- vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
+		-- LEFT OUTER JOIN
+			-- software_titles st ON st.id = vpa.title_id
+		WHERE
+			ua.host_id = :host_id AND
+			ua.activity_type = 'vpp_app_install'
+		`,
 	}
 
 	listStmt := `

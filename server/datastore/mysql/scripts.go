@@ -70,7 +70,7 @@ VALUES
 		JSON_OBJECT(
 			'sync_request', ?,
 			'is_internal', ?,
-			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
 

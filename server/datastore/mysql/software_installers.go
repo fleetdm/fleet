@@ -774,7 +774,7 @@ VALUES
 			'installer_filename', ?,
 			'version', ?,
 			'software_title_name', ?,
-			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
 
@@ -918,7 +918,7 @@ VALUES
 			'installer_filename', '',
 			'version', 'unknown',
 			'software_title_name', ?,
-			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
 
