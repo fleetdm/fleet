@@ -4241,7 +4241,7 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 	}
 
 	// figure out which declarations we should not delete, and put those into keepNames list
-	keepNames := make([]string, 0, len(incomingNames))
+	keepNames := make([]string, 0, len(existingDecls)+len(fleetmdm.ListFleetReservedMacOSDeclarationNames()))
 	for _, p := range existingDecls {
 		if newP := incomingDeclarationsMap[p.Name]; newP != nil {
 			keepNames = append(keepNames, p.Name)
