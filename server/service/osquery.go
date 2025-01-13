@@ -2207,23 +2207,12 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []*fleet.Schedule
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
+	var filteredQueries []*fleet.ScheduledQueryResult
 	var filteredLogs []json.RawMessage
 	for _, unmarshaledResult := range unmarshaledResults {
 		if unmarshaledResult == nil {
 			// Ignore results that could not be unmarshaled.
 			continue
-		}
-
-		var resmarshalled []byte
-		remarshal := func(query *fleet.ScheduledQueryResult) {
-			if resmarshalled != nil {
-				return
-			}
-			bytes, err := json.Marshal(*unmarshaledResult)
-			resmarshalled = bytes
-			if err != nil {
-				level.Error(svc.logger).Log("err", err, "msg", "failed to re-marshal log results")
-			}
 		}
 
 		if queryReportsDisabled {
@@ -2232,10 +2221,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []*fleet.Schedule
 			// If a query was recently configured with automations_enabled = 0 we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
 			// and thus Fleet won't receive any further results anymore.
-			remarshal(unmarshaledResult)
-			if resmarshalled != nil {
-				filteredLogs = append(filteredLogs, resmarshalled)
-			}
+			filteredQueries = append(filteredQueries, unmarshaledResult)
 			continue
 		}
 
@@ -2248,10 +2234,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []*fleet.Schedule
 			// If a query was configured from Fleet but was recently removed, we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
 			// and thus Fleet won't receive any further results anymore.
-			remarshal(unmarshaledResult)
-			if resmarshalled != nil {
-				filteredLogs = append(filteredLogs, resmarshalled)
-			}
+			filteredQueries = append(filteredQueries, unmarshaledResult)
 			continue
 		}
 
@@ -2260,14 +2243,20 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []*fleet.Schedule
 			continue
 		}
 
-		remarshal(unmarshaledResult)
-		if resmarshalled != nil {
-			filteredLogs = append(filteredLogs, resmarshalled)
-		}
+		filteredQueries = append(filteredQueries, unmarshaledResult)
 	}
 
-	if len(filteredLogs) == 0 {
+	if len(filteredQueries) == 0 {
 		return nil
+	}
+
+	for _, query := range filteredQueries {
+		bytes, err := json.Marshal(query)
+		if err != nil {
+			level.Error(svc.logger).Log("err", err, "msg", "failed to re-marshal log results")
+			continue
+		}
+		filteredLogs = append(filteredLogs, bytes)
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
