@@ -3984,6 +3984,7 @@ Resends a configuration profile for the specified host.
       "name": "Google Chrome.app",
       "software_package": {
         "name": "GoogleChrome.pkg",
+        "platform": "darwin",
         "version": "125.12.0.3",
         "self_service": true,
         "last_install": {
@@ -4015,6 +4016,7 @@ Resends a configuration profile for the specified host.
       "name": "Falcon.app",
       "software_package": {
         "name": "FalconSensor-6.44.pkg",
+        "platform": "darwin",
         "self_service": false,
         "last_install": null,
         "last_uninstall": {
@@ -4033,6 +4035,7 @@ Resends a configuration profile for the specified host.
       "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
+        "platform": "darwin",
         "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
@@ -6039,6 +6042,7 @@ List software that can or will be automatically installed during macOS setup. If
       "name": "Firefox.app",
       "software_package": {
         "name": "FirefoxInsall.pkg",
+        "platform": "darwin",
         "version": "125.6",
         "self_service": true,
         "install_during_setup": true
@@ -8789,6 +8793,7 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
+        "platform": "darwin",
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
@@ -9063,6 +9068,7 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
+      "platform": "darwin",
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
@@ -9138,6 +9144,7 @@ Returns information about the specified software. By default, `versions` are sor
     "app_store_app": {
       "name": "Logic Pro",
       "app_store_id": 1091189122,
+      "platform": "darwin",
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
@@ -9420,6 +9427,7 @@ Content-Type: application/octet-stream
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "version": "6.44",
+    "platform": "darwin",
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
