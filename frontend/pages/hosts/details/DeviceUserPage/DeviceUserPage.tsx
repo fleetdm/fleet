@@ -58,14 +58,14 @@ import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
 
-const PREMIUM_TABS = [
+const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
-const FREE_TABS = [
+const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
@@ -355,9 +355,14 @@ const DeviceUserPage = ({
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
-    const tabPaths = isPremiumTier
-      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
-      : FREE_TABS.map((t) => t(deviceAuthToken));
+    let tabPaths = (isPremiumTier
+      ? PREMIUM_TAB_PATHS
+      : FREE_TAB_PATHS
+    ).map((t) => t(deviceAuthToken));
+    if (!hasSelfService) {
+      tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
