@@ -274,16 +274,6 @@ const InstallSoftwareModal = ({
       );
     }
 
-    const compatibleTipContent = (
-      <>
-        .pkg for macOS.
-        <br />
-        .msi or .exe for Windows.
-        <br />
-        .deb for Linux.
-      </>
-    );
-
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
@@ -294,11 +284,8 @@ const InstallSoftwareModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected software, if{" "}
-            <TooltipWrapper tipContent={compatibleTipContent}>
-              compatible
-            </TooltipWrapper>{" "}
-            with the host, will be installed when hosts fail the chosen policy.{" "}
+            Selected software, if compatible with the host, will be installed
+            when hosts fail the chosen policy.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"
