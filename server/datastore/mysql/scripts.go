@@ -66,7 +66,7 @@ func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, requ
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
 VALUES
-	(?, ?, ?, ?, 'script', ?, 
+	(?, ?, ?, ?, 'script', ?,
 		JSON_OBJECT(
 			'sync_request', ?,
 			'is_internal', ?,
@@ -75,7 +75,7 @@ VALUES
 	)`
 
 		insSUAStmt = `
-INSERT INTO script_upcoming_activities 
+INSERT INTO script_upcoming_activities
 	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)
 VALUES
 	(?, ?, ?, ?, ?)
@@ -109,7 +109,7 @@ WHERE
 		request.HostID,
 		priority,
 		request.UserID,
-		false, // TODO(mna): do we have fleet-initiated scripts?
+		isInternal || request.UserID == nil, // TODO(mna): confirm if this makes sense
 		execID,
 		request.SyncRequest,
 		isInternal,
@@ -320,7 +320,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 		ua.priority,
 		ua.created_at
   FROM
-    upcoming_activities ua 
+    upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua
 			ON ua.id = sua.upcoming_activity_id
   WHERE
@@ -333,8 +333,8 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
   	%s`, internalWhere)
 
 	stmt := fmt.Sprintf(`
-		SELECT id, host_id, execution_id, script_id 
-		FROM ( (%s) UNION (%s) ) as t 
+		SELECT id, host_id, execution_id, script_id
+		FROM ( (%s) UNION (%s) ) as t
 		ORDER BY topmost DESC, priority DESC, created_at ASC`, listHSRStmt, listUAStmt)
 
 	var results []*fleet.HostScriptResult
@@ -355,7 +355,9 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 		  host_id = ? AND
 		  script_id = ? AND
 		  exit_code IS NULL
+
 		UNION
+
 		SELECT
 			1
 		FROM
@@ -628,11 +630,11 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 
 	deleteUAStmt := `
 		DELETE FROM
-			upcoming_activities 
+			upcoming_activities
 		USING
 			upcoming_activities
 			INNER JOIN script_upcoming_activities sua
-				ON upcoming_activities.id = sua.upcoming_activity_id 
+				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
 			upcoming_activities.activity_type = 'script' AND
 			sua.policy_id = ? AND

@@ -19,7 +19,7 @@ import (
 
 func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	const stmt = `
-	SELECT 
+	SELECT
 		execution_id
 	FROM (
 		SELECT
@@ -32,7 +32,9 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 		WHERE
 			host_id = ? AND
 			status = ?
-		UNION 
+
+		UNION
+
 		SELECT
 			execution_id,
 			0 as topmost,
@@ -43,7 +45,7 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 		WHERE
 			host_id = ? AND
 			activity_type = 'software_install'
-	) as t 
+	) as t
 	ORDER BY topmost DESC, priority ASC, created_at ASC
 `
 	var results []string
@@ -55,7 +57,6 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 }
 
 func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
-	// TODO(mna): must also look in upcoming queue
 	const stmt = `
   SELECT
     hsi.host_id AS host_id,
@@ -81,7 +82,39 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     script_contents pisnt
     ON pisnt.id = si.post_install_script_content_id
   WHERE
-    hsi.execution_id = ?`
+    hsi.execution_id = ?
+
+	UNION
+
+  SELECT
+    ua.host_id AS host_id,
+    ua.execution_id AS execution_id,
+    siua.software_installer_id AS installer_id,
+		JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
+    COALESCE(si.pre_install_query, '') AS pre_install_condition,
+    inst.cot could be nulntents AS install_script,
+    uninst.contents AS uninstall_script,
+    COALESCE(pisnt.contents, '') AS post_install_script
+  FROM
+    upcoming_activities ua
+  INNER JOIN
+    software_install_upcoming_activities siua
+    ON ua.id = siua.upcoming_activity_id
+  INNER JOIN
+    software_installers si
+    ON siua.software_installer_id = si.id
+  LEFT OUTER JOIN
+    script_contents inst
+    ON inst.id = si.install_script_content_id
+  LEFT OUTER JOIN
+    script_contents uninst
+    ON uninst.id = si.uninstall_script_content_id
+  LEFT OUTER JOIN
+    script_contents pisnt
+    ON pisnt.id = si.post_install_script_content_id
+  WHERE
+    ua.execution_id = ?
+`
 
 	result := &fleet.SoftwareInstallDetails{}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId); err != nil {
@@ -474,8 +507,9 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 }
 
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
-	// TODO(mna): this is ok to only look in host_software_installs, because orbit should not
-	// be able to get the installer until it is ready to install.
+	// NOTE: this is ok to only look in host_software_installs (and ignore
+	// upcoming_activities), because orbit should not be able to get the
+	// installer until it is ready to install.
 	query := `
     SELECT 1
     FROM
@@ -684,14 +718,18 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	})
 }
 
-// deletePendingSoftwareInstallsForPolicy should be called after a policy is deleted to remove any pending software installs
+// deletePendingSoftwareInstallsForPolicy should be called after a policy is
+// deleted to remove any pending software installs
 func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
 
-	// TODO(mna): must also delete from upcoming queue
+	// NOTE(mna): I'm adding the deletion for the upcoming_activities too, but I
+	// don't think the existing code works as intended anyway as the
+	// host_software_installs.policy_id column has a ON DELETE SET NULL foreign
+	// key, so the deletion statement will not find any row.
 	const deleteStmt = `
 		DELETE FROM
 			host_software_installs
@@ -705,6 +743,25 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt, policyID, fleet.SoftwareInstallPending, globalOrTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
+	}
+
+	const deleteUAStmt = `
+		DELETE FROM
+			upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN software_install_upcoming_activities siua
+				ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'software_install' AND
+			siua.policy_id = ? AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
+	`
+	_, err = ds.writer(ctx).ExecContext(ctx, deleteUAStmt, policyID, globalOrTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
 
 	return nil
@@ -721,7 +778,6 @@ FROM
 		ON si.title_id = st.id
 WHERE si.id = ?`
 
-		//(execution_id, host_id, software_installer_id, user_id, self_service, policy_id, installer_filename, version, software_title_id, software_title_name)
 		insertUAStmt = `
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
@@ -779,7 +835,7 @@ VALUES
 	execID := uuid.NewString()
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := ds.writer(ctx).ExecContext(ctx, insertUAStmt,
+		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
 			0, // TODO(mna): detect if this is software install for setup exp, to boost priority
 			userID,
@@ -796,7 +852,7 @@ VALUES
 		}
 
 		activityID, _ := res.LastInsertId()
-		_, err = ds.writer(ctx).ExecContext(ctx, insertSIUAStmt,
+		_, err = tx.ExecContext(ctx, insertSIUAStmt,
 			activityID,
 			softwareInstallerID,
 			policyID,
@@ -818,9 +874,6 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
-		// TODO(mna): this deletes from host_script_results, but is actually related to software installs.
-		// Must add deletion from upcoming queue.
-
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
@@ -833,6 +886,16 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
+			USING
+				upcoming_activities
+				INNER JOIN software_install_upcoming_activities siua
+					ON upcoming_activities.id = siua.upcoming_activity_id
+			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')`, installerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
 		}
 	}
 
@@ -848,15 +911,32 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 }
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
-	// TODO(mna): must insert in upcoming queue
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
-		insertStmt = `
-		  INSERT INTO host_software_installs
-		    (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, software_title_id, software_title_name, version)
-		  VALUES (?, ?, ?, ?, 1, '', ?, ?, 'unknown')
-		    `
+
+		// TODO(mna): To be reviewed once software uninstsall is better understood,
+		// as it is it wouldn't work because the same execution_id is used to
+		// insert a script execution request and the software uninstall request.
+		insertUAStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+VALUES
+	(?, ?, ?, ?, 'software_uninstall', ?,
+		JSON_OBJECT(
+			'installer_filename', '',
+			'version', 'unknown',
+			'software_title_name', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email) FROM users WHERE id = ?)
+		)
+	)`
+
+		insertSIUAStmt = `
+INSERT INTO software_install_upcoming_activities
+	(upcoming_activity_id, software_installer_id, software_title_id)
+VALUES
+	(?, ?, ?)`
+
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
 
@@ -883,23 +963,42 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 	}
 
 	var userID *uint
+	fleetInitiated := true
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
+		fleetInitiated = false
 	}
-	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt,
-		executionID,
-		hostID,
-		softwareInstallerID,
-		userID,
-		installerDetails.TitleID,
-		installerDetails.TitleName,
-	)
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertUAStmt,
+			hostID,
+			0, // Uninstalls are never used in setup experience, so always default priority
+			userID,
+			fleetInitiated,
+			executionID,
+			installerDetails.TitleName,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
+
+		activityID, _ := res.LastInsertId()
+		_, err = tx.ExecContext(ctx, insertSIUAStmt,
+			activityID,
+			softwareInstallerID,
+			installerDetails.TitleID,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 
 	return ctxerr.Wrap(ctx, err, "inserting new uninstall software request")
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	// TODO(mna): must also look in upcoming queue
 	query := `
 SELECT
 	hsi.execution_id AS execution_id,
@@ -924,7 +1023,37 @@ FROM
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id
-	`
+
+UNION
+
+SELECT
+	ua.execution_id AS execution_id,
+	NULL AS pre_install_query_output,
+	NULL AS post_install_script_output,
+	NULL AS install_script_output,
+	ua.host_id AS host_id,
+	COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')) AS software_title,
+	siua.software_title_id,
+	'pending_install' AS status,
+	JSON_EXTRACT(ua.payload, '$.installer_filename') AS software_package,
+	ua.user_id AS user_id,
+	NULL AS post_install_script_exit_code,
+	NULL AS install_script_exit_code,
+	JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
+	NULL AS host_deleted_at,
+	siua.policy_id AS policy_id,
+	ua.created_at as created_at,
+	ua.updated_at as updated_at
+FROM
+	upcoming_activities ua
+	INNER JOIN software_install_upcoming_activities siua 
+		ON ua.id = siua.upcoming_activity_id
+	LEFT JOIN software_titles st 
+		ON siua.software_title_id = st.id
+WHERE
+	ua.execution_id = :execution_id AND
+	ua.activity_type = 'software_install'
+`
 
 	stmt, args, err := sqlx.Named(query, map[string]any{
 		"execution_id": resultsUUID,
@@ -948,7 +1077,8 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
-	// TODO(mna): must also look in upcoming queue for pending
+	// TODO(mna): must also look in upcoming queue for pending, and most recent
+	// attempt for an installer might be in upcoming queue...
 	stmt := `
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending_install, 1, 0)), 0) AS pending_install,
@@ -973,7 +1103,8 @@ WHERE
 			AND host_deleted_at IS NULL
 			AND removed = 0
 		GROUP BY
-			host_id)) s`
+			host_id)
+) s`
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":                      installerID,
@@ -1055,7 +1186,8 @@ func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.Softwa
 	if status2 != "" {
 		statusFilter = "hsi.status IN (:status, :status2)"
 	}
-	// TODO(mna): must join with upcoming queue for pending
+	// TODO(mna): must join with upcoming queue for pending, the "most recent install attempt"
+	// could be in upcoming queue (in which case this impacts also the non-pending status)
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -1084,7 +1216,7 @@ WHERE
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	// TODO(mna): I think that if there's none in host_software_installs, must take
-	// latest in upcoming queue.
+	// latest in upcoming queue (latest attempt might actually be in upcoming).
 	stmt := `
 		SELECT execution_id, hsi.status
 		FROM host_software_installs hsi
