@@ -520,6 +520,97 @@ VALUES
 	return nil
 }
 
+func (ds *Datastore) GetActivityDataForVPPAppUnInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityUnInstalledAppStoreApp, error) {
+	if commandResults == nil {
+		return nil, nil, nil
+	}
+
+	stmt := `
+SELECT
+	u.name AS user_name,
+	u.id AS user_id,
+	u.email as user_email,
+	hvsi.host_id AS host_id,
+	hdn.display_name AS host_display_name,
+	st.name AS software_title,
+	hvsi.adam_id AS app_store_id,
+	hvsi.command_uuid AS command_uuid,
+	hvsi.self_service AS self_service
+FROM
+	host_vpp_software_installs hvsi
+	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+WHERE
+	hvsi.command_uuid = :command_uuid
+	`
+
+	type result struct {
+		HostID          uint    `db:"host_id"`
+		HostDisplayName string  `db:"host_display_name"`
+		SoftwareTitle   string  `db:"software_title"`
+		AppStoreID      string  `db:"app_store_id"`
+		CommandUUID     string  `db:"command_uuid"`
+		UserName        *string `db:"user_name"`
+		UserID          *uint   `db:"user_id"`
+		UserEmail       *string `db:"user_email"`
+		SelfService     bool    `db:"self_service"`
+	}
+
+	listStmt, args, err := sqlx.Named(stmt, map[string]any{
+		"command_uuid":              commandResults.CommandUUID,
+		"software_status_failed":    string(fleet.SoftwareInstallFailed),
+		"software_status_installed": string(fleet.SoftwareInstalled),
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
+	}
+
+	var res result
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("install_command")
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
+	}
+
+	var user *fleet.User
+	if res.UserID != nil {
+		user = &fleet.User{
+			ID:    *res.UserID,
+			Name:  *res.UserName,
+			Email: *res.UserEmail,
+		}
+	}
+
+	var status string
+	switch commandResults.Status {
+	case fleet.MDMAppleStatusAcknowledged:
+		status = string(fleet.SoftwareInstalled)
+	case fleet.MDMAppleStatusCommandFormatError:
+	case fleet.MDMAppleStatusError:
+		status = string(fleet.SoftwareInstallFailed)
+	default:
+		// This case shouldn't happen (we should only be doing this check if the command is in a
+		// "terminal" state, but adding it so we have a default
+		status = string(fleet.SoftwareInstallPending)
+	}
+
+	act := &fleet.ActivityUnInstalledAppStoreApp{
+		HostID:          res.HostID,
+		HostDisplayName: res.HostDisplayName,
+		SoftwareTitle:   res.SoftwareTitle,
+		AppStoreID:      res.AppStoreID,
+		CommandUUID:     res.CommandUUID,
+		SelfService:     res.SelfService,
+		Status:          status,
+	}
+
+	return user, act, nil
+}
+
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	if commandResults == nil {
 		return nil, nil, nil

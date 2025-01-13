@@ -1639,6 +1639,42 @@ type ActivityTypeUninstalledSoftware struct {
 	Status          string `json:"status"`
 }
 
+// Using ActivityUnInstalledAppStoreApp as a reference to capture the AppStoreID,  CommandUUID, Status & SelfService
+type ActivityUnInstalledAppStoreApp struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	AppStoreID      string `json:"app_store_id"`
+	CommandUUID     string `json:"command_uuid"`
+	Status          string `json:"status,omitempty"`
+	SelfService     bool   `json:"self_service"`
+}
+
+func (a ActivityUnInstalledAppStoreApp) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityUnInstalledAppStoreApp) ActivityName() string {
+	return "uninstalled_app_store_app"
+}
+
+func (a ActivityUnInstalledAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when an App Store app is uninstalled from a device.", `This activity contains the following fields:
+- host_id: ID of the host on which the app was installed.
+- self_service: App removal was initiated by device owner.
+- host_display_name: Display name of the host.
+- software_title: Name of the App Store app.
+- app_store_id: ID of the app on the Apple App Store.
+- command_uuid: UUID of the MDM command used to uninstall the app.`, `{
+  "host_id": 42,
+  "self_service": false,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}`
+}
+
 func (a ActivityTypeUninstalledSoftware) ActivityName() string {
 	return "uninstalled_software"
 }
