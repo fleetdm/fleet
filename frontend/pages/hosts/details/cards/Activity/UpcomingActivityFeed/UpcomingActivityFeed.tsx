@@ -7,9 +7,9 @@ import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 import { upcomingActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";

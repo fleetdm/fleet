@@ -2,7 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { IActivity } from "interfaces/activity";
+import { IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
   internationalTimeFormat,
@@ -16,9 +16,23 @@ import { dateAgo } from "utilities/date_format";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { noop } from "lodash";
-import { ShowActivityDetailsHandler } from "../../pages/hosts/details/cards/Activity/Activity";
 
 const baseClass = "activity-item";
+
+export interface IShowActivityDetailsData {
+  type: string;
+  details?: IActivityDetails;
+}
+
+/**
+ * A handler that will show the details of an activity. This is used to pass
+ * the details of an activity to the parent component to show the details of
+ * the activity.
+ */
+export type ShowActivityDetailsHandler = ({
+  type,
+  details,
+}: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
   activity: IActivity;

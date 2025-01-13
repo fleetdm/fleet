@@ -7,9 +7,9 @@ import { IHostPastActivitiesResponse } from "services/entities/activities";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 
 import { pastActivityComponentMap } from "../ActivityConfig";
 

@@ -7,15 +7,15 @@ import {
   AppleDisplayPlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
+
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ActivityItem from "components/ActivityItem";
-import Activity from "pages/hosts/details/cards/Activity";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 const baseClass = "global-activity-item";
 
@@ -102,16 +102,9 @@ const getMacOSSetupAssistantMessage = (
 };
 
 const TAGGED_TEMPLATES = {
-  liveQueryActivityTemplate: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      targets_count: count,
-      query_name: queryName,
-      query_sql: querySql,
-      stats,
-    } = activity.details || {};
+  liveQueryActivityTemplate: (activity: IActivity) => {
+    const { targets_count: count, query_name: queryName, stats } =
+      activity.details || {};
 
     const impactDescription = stats
       ? getPerformanceImpactDescription(stats)
@@ -141,23 +134,6 @@ const TAGGED_TEMPLATES = {
         <span className={`${baseClass}__details-content`}>
           ran {queryNameCopy} {impactCopy} {hostCountCopy}.
         </span>
-        {querySql && (
-          <>
-            <Button
-              className={`${baseClass}__show-query-link`}
-              variant="text-link"
-              onClick={() =>
-                onDetailsClick?.(ActivityType.LiveQuery, {
-                  query_sql: querySql,
-                  stats,
-                })
-              }
-            >
-              Show query{" "}
-              <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-            </Button>
-          </>
-        )}
       </>
     );
   },
@@ -689,32 +665,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  // TODO: Combine ranScript template with host details page templates
-  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
-  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
-  ranScript: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { script_name, host_display_name, script_execution_id } =
-      activity.details || {};
+  ranScript: (activity: IActivity) => {
+    const { script_name, host_display_name } = activity.details || {};
     return (
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        <b>{host_display_name}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{host_display_name}</b>.
       </>
     );
   },
@@ -898,18 +855,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  addedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  addedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -920,38 +866,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  editedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  editedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -962,38 +881,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  deletedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  deletedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -1004,30 +896,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  installedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
+  installedSoftware: (activity: IActivity) => {
     const { details } = activity;
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1048,22 +921,11 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallStatusPredicate(status)} <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() => onDetailsClick?.(activity.type, details)}
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{hostName}</b>.
       </>
     );
   },
-  uninstalledSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
+  uninstalledSoftware: (activity: IActivity) => {
     const { details } = activity;
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1082,15 +944,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
-        <b>{hostName}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() => onDetailsClick?.(activity.type, details)}
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{hostName}</b>.
       </>
     );
   },
@@ -1166,73 +1020,21 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enabledActivityAutomations: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { webhook_url } = activity.details || {};
-    return (
-      <>
-        {" "}
-        enabled activity automations.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.EnabledActivityAutomations, {
-              webhook_url,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
-      </>
-    );
+  enabledActivityAutomations: () => {
+    return <> enabled activity automations.</>;
   },
-  editedActivityAutomations: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { webhook_url } = activity.details || {};
-    return (
-      <>
-        {" "}
-        edited activity automations.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.EditedActivityAutomations, {
-              webhook_url,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
-      </>
-    );
+  editedActivityAutomations: () => {
+    return <> edited activity automations.</>;
   },
   disabledActivityAutomations: () => {
     return <> disabled activity automations.</>;
   },
 };
 
-const getDetail = (
-  activity: IActivity,
-  isPremiumTier: boolean,
-  onDetailsClick?: (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => void
-) => {
+const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
-      return TAGGED_TEMPLATES.liveQueryActivityTemplate(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
     }
     case ActivityType.AppliedSpecPack: {
       return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
@@ -1370,7 +1172,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
     case ActivityType.RanScript: {
-      return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.ranScript(activity);
     }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
@@ -1415,19 +1217,19 @@ const getDetail = (
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
     case ActivityType.AddedSoftware: {
-      return TAGGED_TEMPLATES.addedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.addedSoftware(activity);
     }
     case ActivityType.EditedSoftware: {
-      return TAGGED_TEMPLATES.editedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.editedSoftware(activity);
     }
     case ActivityType.DeletedSoftware: {
-      return TAGGED_TEMPLATES.deletedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
     case ActivityType.InstalledSoftware: {
-      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.installedSoftware(activity);
     }
     case ActivityType.UninstalledSoftware: {
-      return TAGGED_TEMPLATES.uninstalledSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
@@ -1436,7 +1238,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
     }
     case ActivityType.InstalledAppStoreApp: {
-      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.installedSoftware(activity);
     }
     case ActivityType.EnabledVpp: {
       return TAGGED_TEMPLATES.enabledVpp(activity);
@@ -1445,16 +1247,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.disabledVpp(activity);
     }
     case ActivityType.EnabledActivityAutomations: {
-      return TAGGED_TEMPLATES.enabledActivityAutomations(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.enabledActivityAutomations();
     }
     case ActivityType.EditedActivityAutomations: {
-      return TAGGED_TEMPLATES.editedActivityAutomations(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.editedActivityAutomations();
     }
     case ActivityType.DisabledActivityAutomations: {
       return TAGGED_TEMPLATES.disabledActivityAutomations();
@@ -1474,10 +1270,7 @@ interface IActivityItemProps {
    * activites have more details so this is optional. An example of additonal
    * details is showing the query for a live query action.
    */
-  onDetailsClick?: (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => void;
+  onDetailsClick?: ShowActivityDetailsHandler;
 }
 
 const GlobalActivityItem = ({
@@ -1516,9 +1309,14 @@ const GlobalActivityItem = ({
   };
 
   return (
-    <ActivityItem activity={activity} hideClose hideShowDetails={!hasDetails}>
+    <ActivityItem
+      activity={activity}
+      hideClose
+      hideShowDetails={!hasDetails}
+      onShowDetails={onDetailsClick}
+    >
       {renderActivityPrefix()}
-      {getDetail(activity, isPremiumTier, onDetailsClick)}
+      {getDetail(activity, isPremiumTier)}
     </ActivityItem>
   );
 

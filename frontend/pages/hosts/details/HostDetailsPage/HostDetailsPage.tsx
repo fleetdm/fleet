@@ -58,6 +58,7 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -82,7 +83,6 @@ import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
-import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
 import {

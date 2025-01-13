@@ -8,7 +8,7 @@ import {
   IHostUpcomingActivity,
 } from "interfaces/activity";
 
-import { ShowActivityDetailsHandler } from "./Activity";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
