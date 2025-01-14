@@ -182,80 +182,145 @@ const DropdownWrapper = ({
   };
 
   const customStyles: StylesConfig<CustomOptionType, false> = {
-    container: (provided) => ({
-      ...provided,
-      width: "100%",
-      height: "40px",
-    }),
-    control: (provided, state) => ({
-      ...provided,
-      display: "flex",
-      flexDirection: "row",
-      width: "100%",
-      backgroundColor: COLORS["ui-off-white"],
-      paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
-      paddingRight: "8px",
-      cursor: "pointer",
-      boxShadow: "none",
-      borderRadius: "4px",
-      borderColor: state.isFocused
-        ? COLORS["core-fleet-blue"]
-        : COLORS["ui-fleet-black-10"],
-      "&:hover": {
+    container: (provided) => {
+      const buttonVariantContainer = {
+        borderRadius: "6px",
+        "&:active": {
+          backgroundColor: "rgba(25, 33, 71, 0.05)", // confirm
+        },
+      };
+
+      return {
+        ...provided,
+        width: "100%",
+        height: "40px",
+        ...(variant === "button" && buttonVariantContainer),
+      };
+    },
+
+    control: (provided, state) => {
+      if (variant === "button")
+        return {
+          backgroundColor: "initial",
+          borderColor: "none",
+          display: "flex",
+          flexDirection: "row",
+          width: "max-content",
+          padding: PADDING["pad-small"], // configrm
+          border: 0,
+          borderRadius: "6px",
+          boxShadow: "none",
+          cursor: "pointer",
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-fleet-blue"],
+          },
+          "&:hover": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            boxShadow: "none",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["core-vibrant-blue-over"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["core-vibrant-blue-over"],
+            },
+          },
+          "&:active .dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+          // TODO: Figure out a way to apply separate &:focus-visible styling
+          // Currently only relying on &:focus styling for tabbing through app
+          ...(state.menuIsOpen && {
+            ".dropdown-wrapper__indicator svg": {
+              transform: "rotate(180deg)",
+              transition: "transform 0.25s ease",
+            },
+          }),
+        };
+
+      return {
+        ...provided,
+        display: "flex",
+        flexDirection: "row",
+        width: "100%",
+        backgroundColor: COLORS["ui-off-white"],
+        paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
+        paddingRight: "8px",
+        cursor: "pointer",
         boxShadow: "none",
-        borderColor: COLORS["core-fleet-blue"],
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+        borderRadius: "4px",
+        borderColor: state.isFocused
+          ? COLORS["core-fleet-blue"]
+          : COLORS["ui-fleet-black-10"],
+        "&:hover": {
+          boxShadow: "none",
+          borderColor: COLORS["core-fleet-blue"],
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-over"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-over"],
+          },
         },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+        // When tabbing
+        // Relies on --is-focused for styling as &:focus-visible cannot be applied
+        "&.dropdown-wrapper__control--is-focused": {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-over"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-over"],
+          },
         },
         ".filter-icon path": {
           fill: COLORS["core-vibrant-blue-over"],
         },
-      },
-      // When tabbing
-      // Relies on --is-focused for styling as &:focus-visible cannot be applied
-      "&.dropdown-wrapper__control--is-focused": {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+        ...(state.isDisabled && {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["ui-fleet-black-50"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-50"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-50"],
+          },
+        }),
+        "&:active": {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-down"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["core-vibrant-blue-down"],
+          },
         },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["core-vibrant-blue-over"],
-        },
-      },
-      ...(state.isDisabled && {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["ui-fleet-black-50"],
-        },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["ui-fleet-black-50"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["ui-fleet-black-50"],
-        },
-      }),
-      "&:active": {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-down"],
-        },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-down"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["core-vibrant-blue-down"],
-        },
-      },
-      ...(state.menuIsOpen && {
-        ".dropdown-wrapper__indicator svg": {
-          transform: "rotate(180deg)",
-          transition: "transform 0.25s ease",
-        },
-      }),
-    }),
+        ...(state.menuIsOpen && {
+          ".dropdown-wrapper__indicator svg": {
+            transform: "rotate(180deg)",
+            transition: "transform 0.25s ease",
+          },
+        }),
+      };
+    },
+    placeholder: (provided, state) => {
+      const buttonVariantPlaceholder = {
+        color: state.isFocused
+          ? COLORS["core-vibrant-blue-over"]
+          : COLORS["core-fleet-blue"],
+        fontSize: "14px",
+        fontWeight: "bold",
+        lineHeight: "normal",
+        paddingLeft: 0,
+        marginTop: "1px",
+      };
+
+      return {
+        ...provided,
+        ...(variant === "button" && buttonVariantPlaceholder),
+      };
+    },
     singleValue: (provided) => ({
       ...provided,
       fontSize: "16px",
@@ -292,7 +357,7 @@ const DropdownWrapper = ({
       ...provided,
       padding: 0,
       display: "flex",
-      gap: PADDING["pad-small"],
+      gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
     }),
     option: (provided, state) => ({
       ...provided,
@@ -306,6 +371,7 @@ const DropdownWrapper = ({
         backgroundColor: state.isDisabled
           ? "transparent"
           : COLORS["ui-vibrant-blue-10"],
+        cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled

@@ -22,7 +22,7 @@ import {
   IPolicy,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -1027,6 +1027,7 @@ const ManagePolicyPage = ({
                     onChange={onSelectAutomationOption}
                     placeholder="Manage automations"
                     options={getAutomationsDropdownOptions(!!automationsConfig)}
+                    variant="button"
                   />
                 </div>
               )}
