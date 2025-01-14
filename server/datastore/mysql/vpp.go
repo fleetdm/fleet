@@ -910,8 +910,14 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	stmtRemovePolicyAutomations := `UPDATE policies p
 		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.vpp_token_id = ?
 		SET vpp_apps_teams_id = NULL`
-	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ?`
-	deleteArgs := []any{id}
+	stmtDeleteApps := `DELETE FROM vpp_apps_teams WHERE vpp_token_id = ? %s`
+
+	var teamsFilter string
+	if len(teams) > 0 {
+		teamsFilter = "AND global_or_team_id NOT IN (?)"
+	}
+
+	stmtDeleteApps = fmt.Sprintf(stmtDeleteApps, teamsFilter)
 
 	var values string
 	var args []any
@@ -956,11 +962,22 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			return ctxerr.Wrap(ctx, err, "vpp token null team check")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtRemovePolicyAutomations, deleteArgs...); err != nil {
+		if _, err := tx.ExecContext(ctx, stmtRemovePolicyAutomations, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps policy automations")
 		}
 
-		if _, err := tx.ExecContext(ctx, stmtDeleteApps, deleteArgs...); err != nil {
+		delArgs := []any{id}
+		if len(teams) > 0 {
+			inStmt, inArgs, err := sqlx.In(stmtDeleteApps, id, teams)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building IN statement for deleting old vpp apps teams associations")
+			}
+
+			stmtDeleteApps = inStmt
+			delArgs = inArgs
+		}
+
+		if _, err := tx.ExecContext(ctx, stmtDeleteApps, delArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old vpp team apps associations")
 		}
 
