@@ -61,7 +61,7 @@ Upon failure of the selected policy, the selected software installation will be 
 
 ## Templates for policy queries
 
-Following are some templates for the policy SQL queries for each package type. These templates are used when Fleet creates policies to automatically install software.
+Use the following policy templates to see if the software is already installed. Fleet uses these templates to automatically install software.
 
 ### macOS (pkg)
 
