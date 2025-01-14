@@ -5459,10 +5459,13 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 
 ```json
 {
-  "verified": 123,
-  "verifying": 123,
-  "failed": 123,
-  "pending": 123
+  "counts_updated_at": "2024-10-04T10:00:00Z",
+  "status": {
+    "verified": 123,
+    "verifying": 123,
+    "failed": 123,
+    "pending": 123
+  }
 }
 ```
 
