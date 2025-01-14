@@ -2005,38 +2005,32 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 		vppApps    []fleet.VPPAppResponse
 	}{
 		{
-			"testdata/gitops/subdir/no_team_vpp_policies_valid.yml",
-			"",
-			[]fleet.VPPAppResponse{
+			noTeamFile: "testdata/gitops/subdir/no_team_vpp_policies_valid.yml",
+			vppApps: []fleet.VPPAppResponse{
 				{ // for more test coverage
-					nil,
-					nil,
-					"",
-					fleet.MacOSPlatform,
+					Platform: fleet.MacOSPlatform,
 				},
 				{ // for more test coverage
-					nil,
-					ptr.Uint(122),
-					"",
-					fleet.MacOSPlatform,
+					TitleID:  ptr.Uint(122),
+					Platform: fleet.MacOSPlatform,
 				},
 				{
-					ptr.Uint(0),
-					ptr.Uint(123),
-					"1",
-					fleet.IOSPlatform,
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(123),
+					AppStoreID: "1",
+					Platform:   fleet.IOSPlatform,
 				},
 				{
-					ptr.Uint(0),
-					ptr.Uint(124),
-					"1",
-					fleet.MacOSPlatform,
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(124),
+					AppStoreID: "1",
+					Platform:   fleet.MacOSPlatform,
 				},
 				{
-					ptr.Uint(0),
-					ptr.Uint(125),
-					"1",
-					fleet.IPadOSPlatform,
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(125),
+					AppStoreID: "1",
+					Platform:   fleet.IPadOSPlatform,
 				},
 			},
 		},
