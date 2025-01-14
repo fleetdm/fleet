@@ -123,7 +123,7 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
-    () => softwareAPI.getFleetMainainedApp(appId),
+    () => softwareAPI.getFleetMaintainedApp(appId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,

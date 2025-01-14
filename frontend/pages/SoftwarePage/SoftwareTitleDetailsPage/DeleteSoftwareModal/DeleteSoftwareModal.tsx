@@ -18,7 +18,7 @@ const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  softwarePackageName?: string;
+  softwareInstallerName?: string;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -26,7 +26,7 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
-  softwarePackageName,
+  softwareInstallerName,
   onExit,
   onSuccess,
 }: IDeleteSoftwareModalProps) => {
@@ -36,7 +36,7 @@ const DeleteSoftwareModal = ({
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwarePackage(softwareId, teamId);
+      await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
       renderFlash("success", "Software deleted successfully!");
       onSuccess();
     } catch (error) {
@@ -64,9 +64,9 @@ const DeleteSoftwareModal = ({
         <p>
           Software won&apos;t be uninstalled from existing hosts, but any
           pending installs and uninstalls{" "}
-          {softwarePackageName ? (
+          {softwareInstallerName ? (
             <>
-              for <b> {softwarePackageName}</b>{" "}
+              for <b> {softwareInstallerName}</b>{" "}
             </>
           ) : (
             ""
