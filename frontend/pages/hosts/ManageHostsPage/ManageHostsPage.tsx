@@ -1463,12 +1463,11 @@ const ManageHostsPage = ({
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
         <DropdownWrapper
+          name="status-filter"
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          name="status-dropdown"
+          className={`${baseClass}__status-filter`}
           options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          iconName="filter"
           tableFilter
         />
         <LabelFilterSelect

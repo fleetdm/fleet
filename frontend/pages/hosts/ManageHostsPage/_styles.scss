@@ -110,7 +110,7 @@
           align-items: center;
 
           // Dropdown height matches search bar height
-          .manage-hosts__status_dropdown {
+          .manage-hosts__status-filter {
             .Select-control,
             .Select-input {
               height: 33px;
@@ -171,7 +171,7 @@
               flex: 1;
             }
 
-            .manage-hosts__status_dropdown {
+            .manage-hosts__status-filter {
               width: auto;
             }
           }
@@ -222,7 +222,7 @@
     margin: 0;
   }
 
-  &__status_dropdown {
+  &__status-filter {
     width: 175px;
 
     @media (min-width: $table-controls-break) {

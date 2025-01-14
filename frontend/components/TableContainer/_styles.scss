@@ -142,6 +142,7 @@
 
     > span {
       line-height: 40px; // Match other header components' height but still align text baseline
+      min-width: fit-content;
     }
 
     .count-error {

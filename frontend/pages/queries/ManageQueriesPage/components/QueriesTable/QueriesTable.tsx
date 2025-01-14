@@ -9,7 +9,6 @@ import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
-import { QueryValues } from "utilities/url";
 
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
@@ -233,7 +232,6 @@ const QueriesTable = ({
         name="platform-dropdown"
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
-        iconName="filter"
         tableFilter
       />
     );

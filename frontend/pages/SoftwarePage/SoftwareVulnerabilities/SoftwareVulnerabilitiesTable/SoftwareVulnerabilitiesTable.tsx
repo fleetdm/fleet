@@ -238,14 +238,13 @@ const SoftwareVulnerabilitiesTable = ({
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <DropdownWrapper
-        name="exploited-vuln-dropdown"
+        name="exploited-vuln-filter"
         value={showExploitedVulnerabilitiesOnly.toString()}
-        className={`${baseClass}__exploited-vulnerabilities-dropdown`}
+        className={`${baseClass}__exploited-vulnerabilities-filter`}
         options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
         onChange={(newValue: SingleValue<CustomOptionType>) =>
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
-        iconName="filter"
         tableFilter
       />
     );
