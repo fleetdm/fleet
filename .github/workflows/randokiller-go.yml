@@ -50,7 +50,7 @@ jobs:
 
     env:
       RACE_ENABLED: true
-      GO_TEST_TIMEOUT: 60m
+      GO_TEST_TIMEOUT: 15m
 
     steps:
       - name: Harden Runner
