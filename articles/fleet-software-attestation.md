@@ -1,6 +1,6 @@
 # Fleet software attestation
 
-At Fleet, we understand the importance of having a secure software supply chain.  Our core value of [openness](https://fleetdm.com/handbook/company#openness) extends to ensuring that our users can verify the provenance and authenticity of any Fleet software they install on their servers or hosts.  With that in mind, as of version 4.63.0 Fleet we will be adding [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the Fleet and Fleetctl server software, the Orbit and Fleet Desktop software for hosts, and the osqueryd updates periodically downloaded by hosts.
+At Fleet, we understand the importance of having a secure software supply chain.  Our core value of [openness](https://fleetdm.com/handbook/company#openness) extends to ensuring that our users can verify the provenance and authenticity of any Fleet software they install.  With that in mind, as of version 4.63.0 Fleet we will be adding [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the Fleet and Fleetctl server software, the Orbit and Fleet Desktop software for hosts, and the osqueryd updates periodically downloaded by hosts.
 
 ## What is software attestation?
 
