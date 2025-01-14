@@ -279,7 +279,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 
 	// intentionally using writer as this is called right after batch-setting VPP apps
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
-		SELECT vat.team_id, va.software_title_id, vat.adam_id app_store_id, vat.platform
+		SELECT vat.team_id, va.title_id, vat.adam_id app_store_id, vat.platform
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 		WHERE global_or_team_id = ?`, tmID); err != nil {
