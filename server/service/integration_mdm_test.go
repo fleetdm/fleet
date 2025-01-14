@@ -9049,6 +9049,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// get the host's information

@@ -49,8 +49,8 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      RACE_ENABLED: false
-      GO_TEST_TIMEOUT: 20m
+      RACE_ENABLED: true
+      GO_TEST_TIMEOUT: 60m
 
     steps:
       - name: Harden Runner
