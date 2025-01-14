@@ -1,3 +1,9 @@
+## Fleet 4.62.1 (Jan 14, 2025)
+
+### Bug fixes
+
+* Fixed issue when identical MDM commands were sent twice to the same device when replica DB was being used.
+
 ## Fleet 4.62.0 (Jan 09, 2025)
 
 ## Endpoint operations
