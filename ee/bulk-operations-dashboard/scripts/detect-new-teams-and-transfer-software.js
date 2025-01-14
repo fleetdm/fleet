@@ -37,7 +37,7 @@ module.exports = {
     // Loop through the software deployed to all teams.
     for(let software of softwareDeployedToAllTeams) {
       let teamsThisSoftwareIsNotDeployedOn = _.difference(allTeamApids, software.teamApids);
-      console.time(`transfer for ${software.fleetApid} (${teamsThisSoftwareIsNotDeployedOn.length} new teams)`)
+      console.time(`transfer for ${software.fleetApid} (${teamsThisSoftwareIsNotDeployedOn.length} new teams)`);
       if(teamsThisSoftwareIsNotDeployedOn.length > 0) {
         sails.log.info(`${teamsThisSoftwareIsNotDeployedOn.length} new team(s) detected for software id ${software.fleetApid}!`);
         // Get software installer:
@@ -51,7 +51,7 @@ module.exports = {
         });
         let installerInformation = softwareResponse.software_title.software_package;
         if(!installerInformation){
-          sails.log.warn(`No installer found on Fleet instance for ${softwareResponse.software_title}. Skipping...`)
+          sails.log.warn(`No installer found on Fleet instance for ${softwareResponse.software_title}. Skipping...`);
           continue;
         }
         // Get a download stream of the software installer and upload it to the s3 bucket.
@@ -79,11 +79,11 @@ module.exports = {
             sails.log.info(`Copying ${installerInformation.name} to team_id ${team}`);
             // Send an api request to send the file to the Fleet server for each new team.
             let transferWasSuccessful = true;
-            // await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
-            await sails.cp(softwareFd, {
-                adapter: require('skipper-disk'),
-                maxBytes: sails.config.uploads.maxBytes,
-              },
+            await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
+            // await sails.cp(softwareFd, {
+            //     adapter: require('skipper-disk'),
+            //     maxBytes: sails.config.uploads.maxBytes,
+            //   },
               {
                 adapter: ()=>{
                   return {
@@ -129,24 +129,23 @@ module.exports = {
                     }
                   };
                 },
-            })
-            .tolerate({status: 409}, ()=>{
-              // If this software item already exists on this team, log a warning and continue
-              sails.log.verbose(`${installerInformation.name} already exists on this team (id: ${team}), skipping.....`)
-            })
-            .tolerate((error)=>{
-              // If any other error occurs while transfering this installer, change the transferWasSuccessful flag to false.
-              transferWasSuccessful = false;
-              sails.log.warn(`When attempting to upload a software installer (${installerInformation.name} to team_id:${team}, an unexpected error occurred communicating with the Fleet API. This script will continue to attempt to transfer software, and will try to transfer this software item to this team on the next run of this script. ${require('util').inspect(error, {depth: null})}`);
-            });
+              })
+              .tolerate({status: 409}, ()=>{
+                // If this software item already exists on this team, log a warning and continue
+                sails.log.verbose(`${installerInformation.name} already exists on this team (id: ${team}), skipping.....`);
+              })
+              .tolerate((error)=>{
+                // If any other error occurs while transfering this installer, change the transferWasSuccessful flag to false.
+                transferWasSuccessful = false;
+                sails.log.warn(`When attempting to upload a software installer (${installerInformation.name} to team_id:${team}, an unexpected error occurred communicating with the Fleet API. This script will continue to attempt to transfer software, and will try to transfer this software item to this team on the next run of this script. ${require('util').inspect(error, {depth: null})}`);
+              });
             if(!transferWasSuccessful){
               // If this flag was set to false, do not add this team's APID to the list of teams for this software. This will result in this software installer being re-sent durring the next run of this script.
-              sails.log.warn('transfered failed for team',team)
               return;
             }
             newTeamIdsForThisSoftware.push(team);
             // Create a copy of the software's new teams array and update the Database record.
-            let newTeamsToUpdateDatabaseRecordWith = _.clone(newTeamIdsForThisSoftware)
+            let newTeamsToUpdateDatabaseRecordWith = _.clone(newTeamIdsForThisSoftware);
             await AllTeamsSoftware.updateOne({id: software.id}).set({teamApids: newTeamsToUpdateDatabaseRecordWith});
 
           });//∞ for each new team.
@@ -156,10 +155,10 @@ module.exports = {
         // Update the AllTeamsSoftware record's teamApids value
         // Delete the temporary file stored in s3.
 
-        // await sails.rm(sails.config.uploads.prefixForFileDeletion+tempUploadedSoftware.fd);
-        await sails.rm(tempUploadedSoftware.fd, {adapter: require('skipper-disk')});
+        await sails.rm(sails.config.uploads.prefixForFileDeletion+tempUploadedSoftware.fd);
+        // await sails.rm(tempUploadedSoftware.fd, {adapter: require('skipper-disk')});
       }//ﬁ
-      console.timeEnd(`transfer for ${software.fleetApid} (${teamsThisSoftwareIsNotDeployedOn.length} new teams)`)
+      console.timeEnd(`transfer for ${software.fleetApid} (${teamsThisSoftwareIsNotDeployedOn.length} new teams)`);
     }//∞ for each AllTeamsSoftware record.
     console.timeEnd('detect and transfer software script');
   }
