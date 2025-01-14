@@ -377,17 +377,14 @@ ON DUPLICATE KEY UPDATE
 }
 
 func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
-	stmt := `
-DELETE FROM
-  vpp_apps_teams
-WHERE
-  adam_id = ?
-AND
-  team_id = ?
-AND
-  platform = ?
-`
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, teamID, appID.Platform)
+	_, err := tx.ExecContext(ctx, `UPDATE policies p
+		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.adam_id = ? AND vat.team_id = ? AND vat.platform = ?
+		SET vpp_apps_teams_id = NULL`, appID.AdamID, teamID, appID.Platform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unsetting vpp app policy associations from team")
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, teamID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}

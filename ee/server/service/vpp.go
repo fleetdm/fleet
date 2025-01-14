@@ -170,6 +170,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
+	if len(vppAppTeams) <= 0 {
+		return []fleet.VPPAppResponse{}, nil
+	}
+
 	return svc.ds.GetVPPApps(ctx, teamID)
 }
 

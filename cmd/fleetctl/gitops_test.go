@@ -1105,6 +1105,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
@@ -1930,6 +1933,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 				return nil
 			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
+			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
@@ -2035,6 +2041,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
+			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
 					ID:        1,
@@ -2113,6 +2122,9 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
+			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
 			}
 
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
