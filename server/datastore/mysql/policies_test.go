@@ -4654,6 +4654,25 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer5.TitleID)
 
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	// create VPP apps
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, &team2.ID)
+	require.NoError(t, err)
+	va1NoTeam, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+
 	// Installers cannot be assigned to global policies.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -4698,37 +4717,90 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "linux",
 			SoftwareTitleID: installer3.TitleID,
 		},
+		{
+			Name:            "VPP Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: &va1.TitleID,
+		},
+		{
+			Name:            "VPP Team policy 2",
+			Query:           "SELECT 2;",
+			Description:     "Description 2",
+			Resolution:      "Resolution 2",
+			Team:            "team2",
+			Platform:        "linux",
+			SoftwareTitleID: &va2.TitleID,
+		},
+		{
+			Name:            "VPP No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "linux",
+			SoftwareTitleID: &va1NoTeam.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 1)
+	require.Len(t, team1Policies, 2)
+
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
+	require.NotNil(t, team1Policies[1].VPPAppsTeamsID)
 	policy1Team1 := team1Policies[0]
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	vppPolicy1Team1 := team1Policies[1]
+	va1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, va1.TitleID)
+	require.NoError(t, err)
+	require.Equal(t, va1Meta.VPPAppsTeamsID, *vppPolicy1Team1.VPPAppsTeamsID)
+
 	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team2Policies, 1)
+	require.Len(t, team2Policies, 2)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer2.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	vppPolicy2Team2 := team2Policies[1]
+	va2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, va2.TitleID)
+	require.NoError(t, err)
+	require.Equal(t, va2Meta.VPPAppsTeamsID, *vppPolicy2Team2.VPPAppsTeamsID)
+
 	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, noTeamPolicies, 1)
+	require.Len(t, noTeamPolicies, 2)
 	require.NotNil(t, noTeamPolicies[0].SoftwareInstallerID)
 	require.Equal(t, installer3.InstallerID, *noTeamPolicies[0].SoftwareInstallerID)
+	vppNoTeamPolicy := noTeamPolicies[1]
+	vNoTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), va1NoTeam.TitleID)
+	require.NoError(t, err)
+	require.Equal(t, vNoTeamMeta.VPPAppsTeamsID, *vppNoTeamPolicy.VPPAppsTeamsID)
 
 	// Record policy execution on policy1Team1.
 	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
-		policy1Team1.ID: ptr.Bool(false),
+		policy1Team1.ID:    ptr.Bool(false),
+		vppPolicy1Team1.ID: ptr.Bool(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
 
-	// Unset software installer from "Team policy 1".
+	// Unset software installer from "Team policy 1" and the VPP policy.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: nil,
+		},
+		{
+			Name:            "VPP Team policy 1",
 			Query:           "SELECT 1;",
 			Description:     "Description 1",
 			Resolution:      "Resolution 1",
@@ -4740,10 +4812,12 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 1)
+	require.Len(t, team1Policies, 2)
 	require.Nil(t, team1Policies[0].SoftwareInstallerID)
+	require.Nil(t, team1Policies[1].VPPAppsTeamsID)
 	// Should not clear results because we've cleared not changed/set-new installer.
 	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
+	require.Equal(t, uint(1), team1Policies[1].FailingHostCount)
 
 	// Set "Team policy 1" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4761,6 +4835,21 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	var notFoundErr *notFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
+	// Set "Team policy 1" to a VPP app on team2.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: &va2.TitleID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
 	// Set "No team policy 3" to a software installer on team2.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
@@ -4771,6 +4860,21 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Team:            "No team",
 			Platform:        "darwin",
 			SoftwareTitleID: installer2.TitleID,
+		},
+	})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &notFoundErr)
+
+	// Set "No Team policy 3" to a VPP app on team2.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:            "No team policy 3",
+			Query:           "SELECT 3;",
+			Description:     "Description 3",
+			Resolution:      "Resolution 3",
+			Team:            "No team",
+			Platform:        "darwin",
+			SoftwareTitleID: &va2.TitleID,
 		},
 	})
 	require.Error(t, err)
@@ -4821,10 +4925,11 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team2Policies, 1)
+	require.Len(t, team2Policies, 2)
 	require.Nil(t, team2Policies[0].SoftwareInstallerID)
+	require.Equal(t, va2Meta.VPPAppsTeamsID, *team2Policies[1].VPPAppsTeamsID) // stays set since Apply doesn't delete
 
-	// Apply team policies associated to two installers (again, with two installers with the same title).
+	// Apply team policies associated to two installers (again, with two installers with the same title), and same with VPP apps
 	tfr4, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
 	require.NoError(t, err)
 	installer4ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -4845,6 +4950,12 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	installer4, err := ds.GetSoftwareInstallerMetadataByID(ctx, installer4ID)
 	require.NoError(t, err)
 	require.NotNil(t, installer2.TitleID)
+	va4Team2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
+	}, &team2.ID)
+	require.NoError(t, err)
+
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
 			Name:            "Team policy 1",
@@ -4864,13 +4975,35 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "linux",
 			SoftwareTitleID: installer4.TitleID,
 		},
+		{
+			Name:            "VPP Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: &va1.TitleID,
+		},
+		{
+			Name:            "VPP Team policy 2",
+			Query:           "SELECT 2;",
+			Description:     "Description 2",
+			Resolution:      "Resolution 2",
+			Team:            "team2",
+			Platform:        "linux",
+			SoftwareTitleID: &va4Team2.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 1)
+	require.Len(t, team1Policies, 2)
 	require.NotNil(t, team1Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer1.InstallerID, *team1Policies[0].SoftwareInstallerID)
+	require.NotNil(t, team1Policies[1].VPPAppsTeamsID)
+	require.NoError(t, err)
+	require.Equal(t, va1Meta.VPPAppsTeamsID, *team1Policies[1].VPPAppsTeamsID)
+
 	// Should clear results because we've are setting an installer.
 	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
 	countBiggerThanZero := true
@@ -4884,13 +5017,18 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	require.False(t, countBiggerThanZero)
 	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team2Policies, 1)
+	require.Len(t, team2Policies, 2)
 	require.NotNil(t, team2Policies[0].SoftwareInstallerID)
 	require.Equal(t, installer4.InstallerID, *team2Policies[0].SoftwareInstallerID)
+	require.NotNil(t, team2Policies[1].VPPAppsTeamsID)
+	va4Team2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, va4Team2.TitleID)
+	require.NoError(t, err)
+	require.Equal(t, va4Team2Meta.VPPAppsTeamsID, *team2Policies[1].VPPAppsTeamsID)
 
-	// Record policy execution on policy1Team1 to test that setting the same installer won't clear results.
+	// Record policy execution on policy1Team1 + VPP equivalent to test that setting the same installer won't clear results.
 	err = ds.RecordPolicyQueryExecutions(ctx, host1Team1, map[uint]*bool{
-		policy1Team1.ID: ptr.Bool(false),
+		policy1Team1.ID:    ptr.Bool(false),
+		vppPolicy1Team1.ID: ptr.Bool(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.UpdateHostPolicyCounts(ctx)
@@ -4905,11 +5043,20 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "darwin",
 			SoftwareTitleID: installer1.TitleID,
 		},
+		{
+			Name:            "VPP Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: &va1.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 1)
+	require.Len(t, team1Policies, 2)
 	require.Equal(t, uint(1), team1Policies[0].FailingHostCount)
 	countBiggerThanZero = false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4920,6 +5067,22 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		)
 	})
 	require.True(t, countBiggerThanZero)
+	require.Equal(t, uint(1), team1Policies[1].FailingHostCount)
+	countBiggerThanZero = false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[1].ID,
+		)
+	})
+	require.True(t, countBiggerThanZero)
+
+	va4Team1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
 
 	// Now change the installer, should clear results.
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -4932,11 +5095,20 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			Platform:        "darwin",
 			SoftwareTitleID: installer5.TitleID,
 		},
+		{
+			Name:            "VPP Team policy 1",
+			Query:           "SELECT 1;",
+			Description:     "Description 1",
+			Resolution:      "Resolution 1",
+			Team:            "team1",
+			Platform:        "darwin",
+			SoftwareTitleID: &va4Team1.TitleID,
+		},
 	})
 	require.NoError(t, err)
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 1)
+	require.Len(t, team1Policies, 2)
 	require.Equal(t, uint(0), team1Policies[0].FailingHostCount)
 	countBiggerThanZero = true
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4944,6 +5116,16 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 			&countBiggerThanZero,
 			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
 			team1Policies[0].ID,
+		)
+	})
+	require.False(t, countBiggerThanZero)
+	require.Equal(t, uint(0), team1Policies[1].FailingHostCount)
+	countBiggerThanZero = true
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q,
+			&countBiggerThanZero,
+			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
+			team1Policies[1].ID,
 		)
 	})
 	require.False(t, countBiggerThanZero)

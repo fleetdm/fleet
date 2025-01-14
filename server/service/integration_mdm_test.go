@@ -10423,8 +10423,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
+	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+
 	// No vpp token set, but request is empty so it succeeds (clears VPP apps for the team).
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 0)
 
 	// No vpp token set, try association
 	// FIXME
@@ -10443,7 +10446,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Remove all vpp associations from team with no members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 0)
 
 	// host with valid serial number
 	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -10468,7 +10472,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.Len(t, assoc, 0)
 
 	// Remove all vpp associations from team with no members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 0)
 
 	// Incorrect type check
 	incorrectTypes := struct {
@@ -10498,7 +10503,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.Len(t, assoc, 0)
 
 	// Associating an app we own
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 1)
 
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
@@ -10519,15 +10527,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.Len(t, assoc, 1)
 
 	// Associating two apps we own
-	s.Do("POST",
+	s.DoJSON("POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true},
 			},
-		}, http.StatusNoContent, "team_name", tmGood.Name,
+		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
+	require.Len(t, batchAssociateResponse.Apps, 4)
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 4)
@@ -10544,15 +10553,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Reverse self-service associations
 	// Associating two apps we own
-	s.Do("POST",
+	s.DoJSON("POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, SelfService: true},
 				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: false},
 			},
-		}, http.StatusNoContent, "team_name", tmGood.Name,
+		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
+	require.Len(t, batchAssociateResponse.Apps, 4)
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 4)
@@ -10575,10 +10585,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Associate an app with a team with no team members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusOK, &batchAssociateResponse, "team_name", tmEmpty.Name)
 
 	// Remove all vpp associations
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	require.Len(t, batchAssociateResponse.Apps, 0)
 
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
