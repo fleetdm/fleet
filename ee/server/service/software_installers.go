@@ -1374,11 +1374,10 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
+	// allow the installer through if we can't find a version, but make it obvious that we couldn't find a version so
+	// that if a user thinks we *should* ahve found a version they can file a bug
 	if meta.Version == "" {
-		return "", &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the version from %s.", payload.Filename),
-			InternalErr: ctxerr.New(ctx, "extracting version from installer metadata"),
-		}
+		meta.Version = "unknown"
 	}
 
 	if len(meta.PackageIDs) == 0 {
