@@ -30,10 +30,6 @@ module.exports = {
       await UndeployedSoftware.destroy({id: software.id});
     } else {// Otherwise, this is a deployed software, and we'll use information from the teams array to remove the software.
       for(let team of software.teams){
-        console.log(team);
-        if(team.fleetApid === 3) {
-          continue;
-        }
         await sails.helpers.http.sendHttpRequest.with({
           method: 'DELETE',
           baseUrl: sails.config.custom.fleetBaseUrl,

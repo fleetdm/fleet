@@ -31,5 +31,5 @@ module.exports.uploads = {
   // secret: '', // The secret for the S3 bucket where unassigned software installers will be stored.
   // bucketWithPostfix: '', // This value should be set to the same value as the bucket unless the files are stored in a folder in the S3 bucket. In that case, this value needs to be set to `{bucket name}{folder name}` e.g., unassigned-software-installers/staging
   // prefixForFileDeletion: '', // Only required if the software installers are stored in a folder in the S3 bucket. The name of the folder where the software installers are stored in the S3 bucket with a trailing slash. e.g., staging/
-  maxBytes: 1000 * 1024 * 1024,
+
 };
