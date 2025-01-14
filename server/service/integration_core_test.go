@@ -5518,6 +5518,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			"project_key": "qux",
 			"enable_software_vulnerabilities": false
 		}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": true,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusOK)
 
@@ -5531,6 +5539,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"project_key": "qux",
 				"enable_software_vulnerabilities": true
 			}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": true,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
 
@@ -5544,6 +5560,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"project_key": "qux",
 				"enable_software_vulnerabilities": true
 			}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": false,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusBadRequest)
 
@@ -5558,6 +5582,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"project_key": "qux",
 				"enable_software_vulnerabilities": true
 			}]
+		},
+		"webhook_settings": {
+			"vulnerabilities_webhook": {
+				"enable_vulnerabilities_webhook": false,
+				"destination_url": "http://some/url",
+				"host_batch_size": 1234
+			},
+			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusOK)
 
