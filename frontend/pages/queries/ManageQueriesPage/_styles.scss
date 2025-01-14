@@ -50,39 +50,8 @@
   }
 
   .queries-table {
-    .controls {
-      .form-field {
-        &--dropdown {
-          margin: 0;
-        }
-      }
-    }
     &__platform-dropdown {
-      .Select-menu-outer {
-        width: 364px;
-        max-height: min-content;
-
-        .Select-menu {
-          max-height: none;
-        }
-      }
-      .Select-value {
-        padding-left: $pad-medium;
-        padding-right: $pad-medium;
-
-        &::before {
-          display: inline-block;
-          position: absolute;
-          padding: 5px 0 0 0; // centers spin
-          content: url(../assets/images/icon-filter-black-16x16@2x.png);
-          transform: scale(0.5);
-          height: 26px;
-          left: 2px;
-        }
-      }
-      .Select-value-label {
-        padding-left: $pad-medium;
-      }
+      width: 200px;
     }
 
     .data-table-block {

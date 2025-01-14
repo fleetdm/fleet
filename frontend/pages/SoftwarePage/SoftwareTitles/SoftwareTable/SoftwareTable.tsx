@@ -299,7 +299,7 @@ const SoftwareTable = ({
         <DropdownWrapper
           name="software-filter"
           value={softwareFilter}
-          className={`${baseClass}__filter-dropdown`}
+          className={`${baseClass}__software-filter`}
           options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
           onChange={(newValue: SingleValue<CustomOptionType>) =>
             newValue &&
@@ -307,7 +307,7 @@ const SoftwareTable = ({
               newValue.value as ISoftwareDropdownFilterVal
             )
           }
-          iconName="filter"
+          tableFilter
         />
       </div>
     );
