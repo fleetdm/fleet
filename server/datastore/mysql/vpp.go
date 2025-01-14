@@ -270,6 +270,25 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	return app, nil
 }
 
+func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	var results []fleet.VPPAppResponse
+
+	// intentionally using writer as this is called right after batch-setting VPP apps
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
+		SELECT vat.team_id, va.title_id, vat.adam_id app_store_id, vat.platform
+		FROM vpp_apps_teams vat
+		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		WHERE global_or_team_id = ?`, tmID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP apps")
+	}
+
+	return results, nil
+}
+
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
@@ -358,17 +377,14 @@ ON DUPLICATE KEY UPDATE
 }
 
 func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
-	stmt := `
-DELETE FROM
-  vpp_apps_teams
-WHERE
-  adam_id = ?
-AND
-  team_id = ?
-AND
-  platform = ?
-`
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, teamID, appID.Platform)
+	_, err := tx.ExecContext(ctx, `UPDATE policies p
+		JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id AND vat.adam_id = ? AND vat.team_id = ? AND vat.platform = ?
+		SET vpp_apps_teams_id = NULL`, appID.AdamID, teamID, appID.Platform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unsetting vpp app policy associations from team")
+	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE adam_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, teamID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}

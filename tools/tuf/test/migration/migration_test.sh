@@ -51,13 +51,21 @@ sudo orbit/tools/cleanup/cleanup_macos.sh
 prompt "Please manually uninstall fleetd from $WINDOWS_HOST_HOSTNAME and $LINUX_HOST_HOSTNAME."
 
 OLD_TUF_PORT=8081
-OLD_TUF_URL=http://host.docker.internal:$OLD_TUF_PORT
+if [ -z "$OLD_TUF_URL" ]; then
+	OLD_TUF_URL=http://host.docker.internal:$OLD_TUF_PORT
+else
+	echo "Using the provided URL '$OLD_TUF_URL' for the old TUF server"
+fi
 OLD_TUF_PATH=test_tuf_old
 OLD_FULL_VERSION=1.37.0
 OLD_MINOR_VERSION=1.37
 
 NEW_TUF_PORT=8082
-NEW_TUF_URL=http://host.docker.internal:$NEW_TUF_PORT
+if [ -z "$NEW_TUF_URL" ]; then
+	NEW_TUF_URL=http://host.docker.internal:$NEW_TUF_PORT
+else
+	echo "Using the provided URL '$NEW_TUF_URL' for the new TUF server"
+fi
 NEW_TUF_PATH=test_tuf_new
 NEW_FULL_VERSION=1.38.0
 NEW_MINOR_VERSION=1.38

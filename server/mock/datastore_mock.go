@@ -1143,6 +1143,8 @@ type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) erro
 
 type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error)
 
+type GetVPPAppsFunc func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error)
+
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
@@ -2886,6 +2888,9 @@ type DataStore struct {
 
 	GetAssignedVPPAppsFunc        GetAssignedVPPAppsFunc
 	GetAssignedVPPAppsFuncInvoked bool
+
+	GetVPPAppsFunc        GetVPPAppsFunc
+	GetVPPAppsFuncInvoked bool
 
 	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
 	SetTeamVPPAppsFuncInvoked bool
@@ -6905,6 +6910,13 @@ func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[f
 	s.GetAssignedVPPAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAssignedVPPAppsFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+	s.mu.Lock()
+	s.GetVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppsFunc(ctx, teamID)
 }
 
 func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error {
