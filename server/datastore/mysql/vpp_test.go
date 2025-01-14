@@ -600,6 +600,26 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// create policies using two of the apps
+	app1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+	app2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+	policy1, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 1",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app1Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+	policy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 2",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app2Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 2)
@@ -615,6 +635,10 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app3.VPPAppID},
 	})
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -632,6 +656,10 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app4.VPPAppID},
 	})
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, app1Meta.VPPAppsTeamsID, *policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -665,6 +693,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, app2Meta.VPPAppsTeamsID, *policy2.VPPAppsTeamsID)
+
 	// Remove all apps
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
 	require.NoError(t, err)
@@ -672,6 +708,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy2.VPPAppsTeamsID)
 }
 
 func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {

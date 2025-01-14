@@ -1996,6 +1996,112 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
+	startAndServeVPPServer(t)
+
+	cases := []struct {
+		noTeamFile string
+		wantErr    string
+		vppApps    []fleet.VPPAppResponse
+	}{
+		{
+			"testdata/gitops/subdir/no_team_vpp_policies_valid.yml",
+			"",
+			[]fleet.VPPAppResponse{
+				{ // for more test coverage
+					nil,
+					nil,
+					"",
+					fleet.MacOSPlatform,
+				},
+				{ // for more test coverage
+					nil,
+					ptr.Uint(122),
+					"",
+					fleet.MacOSPlatform,
+				},
+				{
+					ptr.Uint(0),
+					ptr.Uint(123),
+					"1",
+					fleet.IOSPlatform,
+				},
+				{
+					ptr.Uint(0),
+					ptr.Uint(124),
+					"1",
+					fleet.MacOSPlatform,
+				},
+				{
+					ptr.Uint(0),
+					ptr.Uint(125),
+					"1",
+					fleet.IPadOSPlatform,
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			tokExpire := time.Now().Add(time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return c.vppApps, nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokExpire,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
+			labelToIDs := map[string]uint{
+				fleet.BuiltinLabelMacOS14Plus: 1,
+				"a":                           2,
+				"b":                           3,
+			}
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
+				ret := make(map[string]uint)
+				for _, lbl := range labels {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = id
+					}
+				}
+				return ret, nil
+			}
+
+			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
+			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			t.Cleanup(func() {
+				os.Remove(dstPath)
+			})
+			err = file.Copy(c.noTeamFile, dstPath, 0o755)
+			require.NoError(t, err)
+			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
 func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 	startAndServeVPPServer(t)
