@@ -575,7 +575,6 @@ func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, co
 		return nil, nil, nil
 	}
 
-	// TODO(mna): this should only ever be called for non-pending installs, no impact on upcoming queue
 	stmt := `
 SELECT
 	u.name AS user_name,

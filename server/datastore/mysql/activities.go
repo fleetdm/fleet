@@ -388,7 +388,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
 		`,
-		// TODO(mna): complete the VPP apps UNION when VPP apps are ready
 		`SELECT
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
@@ -400,25 +399,26 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', hdn.display_name,
-				-- 'software_title', st.name,
-				-- 'app_store_id', hvsi.adam_id,
+				'software_title', st.name,
+				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
-				-- 'self_service', hvsi.self_service IS TRUE,
-				-- status is always pending because only pending MDM commands are upcoming.
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'status', 'pending_install'
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
 			ua.priority as priority
 		FROM
 			upcoming_activities ua
+		INNER JOIN
+			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
-		-- LEFT OUTER JOIN
-			-- vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
-		-- LEFT OUTER JOIN
-			-- software_titles st ON st.id = vpa.title_id
+		LEFT OUTER JOIN
+			vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
+		LEFT OUTER JOIN
+			software_titles st ON st.id = vpa.title_id
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
@@ -435,7 +435,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			activity_type,
 			created_at,
 			details
-		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming 
+		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
 	listStmt, args, err := sqlx.Named(listStmt, map[string]any{
