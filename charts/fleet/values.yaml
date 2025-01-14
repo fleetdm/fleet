@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.62.0 # Version of Fleet to deploy
+imageTag: v4.62.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAnnotations: {} # Additional annotations to add to the Fleet service
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
