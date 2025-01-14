@@ -128,7 +128,7 @@ export const InstallTypeSection = ({
           color="yellow"
           cta={
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-automation-install-software`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
               text="Learn more"
               newTab
             />
