@@ -1536,7 +1536,7 @@ func (c *Client) DoGitOps(
 		}
 
 		vulnerabilitiesWebhook, ok := webhookSettings.(map[string]any)["vulnerabilities_webhook"]
-		if !ok || failingPoliciesWebhook == nil {
+		if !ok || vulnerabilitiesWebhook == nil {
 			vulnerabilitiesWebhook = map[string]any{}
 			webhookSettings.(map[string]any)["vulnerabilities_webhook"] = vulnerabilitiesWebhook
 		}
