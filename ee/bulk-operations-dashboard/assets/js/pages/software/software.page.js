@@ -3,7 +3,7 @@ parasails.registerPage('software', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    sortDirection: 'ASC',
+    sortDirection: 'DESC',
     teamFilter: undefined,
     softwareToDisplay: [],
     platformFriendlyNames: {
@@ -159,7 +159,7 @@ parasails.registerPage('software', {
       this.overlaySyncing = true;
       this.syncingMessage = 'Gathering software';
       let newSoftwareInformation = await Cloud.getSoftware();
-      this.software = newSoftwareInformation;
+      this.software = _.sortByOrder(newSoftwareInformation, 'name', this.sortDirection);
       this.overlaySyncing = false;
       await this.changeTeamFilter();
     }

@@ -121,14 +121,15 @@ module.exports = {
         .intercept('non200Response', (error)=>{
           return new Error(`When attempting to transfer the installer for ${software.name} to a new team on the Fleet instance, the Fleet isntance returned a non-200 response when a request was sent to get a download stream of the installer on team_id ${teamIdToGetInstallerFrom}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
         });
-        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
+        let tempUploadedSoftware = await sails.uploadOne(softwareStream, {adapter: require('skipper-disk'), maxBytes: sails.config.uploads.maxBytes});
+        // let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = tempUploadedSoftware.fd;
         softwareName = software.name;
         softwareMime = tempUploadedSoftware.type;
       } else if(newSoftware) {
         // If a new copy of the installer was uploaded, we'll
         // console.log('replacing software package!');
-        let uploadedSoftware = await sails.uploadOne(newSoftware, {bucket: sails.config.uploads.bucketWithPostfix});
+        let uploadedSoftware = await sails.uploadOne(newSoftware, {adapter: require('skipper-disk'), maxBytes: sails.config.uploads.maxBytes});
         softwareFd = uploadedSoftware.fd;
         softwareName = uploadedSoftware.filename;
         softwareMime = uploadedSoftware.type;
@@ -144,6 +145,17 @@ module.exports = {
         softwareName = software.name;
         softwareMime = software.uploadMime;
       }
+      let adapterForUploadedFile = {};
+      if(!software.id) {
+        // If this software is not stored in the s3 bucket, we'll use the skipper-disk adapter to store a temporary copy in the app's local filesystem.
+        // Note: This file will be deleted after it is copied to its final home (either the S3 bucket we're storing )
+        adapterForUploadedFile = {
+          adapter: require('skipper-disk'),
+          maxBytes: sails.config.uploads.maxBytes,
+        };
+      } else {
+        adapterForUploadedFile = {bucket: sails.config.uploads.bucketWithPostfix};
+      }
       // Now apply the edits.
       if(newTeamIds.length !== 0) {
         let currentSoftwareTeamIds = _.pluck(software.teams, 'fleetApid') || [];
@@ -154,7 +166,8 @@ module.exports = {
         await sails.helpers.flow.simultaneouslyForEach(addedTeams, async (team)=>{
           // console.log(`transfering ${software.name} to fleet instance for team id ${team}`);
           // Send an api request to send the file to the Fleet server for each added team.
-          await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
+          // await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
+          await sails.cp(softwareFd, adapterForUploadedFile,
             {
               adapter: ()=>{
                 return {
@@ -249,7 +262,7 @@ module.exports = {
           await sails.helpers.flow.simultaneouslyForEach(unchangedTeamIds, async (teamApid)=>{
             // console.log(`Adding new version of ${softwareName} to teamId ${teamApid}`);
             // console.time(`transfering ${software.name} to fleet instance for team id ${teamApid}`);
-            await sails.cp(softwareFd, {bucket: sails.config.uploads.bucketWithPostfix},
+            await sails.cp(softwareFd, adapterForUploadedFile,
             {
               adapter: ()=>{
                 return {
