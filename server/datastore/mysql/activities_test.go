@@ -456,7 +456,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install the VPP app on h1
-	//commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false)
 	require.NoError(t, err)
 	// err = commander.EnqueueCommand(
