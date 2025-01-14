@@ -48,6 +48,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 	})
 }
 
+// TODO(mna): might become unused after unified queue implementation
 func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	var err error
@@ -109,7 +110,7 @@ WHERE
 		request.HostID,
 		priority,
 		request.UserID,
-		isInternal || request.UserID == nil, // TODO(mna): confirm if this makes sense
+		request.UserID == nil,
 		execID,
 		request.SyncRequest,
 		isInternal,

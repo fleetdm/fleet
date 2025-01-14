@@ -764,8 +764,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, wantUser.Email, *a.ActorEmail, "result %d", i)
 				} else {
 					require.Nil(t, a.ActorID, "result %d", i)
-					// TODO(mna): this should probably become consistent across activity types, all based on fleet_initiated
-					if a.Type == (fleet.ActivityInstalledAppStoreApp{}.ActivityName()) {
+					if a.FleetInitiated {
 						require.NotNil(t, a.ActorFullName, "result %d", i)
 						require.Equal(t, "Fleet", *a.ActorFullName, "result %d", i)
 					} else {
