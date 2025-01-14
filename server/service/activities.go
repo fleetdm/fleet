@@ -192,8 +192,9 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 
 	// cursor-based pagination is not supported for upcoming activities
 	opt.After = ""
-	// custom ordering is not supported, always by date (oldest first)
-	opt.OrderKey = "created_at"
+	// custom ordering is not supported, always by upcoming queue order
+	// (acual order is in the query, not set via ListOptions)
+	opt.OrderKey = ""
 	opt.OrderDirection = fleet.OrderAscending
 	// no matching query support
 	opt.MatchQuery = ""

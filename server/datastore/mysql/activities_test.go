@@ -365,6 +365,9 @@ func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	// TODO(mna): uncomment the commented-out non-pending portions of this test
+	// once the upcoming queue can run.
+
 	noUserCtx := context.Background()
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -444,40 +447,43 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// insert a VPP app
-	vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
-	vppApp := &fleet.VPPApp{
-		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
-		BundleIdentifier: "b3",
-	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
-	require.NoError(t, err)
+	// vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
+	// vppApp := &fleet.VPPApp{
+	// 	Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
+	// 	BundleIdentifier: "b3",
+	// }
+	// _, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	// require.NoError(t, err)
 
 	// install the VPP app on h1
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false)
-	require.NoError(t, err)
-	err = commander.EnqueueCommand(
-		ctx,
-		[]string{h1.UUID},
-		createRawAppleCmd("InstallApplication", vppCommand1),
-	)
-	require.NoError(t, err)
-	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true)
-	require.NoError(t, err)
-	err = commander.EnqueueCommand(
-		ctx,
-		[]string{h1.UUID},
-		createRawAppleCmd("InstallApplication", vppCommand2),
-	)
-	require.NoError(t, err)
+	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	// err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false)
+	// require.NoError(t, err)
+	// err = commander.EnqueueCommand(
+	// 	ctx,
+	// 	[]string{h1.UUID},
+	// 	createRawAppleCmd("InstallApplication", vppCommand1),
+	// )
+	// require.NoError(t, err)
+	// // install the VPP app on h2, self-service
+	// err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true)
+	// require.NoError(t, err)
+	// err = commander.EnqueueCommand(
+	// 	ctx,
+	// 	[]string{h1.UUID},
+	// 	createRawAppleCmd("InstallApplication", vppCommand2),
+	// )
+	// require.NoError(t, err)
 
-	// create a sync script request for h1 that has been pending for > MaxWaitTime, will not show up
+	// create a sync script request for h1 that has been pending for >
+	// MaxWaitTime, will still show up (sync scripts go through the upcoming
+	// queue as any script)
 	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "sync", UserID: &u.ID, SyncRequest: true})
 	require.NoError(t, err)
 	hSyncExpired := hsr.ExecutionID
+	t.Log("hSyncExpired", hSyncExpired)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-(scripts.MaxServerWaitTime + time.Minute)), hSyncExpired)
+		_, err := q.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-(scripts.MaxServerWaitTime + time.Minute)), hSyncExpired)
 		return err
 	})
 
@@ -485,38 +491,49 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h1A := hsr.ExecutionID
+	t.Log("h1A", h1A)
+
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr2.ID, ScriptContents: scr2.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h1B := hsr.ExecutionID
+	t.Log("h1B", h1B)
+
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "C", UserID: &u.ID})
 	require.NoError(t, err)
 	h1C := hsr.ExecutionID
+	t.Log("h1C", h1C)
+
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "D"})
 	require.NoError(t, err)
 	h1D := hsr.ExecutionID
+	t.Log("h1D", h1D)
+
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "E"})
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
+	t.Log("h1E", h1E)
+
 	// create some software installs requests for h1, make some complete
-	h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	require.NoError(t, err)
+	// h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
+	// require.NoError(t, err)
 	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, false, nil)
 	require.NoError(t, err)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                    h1.ID,
-		InstallUUID:               h1FooFailed,
-		PreInstallConditionOutput: ptr.String(""), // pre-install failed
-	})
-	require.NoError(t, err)
-	h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	require.NoError(t, err)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                    h1.ID,
-		InstallUUID:               h1FooInstalled,
-		PreInstallConditionOutput: ptr.String("ok"),
-		InstallScriptExitCode:     ptr.Int(0),
-	})
-	require.NoError(t, err)
+	t.Log("h1Bar", h1Bar)
+	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	// 	HostID:                    h1.ID,
+	// 	InstallUUID:               h1FooFailed,
+	// 	PreInstallConditionOutput: ptr.String(""), // pre-install failed
+	// })
+	// require.NoError(t, err)
+	// h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
+	// require.NoError(t, err)
+	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	// 	HostID:                    h1.ID,
+	// 	InstallUUID:               h1FooInstalled,
+	// 	PreInstallConditionOutput: ptr.String("ok"),
+	// 	InstallScriptExitCode:     ptr.Int(0),
+	// })
+	// require.NoError(t, err)
 
 	// No user for this one and not Self-service, means it was installed by Fleet
 	policy, err := ds.NewTeamPolicy(ctx, 0, &u.ID, fleet.PolicyPayload{
@@ -525,24 +542,28 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false, &policy.ID)
+	t.Log("h1Fleet", h1Fleet)
 	require.NoError(t, err)
 
 	// create a single pending request for h2, as well as a non-pending one
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h2A := hsr.ExecutionID
-	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
-	require.NoError(t, err)
-	_, _, err = ds.SetHostScriptExecutionResult(ctx,
-		&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
-	require.NoError(t, err)
-	h2F := hsr.ExecutionID
+	t.Log("h2A", h2A)
+	// hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
+	// require.NoError(t, err)
+	// _, _, err = ds.SetHostScriptExecutionResult(ctx,
+	// 	&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
+	// require.NoError(t, err)
+	// h2F := hsr.ExecutionID
 	// add a pending software install request for h2
 	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, false, nil)
 	require.NoError(t, err)
+	t.Log("h2Bar", h2Bar)
 	// No user for this one and Self-service, means it was installed by the end user, so the user_id should be null/nil.
 	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
 	require.NoError(t, err)
+	t.Log("h2SelfService", h2SelfService)
 
 	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
 	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
@@ -552,6 +573,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "setup_experience", SetupExperienceScriptID: &ses.ID})
 	require.NoError(t, err)
 	h2SetupExp := hsr.ExecutionID
+	t.Log("h2SetupExp", h2SetupExp)
 
 	// create pending install and uninstall requests for h3 that will be deleted
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, false, nil)
@@ -563,33 +585,35 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
 	require.NoError(t, err)
 
-	// force-set the order of the created_at timestamps
-	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Fleet)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1Fleet)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
-	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
-	SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2SetupExp)
+	// // force-set the order of the created_at timestamps
+	SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "upcoming_activities", "execution_id",
+		h1A, h1B /*h1FooFailed,*/, h1Bar, h1C, h1D, h1E /*h1FooInstalled,*/, h1Fleet, h2SelfService, h2Bar, h2A /*h2F, vppCommand1, vppCommand2,*/, h2SetupExp)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Fleet)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1Fleet)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
+	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
+	// SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
-		h1A:           true,
-		h1B:           true,
-		h1C:           true,
-		h1D:           false,
-		h1E:           false,
-		h2A:           true,
-		h2F:           true,
+		hSyncExpired: true,
+		h1A:          true,
+		h1B:          true,
+		h1C:          true,
+		h1D:          false,
+		h1E:          false,
+		h2A:          true,
+		//h2F:           true,
 		h1Fleet:       false,
 		h2SelfService: false,
 		h1Bar:         true,
 		h2Bar:         true,
-		vppCommand1:   true,
-		vppCommand2:   false,
-		h2SetupExp:    false,
+		// vppCommand1:   true,
+		// vppCommand2:   false,
+		h2SetupExp: false,
 	}
 	execIDsScriptName := map[string]string{
 		h1A:        scr1.Name,
@@ -616,37 +640,37 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1A, h1B},
+			wantExecs: []string{hSyncExpired, h1A},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1Bar, h1C},
+			wantExecs: []string{h1B, h1Bar},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1D, h1E},
+			wantExecs: []string{h1C, h1D},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1Fleet, vppCommand1},
+			wantExecs: []string{h1E, h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{h1A, h1B, h1Bar, h1C},
+			wantExecs: []string{hSyncExpired, h1A, h1B, h1Bar},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{h1D, h1E, h1Fleet, vppCommand1},
+			wantExecs: []string{h1C, h1D, h1E, h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
 		},
 		{
@@ -658,8 +682,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SelfService, h2Bar, h2A, vppCommand2, h2SetupExp},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
+			wantExecs: []string{h2SetupExp, h2SelfService, h2Bar, h2A}, // setup experience is top-priority
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
 		},
 		{
 			opts:      fleet.ListOptions{},
@@ -672,7 +696,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		t.Run(fmt.Sprintf("%v: %#v", c.hostID, c.opts), func(t *testing.T) {
 			// always include metadata
 			c.opts.IncludeMetadata = true
-			c.opts.OrderKey = "created_at"
+			c.opts.OrderKey = ""
 			c.opts.OrderDirection = fleet.OrderAscending
 
 			acts, meta, err := ds.ListHostUpcomingActivities(ctx, c.hostID, c.opts)

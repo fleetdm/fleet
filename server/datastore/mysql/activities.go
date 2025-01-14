@@ -264,13 +264,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// NOTE: Be sure to update both the count (above) and list statements (below)
 	// if the query condition is modified.
 
-	// TODO(mna): use the upcoming queue instead (but also include in-execution stuff
-	// that have no results yet)?
 	listStmts := []string{
 		// list pending scripts
+		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
-			IF(sua.policy_id IS NOT NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) as name, -- TODO: should that use fleet_initiated
+			IF(sua.policy_id IS NOT NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) as name,
 			u.id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
 			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
@@ -281,7 +280,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
 				'script_execution_id', ua.execution_id,
-				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request),
+				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request'),
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -289,7 +288,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.priority as priority
 		FROM
 			upcoming_activities ua
-		INNER JOIN 
+		INNER JOIN
 			script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON u.id = ua.user_id
@@ -306,12 +305,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.activity_type = 'script'
 `,
 		// list pending software installs
+		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
-			-- TODO: should we use fleet_initiated instead
-			IF(ua.user_id IS NULL AND NOT JSON_EXTRACT(ua.payload, '$.self_service), 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			IF(ua.user_id IS NULL AND NOT JSON_EXTRACT(ua.payload, '$.self_service'), 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
 			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
@@ -324,7 +323,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename')),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
-				'self_service', JSON_EXTRACT(ua.payload, '$.self_service) IS TRUE,
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
@@ -349,11 +348,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.activity_type = 'software_install'
 		`,
 		// list pending software uninstalls
+		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
 			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
 			-- so we mark those as "Fleet"
-			-- TODO: should we use fleet_initiated instead
 			IF(ua.user_id IS NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
@@ -436,20 +435,23 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			activity_type,
 			created_at,
 			details
-		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
-	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
-		"host_id":                           hostID,
-		"ran_script_type":                   fleet.ActivityTypeRanScript{}.ActivityName(),
-		"installed_software_type":           fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
-		"uninstalled_software_type":         fleet.ActivityTypeUninstalledSoftware{}.ActivityName(),
-		"installed_app_store_app_type":      fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		"max_wait_time":                     seconds,
-		"software_status_install_pending":   fleet.SoftwareInstallPending,
-		"software_status_uninstall_pending": fleet.SoftwareUninstallPending,
+		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming 
+		ORDER BY topmost DESC, priority DESC, created_at ASC`
+
+	listStmt, args, err := sqlx.Named(listStmt, map[string]any{
+		"host_id":                      hostID,
+		"ran_script_type":              fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"uninstalled_software_type":    fleet.ActivityTypeUninstalledSoftware{}.ActivityName(),
+		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
 	}
+
+	// the ListOptions supported for this query are limited, only the pagination
+	// OFFSET and LIMIT can be added, so it's fine to have the ORDER BY already
+	// in the query before calling this (enforced at the server layer).
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
 	var activities []*fleet.Activity
