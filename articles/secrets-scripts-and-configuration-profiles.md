@@ -69,10 +69,14 @@ On subsequent GitOps syncs, if a secret variable used by a configuration profile
 
 > Profiles with secret variables are not entirely validated during a GitOps dry run because secret variables may not be present/correct in the database during the dry run. Hence, there is an increased chance of GitOps non-dry run failure when using a profile with a secret variable. Try uploading this profile to a test team first.
 
+## Escaping and interpolation
+
+The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
+
 ## Known limitations and issues
 
 - Windows profiles are currently not re-sent to the device on fleetctl gitops update: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)
-- Fleet does not mask the secret in script results. DO NOT print/echo your secrets to the console output.
+- Fleet does not hide the secret in script results. DO NOT print/echo your secrets to the console output.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
