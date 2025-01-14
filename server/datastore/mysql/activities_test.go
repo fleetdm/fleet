@@ -621,6 +621,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	execIDsFromPolicyAutomation := map[string]struct{}{
 		h1Fleet: {},
 	}
+	// to simplify map, false = cancellable, true = NON-cancellable
+	execIDsNonCancellable := map[string]bool{
+		hSyncExpired: true,
+		h2SetupExp:   true,
+	}
 
 	cases := []struct {
 		opts      fleet.ListOptions
@@ -739,6 +744,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					t.Fatalf("unknown activity type %s", a.Type)
 				}
 
+				require.Equal(t, !execIDsNonCancellable[wantExec], a.Cancellable, "result %d", i)
+
 				if _, ok := execIDsFromPolicyAutomation[wantExec]; ok {
 					require.Nil(t, a.ActorID, "result %d", i)
 					require.NotNil(t, a.ActorFullName, "result %d", i)
@@ -766,7 +773,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					}
 					require.Nil(t, a.ActorEmail, "result %d", i)
 				}
-
 			}
 		})
 	}

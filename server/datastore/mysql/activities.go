@@ -284,8 +284,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -327,8 +329,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -368,8 +372,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost, 
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -405,8 +411,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'status', 'pending_install'
 			) AS details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -434,7 +442,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			user_email,
 			activity_type,
 			created_at,
-			details
+			details,
+			fleet_initiated,
+			cancellable
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
@@ -457,6 +467,11 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	// first activity (next one to execute) is always non-cancellable, per spec
+	if len(activities) > 0 && opt.Page == 0 {
+		activities[0].Cancellable = false
 	}
 
 	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
