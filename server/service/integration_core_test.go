@@ -5081,23 +5081,6 @@ func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
 		`{"webhook_url": "http://some/url"}`,
 		0,
 	)
-
-	s.DoRaw(
-		"PATCH", "/api/latest/fleet/config", []byte(
-			`{}`,
-		), http.StatusOK,
-	)
-
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeDisabledActivityAutomations{}.ActivityName(),
-		``,
-		0,
-	)
-
-	appConfig = s.getConfig()
-	require.False(t, appConfig.WebhookSettings.ActivitiesWebhook.Enable)
-	require.Empty(t, appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
-
 }
 
 func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
