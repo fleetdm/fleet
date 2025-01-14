@@ -813,7 +813,7 @@ VALUES
 	}
 
 	var userID *uint
-	fleetInitiated := true
+	fleetInitiated := !selfService // if self-service, we don't have a user but it's still not Fleet-initiated
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
 		fleetInitiated = false
