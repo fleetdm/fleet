@@ -117,7 +117,7 @@ _Note:_ The checksum of Apple DDM profiles with secret variables now includes th
 
 ## Escaping variable and interpolation
 
-The dollar sign ($) can be escaped so it's not considered a variable by using a backslash. (e.g. `\$100`). Additionally, `${variable}` syntax can be used (e.g. if you want to use a variable as part of the string `"Bearer ${FLEET_SECRET_SOME_API_TOKEN}"`).
+The dollar sign ($) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `${variable}` syntax can be used (e.g. if you want to use a variable as part of the string `"Bearer ${FLEET_SECRET_SOME_API_TOKEN}"`).
 
 ## Known limitations and issues
 
