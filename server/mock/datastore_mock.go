@@ -49,8 +49,6 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
-type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
-
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -60,6 +58,8 @@ type DeleteUserFunc func(ctx context.Context, id uint) error
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
+
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
 
 type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
@@ -517,6 +517,8 @@ type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, 
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
 
+type GetPoliciesWithAssociatedVPPFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error)
+
 type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
@@ -733,7 +735,7 @@ type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, inclu
 
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
 
-type UpdateVulnerabilityHostCountsFunc func(ctx context.Context) error
+type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int) error
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
@@ -1113,6 +1115,12 @@ type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, title
 
 type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
 
+type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[string]struct{}, error)
+
+type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
+
+type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
+
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
 type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error
@@ -1139,7 +1147,7 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
@@ -1238,9 +1246,6 @@ type DataStore struct {
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
 
-	UserSettingsFunc				UserSettingsFunc
-	UserSettingsFuncInvoked bool
-
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
 
@@ -1255,6 +1260,9 @@ type DataStore struct {
 
 	ConfirmPendingEmailChangeFunc        ConfirmPendingEmailChangeFunc
 	ConfirmPendingEmailChangeFuncInvoked bool
+
+	UserSettingsFunc        UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	ApplyQueriesFunc        ApplyQueriesFunc
 	ApplyQueriesFuncInvoked bool
@@ -1939,6 +1947,9 @@ type DataStore struct {
 
 	GetPoliciesWithAssociatedInstallerFunc        GetPoliciesWithAssociatedInstallerFunc
 	GetPoliciesWithAssociatedInstallerFuncInvoked bool
+
+	GetPoliciesWithAssociatedVPPFunc        GetPoliciesWithAssociatedVPPFunc
+	GetPoliciesWithAssociatedVPPFuncInvoked bool
 
 	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
 	GetPoliciesWithAssociatedScriptFuncInvoked bool
@@ -2834,6 +2845,15 @@ type DataStore struct {
 	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
 	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
 
+	MapAdamIDsPendingInstallFunc        MapAdamIDsPendingInstallFunc
+	MapAdamIDsPendingInstallFuncInvoked bool
+
+	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
+	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
+
+	GetVPPAppMetadataByAdamIDAndPlatformFunc        GetVPPAppMetadataByAdamIDAndPlatformFunc
+	GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked bool
+
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
 
@@ -3058,13 +3078,6 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	return s.UserByIDFunc(ctx, id)
 }
 
-func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
-	s.mu.Lock()
-	s.UserSettingsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UserSettingsFunc(ctx, userID)
-}
-
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	s.mu.Lock()
 	s.SaveUserFuncInvoked = true
@@ -3098,6 +3111,13 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	s.ConfirmPendingEmailChangeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -4696,6 +4716,13 @@ func (s *DataStore) GetPoliciesWithAssociatedInstaller(ctx context.Context, team
 	return s.GetPoliciesWithAssociatedInstallerFunc(ctx, teamID, policyIDs)
 }
 
+func (s *DataStore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error) {
+	s.mu.Lock()
+	s.GetPoliciesWithAssociatedVPPFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPoliciesWithAssociatedVPPFunc(ctx, teamID, policyIDs)
+}
+
 func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
 	s.mu.Lock()
 	s.GetPoliciesWithAssociatedScriptFuncInvoked = true
@@ -5452,11 +5479,11 @@ func (s *DataStore) CountVulnerabilities(ctx context.Context, opt fleet.VulnList
 	return s.CountVulnerabilitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
+func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	s.mu.Lock()
 	s.UpdateVulnerabilityHostCountsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateVulnerabilityHostCountsFunc(ctx)
+	return s.UpdateVulnerabilityHostCountsFunc(ctx, maxRoutines)
 }
 
 func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
@@ -6782,6 +6809,27 @@ func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamI
 	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
 }
 
+func (s *DataStore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.MapAdamIDsPendingInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.MapAdamIDsPendingInstallFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error) {
+	s.mu.Lock()
+	s.GetTitleInfoFromVPPAppsTeamsIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetTitleInfoFromVPPAppsTeamsIDFunc(ctx, vppAppsTeamsID)
+}
+
+func (s *DataStore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppMetadataByAdamIDAndPlatformFunc(ctx, adamID, platform)
+}
+
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
@@ -6873,11 +6921,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error {
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, selfService)
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, selfService, policyID)
 }
 
 func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
