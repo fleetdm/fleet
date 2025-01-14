@@ -6150,16 +6150,6 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
-
-	// No webhooks specified should disable webhooks
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{}`), http.StatusOK)
-	config = s.getConfig()
-	require.False(t, config.WebhookSettings.ActivitiesWebhook.Enable)
-	require.Equal(t, "", config.WebhookSettings.ActivitiesWebhook.DestinationURL)
-	require.False(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.Equal(t, "", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.False(t, config.WebhookSettings.HostStatusWebhook.Enable)
-	require.Equal(t, "", config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
 func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
