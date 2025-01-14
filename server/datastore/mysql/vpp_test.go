@@ -499,32 +499,36 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", true)
 	require.NoError(t, err)
 
-	// TODO(mna): use list upcoming activities to validate the results
-	// var results []struct {
-	// 	HostID            uint   `db:"host_id"`
-	// 	UserID            *uint  `db:"user_id"`
-	// 	AdamID            string `db:"adam_id"`
-	// 	CommandUUID       string `db:"command_uuid"`
-	// 	AssociatedEventID string `db:"associated_event_id"`
-	// 	SelfService       bool   `db:"self_service"`
-	// }
-	// err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id, self_service FROM host_vpp_software_installs ORDER BY adam_id`)
-	// require.NoError(t, err)
-	// require.Len(t, results, 2)
-	// a1 := results[0]
-	// a2 := results[1]
-	// require.Equal(t, a1.HostID, uint(1))
-	// require.Equal(t, a1.UserID, ptr.Uint(u.ID))
-	// require.Equal(t, a1.AdamID, app1.AdamID)
-	// require.Equal(t, a1.CommandUUID, "a")
-	// require.Equal(t, a1.AssociatedEventID, "b")
-	// require.False(t, a1.SelfService)
-	// require.Equal(t, a2.HostID, uint(2))
-	// require.Equal(t, a2.UserID, ptr.Uint(u.ID))
-	// require.Equal(t, a2.AdamID, app2.AdamID)
-	// require.Equal(t, a2.CommandUUID, "c")
-	// require.Equal(t, a2.AssociatedEventID, "d")
-	// require.True(t, a2.SelfService)
+	acts, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 1)
+	require.NotNil(t, acts[0].ActorFullName)
+	require.Equal(t, u.Name, *acts[0].ActorFullName)
+	// app1 software title because it matched an existing software "foo" by bundle identifier
+	require.JSONEq(t, fmt.Sprintf(`{
+		"app_store_id":"%s", 
+		"command_uuid":"a", 
+		"host_display_name":"%s", 
+		"host_id":%d, 
+		"self_service":false, 
+		"software_title":"foo", 
+		"status":"pending_install"
+	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
+
+	acts, _, err = ds.ListHostUpcomingActivities(ctx, h2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 1)
+	require.NotNil(t, acts[0].ActorFullName)
+	require.Equal(t, u.Name, *acts[0].ActorFullName)
+	require.JSONEq(t, fmt.Sprintf(`{
+		"app_store_id":"%s", 
+		"command_uuid":"c", 
+		"host_display_name":"%s", 
+		"host_id":%d, 
+		"self_service":true, 
+		"software_title":"vpp_app_2", 
+		"status":"pending_install"
+	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
