@@ -10,7 +10,7 @@ By following these steps, you can automate the deployment of Okta Verify across 
 
 * MDM enabled and configured
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### **Step 1: Install Okta Verify on your hosts**
 
