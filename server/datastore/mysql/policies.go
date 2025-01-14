@@ -825,6 +825,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 	teamNameToID := make(map[string]*uint, 1)
 	teamIDToPolicies := make(map[*uint][]*fleet.PolicySpec, 1)
 	softwareInstallerIDs := make(map[*uint]map[uint]*uint) // teamID -> titleID -> softwareInstallerID
+	vppAppsTeamsIDs := make(map[*uint]map[uint]*uint)      // teamID -> titleID -> vppAppsTeamsID
+	vppTitleIDs := make(map[uint]struct{})                 // set when a title is a VPP app rather than a software installer
 
 	// Get the team IDs
 	for _, spec := range specs {
@@ -853,7 +855,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		teamIDToPolicies[teamID] = append(teamIDToPolicies[teamID], spec)
 	}
 
-	// Get software installer ids from software title ids.
+	// Get software installer ids + VPP apps teams IDs from software title IDs.
 	for _, spec := range specs {
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
@@ -861,20 +863,36 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		if spec.Team == "" {
 			return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy from spec")
 		}
-		var softwareInstallerID uint
-		err := sqlx.GetContext(ctx, queryerContext, &softwareInstallerID,
-			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ?`,
-			teamNameToID[spec.Team], spec.SoftwareTitleID)
+		var ids struct {
+			SoftwareInstallerID *uint `db:"si_id"`
+			VPPAppsTeamsID      *uint `db:"vat_id"`
+		}
+		err := sqlx.GetContext(ctx, queryerContext, &ids,
+			`SELECT id si_id, NULL vat_id FROM software_installers WHERE global_or_team_id = ? AND title_id = ?
+				UNION
+				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
+				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+				WHERE global_or_team_id = ? AND title_id = ?`,
+			teamNameToID[spec.Team], spec.SoftwareTitleID, teamNameToID[spec.Team], spec.SoftwareTitleID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("SoftwareInstaller").WithID(*spec.SoftwareTitleID), "get software installer id")
 			}
 			return ctxerr.Wrap(ctx, err, "get software installer id")
 		}
-		if len(softwareInstallerIDs[teamNameToID[spec.Team]]) == 0 {
-			softwareInstallerIDs[teamNameToID[spec.Team]] = make(map[uint]*uint)
+		if ids.SoftwareInstallerID != nil {
+			if len(softwareInstallerIDs[teamNameToID[spec.Team]]) == 0 {
+				softwareInstallerIDs[teamNameToID[spec.Team]] = make(map[uint]*uint)
+			}
+			softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID] = ids.SoftwareInstallerID
 		}
-		softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID] = &softwareInstallerID
+		if ids.VPPAppsTeamsID != nil {
+			if len(vppAppsTeamsIDs[teamNameToID[spec.Team]]) == 0 {
+				vppAppsTeamsIDs[teamNameToID[spec.Team]] = make(map[uint]*uint)
+			}
+			vppAppsTeamsIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID] = ids.VPPAppsTeamsID
+			vppTitleIDs[*spec.SoftwareTitleID] = struct{}{}
+		}
 	}
 
 	// Get the query and platforms of the current policies so that we can check if query or platform changed later, if needed
@@ -883,6 +901,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		Query               string `db:"query"`
 		Platforms           string `db:"platforms"`
 		SoftwareInstallerID *uint  `db:"software_installer_id"`
+		VPPAppsTeamsID      *uint  `db:"vpp_apps_teams_id"`
 		ScriptID            *uint  `db:"script_id"`
 	}
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
@@ -897,10 +916,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		var args []interface{}
 		var err error
 		if teamID == nil {
-			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, script_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
+			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
 		} else {
 			query, args, err = sqlx.In(
-				"SELECT name, query, platforms, software_installer_id, script_id FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
+				"SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id FROM policies WHERE team_id = ? AND name IN (?)", *teamID, policyNames,
 			)
 		}
 		if err != nil {
@@ -930,9 +949,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			critical,
 			calendar_events_enabled,
 			software_installer_id,
+		    vpp_apps_teams_id,
 		    script_id,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -942,15 +962,22 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			critical = VALUES(critical),
 			calendar_events_enabled = VALUES(calendar_events_enabled),
 			software_installer_id = VALUES(software_installer_id),
+			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
 			for _, spec := range teamPolicySpecs {
 				var softwareInstallerID *uint
+				var vppAppsTeamsID *uint
 				if spec.SoftwareTitleID != nil {
-					softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+					if _, ok := vppTitleIDs[*spec.SoftwareTitleID]; !ok {
+						softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+					} else {
+						vppAppsTeamsID = vppAppsTeamsIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+					}
 				}
+
 				scriptID := spec.ScriptID
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
@@ -958,8 +985,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				res, err := tx.ExecContext(
 					ctx,
-					query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
-					spec.CalendarEventsEnabled, softwareInstallerID, scriptID,
+					query,
+					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
+					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -973,7 +1001,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							shouldRemoveAllPolicyMemberships bool
 							removePolicyStats                bool
 						)
-						// Figure out if the query, platform or software installer changed.
+						// Figure out if the query, platform, software installer, or VPP app changed.
 						var softwareInstallerID *uint
 						if spec.SoftwareTitleID != nil {
 							softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
@@ -986,6 +1014,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							case teamID != nil &&
 								((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
 									(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+								shouldRemoveAllPolicyMemberships = true
+								removePolicyStats = true
+							case teamID != nil &&
+								((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
+									(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
 								shouldRemoveAllPolicyMemberships = true
 								removePolicyStats = true
 							case teamID != nil &&

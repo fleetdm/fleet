@@ -73,6 +73,7 @@ type PolicyRunScript struct {
 
 type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
+	AppStoreID  string `json:"app_store_id"`
 }
 
 type Query struct {
@@ -564,7 +565,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range policies {
 		item := item
 		if item.Path == nil {
-			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages); err != nil {
+			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
 				continue
 			}
@@ -600,7 +601,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
-							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages); err != nil {
+							if err := parsePolicyInstallSoftware(filepath.Dir(filePath), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", pp.Name, err))
 								continue
 							}
@@ -684,36 +685,56 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec) error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp) error {
 	if policy.InstallSoftware == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
 		return nil
 	}
-	if policy.InstallSoftware != nil && policy.InstallSoftware.PackagePath != "" && teamName == nil {
+	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" {
-		return errors.New("empty package_path")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" {
+		return errors.New("install_software must include either a package path or app store app ID")
 	}
-	fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
-	if err != nil {
-		return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
+		return errors.New("install_software must have only one of package_path or app_store_id")
 	}
-	var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-	if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-		return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+
+	if policy.InstallSoftware.PackagePath != "" {
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, policy.InstallSoftware.PackagePath))
+		if err != nil {
+			return fmt.Errorf("failed to read install_software.package_path file %q: %v", policy.InstallSoftware.PackagePath, err)
+		}
+		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
+		if err := yaml.Unmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+			return fmt.Errorf("failed to unmarshal install_software.package_path file %s: %v", policy.InstallSoftware.PackagePath, err)
+		}
+		installerOnTeamFound := false
+		for _, pkg := range packages {
+			if pkg.URL == policyInstallSoftwareSpec.URL {
+				installerOnTeamFound = true
+				break
+			}
+		}
+		if !installerOnTeamFound {
+			return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+		}
+		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
 	}
-	installerOnTeamFound := false
-	for _, pkg := range packages {
-		if pkg.URL == policyInstallSoftwareSpec.URL {
-			installerOnTeamFound = true
-			break
+
+	if policy.InstallSoftware.AppStoreID != "" {
+		appOnTeamFound := false
+		for _, app := range appStoreApps {
+			if app.AppStoreID == policy.InstallSoftware.AppStoreID {
+				appOnTeamFound = true
+				break
+			}
+		}
+		if !appOnTeamFound {
+			return fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.AppStoreID, *teamName)
 		}
 	}
-	if !installerOnTeamFound {
-		return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
-	}
-	policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
+
 	return nil
 }
 

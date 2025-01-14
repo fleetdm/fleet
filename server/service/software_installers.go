@@ -767,25 +767,25 @@ func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io
 }
 
 type batchAssociateAppStoreAppsResponse struct {
-	Err error `json:"error,omitempty"`
+	Apps []fleet.VPPAppResponse `json:"app_store_apps"`
+	Err  error                  `json:"error,omitempty"`
 }
 
 func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
 
-func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
-
 func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*batchAssociateAppStoreAppsRequest)
-	if err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun); err != nil {
+	apps, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
+	if err != nil {
 		return batchAssociateAppStoreAppsResponse{Err: err}, nil
 	}
-	return batchAssociateAppStoreAppsResponse{}, nil
+	return batchAssociateAppStoreAppsResponse{Apps: apps}, nil
 }
 
-func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }

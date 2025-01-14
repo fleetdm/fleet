@@ -1817,6 +1817,7 @@ type Datastore interface {
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)
+	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
