@@ -270,6 +270,25 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	return app, nil
 }
 
+func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	var results []fleet.VPPAppResponse
+
+	// intentionally using writer as this is called right after batch-setting VPP apps
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
+		SELECT vat.team_id, va.software_title_id, vat.adam_id app_store_id, vat.platform
+		FROM vpp_apps_teams vat
+		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		WHERE global_or_team_id = ?`, tmID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get VPP apps")
+	}
+
+	return results, nil
+}
+
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
