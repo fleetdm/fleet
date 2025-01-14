@@ -2037,6 +2037,23 @@ CREATE TABLE `vpp_app_team_labels` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vpp_app_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vpp_token_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_vpp_app_upcoming_activities_adam_id_platform` (`adam_id`,`platform`),
+  KEY `fk_vpp_app_upcoming_activities_vpp_token_id` (`vpp_token_id`),
+  CONSTRAINT `fk_vpp_app_upcoming_activities_adam_id_platform` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vpp_apps` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `title_id` int unsigned DEFAULT NULL,
