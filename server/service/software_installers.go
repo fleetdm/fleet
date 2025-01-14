@@ -773,8 +773,6 @@ type batchAssociateAppStoreAppsResponse struct {
 
 func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
 
-func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
-
 func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*batchAssociateAppStoreAppsRequest)
 	apps, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
