@@ -278,7 +278,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
+				'script_name', COALESCE(ses.name, scr.name, ''),
 				'script_execution_id', ua.execution_id,
 				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request'),
 				'policy_id', sua.policy_id,
@@ -319,8 +319,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
-				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename')),
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name'), ''),
+				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename'), ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
 				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
@@ -362,7 +362,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name'), ''),
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'policy_id', siua.policy_id,
