@@ -178,6 +178,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	case len(installersPending) > 0:
 		// enqueue installers
 		for _, installer := range installersPending {
+			// TODO(mna): this should be top priority as this is setup exp.
 			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, false, nil)
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")

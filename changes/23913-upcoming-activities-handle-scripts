@@ -1,1 +1,3 @@
 * Added script execution to the new `upcoming_activities` table.
+* Added software installs to the new `upcoming_activities` table.
+* Updated the list upcoming activities endpoint to use the new `upcoming_activities` table as source of truth.

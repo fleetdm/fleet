@@ -136,6 +136,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	*/
 
 	// create another script execution request (null user id this time)
+	time.Sleep(time.Millisecond) // ensure a different timestamp
 	createdScript2, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo2",
@@ -199,6 +200,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	*/
 
 	// create an async execution request
+	time.Sleep(time.Millisecond) // ensure a different timestamp
 	createdScript3, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo 3",
