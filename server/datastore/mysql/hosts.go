@@ -3123,7 +3123,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
-		WHERE COALESCE(hst.seen_time, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
+		WHERE COALESCE(hst.seen_time, h.detail_updated_at, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
 
 	var allIdsToDelete []uint
 	// Process hosts using global expiry
