@@ -5941,14 +5941,6 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"group_id": 122,
 				"enable_software_vulnerabilities": false
 			}]
-		},
-		"webhook_settings": {
-			"vulnerabilities_webhook": {
-				"enable_vulnerabilities_webhook": true,
-				"destination_url": "http://some/url",
-				"host_batch_size": 1234
-			},
-			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusOK)
 
@@ -5962,14 +5954,6 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				"group_id": 122,
 				"enable_software_vulnerabilities": true
 			}]
-		},
-		"webhook_settings": {
-			"vulnerabilities_webhook": {
-				"enable_vulnerabilities_webhook": true,
-				"destination_url": "http://some/url",
-				"host_batch_size": 1234
-			},
-			"interval": "1h"
 		}
 	}`, srvURL)), http.StatusUnprocessableEntity)
 
