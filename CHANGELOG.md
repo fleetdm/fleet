@@ -1,3 +1,57 @@
+## Fleet 4.63.0 (Jan 14, 2025)
+
+### Bug fixes
+
+### Endpoint Operations
+- When running a live query from the edit query form, considered the results of the run in calculating an existing query's performance impact if the user didn't change the query from the stored version.
+- Implemented user-level settings, using them to persist a user's selection of which columns to display on the hosts table.
+- Display command line installation instructions when a package is generated.
+- Allowed delivery of bootstrap packages and software installers using signed URLs from CloudFront CDN. To enable, configure server settings:
+ - s3_software_installers_cloudfront_url
+ - s3_software_installers_cloudfront_url_signing_public_key_id
+ - s3_software_installers_cloudfront_url_signing_private_key
+- Display the correct path for agent options when a key is placed in the wrong object.
+- Improved software installation for failed policies by adding platform-specific filtering in the software dropdown, ensuring only compatible software are displayed based on each policy's targeted platforms.
+- Added ability to install VPP apps on policy failure.
+- Allowed filtering titles by "any of these platforms" in `GET /api/v1/fleet/software/titles`.
+- Fixed issue when identical MDM commands were sent twice to the same device when replica DB is being used.
+
+### Device Management (MDM)
+- When self-service is not enabled for the host, pushed correct paths to the URL on the my device page.
+- Fixed issue where deleted Apple config profiles were installing on devices because devices were offline when the profile was added.
+
+### Vulnerability Management
+- Included osquery pre-releases in daily UI constant update GitHub Actions job.
+- Fixed CVE-2024-10327 false positive on Fleet-supported platforms (vuln is iOS-only and iOS vuln checking is not supported).
+
+### Bug fixes and improvements
+- Fleet UI: Clarified editing VPP teams will remove App Store apps available to team, not uninstalling apps from hosts.
+- Fleet UI: Fixed two broken links in Setup experience.
+- Fixed issue where the vulnerabilities cron was failing in large environments due to large SQL queries.
+- Added a fallback for extracting app name from .pkg installers that have default or incorrect title attributes in their distribution file.
+- Improved validation workflow on SMTP settings page.
+- Fixed UI bug in "My device" page where the "Software" tab included filter elements that did not match the expected design.
+- Fixed reporting of software uninstall results after a host has been locked/unlocked.
+- Fixed UI bug on the "Controls" page where incorrect timestamp information was displayed while the "Current versions" table was loading.
+- Stopped VPP apps from being removed from teams whenever the VPP token team assignment is updated.
+- For batch upload of Apple DDM profiles with `fleetctl gitops`, fixed issue where activity feed was showing a change when profiles didn't actually change.
+- Fleet UI: Fixed software name overflow in various modals.
+- Clarified expected behavior of policy host counts, dashboard controls software count, and controls os updates versions count.
+- Fixed form validation behavior on the SSO settings form.
+- Downgraded expected/common "BootstrapPackage not found" server error to a debug message. Occurs when UI/API checks if bootstrap package exists.
+- Fixed MSI parsing for packages including long interned strings (e.g. licenses for the OpenVPN Connect installer).
+- Fleet UI: Fix software actions dropdown styling bug.
+- Render the default empty value when a host has no UUID.
+- Include a host's team-level queries when the user is selecting a query to target for a specific host via the host details page.
+- Fleet UI: Added timestamp for software, OS, and vulnerability detail pages for host count last update time.
+- Fleet UI: Fixed redirect when clicking on any column in the Fleet Maintained Apps table.
+- Use an email logo compatible with dark modes.
+- Removed arrow icon from MDM solution table on dashboard page.
+- Fixed issue where deleted Apple config profiles were installing on devices because devices were offline when the profile was added.
+- Improve readability of success message on email update by never including the sender address.
+- Fix missing capabilities in the UI for team admins creating or editing a user by exposing more information from the API for team admins.
+- Updated Fleet-maintained app install scripts for non-PKG-based installers to allow the apps to be installed over an existing installation.
+
 ## Fleet 4.62.1 (Jan 14, 2025)
 
 ### Bug fixes
