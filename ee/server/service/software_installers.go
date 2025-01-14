@@ -1106,16 +1106,20 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
-
 	}
 
-	// add command to install
+	// TODO(mna): should we associate the device (give the license) only when the
+	// upcoming activity is ready to run? I don't think so, because then it could
+	// fail when it's ready to run which is probably a worse UX as once enqueued
+	// you expect it to succeed. But eventually, we should do better management
+	// of the licenses, e.g. if the upcoming activity gets cancelled, it should
+	// release the reserved license.
+	//
+	// But the command is definitely not enqueued now, only when activating the
+	// activity.
+
+	// enqueue the VPP app command to install
 	cmdUUID := uuid.NewString()
-	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
-	}
-
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
 	if err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
