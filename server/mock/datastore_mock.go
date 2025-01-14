@@ -49,8 +49,6 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
-type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
-
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -60,6 +58,8 @@ type DeleteUserFunc func(ctx context.Context, id uint) error
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
 type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token string) (string, error)
+
+type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
 
 type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
@@ -477,7 +477,7 @@ type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOption
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
-type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -1238,9 +1238,6 @@ type DataStore struct {
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
 
-	UserSettingsFunc				UserSettingsFunc
-	UserSettingsFuncInvoked bool
-
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
 
@@ -1255,6 +1252,9 @@ type DataStore struct {
 
 	ConfirmPendingEmailChangeFunc        ConfirmPendingEmailChangeFunc
 	ConfirmPendingEmailChangeFuncInvoked bool
+
+	UserSettingsFunc        UserSettingsFunc
+	UserSettingsFuncInvoked bool
 
 	ApplyQueriesFunc        ApplyQueriesFunc
 	ApplyQueriesFuncInvoked bool
@@ -3058,13 +3058,6 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	return s.UserByIDFunc(ctx, id)
 }
 
-func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
-	s.mu.Lock()
-	s.UserSettingsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UserSettingsFunc(ctx, userID)
-}
-
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	s.mu.Lock()
 	s.SaveUserFuncInvoked = true
@@ -3098,6 +3091,13 @@ func (s *DataStore) ConfirmPendingEmailChange(ctx context.Context, userID uint, 
 	s.ConfirmPendingEmailChangeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConfirmPendingEmailChangeFunc(ctx, userID, token)
+}
+
+func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	s.mu.Lock()
+	s.UserSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserSettingsFunc(ctx, userID)
 }
 
 func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
@@ -4556,7 +4556,7 @@ func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []
 	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
 }
 
-func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()

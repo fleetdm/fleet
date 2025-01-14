@@ -244,7 +244,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 // number of distinct tables that are task-specific (such as scripts to run,
 // software to install, etc.) and provides a unified view of those upcoming
 // tasks.
-func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	// NOTE: Be sure to update both the count (here) and list statements (below)
 	// if the query condition is modified.
 
@@ -258,7 +258,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
 	if count == 0 {
-		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
+		return []*fleet.UpcomingActivity{}, &fleet.PaginationMetadata{}, nil
 	}
 
 	// NOTE: Be sure to update both the count (above) and list statements (below)
@@ -454,7 +454,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// in the query before calling this (enforced at the server layer).
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
-	var activities []*fleet.Activity
+	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
 	}
