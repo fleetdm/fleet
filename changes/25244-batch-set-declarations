@@ -1,1 +1,0 @@
-For batch upload of Apple DDM profiles with `fleetctl gitops`, fixed issue where activity feed was showing a change when profiles didn't actually change.

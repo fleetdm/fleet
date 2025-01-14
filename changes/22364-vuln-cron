@@ -1,1 +1,0 @@
-* fixed issue where the vulnerabilities cron was failing in large environments due to large SQL queries

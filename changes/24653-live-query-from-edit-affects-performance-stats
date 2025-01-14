@@ -1,2 +1,0 @@
-- When running a live query from the edit query form, consider the results of the run in calculating
-  an existing query's performance impact if the user didn't change the query from the stored version.
