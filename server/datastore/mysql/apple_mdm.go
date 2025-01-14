@@ -4472,7 +4472,7 @@ INSERT INTO mdm_apple_declarations (
 	raw_json,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4481,7 +4481,7 @@ INSERT INTO mdm_apple_declarations (
 )
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
-	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
+	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
