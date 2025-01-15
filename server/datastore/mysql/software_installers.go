@@ -753,7 +753,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
+func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	const (
 		getInstallerStmt = `
 SELECT
@@ -812,9 +812,15 @@ VALUES
 		return "", ctxerr.Wrap(ctx, err, "getting installer data")
 	}
 
+	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
+	var priority int
+	if opts.ForSetupExperience {
+		// a bit naive/simplistic for now, but we'll support user-provided
+		// priorities in a future story and we can improve on how we manage those.
+		priority = 100
+	}
 	var userID *uint
-	fleetInitiated := !selfService && policyID != nil
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
 	}
 	execID := uuid.NewString()
@@ -822,11 +828,11 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			0, // TODO(mna): detect if this is software install for setup exp, to boost priority
+			priority,
 			userID,
 			fleetInitiated,
 			execID,
-			selfService,
+			opts.SelfService,
 			installerDetails.Filename,
 			installerDetails.Version,
 			installerDetails.TitleName,
@@ -840,7 +846,7 @@ VALUES
 		_, err = tx.ExecContext(ctx, insertSIUAStmt,
 			activityID,
 			softwareInstallerID,
-			policyID,
+			opts.PolicyID,
 			installerDetails.TitleID,
 		)
 		if err != nil {

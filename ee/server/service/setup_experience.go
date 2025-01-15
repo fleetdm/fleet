@@ -178,8 +178,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	case len(installersPending) > 0:
 		// enqueue installers
 		for _, installer := range installersPending {
-			// TODO(mna): this should be top priority as this is setup exp.
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, false, nil)
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 			}
@@ -208,8 +210,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				},
 			}
 
-			// TODO(mna): setup experience must be higher-priority
-			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, false)
+			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")
 			}

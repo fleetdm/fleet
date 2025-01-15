@@ -675,3 +675,11 @@ type SoftwareScopeLabel struct {
 	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
+
+// HostSoftwareInstallOptions contains options that apply to a software or VPP
+// app install request.
+type HostSoftwareInstallOptions struct {
+	SelfService        bool
+	PolicyID           *uint
+	ForSetupExperience bool
+}
