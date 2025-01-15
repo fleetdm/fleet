@@ -1308,7 +1308,7 @@ const GlobalActivityItem = ({
   return (
     <ActivityItem
       activity={activity}
-      hideClose
+      hideCancel
       hideShowDetails={!hasDetails}
       onShowDetails={onDetailsClick}
       className={baseClass}

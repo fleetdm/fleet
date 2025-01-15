@@ -41,7 +41,7 @@ interface IActivityItemProps {
    * Set this to `true` when rendering only this activity by itself. This will
    * change the styles for the activity item for solo rendering.
    * @default false */
-  soloActivity?: boolean;
+  isSoloActivity?: boolean;
   /**
    * Set this to `true` to hide the show details button and prevent from rendering.
    * Not all activities can show details, so this is a way to hide the button.
@@ -52,7 +52,7 @@ interface IActivityItemProps {
    * Set this to `true` to hide the close button and prevent from rendering
    * @default false
    */
-  hideClose?: boolean;
+  hideCancel?: boolean;
   /**
    * Set this to `true` to disable the close button. It will still render but
    * will not be clickable.
@@ -74,9 +74,9 @@ const ActivityItem = ({
   activity,
   children,
   className,
-  soloActivity,
+  isSoloActivity,
   hideShowDetails = false,
-  hideClose = false,
+  hideCancel = false,
   disableClose = false,
   onShowDetails = noop,
   onCancel = noop,
@@ -95,7 +95,7 @@ const ActivityItem = ({
   }
 
   const classNames = classnames(baseClass, className, {
-    [`${baseClass}__solo-activity`]: soloActivity,
+    [`${baseClass}__solo-activity`]: isSoloActivity,
     [`${baseClass}__no-details`]: hideShowDetails,
   });
 
@@ -155,7 +155,7 @@ const ActivityItem = ({
               <Icon name="info" size="medium" color="ui-fleet-black-75" />
             </Button>
           )}
-          {!hideClose && (
+          {!hideCancel && (
             <Button
               variant="icon"
               onClick={onCancelActivity}

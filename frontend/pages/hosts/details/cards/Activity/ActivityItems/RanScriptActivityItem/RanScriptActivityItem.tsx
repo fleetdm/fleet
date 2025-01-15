@@ -2,7 +2,7 @@ import React from "react";
 
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
-import HostActivityItem from "../../../../../../../components/ActivityItem";
+import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "ran-script-activity-item";
@@ -12,17 +12,17 @@ const RanScriptActivityItem = ({
   activity,
   onShowDetails,
   onCancel,
-  soloActivity,
+  isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
 
   return (
-    <HostActivityItem
+    <ActivityItem
       className={baseClass}
       activity={activity}
       onShowDetails={onShowDetails}
       onCancel={onCancel}
-      soloActivity={soloActivity}
+      isSoloActivity={isSoloActivity}
     >
       <b>{activity.actor_full_name}</b>
       <>
@@ -31,7 +31,7 @@ const RanScriptActivityItem = ({
         {formatScriptNameForActivityItem(activity.details?.script_name)} on this
         host.{" "}
       </>
-    </HostActivityItem>
+    </ActivityItem>
   );
 };
 

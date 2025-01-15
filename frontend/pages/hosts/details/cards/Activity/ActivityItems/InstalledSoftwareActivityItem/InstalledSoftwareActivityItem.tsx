@@ -2,15 +2,16 @@ import React from "react";
 
 import { getInstallStatusPredicate } from "interfaces/software";
 
+import ActivityItem from "components/ActivityItem";
+
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
-import HostActivityItem from "../../../../../../../components/ActivityItem";
 
 const baseClass = "installed-software-activity-item";
 
 const InstalledSoftwareActivityItem = ({
   activity,
   onShowDetails,
-  hideClose,
+  hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
   const { self_service, software_title: title } = details;
@@ -24,15 +25,15 @@ const InstalledSoftwareActivityItem = ({
   );
 
   return (
-    <HostActivityItem
+    <ActivityItem
       className={baseClass}
       activity={activity}
-      hideClose={hideClose}
+      hideCancel={hideCancel}
       onShowDetails={onShowDetails}
     >
       <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
       on this host {self_service && "(self-service)"}.{" "}
-    </HostActivityItem>
+    </ActivityItem>
   );
 };
 

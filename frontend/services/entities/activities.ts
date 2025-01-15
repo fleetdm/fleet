@@ -96,7 +96,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  cancelActivity: (hostId: number, uuid: string) => {
+  cancelHostActivity: (hostId: number, uuid: string) => {
     const { HOST_CANCEL_ACTIVITY } = endpoints;
     return sendRequest("DELETE", HOST_CANCEL_ACTIVITY(hostId, uuid));
   },

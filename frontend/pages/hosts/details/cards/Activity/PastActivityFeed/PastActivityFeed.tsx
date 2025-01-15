@@ -60,7 +60,7 @@ const PastActivityFeed = ({
               key={activity.id}
               tab="past"
               activity={activity}
-              hideClose
+              hideCancel
               onShowDetails={onShowDetails}
             />
           );

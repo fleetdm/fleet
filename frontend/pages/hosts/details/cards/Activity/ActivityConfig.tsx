@@ -24,11 +24,11 @@ export interface IHostActivityItemComponentProps {
   /** Set this to `true` when rendering only this activity by itself. This will
    * change the styles for the activity item for solo rendering.
    * @default false */
-  soloActivity?: boolean;
+  isSoloActivity?: boolean;
   /** Set this to `true` to hide the close button and prevent from rendering
    * @default false
    */
-  hideClose?: boolean;
+  hideCancel?: boolean;
 }
 
 /** Used for activity items component that need a show details handler */

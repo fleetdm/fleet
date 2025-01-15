@@ -17,13 +17,13 @@ const baseClass = "cancel-activity-modal";
 interface ICancelActivityModalProps {
   hostId: number;
   activity: IHostUpcomingActivity;
-  onExit: () => void;
+  onCancel: () => void;
 }
 
 const CancelActivityModal = ({
   hostId,
   activity,
-  onExit,
+  onCancel,
 }: ICancelActivityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -31,30 +31,30 @@ const CancelActivityModal = ({
 
   const onCancelActivity = async () => {
     try {
-      await activitiesAPI.cancelActivity(hostId, activity.uuid);
+      await activitiesAPI.cancelHostActivity(hostId, activity.uuid);
       renderFlash("success", "Activity successfully canceled.");
     } catch (error) {
       // TODO: hook up error message when API is updated
       renderFlash("error", getErrorMessage(error));
     }
-    onExit();
+    onCancel();
   };
 
   return (
-    <Modal className={baseClass} title="Cancel activity" onExit={onExit}>
+    <Modal className={baseClass} title="Cancel activity" onExit={onCancel}>
       <>
         <ActivityItemComponent
           tab="upcoming"
           activity={activity}
           onCancel={noop}
           onShowDetails={noop}
-          soloActivity
+          isSoloActivity
         />
         <div className="modal-cta-wrap">
           <Button variant="alert" onClick={onCancelActivity}>
             Cancel activity
           </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
+          <Button variant="inverse-alert" onClick={onCancel}>
             Back
           </Button>
         </div>
