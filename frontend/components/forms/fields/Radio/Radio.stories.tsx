@@ -1,13 +1,11 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import Radio from ".";
-import { IRadioProps } from "./Radio";
 
 import "../../../../index.scss";
 
-export default {
+const meta: Meta<typeof Radio> = {
   component: Radio,
   title: "Components/FormFields/Radio",
   args: {
@@ -20,8 +18,10 @@ export default {
     className: "",
     onChange: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IRadioProps> = (props) => <Radio {...props} />;
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof Radio>;
+
+export const Default: Story = {};
