@@ -54,11 +54,11 @@ interface IActivityItemProps {
    */
   hideCancel?: boolean;
   /**
-   * Set this to `true` to disable the close button. It will still render but
+   * Set this to `true` to disable the cancel button. It will still render but
    * will not be clickable.
    * @default false
    */
-  disableClose?: boolean;
+  disableCancel?: boolean;
   className?: string;
   onShowDetails?: ShowActivityDetailsHandler;
   onCancel?: () => void;
@@ -77,7 +77,7 @@ const ActivityItem = ({
   isSoloActivity,
   hideShowDetails = false,
   hideCancel = false,
-  disableClose = false,
+  disableCancel = false,
   onShowDetails = noop,
   onCancel = noop,
 }: IActivityItemProps) => {
@@ -159,7 +159,7 @@ const ActivityItem = ({
             <Button
               variant="icon"
               onClick={onCancelActivity}
-              disabled={disableClose}
+              disabled={disableCancel}
             >
               <Icon
                 name="close"

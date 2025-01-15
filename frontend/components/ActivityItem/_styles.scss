@@ -1,5 +1,5 @@
 .activity-item {
-  display: grid; // Grid system is used to create variable dashed line lengths
+  display: grid; // Grid system is used to create variable solid line lengths
   grid-template-columns: 16px 16px 8px 1fr;
   grid-template-rows: max-content;
 
@@ -125,7 +125,7 @@
   /**
    * Starting here are the styles for the activity item when it is the
    * only activity that is being displayed (controlled by the `soloActivity prop`.
-   * We switch from grid to flexbox since we don't need the dashed lines anymore.
+   * We switch from grid to flexbox since we don't need the solid lines anymore.
    * we also dont show to actions on hover
    */
   &__solo-activity {
