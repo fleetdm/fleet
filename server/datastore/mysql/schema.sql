@@ -2048,12 +2048,15 @@ CREATE TABLE `vpp_app_upcoming_activities` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
   `vpp_token_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`upcoming_activity_id`),
   KEY `fk_vpp_app_upcoming_activities_adam_id_platform` (`adam_id`,`platform`),
   KEY `fk_vpp_app_upcoming_activities_vpp_token_id` (`vpp_token_id`),
+  KEY `fk_vpp_app_upcoming_activities_policy_id` (`policy_id`),
   CONSTRAINT `fk_vpp_app_upcoming_activities_adam_id_platform` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_vpp_app_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_vpp_app_upcoming_activities_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

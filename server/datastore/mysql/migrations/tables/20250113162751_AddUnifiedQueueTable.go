@@ -134,6 +134,7 @@ CREATE TABLE vpp_app_upcoming_activities (
 	adam_id                    VARCHAR(16) NOT NULL,
 	platform                   VARCHAR(10) NOT NULL,
 	vpp_token_id               INT UNSIGNED NULL,
+	policy_id                  INT UNSIGNED NULL,
 
 	-- Using DATETIME instead of TIMESTAMP to prevent future Y2K38 issues
 	created_at   DATETIME(6) NOT NULL DEFAULT NOW(6),
@@ -145,7 +146,9 @@ CREATE TABLE vpp_app_upcoming_activities (
 	CONSTRAINT fk_vpp_app_upcoming_activities_adam_id_platform
 		FOREIGN KEY (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE,
 	CONSTRAINT fk_vpp_app_upcoming_activities_vpp_token_id
-		FOREIGN KEY (vpp_token_id) REFERENCES vpp_tokens (id) ON DELETE SET NULL
+		FOREIGN KEY (vpp_token_id) REFERENCES vpp_tokens (id) ON DELETE SET NULL,
+	CONSTRAINT fk_vpp_app_upcoming_activities_policy_id
+		FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE SET NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `,
 	)
