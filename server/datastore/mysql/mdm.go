@@ -136,7 +136,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if _, updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 

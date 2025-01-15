@@ -139,7 +139,7 @@ const SoftwareTitleDetailsPage = ({
       const packageCardData = getPackageCardInfo(title);
       return (
         <SoftwarePackageCard
-          softwarePackage={packageCardData.softwarePackage}
+          softwareInstaller={packageCardData.softwarePackage}
           name={packageCardData.name}
           version={packageCardData.version}
           uploadedAt={packageCardData.uploadedAt}

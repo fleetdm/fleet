@@ -84,7 +84,7 @@ const [
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
 ] = [
   "Successfully updated policy automations.",
-  "Could not update policy automations. Please try again.",
+  "Could not update policy automations.",
 ];
 
 const baseClass = "manage-policies-page";

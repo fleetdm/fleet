@@ -435,7 +435,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			activity_type,
 			created_at,
 			details
-		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming 
+		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
 	listStmt, args, err := sqlx.Named(listStmt, map[string]any{
