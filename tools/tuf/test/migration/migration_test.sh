@@ -138,7 +138,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
         --update-url=$OLD_TUF_URL \
@@ -434,7 +433,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
         --update-url=$OLD_TUF_URL \
@@ -545,7 +543,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --disable-open-folder \
         --disable-keystore \
