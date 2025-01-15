@@ -813,10 +813,9 @@ VALUES
 	}
 
 	var userID *uint
-	fleetInitiated := !selfService // if self-service, we don't have a user but it's still not Fleet-initiated
+	fleetInitiated := !selfService && policyID != nil
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
-		fleetInitiated = false
 	}
 	execID := uuid.NewString()
 
@@ -834,7 +833,7 @@ VALUES
 			userID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert software install request")
 		}
 
 		activityID, _ := res.LastInsertId()
@@ -845,7 +844,7 @@ VALUES
 			installerDetails.TitleID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert software install request join table")
 		}
 		return nil
 	})

@@ -110,7 +110,7 @@ WHERE
 		request.HostID,
 		priority,
 		request.UserID,
-		request.UserID == nil,
+		request.PolicyID != nil, // fleet-initiated if request is via a policy failure
 		execID,
 		request.SyncRequest,
 		isInternal,

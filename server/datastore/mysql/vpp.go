@@ -602,10 +602,9 @@ VALUES
 	}
 
 	var userID *uint
-	fleetInitiated := !selfService // if self-service, we don't have a user but it's still not Fleet-initiated
+	fleetInitiated := !selfService && policyID != nil
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && policyID == nil {
 		userID = &ctxUser.ID
-		fleetInitiated = false
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -620,7 +619,7 @@ VALUES
 			userID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert vpp install request")
 		}
 
 		activityID, _ := res.LastInsertId()
@@ -631,7 +630,7 @@ VALUES
 			policyID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
 		}
 		return nil
 	})
