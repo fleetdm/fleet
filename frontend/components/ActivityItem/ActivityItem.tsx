@@ -152,7 +152,7 @@ const ActivityItem = ({
         <div className={`${baseClass}__details-actions`}>
           {!hideShowDetails && (
             <Button variant="icon" onClick={onShowActivityDetails}>
-              <Icon name="info" size="medium" color="ui-fleet-black-75" />
+              <Icon name="info-outline" />
             </Button>
           )}
           {!hideCancel && (
