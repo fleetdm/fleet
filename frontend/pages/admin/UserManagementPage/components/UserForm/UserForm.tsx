@@ -80,7 +80,7 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  userFormErrors: IUserFormErrors;
+  ancestorErrors: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
 
@@ -105,7 +105,7 @@ const UserForm = ({
   isApiOnly,
   isNewUser = false,
   isInvitePending,
-  userFormErrors,
+  ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
   // For scrollable modal
@@ -121,7 +121,7 @@ const UserForm = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const [errors, setErrors] = useState<IUserFormErrors>(userFormErrors);
+  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [formData, setFormData] = useState<IUserFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
@@ -137,6 +137,10 @@ const UserForm = ({
   const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
   const initiallyPasswordAuth = !isSsoEnabled;
+
+  useEffect(() => {
+    setFormErrors({ ...formErrors, ...ancestorErrors });
+  }, [ancestorErrors]);
 
   useEffect(() => {
     // If SSO is globally disabled but user previously signed in via SSO,

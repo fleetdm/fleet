@@ -18,7 +18,7 @@ describe("UserForm - component", () => {
     canUseSso: false,
     isNewUser: true,
     router: createMockRouter(),
-    userFormErrors: DEFAULT_USER_FORM_ERRORS,
+    ancestorErrors: DEFAULT_USER_FORM_ERRORS,
   };
 
   it("displays error messages for invalid inputs", async () => {

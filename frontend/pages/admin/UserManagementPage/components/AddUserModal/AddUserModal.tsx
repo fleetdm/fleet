@@ -49,7 +49,7 @@ const AddUserModal = ({
       width="large"
     >
       <UserForm
-        userFormErrors={addUserErrors}
+        ancestorErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}
