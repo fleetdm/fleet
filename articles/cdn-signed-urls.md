@@ -5,7 +5,7 @@ Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0) all
 ## Prerequisites
 
 - Fleet v4.63.0
-- Orbit v1.39.0 agent installed on hosts
+- Orbit v1.39.0 agent installed on hosts (for software installation packages)
 - S3 bucket with CloudFront distribution and a signing key pair
 
 To add a CloudFront distribution with a signer to your S3 bucket, follow the instructions in the [AWS documentation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-trusted-signers.html) or the [How to securely serve private CDN content using CloudFront](https://victoronsoftware.com/posts/cloudfront-signed-urls/) guide written by one of our engineers.
