@@ -210,13 +210,14 @@ const PolicyRunScriptModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected script, if{" "}
+            If{" "}
             <TooltipWrapper tipContent={compatibleTipContent}>
               compatible
             </TooltipWrapper>{" "}
-            with the host, will run when hosts fail the policy. Hosts with
-            scripts disabled, or with too many pending scripts, will not run the
-            script. Host counts will reset when a new script is selected.{" "}
+            with the host, the selected script will run when hosts fail the
+            policy. The script will not run on hosts with scripts disabled, or
+            on hosts with too many pending scripts. Host counts will reset when
+            new scripts are selected.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-run-script"
               text="Learn more"
