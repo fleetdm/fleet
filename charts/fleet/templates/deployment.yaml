@@ -269,6 +269,16 @@ spec:
             value: "{{ .Values.osquery.logging.pubsub.resultTopic }}"
           {{- end }}
           ## END OSQUERY SECTION
+
+          ## BEGIN VULNERABILITY PROCESSING
+          # Disable vulnerability processing in the main deployment when the
+          # dedicated cron is setup to reduce total cpu/memory utilization
+          {{- if .Values.vulnProcessing.dedicated }}
+          - name: FLEET_VULNERABILITIES_DISABLE_SCHEDULE
+            value: true
+          {{- end }}
+          ## END Vulnerability Processing
+
           ## APPEND ENVIRONMENT VARIABLES FROM VALUES
           {{- range $key, $value := .Values.environments }}
           - name: {{ $key }}

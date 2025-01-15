@@ -40,7 +40,8 @@ affinity:
 ingress:
   enabled: false
   className: ""
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/tls-acme: "true"
     # nginx.ingress.kubernetes.io/proxy-body-size: 10m
     # kubernetes.io/ingress.class: nginx
@@ -102,6 +103,20 @@ fleet:
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
+
+# Whether to make fleet vulnerability processing run in a dedicated container
+# if you set dedicated=false, you need to increase the main resources section
+# to 4Gi or the fleet container will be OOMKilled when vulnerability processing
+# tries to run.
+vulnProcessing:
+  dedicated: true
+  resources:
+    limits:
+      cpu: 1 # 1GHz
+      memory: 4Gi
+    requests:
+      cpu: 0.1 # 100Mhz
+      memory: 50Mi
 
 ## Section: osquery
 # All of the settings related to osquery's interactions with the Fleet server

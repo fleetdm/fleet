@@ -1,0 +1,180 @@
+{{- if .Values.vulnProcessing.dedicated }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app: fleet
+    chart: fleet
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: fleet-vulnprocessing
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 100
+      template:
+        metadata:
+    {{- with .Values.podAnnotations }}
+          annotations:
+    {{- toYaml . | trim | nindent 8 }}
+    {{- end }}
+          labels:
+            app: fleet
+            chart: fleet
+            heritage: {{ .Release.Service }}
+            release: {{ .Release.Name }}
+        spec:
+          restartPolicy: Never
+          shareProcessNamespace: true
+          containers:
+          - name: fleet-vulnprocessing
+            command: ["/bin/sh", "-c"]
+            args:
+              - |
+                /usr/bin/fleet vuln_processing;
+                {{- if .Values.gke.cloudSQL.enableProxy }}
+                sql_proxy_pid=$(pgrep cloud_sql_proxy) && kill -INT $sql_proxy_pid;
+                {{- end }}
+            image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+            resources:
+              limits:
+                cpu: {{ .Values.vulnProcessing.resources.limits.cpu }}
+                memory: {{ .Values.vulnProcessing.resources.limits.memory }}
+              requests:
+                cpu: {{ .Values.vulnProcessing.resources.requests.cpu }}
+                memory: {{ .Values.vulnProcessing.resources.requests.memory }}
+            env:
+              # - name: FLEET_SERVER_ADDRESS
+              #   value: "0.0.0.0:{{ .Values.fleet.listenPort }}"
+              # - name: FLEET_AUTH_BCRYPT_COST
+              #   value: "{{ .Values.fleet.auth.bcryptCost }}"
+              # - name: FLEET_AUTH_SALT_KEY_SIZE
+              #   value: "{{ .Values.fleet.auth.saltKeySize }}"
+              # - name: FLEET_APP_TOKEN_KEY_SIZE
+              #   value: "{{ .Values.fleet.app.tokenKeySize }}"
+              # - name: FLEET_APP_TOKEN_VALIDITY_PERIOD
+              #   value: "{{ .Values.fleet.app.inviteTokenValidityPeriod }}"
+              # - name: FLEET_SESSION_KEY_SIZE
+              #   value: "{{ .Values.fleet.session.keySize }}"
+              # - name: FLEET_SESSION_DURATION
+              #   value: "{{ .Values.fleet.session.duration }}"
+              - name: FLEET_LOGGING_DEBUG
+                value: "{{ .Values.fleet.logging.debug }}"
+              - name: FLEET_LOGGING_JSON
+                value: "{{ .Values.fleet.logging.json }}"
+              - name: FLEET_LOGGING_DISABLE_BANNER
+                value: "{{ .Values.fleet.logging.disableBanner }}"
+              # - name: FLEET_SERVER_TLS
+              #   value: "{{ .Values.fleet.tls.enabled }}"
+              # {{- if .Values.fleet.tls.enabled }}
+              # - name: FLEET_SERVER_TLS_COMPATIBILITY
+              #   value: "{{ .Values.fleet.tls.compatibility }}"
+              # - name: FLEET_SERVER_CERT
+              #   value: "/secrets/tls/{{ .Values.fleet.tls.certSecretKey }}"
+              # - name: FLEET_SERVER_KEY
+              #   value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
+              # {{- end }}
+              ## END FLEET SECTION
+              ## BEGIN MYSQL SECTION
+              - name: FLEET_MYSQL_ADDRESS
+                value: "{{ .Values.database.address }}"
+              - name: FLEET_MYSQL_DATABASE
+                value: "{{ .Values.database.database }}"
+              - name: FLEET_MYSQL_USERNAME
+                value: "{{ .Values.database.username }}"
+              - name: FLEET_MYSQL_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ .Values.database.secretName }}
+                    key: {{ .Values.database.passwordKey }}
+              - name: FLEET_MYSQL_MAX_OPEN_CONNS
+                value: "{{ .Values.database.maxOpenConns }}"
+              - name: FLEET_MYSQL_MAX_IDLE_CONNS
+                value: "{{ .Values.database.maxIdleConns }}"
+              - name: FLEET_MYSQL_CONN_MAX_LIFETIME
+                value: "{{ .Values.database.connMaxLifetime }}"
+              {{- if .Values.database.tls.enabled }}
+              {{- if .Values.database.tls.caCertKey }}
+              - name: FLEET_MYSQL_TLS_CA
+                value: "/secrets/mysql/{{ .Values.database.tls.caCertKey }}"
+              {{- end }}
+              {{- if .Values.database.tls.certKey }}
+              - name: FLEET_MYSQL_TLS_CERT
+                value: "/secrets/mysql/{{ .Values.database.tls.certKey }}"
+              {{- end }}
+              {{- if .Values.database.tls.keyKey }}
+              - name: FLEET_MYSQL_TLS_KEY
+                value: "/secrets/mysql/{{ .Values.database.tls.keyKey }}"
+              {{- end }}
+              - name: FLEET_MYSQL_TLS_CONFIG
+                value: "{{ .Values.database.tls.config }}"
+              - name: FLEET_MYSQL_TLS_SERVER_NAME
+                value: "{{ .Values.database.tls.serverName }}"
+              {{- end }}
+              ## END MYSQL SECTION
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                {{- if .Values.gke.cloudSQL.enableProxy }}
+                add:
+                  - SYS_PTRACE
+                {{- else }}
+                drop: [ALL]
+                {{- end }}
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 3333
+              runAsUser: 3333
+              runAsNonRoot: true
+            volumeMounts:
+              {{- if .Values.database.tls.enabled }}
+              - name: mysql-tls
+                readOnly: true
+                mountPath: /secrets/mysql
+              {{- end }}
+          {{- if .Values.gke.cloudSQL.enableProxy }}
+          - name: cloudsql-proxy
+            image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
+            command:
+            - "/cloud_sql_proxy"
+            - "-verbose={{ .Values.gke.cloudSQL.verbose}}"
+            - "-instances={{ .Values.gke.cloudSQL.instanceName }}=tcp:3306"
+            resources:
+              limits:
+                cpu: 0.5 # 500Mhz
+                memory: 150Mi
+              requests:
+                cpu: 0.1 # 100Mhz
+                memory: 50Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: [ALL]
+              privileged: false
+              readOnlyRootFilesystem: true
+              runAsGroup: 3333
+              runAsUser: 3333
+              runAsNonRoot: true
+          {{- end }}
+          serviceAccountName: fleet
+          volumes:
+            {{- if .Values.database.tls.enabled }}
+            - name: mysql-tls
+              secret:
+                secretName: "{{ .Values.database.secretName }}"
+            {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 8 }}
+          {{- end }}
+        {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}
