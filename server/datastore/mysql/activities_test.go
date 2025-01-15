@@ -457,7 +457,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	// install the VPP app on h1
 	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false, nil)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	// err = commander.EnqueueCommand(
 	// 	ctx,
@@ -466,7 +466,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// )
 	// require.NoError(t, err)
 	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true, nil)
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 	// err = commander.EnqueueCommand(
 	// 	ctx,
@@ -516,7 +516,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// create some software installs requests for h1, make some complete
 	// h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
 	// require.NoError(t, err)
-	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, false, nil)
+	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	t.Log("h1Bar", h1Bar)
 	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -541,7 +541,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Query: "SELECT 1",
 	})
 	require.NoError(t, err)
-	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, false, &policy.ID)
+	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy.ID})
 	t.Log("h1Fleet", h1Fleet)
 	require.NoError(t, err)
 
@@ -557,11 +557,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// require.NoError(t, err)
 	// h2F := hsr.ExecutionID
 	// add a pending software install request for h2
-	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, false, nil)
+	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	t.Log("h2Bar", h2Bar)
 	// No user for this one and Self-service, means it was installed by the end user, so the user_id should be null/nil.
-	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, true, nil)
+	h2SelfService, err := ds.InsertSoftwareInstallRequest(noUserCtx, h2.ID, sw1Meta.InstallerID, fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 	t.Log("h2SelfService", h2SelfService)
 
@@ -576,7 +576,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	t.Log("h2SetupExp", h2SetupExp)
 
 	// create pending install and uninstall requests for h3 that will be deleted
-	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID)
 	require.NoError(t, err)
