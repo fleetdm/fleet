@@ -8390,7 +8390,7 @@ By default, script runs time out after 5 minutes. You can modify this default in
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
 | script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. Scripts must be less than 10,000 characters. To run scripts with more than 10k characters, save the script and use `script_id` or `script_name` and `team_id` instead. |
 | script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
 | team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
