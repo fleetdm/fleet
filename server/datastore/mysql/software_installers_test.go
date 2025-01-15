@@ -231,7 +231,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// // TODO: we'll need to figure out how to actually mock the new flow for this; as it stands we
+	// // TODO(sarah): we'll need to figure out how to actually mock the new flow for this; as it stands we
 	// // are missing the "activation" piece that actully inserts the record in the host_software_installs
 	// // table
 	// updateHostSoftwareInstall := func(t *testing.T, hostID uint, installerID uint, exitCode int) {
@@ -247,7 +247,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 	// 	})
 	// }
 
-	// // TODO: refactor adhoc sql to use appropriate datastore method once it is implemented
+	// // TODO(sarah): refactor adhoc sql to use appropriate datastore method once it is implemented
 	// deleteUpcomingActivity := func(t *testing.T, ds *Datastore, execID string) {
 	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 	// 		_, err = q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
@@ -423,7 +423,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 3) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 3) // TODO(sarah): update this after implementing "activation" piece
 			// require.Len(t, hosts, 1)
 			// require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
 
@@ -436,7 +436,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 6) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 6) // TODO(sarah): update this after implementing "activation" piece
 			// assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
 			// list hosts with software install failed requests
@@ -448,7 +448,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 0) // TODO(sarah): update this after implementing "activation" piece
 			// require.Len(t, hosts, 1)
 			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
 
@@ -461,8 +461,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO: update this after implementing "activation" piece
-
+			require.Len(t, hosts, 0) // TODO(sarah): update this after implementing "activation" piece
 			// 	require.Len(t, hosts, 2)
 			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
@@ -475,7 +474,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 0) // TODO(sarah): update this after implementing "activation" piece
 			// 	require.Len(t, hosts, 1)
 			// 	assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
 
@@ -488,7 +487,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 3) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 3) // TODO(sarah): update this after implementing "activation" piece
 			// 	require.Len(t, hosts, 1)
 			// 	assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
 
@@ -501,7 +500,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO: update this after implementing "activation" piece
+			require.Len(t, hosts, 0) // TODO(sarah): update this after implementing "activation" piece
 			// 	require.Len(t, hosts, 1)
 			// 	assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
 
@@ -514,6 +513,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			assert.Empty(t, hosts)
 
+			//  // TODO(sarah): uncomment this once we have everything implemented
 			// 	// get software title includes status
 			// 	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
 			// 	require.NoError(t, err)

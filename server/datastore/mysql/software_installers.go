@@ -1218,7 +1218,7 @@ WHERE
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO: prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
+		// TODO(sarah): prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
 		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
 		"title_id": titleID,
 	})

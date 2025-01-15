@@ -620,7 +620,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		if err != nil {
 			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
 		}
-		// TODO: are we missing VPP apps here? see ds.applyHostFilters
+		// TODO(sarah): are we missing VPP apps here? see ds.applyHostFilters
 		installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
 		if err != nil {
 			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
