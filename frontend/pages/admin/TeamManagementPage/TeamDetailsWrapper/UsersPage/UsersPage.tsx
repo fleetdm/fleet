@@ -174,10 +174,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     refetchUsers,
   ]);
 
-  // GLobal admins get Add USER
   const onAddUserSubmit = useCallback(
     (newUsers: INewTeamUsersBody) => {
-      debugger;
       teamsAPI
         .addUsers(currentTeamDetails?.id, newUsers)
         .then(() => {
@@ -206,10 +204,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     ]
   );
 
-  // NON-global admins get CREATE USER
   const onCreateUserSubmit = (formData: IUserFormData) => {
     setIsUpdatingUsers(true);
-    debugger;
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       const requestData = {
@@ -261,7 +257,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       };
       delete requestData.currentUserId;
       delete requestData.newUserType;
-      debugger;
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
@@ -270,7 +265,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
-          debugger;
           if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
             setAddUserErrors({
               email: "A user with this email address already exists",
@@ -292,7 +286,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           }
         })
         .finally(() => {
-          toggleAddUserModal();
           setIsUpdatingUsers(false);
         });
     }
@@ -300,7 +293,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
 
   const onEditUserSubmit = useCallback(
     (formData: IUserFormData) => {
-      debugger;
       const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
