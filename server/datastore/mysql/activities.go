@@ -372,7 +372,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, 
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
 			ua.fleet_initiated as fleet_initiated,
 			IF(ua.activated_at IS NULL, 1, 0) as cancellable

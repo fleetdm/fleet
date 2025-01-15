@@ -41,7 +41,7 @@ const BootstrapPackageStatusFilter = ({
     <div className={baseClass}>
       <Dropdown
         value={value}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__status-filter`}
         options={BOOTSTRAP_PACKAGE_STATUS}
         searchable={false}
         onChange={onChange}

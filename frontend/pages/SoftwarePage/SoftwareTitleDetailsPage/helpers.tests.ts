@@ -71,7 +71,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       };
       const packageCardInfo = getPackageCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
-        softwarePackage: undefined,
+        softwarePackage: softwareTitle.app_store_app,
         name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
         version: "1.0.1",
         uploadedAt: "",

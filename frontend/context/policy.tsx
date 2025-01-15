@@ -9,7 +9,7 @@ import { find } from "lodash";
 
 import { osqueryTables } from "utilities/osquery_tables";
 import { IOsQueryTable, DEFAULT_OSQUERY_TABLE } from "interfaces/osquery_table";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 
 enum ACTIONS {
   SET_LAST_EDITED_QUERY_INFO = "SET_LAST_EDITED_QUERY_INFO",
@@ -25,7 +25,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryBody?: string;
   lastEditedQueryResolution?: string;
   lastEditedQueryCritical?: boolean;
-  lastEditedQueryPlatform?: SelectedPlatformString | null;
+  lastEditedQueryPlatform?: CommaSeparatedPlatformString | null;
   defaultPolicy?: boolean;
 }
 
@@ -55,7 +55,7 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryResolution: string;
   lastEditedQueryCritical: boolean;
-  lastEditedQueryPlatform: SelectedPlatformString | null;
+  lastEditedQueryPlatform: CommaSeparatedPlatformString | null;
   defaultPolicy: boolean;
   setLastEditedQueryId: (value: number | null) => void;
   setLastEditedQueryName: (value: string) => void;
@@ -63,7 +63,9 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryResolution: (value: string) => void;
   setLastEditedQueryCritical: (value: boolean) => void;
-  setLastEditedQueryPlatform: (value: SelectedPlatformString | null) => void;
+  setLastEditedQueryPlatform: (
+    value: CommaSeparatedPlatformString | null
+  ) => void;
   setDefaultPolicy: (value: boolean) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
@@ -216,7 +218,9 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     []
   );
   const setLastEditedQueryPlatform = useCallback(
-    (lastEditedQueryPlatform: SelectedPlatformString | null | undefined) => {
+    (
+      lastEditedQueryPlatform: CommaSeparatedPlatformString | null | undefined
+    ) => {
       dispatch({
         type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryPlatform,

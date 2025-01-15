@@ -97,14 +97,8 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			}
 			userName = &user.Name
 			userEmail = &user.Email
-		} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-			if ranScriptActivity.PolicyID != nil {
-				userName = &automationActivityAuthor
-			}
-		} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
-			if softwareInstallActivity.PolicyID != nil {
-				userName = &automationActivityAuthor
-			}
+		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+			userName = &automationActivityAuthor
 		}
 
 		go func() {

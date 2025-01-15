@@ -32,6 +32,8 @@ func TestVPP(t *testing.T) {
 		{"VPPTokensCRUD", testVPPTokensCRUD},
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
+		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
+		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
 	}
 
 	for _, c := range cases {
@@ -74,6 +76,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get no-team app
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
 	require.NoError(t, err)
+	require.NotZero(t, meta.VPPAppsTeamsID)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK for comparison purposes
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1}, meta)
 
 	// try to add the same app again, update self_service field
@@ -84,9 +88,17 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get no-team app
-	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), titleID1)
 	require.NoError(t, err)
+	title, err := ds.GetTitleInfoFromVPPAppsTeamsID(ctx, meta.VPPAppsTeamsID)
+	require.NoError(t, err)
+	require.Equal(t, titleID1, title.SoftwareTitleID)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true}, meta)
+
+	// get nonexistent title
+	_, err = ds.GetTitleInfoFromVPPAppsTeamsID(ctx, 0)
+	require.Error(t, err)
 
 	// create team1 app
 	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -99,11 +111,13 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// get it for all teams
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// try to add the same app again, fails
@@ -116,6 +130,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 
 	// get it for team 2, does not exist
@@ -134,9 +149,11 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1 and team 2, both work
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
 	// create another no-team app
@@ -156,6 +173,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for no-team
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
 
 	// delete vpp1
@@ -168,6 +186,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// vpp3 (also in no team) is left untouched
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
 
 	// delete vpp2 for team1
@@ -180,7 +199,16 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// but still found for team2
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+
+	appMeta, err := ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, meta.AdamID, meta.Platform)
+	require.NoError(t, err)
+	require.Equal(t, appMeta.AdamID, meta.AdamID)
+	require.Equal(t, appMeta.Platform, meta.Platform)
+
+	_, err = ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, "foo", meta.Platform)
+	require.ErrorContains(t, err, "not found")
 
 	// mark it as install_during_setup for team 2
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -477,11 +505,11 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: u})
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, app1.VPPAppID, "a", "b", false)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, app1.VPPAppID, "a", "b", false, nil)
 	require.NoError(t, err)
 
 	// non-existing host
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID+1, app2.VPPAppID, "c", "d", true)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID+1, app2.VPPAppID, "c", "d", true, nil)
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -496,7 +524,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		HardwareSerial: "654321b",
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", true)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", true, nil)
 	require.NoError(t, err)
 
 	acts, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
@@ -506,12 +534,12 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, u.Name, *acts[0].ActorFullName)
 	// app1 software title because it matched an existing software "foo" by bundle identifier
 	require.JSONEq(t, fmt.Sprintf(`{
-		"app_store_id":"%s", 
-		"command_uuid":"a", 
-		"host_display_name":"%s", 
-		"host_id":%d, 
-		"self_service":false, 
-		"software_title":"foo", 
+		"app_store_id":"%s",
+		"command_uuid":"a",
+		"host_display_name":"%s",
+		"host_id":%d,
+		"self_service":false,
+		"software_title":"foo",
 		"status":"pending_install"
 	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
 
@@ -521,12 +549,12 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, acts[0].ActorFullName)
 	require.Equal(t, u.Name, *acts[0].ActorFullName)
 	require.JSONEq(t, fmt.Sprintf(`{
-		"app_store_id":"%s", 
-		"command_uuid":"c", 
-		"host_display_name":"%s", 
-		"host_id":%d, 
-		"self_service":true, 
-		"software_title":"vpp_app_2", 
+		"app_store_id":"%s",
+		"command_uuid":"c",
+		"host_display_name":"%s",
+		"host_id":%d,
+		"self_service":true,
+		"software_title":"vpp_app_2",
 		"status":"pending_install"
 	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))
 
@@ -595,6 +623,26 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// create policies using two of the apps
+	app1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+	app2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+	policy1, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 1",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app1Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+	policy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 2",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app2Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 2)
@@ -610,6 +658,10 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app3.VPPAppID},
 	})
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -627,6 +679,10 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 		{VPPAppID: app4.VPPAppID},
 	})
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, app1Meta.VPPAppsTeamsID, *policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -660,6 +716,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, app2Meta.VPPAppsTeamsID, *policy2.VPPAppsTeamsID)
+
 	// Remove all apps
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
 	require.NoError(t, err)
@@ -667,6 +731,14 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy2.VPPAppsTeamsID)
 }
 
 func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
@@ -797,7 +869,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, upTok.Token)
 	assert.Equal(t, orgName, upTok.OrgName)
 	assert.Equal(t, location, upTok.Location)
-	assert.NotNil(t, upTok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.NotNil(t, upTok.Teams) // "All Teams" team array is non-nil but empty
 	assert.Len(t, upTok.Teams, 0)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
@@ -914,6 +986,22 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, team.ID, teamTok.Teams[0].ID)
 	assert.Equal(t, team.Name, teamTok.Teams[0].Name)
 
+	// make sure renewing a VPP token doesn't affect associated VPP install automations
+	t1app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, &team.ID)
+	require.NoError(t, err)
+	t1meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, t1app.TitleID)
+	require.NoError(t, err)
+
+	t1Policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "p1",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &t1meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
 	// Renew flow
 	upTok, err = ds.UpdateVPPToken(ctx, tokID, dataToken6)
 	assert.NoError(t, err)
@@ -926,6 +1014,10 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, team.ID, upTok.Teams[0].ID)
 	assert.Equal(t, team.Name, upTok.Teams[0].Name)
+
+	t1Policy, err = ds.Policy(ctx, t1Policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1Policy.VPPAppsTeamsID, &t1meta.VPPAppsTeamsID)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
@@ -1021,16 +1113,45 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	tokTeams, err := ds.InsertVPPToken(ctx, dataToken4)
 	assert.NoError(t, err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
 	assert.Error(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
 	assert.NoError(t, err)
+
+	// make sure updating a VPP token auto-clears associated VPP install automations
+	t2app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, &team2.ID)
+	require.NoError(t, err)
+	t2meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, t2app.TitleID)
+	require.NoError(t, err)
+
+	t2Policy, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:           "p1",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &t2meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
 	assert.Error(t, err)
+
+	// errored update shouldn't have cleared anything
+	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, t2meta.VPPAppsTeamsID, *t2Policy.VPPAppsTeamsID)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
 	assert.Error(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	assert.NoError(t, err)
+
+	// errored update should have cleared automation
+	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
+	assert.NoError(t, err)
+	assert.Nil(t, t2Policy.VPPAppsTeamsID)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -1074,8 +1195,29 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
 
 	////
+
+	// make sure deleting a VPP token auto-clears associated VPP install automations
+	t1app, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, &team.ID)
+	require.NoError(t, err)
+	t1meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, t1app.TitleID)
+	require.NoError(t, err)
+
+	t1Policy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "t1p2",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &t1meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
 	err = ds.DeleteVPPToken(ctx, tokTeam.ID)
 	assert.NoError(t, err)
+
+	t1Policy2, err = ds.Policy(ctx, t1Policy2.ID)
+	assert.NoError(t, err)
+	assert.Nil(t, t1Policy2.VPPAppsTeamsID)
 
 	tokNil, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.NoError(t, err)
@@ -1142,7 +1284,6 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 	err = ds.DeleteVPPToken(ctx, tokNone.ID)
 	assert.NoError(t, err)
-
 }
 
 func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
@@ -1361,4 +1502,111 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testDeleteVPPAssignedToPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), va1.TitleID)
+	require.NoError(t, err)
+
+	p1, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
+		Name:           "p1",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+
+	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
+	require.Error(t, err)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+
+	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{p1.ID})
+	require.NoError(t, err)
+
+	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
+	require.NoError(t, err)
+}
+
+func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a couple of teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2" + t.Name()})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "vpp_org"+t.Name(), "vpp location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	// Insert some VPP apps for no team
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+
+	// assign app1 and app2 to team1
+	err = ds.SetTeamVPPApps(ctx, &team1.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
+		{VPPAppID: app2.VPPAppID, SelfService: true},
+	})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	assert.Contains(t, assigned, app1.VPPAppID)
+	assert.Contains(t, assigned, app2.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	// assign token to team1 and team 2 explicitly
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID, team2.ID})
+	require.NoError(t, err)
+
+	// team1 should still have its apps
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	assert.Contains(t, assigned, app1.VPPAppID)
+	assert.Contains(t, assigned, app2.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	// assign token to just team2
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	// team1 should no longer have its apps, since the token was removed
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
 }
