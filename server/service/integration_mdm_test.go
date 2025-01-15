@@ -5989,7 +5989,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.NoError(t, getDesktopResp.Err)
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
-		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
 		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
 		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
