@@ -13,6 +13,7 @@ const RanScriptActivityItem = ({
   onShowDetails,
   onCancel,
   isSoloActivity,
+  hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
 
@@ -23,6 +24,7 @@ const RanScriptActivityItem = ({
       onShowDetails={onShowDetails}
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
+      hideCancel={hideCancel}
     >
       <b>{activity.actor_full_name}</b>
       <>
