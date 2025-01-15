@@ -23,6 +23,17 @@
     }
 
     .app-config-form {
+      &__smtp-help-text {
+        display: flex;
+        gap: $pad-small;
+        align-items: center;
+      }
+
+      &__smtp-help-text p {
+        padding-top: 1rem;
+        padding-left: 0.5rem;
+      }
+
       &__section {
         @include clearfix;
         animation: fade-in 200ms ease-out;

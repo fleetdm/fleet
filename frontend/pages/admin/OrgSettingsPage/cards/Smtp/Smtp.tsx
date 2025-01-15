@@ -311,19 +311,21 @@ const Smtp = ({
           }
         />
         {renderSmtpSection()}
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={Object.keys(formErrors).length > 0}
-          className="button-wrap"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-        <p>
-          We&apos;ll attempt to send a text email when saving changes to SMTP
-          settings.
-        </p>
+        <div className={`${baseClass}__smtp-help-text`}>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+          <p>
+            We&apos;ll attempt to send a text email when saving changes to SMTP
+            settings.
+          </p>
+        </div>
       </form>
     );
   };
