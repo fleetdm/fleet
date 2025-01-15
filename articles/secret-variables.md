@@ -17,6 +17,8 @@ Examples of sensitive information include:
 
 A secret variable can be used in a script or MDM configuration profile by specifying the variable name in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the actual secret value. The prefix `FLEET_SECRET_` is required to indicate that the variable is a secret, and Fleet reserves this prefix for secret variables.
 
+Scripts support only secret variables (prefixed with `$FLEET_SECRET_`). Any other variable with `$VAR_NAME` or `${VAR_NAME}` syntax will be considered as the host's environment variable.
+
 **Example:**
 
 ```xml
