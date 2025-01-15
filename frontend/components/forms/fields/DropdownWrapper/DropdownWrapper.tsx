@@ -59,6 +59,8 @@ export interface IDropdownWrapper {
   placeholder?: string;
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
+  /** Table filter dropdowns have filter icon and height: 40px  */
+  tableFilter?: boolean;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -78,8 +80,11 @@ const DropdownWrapper = ({
   iconName,
   placeholder,
   onMenuOpen,
+  tableFilter = false,
 }: IDropdownWrapper) => {
-  const wrapperClassNames = classnames(baseClass, className);
+  const wrapperClassNames = classnames(baseClass, className, {
+    [`${baseClass}__table-filter`]: tableFilter,
+  });
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
     onChange(newValue);
@@ -147,11 +152,13 @@ const DropdownWrapper = ({
   };
 
   const ValueContainer = ({ children, ...props }: any) => {
+    const iconToDisplay = iconName || (tableFilter ? "filter" : null);
+
     return (
       components.ValueContainer && (
         <components.ValueContainer {...props}>
-          {!!children && iconName && (
-            <Icon name={iconName} className="filter-icon" />
+          {!!children && iconToDisplay && (
+            <Icon name={iconToDisplay} className="filter-icon" />
           )}
           {children}
         </components.ValueContainer>

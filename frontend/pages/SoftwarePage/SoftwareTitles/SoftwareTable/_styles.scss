@@ -1,5 +1,5 @@
 .software-table {
-  &__filter-dropdown {
+  &__software-filter {
     min-width: 213px;
   }
 
@@ -21,24 +21,9 @@
   }
 
   .table-container {
-    &__header {
-      flex-direction: column-reverse; // Search bar on top
-
-      @media (min-width: $table-controls-break) {
-        flex-direction: row;
-      }
-    }
-
-    &__header-left {
-      flex-direction: row; // Filter dropdown aligned with count
-
-      .controls {
-        .form-field--dropdown {
-          margin: 0;
-        }
-        .form-field {
-          width: initial; // Negate form-field styling on slider
-        }
+    &__results-count {
+      .form-field--slider {
+        align-self: center;
       }
     }
 
@@ -48,6 +33,7 @@
 
       .input-icon-field__input {
         min-width: 213px;
+        height: 40px;
       }
 
       @media (min-width: $table-controls-break) {

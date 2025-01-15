@@ -115,6 +115,10 @@ Afterward, you can upload the script/profile with secret variables via the Fleet
 
 _Note:_ The checksum of Apple DDM profiles with secret variables now includes the timestamp of the last secrets update.
 
+## Escaping variable and interpolation
+
+The dollar sign ($) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
+
 ## Known limitations and issues
 
 - Windows profiles are currently not re-sent to the device on fleetctl gitops update: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)

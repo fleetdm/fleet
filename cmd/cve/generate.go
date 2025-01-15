@@ -92,6 +92,11 @@ func main() {
 		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))
 		fileName := filepath.Join(*dbDir, fileFmt(suffix, "json", "gz"))
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
+		// skip if file does not exist
+		if _, err := os.Stat(fileNameRaw); os.IsNotExist(err) {
+			logger.Log("msg", "Skipping metadata generation for missing file", "file", fileNameRaw)
+			continue
+		}
 		err := nvdsync.CompressFile(fileNameRaw, fileName)
 		if err != nil {
 			panic(err)

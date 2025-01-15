@@ -46,11 +46,7 @@ type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
 
 func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
-	// Skip worker jobs to avoid running into timing issues with this test.
-	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs.Store(true)
-	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
-
+	s.setSkipWorkerJobs(t)
 	s.setupLifecycleSettings()
 
 	testCases := []struct {
@@ -596,11 +592,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
-
-	// Skip worker jobs to avoid running into timing issues with this test.
-	// We can manually run the jobs if needed with s.runWorker().
-	s.skipWorkerJobs.Store(true)
-	t.Cleanup(func() { s.skipWorkerJobs.Store(false) })
+	s.setSkipWorkerJobs(t)
 
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())

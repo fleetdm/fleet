@@ -1010,13 +1010,19 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
-		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
-			logging.WithErr(ctx, err)
+		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 
 		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1843,6 +1849,142 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			"install_uuid", installUUID,
 		)
 	}
+	return nil
+}
+
+func (svc *Service) processVPPForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated VPP apps for the team.
+	policiesWithVPP, err := svc.ds.GetPoliciesWithAssociatedVPP(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithVPP) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to VPP apps.
+	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
+	for _, policyWithVPP := range policiesWithVPP {
+		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
+	}
+	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithVPPMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithVPP[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithVPP,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
+		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with VPP apps that are not newly failing.
+	var failingPoliciesWithVPP []fleet.PolicyVPPData
+	for _, policyWithVPP := range policiesWithVPP {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		}
+	}
+
+	if len(failingPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to get host details")
+	}
+	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
+	}
+
+	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
+	}
+
+	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
+		policyID := failingPolicyWithVPP.ID
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"vpp_adam_id", failingPolicyWithVPP.AdamID,
+			"vpp_platform", failingPolicyWithVPP.AdamID,
+			"software_title_id", failingPolicyWithVPP.Platform,
+		)
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			level.Debug(svc.logger).Log(
+				"msg", "install of app is already pending",
+			)
+			continue
+		}
+
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get VPP metadata",
+				"error", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get install VPP app",
+				"error", err,
+			)
+			continue
+		}
+
+		level.Debug(logger).Log("msg", "vpp install request sent", "command_uuid", commandUUID)
+	}
+
 	return nil
 }
 

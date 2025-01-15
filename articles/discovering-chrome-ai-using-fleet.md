@@ -4,7 +4,7 @@
 
 # Discovering AI in Chrome with Fleet
 
-Staying ahead of technological innovations is crucial for individuals and organizations. Google Chrome, one of the most widely used web browsers, continually evolves to incorporate new features, including artificial intelligence (AI). This article will guide you through detecting if AI capabilities have been enabled in Chrome on macOS using Fleet.
+Google Chrome, one of the most widely used web browsers, continually evolves to incorporate new features, including artificial intelligence (AI). This article will guide you through detecting if AI capabilities have been enabled in Chrome on macOS using Fleet.
 
 ## Using Fleet to discover AI features in Chrome
 
