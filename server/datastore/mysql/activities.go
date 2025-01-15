@@ -244,7 +244,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 // number of distinct tables that are task-specific (such as scripts to run,
 // software to install, etc.) and provides a unified view of those upcoming
 // tasks.
-func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	// NOTE: Be sure to update both the count (here) and list statements (below)
 	// if the query condition is modified.
 
@@ -258,7 +258,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
 	if count == 0 {
-		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
+		return []*fleet.UpcomingActivity{}, &fleet.PaginationMetadata{}, nil
 	}
 
 	// NOTE: Be sure to update both the count (above) and list statements (below)
@@ -278,14 +278,16 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'script_name', COALESCE(ses.name, COALESCE(scr.name, '')),
+				'script_name', COALESCE(ses.name, scr.name, ''),
 				'script_execution_id', ua.execution_id,
 				'async', NOT JSON_EXTRACT(ua.payload, '$.sync_request'),
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -319,16 +321,18 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
-				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename')),
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name'), ''),
+				'software_package', COALESCE(si.filename, JSON_EXTRACT(ua.payload, '$.installer_filename'), ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
 				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -362,14 +366,16 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
-				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')),
+				'software_title', COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name'), ''),
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'policy_id', siua.policy_id,
 				'policy_name', p.name
 			) as details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -388,7 +394,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
 		`,
-		// TODO(mna): complete the VPP apps UNION when VPP apps are ready
 		`SELECT
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
@@ -400,25 +405,28 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			JSON_OBJECT(
 				'host_id', ua.host_id,
 				'host_display_name', hdn.display_name,
-				-- 'software_title', st.name,
-				-- 'app_store_id', hvsi.adam_id,
+				'software_title', st.name,
+				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
-				-- 'self_service', hvsi.self_service IS TRUE,
-				-- status is always pending because only pending MDM commands are upcoming.
+				'self_service', JSON_EXTRACT(ua.payload, '$.self_service') IS TRUE,
 				'status', 'pending_install'
 			) AS details,
-			IF(ua.activated_at IS NULL, 0, 1) as topmost, -- also, cancellable if topmost = 1
-			ua.priority as priority
+			IF(ua.activated_at IS NULL, 0, 1) as topmost,
+			ua.priority as priority,
+			ua.fleet_initiated as fleet_initiated,
+			IF(ua.activated_at IS NULL, 1, 0) as cancellable
 		FROM
 			upcoming_activities ua
+		INNER JOIN
+			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
-		-- LEFT OUTER JOIN
-			-- vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
-		-- LEFT OUTER JOIN
-			-- software_titles st ON st.id = vpa.title_id
+		LEFT OUTER JOIN
+			vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
+		LEFT OUTER JOIN
+			software_titles st ON st.id = vpa.title_id
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
@@ -434,7 +442,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			user_email,
 			activity_type,
 			created_at,
-			details
+			details,
+			fleet_initiated,
+			cancellable
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
@@ -454,9 +464,14 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// in the query before calling this (enforced at the server layer).
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
-	var activities []*fleet.Activity
+	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	// first activity (next one to execute) is always non-cancellable, per spec
+	if len(activities) > 0 && opt.Page == 0 {
+		activities[0].Cancellable = false
 	}
 
 	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}

@@ -568,25 +568,74 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
 	commandUUID, associatedEventID string, selfService bool, policyID *uint,
 ) error {
-	// TODO(mna): insert in upcoming queue (and ensure command is not sent immediately)
-	stmt := `
-INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service, policy_id)
+	const (
+		insertUAStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
 VALUES
-  (?,?,?,?,?,?,?,?)
-	`
+	(?, ?, ?, ?, 'vpp_app_install', ?,
+		JSON_OBJECT(
+			'self_service', ?,
+			'associated_event_id', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
+		)
+	)`
+
+		insertVAUAStmt = `
+INSERT INTO vpp_app_upcoming_activities
+	(upcoming_activity_id, adam_id, platform, policy_id)
+VALUES
+	(?, ?, ?, ?)`
+
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return notFound("Host").WithID(hostID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
+	}
 
 	var userID *uint
+	fleetInitiated := true
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && policyID == nil {
 		userID = &ctxUser.ID
+		fleetInitiated = false
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID, selfService, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
-	}
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertUAStmt,
+			hostID,
+			0, // TODO(mna): detect if this is software install for setup exp, to boost priority
+			userID,
+			fleetInitiated,
+			commandUUID,
+			selfService,
+			associatedEventID,
+			userID,
+		)
+		if err != nil {
+			return err
+		}
 
-	return nil
+		activityID, _ := res.LastInsertId()
+		_, err = tx.ExecContext(ctx, insertVAUAStmt,
+			activityID,
+			appID.AdamID,
+			appID.Platform,
+			policyID,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error) {
@@ -610,7 +659,6 @@ func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, co
 		return nil, nil, nil
 	}
 
-	// TODO(mna): this should only ever be called for non-pending installs, no impact on upcoming queue
 	stmt := `
 SELECT
 	u.name AS user_name,

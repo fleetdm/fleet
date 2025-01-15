@@ -208,6 +208,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				},
 			}
 
+			// TODO(mna): setup experience must be higher-priority
 			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, false)
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")

@@ -447,27 +447,27 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// insert a VPP app
-	// vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
-	// vppApp := &fleet.VPPApp{
-	// 	Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
-	// 	BundleIdentifier: "b3",
-	// }
-	// _, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
-	// require.NoError(t, err)
+	vppCommand1, vppCommand2 := "vpp-command-1", "vpp-command-2"
+	vppApp := &fleet.VPPApp{
+		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "b3",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
 
 	// install the VPP app on h1
 	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	// err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false, nil)
-	// require.NoError(t, err)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false, nil)
+	require.NoError(t, err)
 	// err = commander.EnqueueCommand(
 	// 	ctx,
 	// 	[]string{h1.UUID},
 	// 	createRawAppleCmd("InstallApplication", vppCommand1),
 	// )
 	// require.NoError(t, err)
-	// // install the VPP app on h2, self-service
-	// err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true)
-	// require.NoError(t, err)
+	// install the VPP app on h2, self-service
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true, nil)
+	require.NoError(t, err)
 	// err = commander.EnqueueCommand(
 	// 	ctx,
 	// 	[]string{h1.UUID},
@@ -587,16 +587,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	// // force-set the order of the created_at timestamps
 	SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "upcoming_activities", "execution_id",
-		h1A, h1B /*h1FooFailed,*/, h1Bar, h1C, h1D, h1E /*h1FooInstalled,*/, h1Fleet, h2SelfService, h2Bar, h2A /*h2F, vppCommand1, vppCommand2,*/, h2SetupExp)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooInstalled, h1Fleet)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1Fleet)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2SelfService)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h2Bar)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2A, h2F)
-	// endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_vpp_software_installs", "command_uuid", vppCommand1, vppCommand2)
-	// SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_script_results", "execution_id", h2SetupExp)
+		h1A, h1B /*h1FooFailed,*/, h1Bar, h1C, h1D, h1E /*h1FooInstalled,*/, h1Fleet, h2SelfService, h2Bar, h2A /*h2F,*/, vppCommand1, vppCommand2, h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
 		hSyncExpired: true,
@@ -611,9 +602,9 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		h2SelfService: false,
 		h1Bar:         true,
 		h2Bar:         true,
-		// vppCommand1:   true,
-		// vppCommand2:   false,
-		h2SetupExp: false,
+		vppCommand1:   true,
+		vppCommand2:   false,
+		h2SetupExp:    false,
 	}
 	execIDsScriptName := map[string]string{
 		h1A:        scr1.Name,
@@ -630,6 +621,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	execIDsFromPolicyAutomation := map[string]struct{}{
 		h1Fleet: {},
 	}
+	// to simplify map, false = cancellable, true = NON-cancellable
+	execIDsNonCancellable := map[string]bool{
+		hSyncExpired: true,
+		h2SetupExp:   true,
+	}
 
 	cases := []struct {
 		opts      fleet.ListOptions
@@ -641,49 +637,61 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{hSyncExpired, h1A},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1B, h1Bar},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1E, h1Fleet},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 4, PerPage: 2},
+			hostID:    h1.ID,
+			wantExecs: []string{vppCommand1},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h1.ID,
 			wantExecs: []string{hSyncExpired, h1A, h1B, h1Bar},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
 			hostID:    h1.ID,
 			wantExecs: []string{h1C, h1D, h1E, h1Fleet},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 4},
 			hostID:    h1.ID,
+			wantExecs: []string{vppCommand1},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 3, PerPage: 4},
+			hostID:    h1.ID,
 			wantExecs: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 8},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SetupExp, h2SelfService, h2Bar, h2A}, // setup experience is top-priority
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 4},
+			wantExecs: []string{h2SetupExp, h2SelfService, h2Bar, h2A, vppCommand2}, // setup experience is top-priority
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{},
@@ -736,6 +744,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					t.Fatalf("unknown activity type %s", a.Type)
 				}
 
+				require.Equal(t, !execIDsNonCancellable[wantExec], a.Cancellable, "result %d", i)
+
 				if _, ok := execIDsFromPolicyAutomation[wantExec]; ok {
 					require.Nil(t, a.ActorID, "result %d", i)
 					require.NotNil(t, a.ActorFullName, "result %d", i)
@@ -754,10 +764,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, wantUser.Email, *a.ActorEmail, "result %d", i)
 				} else {
 					require.Nil(t, a.ActorID, "result %d", i)
-					require.Nil(t, a.ActorFullName, "result %d", i)
+					// TODO(mna): this should probably become consistent across activity types, all based on fleet_initiated
+					if a.Type == (fleet.ActivityInstalledAppStoreApp{}.ActivityName()) {
+						require.NotNil(t, a.ActorFullName, "result %d", i)
+						require.Equal(t, "Fleet", *a.ActorFullName, "result %d", i)
+					} else {
+						require.Nil(t, a.ActorFullName, "result %d", i)
+					}
 					require.Nil(t, a.ActorEmail, "result %d", i)
 				}
-
 			}
 		})
 	}

@@ -150,7 +150,7 @@ type listHostUpcomingActivitiesRequest struct {
 
 type listHostUpcomingActivitiesResponse struct {
 	Meta       *fleet.PaginationMetadata `json:"meta"`
-	Activities []*fleet.Activity         `json:"activities"`
+	Activities []*fleet.UpcomingActivity `json:"activities"`
 	Count      uint                      `json:"count"`
 	Err        error                     `json:"error,omitempty"`
 }
@@ -169,7 +169,7 @@ func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}
 
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
 // specified host.
-func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
