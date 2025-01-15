@@ -63,6 +63,7 @@ const UpcomingActivityFeed = ({
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
+              hideCancel // TODO: remove this when canceling is implemented in API
               onCancel={() => onCancel(activity)}
             />
           );
