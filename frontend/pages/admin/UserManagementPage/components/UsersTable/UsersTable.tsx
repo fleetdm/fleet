@@ -234,10 +234,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           })
           .catch((userErrors: { data: IApiError }) => {
             if (userErrors.data.errors[0].reason.includes("already exists")) {
+              // this works. the issue is that the email error state is not persisted for some reason
               renderFlash(
                 "error",
                 "A user with this email address already exists"
               );
+              debugger;
               setAddUserErrors({
                 email: "A user with this email address already exists",
               });
@@ -500,7 +502,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderAddUserModal = () => {
     return (
       <AddUserModal
-        addUserErrors={addUserErrors}
+        createUserErrors={addUserErrors}
         onCancel={toggleAddUserModal}
         onSubmit={onAddUserSubmit}
         availableTeams={teams || []}

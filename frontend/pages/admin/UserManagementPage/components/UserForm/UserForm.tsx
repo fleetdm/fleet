@@ -80,7 +80,6 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
   userFormErrors: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
@@ -106,7 +105,6 @@ const UserForm = ({
   isApiOnly,
   isNewUser = false,
   isInvitePending,
-  serverErrors,
   userFormErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
@@ -474,7 +472,7 @@ const UserForm = ({
       />
       <InputField
         label="Email"
-        error={errors.email || serverErrors?.email}
+        error={errors.email}
         name="email"
         onChange={onInputChange("email")}
         placeholder="Email"
