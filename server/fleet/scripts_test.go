@@ -82,6 +82,11 @@ func TestValidateShebang(t *testing.T) {
 			directExecute: true,
 		},
 		{
+			name:          "bash shebang",
+			contents:      "#!/bin/bash\necho hi",
+			directExecute: true,
+		},
+		{
 			name:          "zsh shebang with args",
 			contents:      "#!/bin/zsh -x\necho hi",
 			directExecute: true,

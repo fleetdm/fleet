@@ -19,8 +19,10 @@ import (
 
 func TestExecCmdNonWindows(t *testing.T) {
 	zshPath := "/bin/zsh"
+	bashPath := "/bin/bash"
 	if runtime.GOOS == "linux" {
 		zshPath = "/usr/bin/zsh"
+		bashPath = "/usr/bin/bash"
 	}
 
 	tests := []struct {
@@ -38,6 +40,11 @@ func TestExecCmdNonWindows(t *testing.T) {
 		{
 			name:     "sh shebang",
 			contents: "#!/bin/sh\n[ -z \"$ZSH_VERSION\" ] && echo 1",
+			output:   "1",
+		},
+		{
+			name:     "bash shebang",
+			contents: "#!" + bashPath + "\n[ -z \"$ZSH_VERSION\" ] && echo 1",
 			output:   "1",
 		},
 		{

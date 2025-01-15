@@ -317,8 +317,8 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
 
 // ValidateShebang validates if we support a script, and whether we
@@ -327,7 +327,7 @@ func ValidateShebang(s string) (directExecute bool, err error) {
 	if strings.HasPrefix(s, "#!") {
 		// read the first line in a portable way
 		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
+		// if a hashbang is present, it can only be `(/usr)/bin/sh`, `(/usr)/bin/bash`, `(/usr)/bin/zsh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
 			return false, ErrUnsupportedInterpreter
 		}
