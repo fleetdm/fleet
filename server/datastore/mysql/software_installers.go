@@ -1162,47 +1162,65 @@ WHERE
 	})
 }
 
-func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	level.Info(ds.logger).Log("msg", "software installer join", "title_id", titleID, "status", status)
+	// for pending status, we'll join through upcoming_activities
+	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
+		stmt := `JOIN (
+SELECT DISTINCT
+	host_id
+FROM 
+	software_install_upcoming_activities siua 
+	JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+WHERE 
+	%s) hss ON hss.host_id = h.id`
+
+		filter := "siua.software_title_id = ?"
+		switch status {
+		case fleet.SoftwareInstallPending:
+			filter += " AND ua.activity_type = 'software_install'"
+		case fleet.SoftwareUninstallPending:
+			filter += " AND ua.activity_type = 'software_uninstall'"
+		default:
+			// no change
+		}
+
+		return fmt.Sprintf(stmt, filter), []interface{}{titleID}, nil
+	}
+
+	// for non-pending statuses, we'll join through host_software_installs filtered by the status
 	statusFilter := "hsi.status = :status"
-	var status2 fleet.SoftwareInstallerStatus
-	switch status {
-	case fleet.SoftwarePending:
-		status = fleet.SoftwareInstallPending
-		status2 = fleet.SoftwareUninstallPending
-	case fleet.SoftwareFailed:
-		status = fleet.SoftwareInstallFailed
-		status2 = fleet.SoftwareUninstallFailed
-	default:
-		// no change
+	if status == fleet.SoftwareFailed {
+		// failed is a special case, we must include both install and uninstall failures
+		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
 	}
-	if status2 != "" {
-		statusFilter = "hsi.status IN (:status, :status2)"
-	}
-	// TODO(mna): must join with upcoming queue for pending, the "most recent install attempt"
-	// could be in upcoming queue (in which case this impacts also the non-pending status)
+
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
 FROM
 	host_software_installs hsi
 WHERE
-	software_installer_id = :installer_id
+	software_title_id = :title_id
 	AND hsi.id IN(
 		SELECT
 			max(id) -- ensure we use only the most recent install attempt for each host
 			FROM host_software_installs
 		WHERE
-			software_installer_id = :installer_id
+			software_title_id = :title_id
 			AND removed = 0
 		GROUP BY
-			host_id, software_installer_id)
+			host_id, software_title_id)
 	AND %s) hss ON hss.host_id = h.id
 `, statusFilter)
 
 	return sqlx.Named(stmt, map[string]interface{}{
-		"status":       status,
-		"status2":      status2,
-		"installer_id": installerID,
+		"status":          status,
+		"installFailed":   fleet.SoftwareInstallFailed,
+		"uninstallFailed": fleet.SoftwareUninstallFailed,
+		// TODO: prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
+		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
+		"title_id": titleID,
 	})
 }
 
