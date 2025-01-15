@@ -320,6 +320,10 @@ const Smtp = ({
         >
           Save
         </Button>
+        <p>
+          We&apos;ll attempt to send a text email when saving changes to SMTP
+          settings.
+        </p>
       </form>
     );
   };
