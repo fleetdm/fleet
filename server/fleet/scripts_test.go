@@ -148,12 +148,22 @@ func TestValidateHostScriptContents(t *testing.T) {
 		},
 		{
 			name:    "unsupported interpreter",
-			script:  "#!/bin/bash\necho 'hello'",
+			script:  "#!/bin/ksh\necho 'hello'",
 			wantErr: ErrUnsupportedInterpreter,
 		},
 		{
 			name:    "valid script",
 			script:  "#!/bin/sh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/bin/bash\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/usr/bin/bash\necho 'hello'",
 			wantErr: nil,
 		},
 		{
