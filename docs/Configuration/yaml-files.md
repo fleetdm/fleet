@@ -565,6 +565,21 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
 
+#### activities_webhook
+
+- `enable_activities_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
+
+### Example
+
+```yaml
+org_settings:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: https://example.org/webhook_handler
+```
+
 #### failing_policies_webhook
 
 - `enable_failing_policies_webhook` (default: `false`)
