@@ -4679,7 +4679,7 @@ func (s *integrationTestSuite) TestUsers() {
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["osquery_version"]}	
+			"hidden_host_columns": ["osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be present, two endpoints
@@ -4701,7 +4701,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["hostname", "osquery_version"]}	
+			"hidden_host_columns": ["hostname", "osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -4723,7 +4723,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, empty array, check they are returned correctly
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": []}	
+			"hidden_host_columns": []}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -12088,7 +12088,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false, nil)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	// force an order to the activities

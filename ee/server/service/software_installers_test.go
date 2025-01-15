@@ -105,7 +105,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
-	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string,
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
 		error,
 	) {
 		return "request_id", nil
