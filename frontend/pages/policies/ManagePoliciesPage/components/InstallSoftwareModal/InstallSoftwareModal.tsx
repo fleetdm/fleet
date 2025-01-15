@@ -285,7 +285,11 @@ const InstallSoftwareModal = ({
           </ul>
           <span className="form-field__help-text">
             Selected software, if compatible with the host, will be installed
-            when hosts fail the chosen policy.{" "}
+            when hosts fail the chosen policy. App Store apps will not be
+            installed if the policy fails while hosts are not enrolled in MDM,
+            or if no VPP licenses are available for that app. Installation will
+            be skipped if an installer has custom targets and a host with a
+            failing policy is not targeted.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"
