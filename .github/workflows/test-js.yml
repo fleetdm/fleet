@@ -56,7 +56,7 @@ jobs:
         with:
           path: |
             **/node_modules
-          key: ${{ runner.os }}-modules-${{ hashFiles('yarn.lock') }}
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-modules-
 
