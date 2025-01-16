@@ -61,7 +61,7 @@ jobs:
             ${{ runner.os }}-modules-
 
       - name: Install JS Dependencies
-        if: steps.js-cache.outputs.cache-hit != 'true'
+        # if: steps.js-cache.outputs.cache-hit != 'true'
         run: make deps-js
 
       - name: Run JS Tests
