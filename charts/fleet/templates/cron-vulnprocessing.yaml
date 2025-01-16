@@ -16,10 +16,10 @@ spec:
       ttlSecondsAfterFinished: 100
       template:
         metadata:
-    {{- with .Values.podAnnotations }}
+{{- with .Values.podAnnotations }}
           annotations:
-    {{- toYaml . | trim | nindent 8 }}
-    {{- end }}
+{{- toYaml . | trim | nindent 12 }}
+{{- end }}
           labels:
             app: fleet
             chart: fleet
