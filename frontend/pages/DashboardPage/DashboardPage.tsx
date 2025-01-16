@@ -539,38 +539,26 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostsSummaryCard = useInfoCard({
-    title: "Hosts",
-    action:
-      selectedPlatform === "all"
-        ? {
-            type: "link",
-            text: "View all hosts",
-          }
-        : undefined,
-    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
-    total_host_count:
-      !isHostSummaryFetching && !errorHosts
-        ? hostSummaryData?.totals_hosts_count
-        : undefined,
-    showTitle: true,
-    children: (
-      <HostsSummary
-        currentTeamId={teamIdForApi}
-        macCount={macCount}
-        windowsCount={windowsCount}
-        linuxCount={linuxCount}
-        chromeCount={chromeCount}
-        iosCount={iosCount}
-        ipadosCount={ipadosCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
-        builtInLabels={labels}
-        showHostsUI={showHostsUI}
-        selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
-      />
-    ),
-  });
+  const HostsSummaryCards = (
+    <HostsSummary
+      currentTeamId={teamIdForApi}
+      macCount={macCount}
+      windowsCount={windowsCount}
+      linuxCount={linuxCount}
+      chromeCount={chromeCount}
+      iosCount={iosCount}
+      ipadosCount={ipadosCount}
+      isLoadingHostsSummary={isHostSummaryFetching}
+      builtInLabels={labels}
+      showHostsUI={showHostsUI}
+      selectedPlatform={selectedPlatform}
+      errorHosts={!!errorHosts}
+      totalHostCount={
+-      !isHostSummaryFetching && !errorHosts
+-        ? hostSummaryData?.totals_hosts_count
+-        : undefined}
+    />
+  );
 
   const MissingHostsCard = useInfoCard({
     title: "",
@@ -908,7 +896,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
                 <Spinner />
               </div>
             )}
-            <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
+            {HostsSummaryCards}
             {isPremiumTier &&
               selectedPlatform !== "ios" &&
               selectedPlatform !== "ipados" && (
