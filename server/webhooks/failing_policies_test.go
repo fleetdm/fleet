@@ -466,10 +466,10 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			expRequestCount: 1,
 		},
 		{
-			name:            "100k-hosts-no-batching",
+			name:            "100k-hosts-all-in-one-batch",
 			hostCount:       100000,
-			batchSize:       0,
-			expRequestCount: 100000,
+			batchSize:       100000,
+			expRequestCount: 1,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
