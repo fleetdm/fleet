@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -14,14 +16,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
 
-// LoopHostMDMLocURIs loops all the <LocURI> values on all the profiles for a
+// LoopOverExpectedHostProfiles loops all the <LocURI> values on all the profiles for a
 // given host. It provides to the callback function:
 //
 // - An `ExpectedMDMProfile` that references the profile owning the LocURI
 // - A hash that's unique for each profile/uri combination
 // - The LocURI string
 // - The data (if any) of the first <Item> element of the current LocURI
-func LoopHostMDMLocURIs(
+func LoopOverExpectedHostProfiles(
 	ctx context.Context,
 	ds fleet.ProfileVerificationStore,
 	host *fleet.Host,
@@ -67,74 +69,34 @@ func HashLocURI(profileName, locURI string) string {
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawSyncML []byte) error {
-	var syncML fleet.SyncML
-	decoder := xml.NewDecoder(bytes.NewReader(rawSyncML))
-	// the DLL used by the `mdm_bridge` extension sends the response with
-	// <?xml version="1.0" encoding="utf-16"?>, however if you use
-	// `charset.NewReaderLabel` it fails to unmarshal (!?) for now, I'm
-	// relying on this hack.
-	decoder.CharsetReader = func(encoding string, input io.Reader) (io.Reader, error) {
-		return input, nil
-	}
-
-	if err := decoder.Decode(&syncML); err != nil {
-		return fmt.Errorf("decoding provided syncML: %w", err)
-	}
-
-	// TODO: what if more than one profile has the same
-	// target uri but a different value? (product question)
-	refToStatus := map[string]string{}
-	refToResult := map[string]string{}
-	for _, r := range syncML.GetOrderedCmds() {
-		if r.Cmd.CmdRef == nil {
-			continue
-		}
-		ref := *r.Cmd.CmdRef
-		if r.Verb == fleet.CmdStatus && r.Cmd.Data != nil {
-			refToStatus[ref] = *r.Cmd.Data
-		}
-
-		if r.Verb == fleet.CmdResults {
-			refToResult[ref] = r.Cmd.GetTargetData()
-		}
-	}
-
-	missing := map[string]struct{}{}
-	verified := map[string]struct{}{}
-	err := LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
-		// if we didn't get a status for a LocURI, mark the profile as
-		// missing.
-		gotStatus, ok := refToStatus[ref]
-		if !ok {
-			missing[profile.Name] = struct{}{}
-		}
-		// it's okay if we didn't get a result
-		gotResults := refToResult[ref]
-		// non-200 status don't have results. Consider it failed
-		// TODO: should we be more granular instead? eg: special case
-		// `4xx` responses? I'm sure there are edge cases we're not
-		// accounting for here, but it's unclear at this moment.
-		if !strings.HasPrefix(gotStatus, "2") || wantData != gotResults {
-			withinGracePeriod := profile.IsWithinGracePeriod(host.DetailUpdatedAt)
-			if !withinGracePeriod {
-				missing[profile.Name] = struct{}{}
-			}
-			return
-		}
-
-		verified[profile.Name] = struct{}{}
-	})
+func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawPolicyResultsSyncML []byte) error {
+	policyResults, err := transformPolicyResults(rawPolicyResultsSyncML)
 	if err != nil {
-		return fmt.Errorf("looping host mdm LocURIs: %w", err)
+		return err
 	}
 
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, ds, host, policyResults)
+	if err != nil {
+		return err
+	}
+
+	toFail, toRetry, err := splitMissingProfilesIntoFailAndRetryBuckets(ctx, ds, host, missing, verified)
+	if err != nil {
+		return err
+	}
+
+	return ds.UpdateHostMDMProfilesVerification(ctx, host, slices.Collect(maps.Keys(verified)), toFail, toRetry)
+}
+
+func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
+	missing map[string]struct{},
+	verified map[string]struct{}) ([]string, []string, error) {
 	toFail := make([]string, 0, len(missing))
 	toRetry := make([]string, 0, len(missing))
 	if len(missing) > 0 {
 		counts, err := ds.GetHostMDMProfilesRetryCounts(ctx, host)
 		if err != nil {
-			return fmt.Errorf("getting host profiles retry counts: %w", err)
+			return nil, nil, fmt.Errorf("getting host profiles retry counts: %w", err)
 		}
 		retriesByProfileUUID := make(map[string]uint, len(counts))
 		for _, r := range counts {
@@ -157,12 +119,80 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 			toFail = append(toFail, key)
 		}
 	}
+	return toFail, toRetry, nil
+}
 
-	i := 0
-	verifiedSlice := make([]string, len(verified))
-	for k := range verified {
-		verifiedSlice[i] = k
-		i++
+func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
+	policyResults policyResultsTransform) (verified map[string]struct{}, missing map[string]struct{}, err error) {
+	missing = map[string]struct{}{}
+	verified = map[string]struct{}{}
+	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
+		// if we didn't get a status for a LocURI, mark the profile as
+		// missing.
+		gotStatus, ok := policyResults.cmdRefToStatus[ref]
+		if !ok {
+			missing[profile.Name] = struct{}{}
+		}
+		// it's okay if we didn't get a result
+		gotResults := policyResults.cmdRefToResult[ref]
+		// non-200 status don't have results. Consider it failed
+		// TODO: should we be more granular instead? eg: special case
+		// `4xx` responses? I'm sure there are edge cases we're not
+		// accounting for here, but it's unclear at this moment.
+		if !strings.HasPrefix(gotStatus, "2") || wantData != gotResults {
+			withinGracePeriod := profile.IsWithinGracePeriod(host.DetailUpdatedAt)
+			if !withinGracePeriod {
+				missing[profile.Name] = struct{}{}
+			}
+			return
+		}
+
+		verified[profile.Name] = struct{}{}
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("looping host mdm LocURIs: %w", err)
 	}
-	return ds.UpdateHostMDMProfilesVerification(ctx, host, verifiedSlice, toFail, toRetry)
+	return verified, missing, nil
+}
+
+type policyResultsTransform struct {
+	cmdRefToStatus map[string]string
+	cmdRefToResult map[string]string
+}
+
+func transformPolicyResults(rawPolicyResultsSyncML []byte) (policyResultsTransform, error) {
+	var syncML fleet.SyncML
+	decoder := xml.NewDecoder(bytes.NewReader(rawPolicyResultsSyncML))
+	// the DLL used by the `mdm_bridge` extension sends the response with
+	// <?xml version="1.0" encoding="utf-16"?>, however if you use
+	// `charset.NewReaderLabel` it fails to unmarshal (!?) for now, I'm
+	// relying on this hack.
+	decoder.CharsetReader = func(encoding string, input io.Reader) (io.Reader, error) {
+		return input, nil
+	}
+
+	if err := decoder.Decode(&syncML); err != nil {
+		return policyResultsTransform{}, fmt.Errorf("decoding provided syncML: %w", err)
+	}
+
+	// TODO: what if more than one profile has the same
+	// target uri but a different value? (product question)
+	transform := policyResultsTransform{
+		cmdRefToStatus: map[string]string{},
+		cmdRefToResult: map[string]string{},
+	}
+	for _, r := range syncML.GetOrderedCmds() {
+		if r.Cmd.CmdRef == nil {
+			continue
+		}
+		ref := *r.Cmd.CmdRef
+		if r.Verb == fleet.CmdStatus && r.Cmd.Data != nil {
+			transform.cmdRefToStatus[ref] = *r.Cmd.Data
+		}
+
+		if r.Verb == fleet.CmdResults {
+			transform.cmdRefToResult[ref] = r.Cmd.GetTargetData()
+		}
+	}
+	return transform, nil
 }
