@@ -69,13 +69,13 @@ func HashLocURI(profileName, locURI string) string {
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawPolicyResultsSyncML []byte) error {
-	policyResults, err := transformPolicyResults(rawPolicyResultsSyncML)
+func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawProfileResultsSyncML []byte) error {
+	profileResults, err := transformProfileResults(rawProfileResultsSyncML)
 	if err != nil {
 		return err
 	}
 
-	verified, missing, err := compareResultsToExpectedProfiles(ctx, ds, host, policyResults)
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, ds, host, profileResults)
 	if err != nil {
 		return err
 	}
@@ -123,18 +123,18 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 }
 
 func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	policyResults policyResultsTransform) (verified map[string]struct{}, missing map[string]struct{}, err error) {
+	profileResults profileResultsTransform) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
 		// if we didn't get a status for a LocURI, mark the profile as
 		// missing.
-		gotStatus, ok := policyResults.cmdRefToStatus[ref]
+		gotStatus, ok := profileResults.cmdRefToStatus[ref]
 		if !ok {
 			missing[profile.Name] = struct{}{}
 		}
 		// it's okay if we didn't get a result
-		gotResults := policyResults.cmdRefToResult[ref]
+		gotResults := profileResults.cmdRefToResult[ref]
 		// non-200 status don't have results. Consider it failed
 		// TODO: should we be more granular instead? eg: special case
 		// `4xx` responses? I'm sure there are edge cases we're not
@@ -155,14 +155,14 @@ func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerif
 	return verified, missing, nil
 }
 
-type policyResultsTransform struct {
+type profileResultsTransform struct {
 	cmdRefToStatus map[string]string
 	cmdRefToResult map[string]string
 }
 
-func transformPolicyResults(rawPolicyResultsSyncML []byte) (policyResultsTransform, error) {
+func transformProfileResults(rawProfileResultsSyncML []byte) (profileResultsTransform, error) {
 	var syncML fleet.SyncML
-	decoder := xml.NewDecoder(bytes.NewReader(rawPolicyResultsSyncML))
+	decoder := xml.NewDecoder(bytes.NewReader(rawProfileResultsSyncML))
 	// the DLL used by the `mdm_bridge` extension sends the response with
 	// <?xml version="1.0" encoding="utf-16"?>, however if you use
 	// `charset.NewReaderLabel` it fails to unmarshal (!?) for now, I'm
@@ -172,12 +172,12 @@ func transformPolicyResults(rawPolicyResultsSyncML []byte) (policyResultsTransfo
 	}
 
 	if err := decoder.Decode(&syncML); err != nil {
-		return policyResultsTransform{}, fmt.Errorf("decoding provided syncML: %w", err)
+		return profileResultsTransform{}, fmt.Errorf("decoding provided syncML: %w", err)
 	}
 
 	// TODO: what if more than one profile has the same
 	// target uri but a different value? (product question)
-	transform := policyResultsTransform{
+	transform := profileResultsTransform{
 		cmdRefToStatus: map[string]string{},
 		cmdRefToResult: map[string]string{},
 	}
