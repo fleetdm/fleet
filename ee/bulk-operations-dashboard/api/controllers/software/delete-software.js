@@ -23,7 +23,6 @@ module.exports = {
 
     softwareInstallerMissing: {
       description: 'The Fleet instance returned a 404 response when a request was sent to copy an existing software installer to a new team',
-      responseType: 'notFound',
     },
   },
 

@@ -45,6 +45,9 @@ module.exports = {
 
     if(id){
       let softwareToDownload = await UndeployedSoftware.findOne({id: id});
+      if(!softwareToDownload){
+        throw 'notFound';
+      }
       downloading = await sails.startDownload(softwareToDownload.uploadFd, {bucket: sails.config.uploads.bucketWithPostfix});
       this.res.type(softwareToDownload.uploadMime);
       this.res.attachment(softwareToDownload.name);
@@ -55,6 +58,10 @@ module.exports = {
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
         }
+      }).intercept({raw: {statusCode: 404}}, (error)=>{
+        // If the Fleet instance returns a 404 response, log a warning and display the notFound response page.
+        sails.log.warn(`When attempting to get information about a software title (id: ${fleetApid}) for team_id ${teamApid}, the Fleet instance returned a 404 response. Full Error: ${require('util').inspect(error, {depth: 1})}`);
+        return 'notFound';
       });
       let filename = packageInformation.software_title.software_package.name;
       // [?]: https://fleetdm.com/docs/rest-api/rest-api#download-package
@@ -64,6 +71,10 @@ module.exports = {
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
         }
+      })
+      .intercept({raw: {statusCode: 404}}, (error)=>{
+        // If the installer is missing, throw an error with information about this software installer/title.
+        return new Error(`When attempting to download the installer for ${filename} (id: ${fleetApid}), the Fleet instance returned a 404 response when a request was sent to get a download stream of the installer on team_id ${teamApid}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
       });
       this.res.attachment(filename);
     }

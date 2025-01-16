@@ -103,8 +103,9 @@ module.exports = {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
         })
-        .intercept('non200Response', (error)=>{
-          return new Error(`When attempting to transfer the installer for ${software.name} to a new team on the Fleet instance, the Fleet isntance returned a non-200 response when a request was sent to get a download stream of the installer on team_id ${teamIdToGetInstallerFrom}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
+        .intercept({raw: {statusCode: 404}}, (error)=>{
+          sails.log.warn(`When attempting to transfer the installer for ${software.name} (id: ${software.fleetApid}) to a new team, the Fleet instance returned a 404 resposne when a request was sent to get a download stream of the installer on team_id ${teamIdToGetInstallerFrom}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
+          return 'softwareInstallerMissing';
         });
         let tempUploadedSoftware = await sails.uploadOne(softwareStream, {bucket: sails.config.uploads.bucketWithPostfix});
         softwareFd = tempUploadedSoftware.fd;
