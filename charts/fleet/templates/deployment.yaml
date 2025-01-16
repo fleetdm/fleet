@@ -275,7 +275,7 @@ spec:
           # dedicated cron is setup to reduce total cpu/memory utilization
           {{- if .Values.vulnProcessing.dedicated }}
           - name: FLEET_VULNERABILITIES_DISABLE_SCHEDULE
-            value: true
+            value: "true"
           {{- end }}
           ## END Vulnerability Processing
 
