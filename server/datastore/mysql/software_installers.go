@@ -26,6 +26,8 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
   WHERE
     host_id = ?
   AND
+    host_deleted_at IS NULL
+  AND
 	status = ?
   ORDER BY
     created_at ASC
@@ -1709,24 +1711,24 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 
 			UNION
 
-			-- exclude any, ignore software that depends on labels created 
-			-- _after_ the label_updated_at timestamp of the host (because 
-			-- we don't have results for that label yet, the host may or may 
+			-- exclude any, ignore software that depends on labels created
+			-- _after_ the label_updated_at timestamp of the host (because
+			-- we don't have results for that label yet, the host may or may
 			-- not be a member).
 			SELECT
 				COUNT(*) AS count_installer_labels,
 				COUNT(lm.label_id) AS count_host_labels,
-				SUM(CASE 
-				WHEN 
-					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1 
-				ELSE 
-					0 
+				SUM(CASE
+				WHEN
+					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
+				ELSE
+					0
 				END) as count_host_updated_after_labels
 			FROM
 				software_installer_labels sil
 				LEFT OUTER JOIN labels lbl
 					ON lbl.id = sil.label_id
-				LEFT OUTER JOIN label_membership lm 
+				LEFT OUTER JOIN label_membership lm
 					ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 			WHERE
 				sil.software_installer_id = :installer_id
@@ -1756,7 +1758,7 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 	return res, nil
 }
 
-const labelScopedFilter = `	
+const labelScopedFilter = `
 SELECT
 	1
 FROM (
