@@ -75,11 +75,15 @@ all: build
 .pre-fleetctl:
 	$(eval APP_NAME = fleetctl)
 
-BINS_TO_BUILD = fleet fleetctl
-ifeq ($(ARG1), fleet)
-	BINS_TO_BUILD = fleet
-else ifeq ($(ARG1), fleetctl)
-	BINS_TO_BUILD = fleetctl
+# For the build target, decide which binaries to build.
+BINS_TO_BUILD =
+ifeq (build,$(filter build,$(MAKECMDGOALS)))
+	BINS_TO_BUILD = fleet fleetctl
+	ifeq ($(ARG1), fleet)
+		BINS_TO_BUILD = fleet
+	else ifeq ($(ARG1), fleetctl)
+		BINS_TO_BUILD = fleetctl
+	endif
 endif
 .help-short--build:
 	@echo "Build binaries"
@@ -654,3 +658,6 @@ db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
 
 include ./tools/makefile-support/helpsystem-targets
+
+foo:
+	@echo $(MAKECMDGOALS)
