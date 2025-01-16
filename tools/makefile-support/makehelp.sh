@@ -8,12 +8,13 @@ if [ -n "$CMD" ]; then
   long_target=".help-long--$CMD";
   options_target=".help-options--$CMD";
   usage_target=".help-usage--$CMD";
+  extra_target=".help-extra--$CMD";
   
   delim=$'\036'  # ASCII 30
   nl=$'\037'
 
   # Try and get the help for the command.  Sections of the output will be delimited bv ASCII 30 (arbirary non-printing char)
-  output=$(make $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 $usage_target .help-sep-4 2>/dev/null)
+  output=$(make -k $short_target .help-sep-1 $long_target .help-sep-2 $options_target .help-sep-3 $usage_target .help-sep-4 $extra_target .help-sep-5 2>/dev/null)
   # Clean the output for "read" by replacing newlines with ASCII 31 (also arbitrary)
   cleaned_output=$(echo "$output" | tr '\n' $nl )
   # Read the output into an array
@@ -23,6 +24,7 @@ if [ -n "$CMD" ]; then
   long_desc=$(echo "${sections[1]}" | tr $nl '\n')
   options_text=$(echo "${sections[2]}" | tr $nl '\n')
   usage_text=$(echo "${sections[3]}" | tr $nl '\n')
+  extra_text=$(echo "${sections[4]}" | tr $nl '\n')
   
   # If we found a long help description, then continue printing help.
   if [ -n "$long_desc" ]; then
@@ -41,23 +43,30 @@ if [ -n "$CMD" ]; then
     # We're done loading, so erase the loading message.
     echo -ne "\r\033[K";
     # Output whatever help we hot.
-    echo "NAME:";
+    echo -e "\033[1mNAME:\033[0m";
     echo "  $CMD - $short_desc";
     if [ -n "$usage_text" ]; then
       echo;
-      echo "USAGE:";
+      echo -e "\033[1mUSAGE:\033[0m";
       echo "  $usage_text";
     fi;
     if [ -n "$long_desc" ]; then
       echo;
-      echo "DESCRIPTION:";
+      echo -e "\033[1mDESCRIPTION:\033[0m";
       echo "  $long_desc" | fmt -w 80;
     fi;
     if [ -n "$options_text" ]; then
       echo;
-      echo "OPTIONS:";
+      echo -e "\033[1mOPTIONS:\033[0m";
       echo "$options_text";
     fi;
+    if [ -n "$extra_text" ]; then
+      IFS= read -r first_line <<< "$extra_text"
+      rest_of_text="$(echo "$extra_text" | tail -n +2)"
+      echo;
+      echo -e "\033[1m$first_line\033[0m"
+      echo "$rest_of_text";
+    fi;    
   # If there's no long help description, there's no additional help for the command.
   else
     echo "No help found for $CMD command.";

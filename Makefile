@@ -85,16 +85,17 @@ endif
 	@echo "Build binaries"
 .help-long--build:
 	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
+.help-usage--build:
+	@echo "$(TOOL_CMD) build [binaries] [options]"	
 .help-options--build:
-	@echo "FLEET"
-	@echo "Build the fleet binary only"
-	@echo "FLEETCTL"
-	@echo "Build the fleetctl binary only"
 	@echo "GO_BUILD_RACE_ENABLED"
 	@echo "Turn on data race detection when building"
 	@echo "EXTRA_FLEETCTL_LDFLAGS=\"--flag1 --flag2...\""
 	@echo "Flags to provide to the Go linker when building fleetctl"
-
+.help-extra--build:
+	@echo "AVAILABLE BINARIES:"
+	@echo "  fleet      Build the fleet binary"
+	@echo "  fleetctl   Build the fleetctl binary"
 build: $(BINS_TO_BUILD)
 
 .help-short--fdm:
@@ -102,6 +103,7 @@ build: $(BINS_TO_BUILD)
 fdm:
 	go build -o build/fdm ./tools/fdm
 	@if [ ! -f /usr/local/bin/fdm ]; then \
+		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
@@ -133,9 +135,13 @@ lint-go:
 .help-short--lint:
 	@echo "Run linters"
 .help-long--lint:
-	@echo "Runs the linters for Go and Javascript code. Specify 'go' or 'js' to run only that linter, or else both will be run."
+	@echo "Runs the linters for Go and Javascript code.  If not linter type is specified, all linters will be run."
 .help-usage--lint:
 	@echo "$(TOOL_CMD) lint [linter-type]"	
+.help-extra--lint:
+	@echo "AVAILABLE LINTERS:"
+	@echo "  go   Lint Go files with golangci-lint"
+	@echo "  js   Lint .js, .jsx, .ts and .tsx files with eslint"
 
 ifdef ARG1
 lint: lint-$(ARG1)

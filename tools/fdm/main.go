@@ -40,12 +40,13 @@ func main() {
 		if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "--") {
 			options["REFORMAT_OPTIONS"] = "true"
 		} else {
-			fmt.Println("fdm - developer tools for fleet device management")
+			fmt.Println("\033[1mNAME\033[0m")
+			fmt.Println("  fdm - developer tools for fleet device management")
 			fmt.Println()
-			fmt.Println("USAGE:")
+			fmt.Println("\033[1mUSAGE:\033[0m")
 			fmt.Println("  fdm <command> [--option=value ...] -- [make-options]")
 			fmt.Println()
-			fmt.Println("COMMANDS:")
+			fmt.Println("\033[1mCOMMANDS:\033[0m")
 			options["HELP_CMD_PREFIX"] = "fdm"
 		}
 	}
