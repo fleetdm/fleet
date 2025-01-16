@@ -5,31 +5,28 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import HostCountCard from "../HostsSummary/HostCountCard";
 
-const baseClass = "hosts-low-space";
+const baseClass = "hosts-total";
 
-interface ILowDiskSpaceHostsProps {
-  lowDiskSpaceGb: number;
-  lowDiskSpaceCount: number;
+interface ITotalHostsProps {
+  totalCount?: number;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
-  notSupported: boolean;
 }
 
-const LowDiskSpaceHosts = ({
-  lowDiskSpaceGb,
-  lowDiskSpaceCount,
+const TOOLTIP_TEXT = "Total number of hosts.";
+
+const TotalHosts = ({
+  totalCount,
   isLoadingHosts,
   showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
-  notSupported = false, // default to supporting this feature
-}: ILowDiskSpaceHostsProps): JSX.Element => {
+}: ITotalHostsProps): JSX.Element => {
   // build the manage hosts URL filtered by low disk space only
   // currently backend cannot filter by both low disk space and label
   const queryParams = {
-    low_disk_space: lowDiskSpaceGb,
     team_id: currentTeamId,
   };
   const queryString = buildQueryStringFromParams(queryParams);
@@ -38,24 +35,19 @@ const LowDiskSpaceHosts = ({
     : PATHS.MANAGE_HOSTS;
   const path = `${endpoint}?${queryString}`;
 
-  const tooltipText = notSupported
-    ? "Disk space info is not available for Chromebooks."
-    : `Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`;
-
   return (
     <HostCountCard
-      iconName="low-disk-space-hosts"
-      count={lowDiskSpaceCount}
+      iconName="total-hosts"
+      count={totalCount || 0}
       isLoading={isLoadingHosts}
       showUI={showHostsUI}
-      title="Low disk space hosts"
-      tooltip={tooltipText}
+      title="Total hosts"
+      tooltip={TOOLTIP_TEXT}
       path={path}
-      notSupported={notSupported}
       className={baseClass}
       iconPosition="left"
     />
   );
 };
 
-export default LowDiskSpaceHosts;
+export default TotalHosts;

@@ -1,12 +1,19 @@
 import React, { useCallback } from "react";
 import PATHS from "router/paths";
 
-import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
-import DataError from "components/DataError";
+import {
+  LOW_DISK_SPACE_GB,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "pages/DashboardPage/helpers";
+
 import { IHostSummary } from "interfaces/host_summary";
 import { PlatformValueOptions } from "utilities/constants";
+import DataError from "components/DataError";
+import LowDiskSpaceHosts from "../LowDiskSpaceHosts";
+import MissingHosts from "../MissingHosts";
+import TotalHosts from "../TotalHosts";
 
-import PlatformCountTile from "./PlatformCountCard";
+import PlatformCountTile from "./HostCountCard";
 
 const baseClass = "hosts-summary";
 
@@ -24,6 +31,10 @@ interface IHostSummaryProps {
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
+  isPremiumTier?: boolean;
+  missingCount: number;
+  lowDiskSpaceCount: number;
+  selectedPlatformLabelId?: number;
 }
 
 const HostsSummary = ({
@@ -40,6 +51,10 @@ const HostsSummary = ({
   errorHosts,
   selectedPlatform,
   totalHostCount,
+  isPremiumTier,
+  missingCount,
+  lowDiskSpaceCount,
+  selectedPlatformLabelId,
 }: IHostSummaryProps): JSX.Element => {
   // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
@@ -240,10 +255,79 @@ const HostsSummary = ({
     return <DataError card />;
   }
 
+  const TotalHostsCard = (
+    <TotalHosts
+      totalCount={totalHostCount}
+      isLoadingHosts={isLoadingHostsSummary}
+      showHostsUI={showHostsUI}
+      selectedPlatformLabelId={selectedPlatformLabelId}
+      currentTeamId={currentTeamId}
+    />
+  );
+
+  const MissingHostsCard = (
+    <MissingHosts
+      missingCount={missingCount}
+      isLoadingHosts={isLoadingHostsSummary}
+      showHostsUI={showHostsUI}
+      selectedPlatformLabelId={selectedPlatformLabelId}
+      currentTeamId={currentTeamId}
+    />
+  );
+
+  const LowDiskSpaceHostsCard = (
+    <LowDiskSpaceHosts
+      lowDiskSpaceGb={LOW_DISK_SPACE_GB}
+      lowDiskSpaceCount={lowDiskSpaceCount}
+      isLoadingHosts={isLoadingHostsSummary}
+      showHostsUI={showHostsUI}
+      selectedPlatformLabelId={selectedPlatformLabelId}
+      currentTeamId={currentTeamId}
+      notSupported={selectedPlatform === "chrome"}
+    />
+  );
+
+  const nonZeroPlatformCount = Object.values({
+    macCount,
+    windowsCount,
+    linuxCount,
+    chromeCount,
+    iosCount,
+    ipadosCount,
+  }).filter(Boolean).length;
+
+  if (nonZeroPlatformCount === 1) {
+    return (
+      <div className={baseClass} style={opacity}>
+        {renderCounts(currentTeamId)}
+        {isPremiumTier &&
+          selectedPlatform !== "ios" &&
+          selectedPlatform !== "ipados" && (
+            <>
+              {TotalHostsCard}
+              {MissingHostsCard}
+              {LowDiskSpaceHostsCard}
+            </>
+          )}
+      </div>
+    );
+  }
+
   return (
-    <div className={baseClass} style={opacity}>
-      {renderCounts(currentTeamId)}
-    </div>
+    <>
+      <div className={baseClass} style={opacity}>
+        {renderCounts(currentTeamId)}
+      </div>
+      {isPremiumTier &&
+        selectedPlatform !== "ios" &&
+        selectedPlatform !== "ipados" && (
+          <div className={baseClass} style={opacity}>
+            {TotalHostsCard}
+            {MissingHostsCard}
+            {LowDiskSpaceHostsCard}
+          </div>
+        )}
+    </>
   );
 };
 

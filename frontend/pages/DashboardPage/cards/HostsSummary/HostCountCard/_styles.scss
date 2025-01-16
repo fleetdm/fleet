@@ -1,4 +1,4 @@
-.platform-count-tile {
+.host-count-card {
   flex: 1 1 calc(16.666% - 16px);
   //done
 
@@ -61,14 +61,14 @@
     }
 
     .component__tooltip-wrapper__tip-text {
-      width: 200px;
+      max-width: 200px;
       white-space: initial;
     }
   }
 }
 
 @media (max-width: 980px) {
-  .platform-count-card {
+  .host-count-card {
     &__card {
       text-align: center;
       flex-direction: column;

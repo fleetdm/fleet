@@ -3,11 +3,11 @@ import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
-import SummaryTile from "../HostsSummary/SummaryTile";
+import HostCountCard from "../HostsSummary/HostCountCard";
 
 const baseClass = "hosts-missing";
 
-interface IHostSummaryProps {
+interface IMissingHostsProps {
   missingCount: number;
   isLoadingHosts: boolean;
   showHostsUI: boolean;
@@ -21,7 +21,7 @@ const MissingHosts = ({
   showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
-}: IHostSummaryProps): JSX.Element => {
+}: IMissingHostsProps): JSX.Element => {
   // build the manage hosts URL filtered by missing and platform
   const queryParams = {
     status: "missing",
@@ -34,17 +34,17 @@ const MissingHosts = ({
   const path = `${endpoint}?${queryString}`;
 
   return (
-    <div className={baseClass}>
-      <SummaryTile
-        iconName="missing-hosts"
-        count={missingCount}
-        isLoading={isLoadingHosts}
-        showUI={showHostsUI}
-        title="Missing hosts"
-        tooltip="Hosts that have not been online in 30 days or more."
-        path={path}
-      />
-    </div>
+    <HostCountCard
+      iconName="missing-hosts"
+      count={missingCount}
+      isLoading={isLoadingHosts}
+      showUI={showHostsUI}
+      title="Missing hosts"
+      tooltip="Hosts that have not been online in 30 days or more."
+      path={path}
+      className={baseClass}
+      iconPosition="left"
+    />
   );
 };
 

@@ -2,14 +2,14 @@ import React from "react";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import paths from "router/paths";
-import PlatformCountCard from "./PlatformCountCard";
+import HostCountCard from "./HostCountCard";
 
 const LOADING_OPACITY = 0.4;
 
-describe("PlatformCountTile - component", () => {
-  it("summary tile is hidden when showUI is false", () => {
+describe("HostCountCard - component", () => {
+  it("host count card is hidden when showUI is false", () => {
     render(
-      <PlatformCountCard
+      <HostCountCard
         count={200}
         isLoading={false}
         showUI={false} // tested
@@ -20,14 +20,14 @@ describe("PlatformCountTile - component", () => {
       />
     );
 
-    const tile = screen.getByTestId("tile");
+    const card = screen.getByTestId("card");
 
-    expect(tile).not.toBeVisible();
+    expect(card).not.toBeVisible();
   });
 
   it("renders loading state", () => {
     render(
-      <PlatformCountCard
+      <HostCountCard
         count={200}
         isLoading // tested
         showUI
@@ -38,15 +38,15 @@ describe("PlatformCountTile - component", () => {
       />
     );
 
-    const tile = screen.getByTestId("tile");
+    const card = screen.getByTestId("tile");
 
-    expect(tile).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
-    expect(tile).toBeVisible();
+    expect(card).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
+    expect(card).toBeVisible();
   });
 
   it("renders title, count, and image based on the information and data passed in", () => {
     render(
-      <PlatformCountCard
+      <HostCountCard
         count={200} // tested
         isLoading={false}
         showUI
@@ -68,7 +68,7 @@ describe("PlatformCountTile - component", () => {
 
   it("does not render icon if not provided", () => {
     render(
-      <PlatformCountCard
+      <HostCountCard
         count={200}
         isLoading={false}
         showUI
@@ -85,7 +85,7 @@ describe("PlatformCountTile - component", () => {
 
   it("renders tooltip on title hover", async () => {
     render(
-      <PlatformCountCard
+      <HostCountCard
         count={200}
         isLoading={false}
         showUI

@@ -6,22 +6,7 @@
   gap: $pad-medium;
   align-self: stretch;
 
-  // .platform-count-tile {
-  //   flex: 1 1 calc(16.666% - $pad-medium);
-  //   max-width: calc(16.666% - $pad-medium);
-  //   box-sizing: border-box;
-  // }
-
-  // @media (min-width: $break-md) {
-  //   .summary-tile {
-  //     flex: initial;
-  //   }
-  // }
-
-  //   &.single-platform {
-  //     .hosts-summary__tile:first-of-type {
-  //       justify-content: center;
-  //     }
-  //   }
-  // }
+  > div {
+    flex: 1;
+  }
 }

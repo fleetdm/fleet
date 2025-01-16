@@ -61,12 +61,11 @@ import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 
 import {
+  LOW_DISK_SPACE_GB,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import MissingHosts from "./cards/MissingHosts";
-import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
 import HostsSummary from "./cards/HostsSummary";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
@@ -81,9 +80,6 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
-
-// Premium feature, Gb must be set between 1-100
-const LOW_DISK_SPACE_GB = 32;
 
 interface IDashboardProps {
   router: InjectedRouter; // v3
@@ -554,39 +550,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       selectedPlatform={selectedPlatform}
       errorHosts={!!errorHosts}
       totalHostCount={
--      !isHostSummaryFetching && !errorHosts
--        ? hostSummaryData?.totals_hosts_count
--        : undefined}
+        !isHostSummaryFetching && !errorHosts
+          ? hostSummaryData?.totals_hosts_count
+          : undefined
+      }
+      isPremiumTier={isPremiumTier}
+      missingCount={missingCount}
+      lowDiskSpaceCount={lowDiskSpaceCount}
+      selectedPlatformLabelId={selectedPlatformLabelId}
     />
   );
-
-  const MissingHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <MissingHosts
-        missingCount={missingCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-      />
-    ),
-  });
-
-  const LowDiskSpaceHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <LowDiskSpaceHosts
-        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
-        lowDiskSpaceCount={lowDiskSpaceCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-        notSupported={selectedPlatform === "chrome"}
-      />
-    ),
-  });
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
@@ -897,14 +870,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               </div>
             )}
             {HostsSummaryCards}
-            {isPremiumTier &&
-              selectedPlatform !== "ios" &&
-              selectedPlatform !== "ipados" && (
-                <div className={`${baseClass}__section`}>
-                  {MissingHostsCard}
-                  {LowDiskSpaceHostsCard}
-                </div>
-              )}
           </>
         </div>
         {renderCards()}
