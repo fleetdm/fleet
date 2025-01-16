@@ -64,9 +64,6 @@ jobs:
         if: steps.js-cache.outputs.cache-hit != 'true'
         run: yarn install --verbose
 
-      - name: Log Yarn Dependency Tree
-        run: yarn list --pattern jest
-
       - name: Run JS Tests
         run: |
           yarn test:ci
