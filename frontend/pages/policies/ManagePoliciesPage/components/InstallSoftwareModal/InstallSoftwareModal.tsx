@@ -66,6 +66,26 @@ interface IInstallSoftwareModal {
   teamId: number;
 }
 
+const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
+  const vppOption = title.source === "apps" && !!title.app_store_app;
+  let platformString = "";
+  let versionString = "";
+
+  if (vppOption) {
+    platformString = "macOS (App Store) • ";
+    versionString = title.app_store_app?.version || "";
+  } else {
+    if (title.platform && title.extension) {
+      platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
+        title.extension
+      }) • `;
+    }
+    versionString = title.software_package?.version || "";
+  }
+
+  return `${platformString}${versionString}`;
+};
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -174,28 +194,10 @@ const InstallSoftwareModal = ({
           (title) => title.platform && policyPlatforms.includes(title.platform)
         )
         .map((title) => {
-          const vppOption = title.source === "apps" && !!title.app_store_app;
-          const platformString = () => {
-            if (vppOption) {
-              return "macOS (App Store) • ";
-            }
-
-            return title.extension
-              ? `${
-                  title.platform && PLATFORM_DISPLAY_NAMES[title.platform]
-                } (.${title.extension}) • `
-              : "";
-          };
-          const versionString = () => {
-            return vppOption
-              ? title.app_store_app?.version
-              : title.software_package?.version ?? "";
-          };
-
           return {
             label: title.name,
             value: title.id,
-            helpText: `${platformString()}${versionString()}`,
+            helpText: generateSoftwareOptionHelpText(title),
           };
         });
     },
@@ -229,11 +231,7 @@ const InstallSoftwareModal = ({
               {
                 label: currentSoftware.name,
                 value: currentSoftware.id,
-                helpText: `${
-                  currentSoftware.platform
-                    ? PLATFORM_DISPLAY_NAMES[currentSoftware.platform]
-                    : ""
-                } • ${currentSoftware.software_package?.version || ""}`,
+                helpText: generateSoftwareOptionHelpText(currentSoftware),
               },
               ...options,
             ];
