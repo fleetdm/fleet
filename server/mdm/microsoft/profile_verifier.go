@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
 )
 
 // LoopOverExpectedHostProfiles loops all the <LocURI> values on all the profiles for a
@@ -72,20 +73,24 @@ func HashLocURI(profileName, locURI string) string {
 func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawPolicyResultsSyncML []byte) error {
 	policyResults, err := transformPolicyResults(rawPolicyResultsSyncML)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "transforming policy results")
 	}
 
 	verified, missing, err := compareResultsToExpectedProfiles(ctx, ds, host, policyResults)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "comparing results to expected profiles")
 	}
 
 	toFail, toRetry, err := splitMissingProfilesIntoFailAndRetryBuckets(ctx, ds, host, missing, verified)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "splitting missing profiles into fail and retry buckets")
 	}
 
-	return ds.UpdateHostMDMProfilesVerification(ctx, host, slices.Collect(maps.Keys(verified)), toFail, toRetry)
+	err = ds.UpdateHostMDMProfilesVerification(ctx, host, slices.Collect(maps.Keys(verified)), toFail, toRetry)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host mdm profiles during verification")
+	}
+	return nil
 }
 
 func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
@@ -127,11 +132,11 @@ func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerif
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
-		// if we didn't get a status for a LocURI, mark the profile as
-		// missing.
+		// if we didn't get a status for a LocURI, mark the profile as missing.
 		gotStatus, ok := policyResults.cmdRefToStatus[ref]
 		if !ok {
 			missing[profile.Name] = struct{}{}
+			return
 		}
 		// it's okay if we didn't get a result
 		gotResults := policyResults.cmdRefToResult[ref]
@@ -139,7 +144,20 @@ func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerif
 		// TODO: should we be more granular instead? eg: special case
 		// `4xx` responses? I'm sure there are edge cases we're not
 		// accounting for here, but it's unclear at this moment.
-		if !strings.HasPrefix(gotStatus, "2") || wantData != gotResults {
+		var equal bool
+		switch {
+		case !strings.HasPrefix(gotStatus, "2"):
+			equal = false
+		case wantData == gotResults:
+			equal = true
+		case admx.IsADMX(wantData):
+			equal, err = admx.Equal(wantData, gotResults)
+			if err != nil {
+				err = fmt.Errorf("comparing ADMX policies: %w", err)
+				return
+			}
+		}
+		if !equal {
 			withinGracePeriod := profile.IsWithinGracePeriod(host.DetailUpdatedAt)
 			if !withinGracePeriod {
 				missing[profile.Name] = struct{}{}
