@@ -135,7 +135,7 @@ lint-go:
 .help-short--lint:
 	@echo "Run linters"
 .help-long--lint:
-	@echo "Runs the linters for Go and Javascript code.  If not linter type is specified, all linters will be run."
+	@echo "Runs the linters for Go and Javascript code.  If linter type is not specified, all linters will be run."
 .help-usage--lint:
 	@echo "$(TOOL_CMD) lint [linter-type]"	
 .help-extra--lint:
