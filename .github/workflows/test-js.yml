@@ -60,12 +60,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-modules-
 
-      - name: Debug Cache
-        run: ls -la ~/.yarn
-
       - name: Install JS Dependencies
         if: steps.js-cache.outputs.cache-hit != 'true'
-        run: make deps-js
+        run: yarn install --verbose
+
+      - name: Log Yarn Dependency Tree
+        run: yarn list --all
 
       - name: Run JS Tests
         run: |
