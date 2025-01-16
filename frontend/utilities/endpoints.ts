@@ -60,6 +60,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+  INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
 
   // labels
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
