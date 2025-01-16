@@ -129,6 +129,8 @@ spec:
               runAsUser: 3333
               runAsNonRoot: true
             volumeMounts:
+              - name: tmp
+                mountPath: /tmp
               {{- if .Values.database.tls.enabled }}
               - name: mysql-tls
                 readOnly: true
@@ -160,6 +162,8 @@ spec:
           {{- end }}
           serviceAccountName: fleet
           volumes:
+            - name: tmp
+              emptyDir:
             {{- if .Values.database.tls.enabled }}
             - name: mysql-tls
               secret:
