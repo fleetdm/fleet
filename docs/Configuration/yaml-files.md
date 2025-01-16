@@ -284,7 +284,10 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. See supported variables in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
+- `$FLEET_VAR_NDES_SCEP_CHALLENGE`
+- `$FLEET_VAR_NDES_SCEP_PROXY_URL`
+- `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
 
 Use `labels_include_all` to target hosts that have all labels in the array, `labels_include_any` to target hosts that have any label in the array, or `labels_exclude_any` to target hosts that don't have any of the labels in the array. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
