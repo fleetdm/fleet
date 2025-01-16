@@ -26,7 +26,8 @@ import (
 func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	ds := new(mock.Store)
 
-	requestBody := ""
+	requestBody := make([]string, 2)
+	numRequests := 0
 
 	policyID1 := uint(1)
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -55,7 +56,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-		requestBody = string(requestBodyBytes)
+		requestBody[numRequests] = string(requestBodyBytes)
+		numRequests++
 	}))
 	t.Cleanup(func() {
 		ts.Close()
@@ -105,6 +107,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	timestamp, err := mockClock.MarshalJSON()
 	require.NoError(t, err)
 	// Request body as defined in #2756.
+	require.Equal(t, numRequests, 2)
 	require.JSONEq(
 		t, fmt.Sprintf(`{
     "timestamp": %s,
@@ -133,21 +136,47 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
             "hostname": "host1.example",
             "display_name": "display1",
             "url": "https://fleet.example.com/hosts/1"
-        },
+        }     
+    ]
+}`, timestamp), requestBody[0])
+
+	require.JSONEq(
+		t, fmt.Sprintf(`{
+    "timestamp": %s,
+    "policy": {
+        "id": 1,
+        "name": "policy1",
+        "query": "select 42",
+        "description": "policy1 description",
+        "author_id": 1,
+        "author_name": "Alice",
+        "author_email": "alice@example.com",
+        "team_id": null,
+        "resolution": "policy1 resolution",
+        "platform": "darwin",
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "passing_host_count": 0,
+        "failing_host_count": 2,
+        "host_count_updated_at": null,
+		"critical": true,
+		"calendar_events_enabled": false
+    },
+    "hosts": [
         {
             "id": 2,
             "hostname": "host2.example",
             "display_name": "display2",
             "url": "https://fleet.example.com/hosts/2"
-        }
+        }     
     ]
-}`, timestamp), requestBody)
-
+}`, timestamp), requestBody[1])
 	hosts, err := failingPolicySet.ListHosts(policyID1)
 	require.NoError(t, err)
 	assert.Empty(t, hosts)
 
-	requestBody = ""
+	requestBody = make([]string, 0)
+	numRequests = 0
 
 	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
@@ -158,7 +187,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, kitlog.NewNopLogger())
 	})
 	require.NoError(t, err)
-	assert.Empty(t, requestBody)
+	assert.Equal(t, len(requestBody), 0)
+	assert.Equal(t, numRequests, 0)
 }
 
 func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
@@ -403,7 +433,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			name:            "no-batching",
 			hostCount:       10,
 			batchSize:       0,
-			expRequestCount: 1,
+			expRequestCount: 10,
 		},
 		{
 			name:            "one-host-no-batching",
@@ -439,7 +469,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			name:            "100k-hosts-no-batching",
 			hostCount:       100000,
 			batchSize:       0,
-			expRequestCount: 1,
+			expRequestCount: 100000,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

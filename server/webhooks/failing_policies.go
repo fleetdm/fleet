@@ -46,8 +46,9 @@ func SendFailingPoliciesBatchedPOSTs(
 		return hosts[i].ID < hosts[j].ID
 	})
 
+	// Default to "no batching", i.e. send one webhook request at a time.
 	if hostBatchSize == 0 {
-		hostBatchSize = len(hosts)
+		hostBatchSize = 1
 	}
 	for i := 0; i < len(hosts); i += hostBatchSize {
 		end := i + hostBatchSize
