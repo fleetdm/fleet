@@ -114,6 +114,38 @@ spec:
                 value: "{{ .Values.database.tls.serverName }}"
               {{- end }}
               ## END MYSQL SECTION
+              ## BEGIN REDIS SECTION
+              - name: FLEET_REDIS_ADDRESS
+                value: "{{ .Values.cache.address }}"
+              - name: FLEET_REDIS_DATABASE
+                value: "{{ .Values.cache.database }}"
+              {{- if .Values.cache.usePassword }}
+              - name: FLEET_REDIS_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: "{{ .Values.cache.secretName }}"
+                    key: "{{ .Values.cache.passwordKey }}"
+              {{- end }}
+              ## END REDIS SECTION
+              ## APPEND ENVIRONMENT VARIABLES FROM VALUES
+              {{- range $key, $value := .Values.environments }}
+              - name: {{ $key }}
+                value: {{ $value | quote }}
+              {{- end }}
+              ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+              {{- range .Values.envsFrom }}
+              - name: {{ .name }}
+                valueFrom:
+              {{- if .valueFrom.configMapKeyRef }}
+                  configMapKeyRef:
+                    name: {{ .valueFrom.configMapKeyRef.name }}
+                    key: {{ .valueFrom.configMapKeyRef.key }}
+              {{- else if .valueFrom.secretKeyRef }}
+                  secretKeyRef:
+                    name: {{ .valueFrom.secretKeyRef.name }}
+                    key: {{ .valueFrom.secretKeyRef.key }}
+              {{- end }}
+              {{- end }}
             securityContext:
               allowPrivilegeEscalation: false
               capabilities:
@@ -171,14 +203,14 @@ spec:
             {{- end }}
           {{- with .Values.nodeSelector }}
           nodeSelector:
-            {{- toYaml . | nindent 8 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- with .Values.affinity }}
           affinity:
-            {{- toYaml . | nindent 8 }}
+            {{- toYaml . | nindent 12 }}
         {{- end }}
         {{- with .Values.tolerations }}
           tolerations:
-            {{- toYaml . | nindent 8 }}
+            {{- toYaml . | nindent 12 }}
         {{- end }}
 {{- end }}
