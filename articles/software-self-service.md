@@ -10,7 +10,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 
 > Software packages can be added to a specific team or to the "No team" category. The "No team" category is the default assignment for hosts that are not part of any specific team.
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### Adding a self-service software package
 

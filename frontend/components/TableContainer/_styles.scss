@@ -1,19 +1,15 @@
 .table-container {
-  .form-field {
-    width: initial; // 100% causes weird rendering in dropdown
-  }
-
   // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
-    grid-template-columns: 1fr auto auto; /* First column takes all remaining space */
-    grid-template-rows: auto auto; /* Two rows */
+    grid-template-columns: 1fr auto; /* First column takes all remaining space */
+    grid-template-rows: auto auto; /* Two rows for smaller screens*/
     width: 100%;
     height: max-content;
     gap: $pad-small $pad-medium;
   }
 
-  .box {
+  .stackable-header {
     min-width: max-content;
     align-content: center;
     display: flex;
@@ -24,56 +20,46 @@
       display: flex;
       flex-direction: row;
     }
+
+    // only if in stackable header
+    .table-container__search {
+      width: 100%;
+    }
   }
 
-  .search {
+  .top-shift-header {
     grid-column: 1 / -1; /* Span across all columns */
     grid-row: 1; /* Place in the first row */
+
+    .Select-multi-value-wrapper {
+      height: 36px; // Fixes height issues
+      width: 236px;
+    }
   }
 
-  .box:nth-child(1) {
-    grid-column: 1 / span 2; /* Make Box 1 expand across two columns */
+  .stackable-header:nth-child(1) {
+    grid-column: 1 / span 2; /* Make Header 1 expand across two columns */
     grid-row: 2;
-  }
 
-  .box:nth-child(2) {
-    grid-column: 2; /* Place Box 2 in the second row, second column */
-    grid-row: 2;
-  }
-
-  .box:nth-child(4) {
-    grid-column: 3; /* Place Box 4 in the second row, third column */
-    grid-row: 2;
-    max-width: min-content;
+    .form-field--dropdown {
+      width: 235px;
+    }
   }
 
   /* Media query for larger screens */
-  @media (min-width: $table-controls-break) {
+  @media (min-width: $break-md) {
     .container {
-      grid-template-columns: 1fr auto auto auto; /* First column takes all remaining space */
+      grid-template-columns: 1fr auto; /* First column takes all remaining space */
       grid-template-rows: auto; /* Single row */
     }
 
-    .search {
-      grid-column: 1 / -1; /* Keep spanning across all columns if needed */
-      grid-row: auto;
+    .top-shift-header {
+      grid-column: 2; /* Single row */
     }
 
-    .box:nth-child(1) {
-      grid-column: 1; /* Ensure Box 1 stays in the first column */
-    }
-
-    .box:nth-child(2) {
-      grid-column: 2; /* Place Box 2 in the second column */
-    }
-
-    .box:nth-child(3) {
-      grid-column: 3; /* Place Box 3 in the third column */
-      grid-row: 2;
-    }
-
-    .box:nth-child(4) {
-      grid-column: 4; /* Place Box 4 in the fourth column */
+    .stackable-header:nth-child(1) {
+      grid-column: 1; /* Ensure Header 1 stays in the first column */
+      grid-row: 1; /* Single row */
     }
   }
 
@@ -89,6 +75,10 @@
     align-items: center;
     gap: $pad-small;
     margin-top: 3px; // Fits button highlight during tabbing
+
+    .input-icon-field {
+      height: 40px; // Height 40px on table headers
+    }
 
     &.stack-table-controls {
       align-items: start;
@@ -138,21 +128,22 @@
         justify-content: space-between;
       }
     }
-
-    .Select-multi-value-wrapper {
-      height: 38px; // Fixes overlap with .Select outline
-    }
   }
 
   &__results-count {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
     height: 40px;
     gap: 12px;
+
+    > span {
+      line-height: 40px; // Match other header components' height but still align text baseline
+      min-width: fit-content;
+    }
 
     .count-error {
       color: $ui-error;

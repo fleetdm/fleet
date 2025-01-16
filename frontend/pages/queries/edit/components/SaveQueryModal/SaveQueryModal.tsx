@@ -12,7 +12,7 @@ import {
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
@@ -77,7 +77,7 @@ const SaveQueryModal = ({
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<SelectedPlatformString>(existingQuery?.platform ?? "");
+  ] = useState<CommaSeparatedPlatformString>(existingQuery?.platform ?? "");
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
@@ -149,12 +149,12 @@ const SaveQueryModal = ({
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         // TODO - inmprove type safety of all 3 options
         setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as SelectedPlatformString
+          pull(valArray, "").join(",") as CommaSeparatedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setSelectedPlatformOptions("");
       } else {
-        setSelectedPlatformOptions(values as SelectedPlatformString);
+        setSelectedPlatformOptions(values as CommaSeparatedPlatformString);
       }
     },
     [setSelectedPlatformOptions]

@@ -1,9 +1,14 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
 import { IPolicyStats } from "interfaces/policy";
+import {
+  CommaSeparatedPlatformString,
+  Platform,
+  PLATFORM_DISPLAY_NAMES,
+} from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
@@ -19,29 +24,20 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
-import { ISoftwareTitle } from "interfaces/software";
+import {
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
+  InstallableSoftwareSource,
+  ISoftwareTitle,
+} from "interfaces/software";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const getPlatformDisplayFromPackageExtension = (ext: string | undefined) => {
-  switch (ext) {
-    case "pkg":
-    case "zip":
-    case "dmg":
-      return "macOS";
-    case "deb":
-    case "rpm":
-      return "Linux";
-    case "exe":
-    case "msi":
-      return "Windows";
-    default:
-      return null;
-  }
-};
-
-const AFI_SOFTWARE_BATCH_SIZE = 1000;
+const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
 const baseClass = "install-software-modal";
+
+const formatSoftwarePlatform = (source: InstallableSoftwareSource) => {
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] || null;
+};
 
 interface ISwDropdownField {
   name: string;
@@ -52,9 +48,15 @@ interface IFormPolicy {
   id: number;
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
+  platform: CommaSeparatedPlatformString;
 }
 
 export type IInstallSoftwareFormData = IFormPolicy[];
+
+interface IEnhancedSoftwareTitle extends ISoftwareTitle {
+  platform: Platform | null;
+  extension?: string;
+}
 
 interface IInstallSoftwareModal {
   onExit: () => void;
@@ -63,6 +65,27 @@ interface IInstallSoftwareModal {
   policies: IPolicyStats[];
   teamId: number;
 }
+
+const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
+  const vppOption = title.source === "apps" && !!title.app_store_app;
+  let platformString = "";
+  let versionString = "";
+
+  if (vppOption) {
+    platformString = "macOS (App Store) • ";
+    versionString = title.app_store_app?.version || "";
+  } else {
+    if (title.platform && title.extension) {
+      platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
+        title.extension
+      }) • `;
+    }
+    versionString = title.software_package?.version || "";
+  }
+
+  return `${platformString}${versionString}`;
+};
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -76,6 +99,7 @@ const InstallSoftwareModal = ({
       id: policy.id,
       installSoftwareEnabled: !!policy.install_software,
       swIdToInstall: policy.install_software?.software_title_id,
+      platform: policy.platform,
     }))
   );
 
@@ -84,32 +108,40 @@ const InstallSoftwareModal = ({
   );
 
   const {
-    data: titlesAFI,
-    isLoading: isTitlesAFILoading,
-    isError: isTitlesAFIError,
+    data: titlesAvailableForInstall,
+    isLoading: isTitlesAvailableForInstallLoading,
+    isError: isTitlesAvailableForInstallError,
   } = useQuery<
     ISoftwareTitlesResponse,
     Error,
-    ISoftwareTitle[],
+    IEnhancedSoftwareTitle[],
     [ISoftwareTitlesQueryKey]
   >(
     [
       {
         scope: "software-titles",
         page: 0,
-        perPage: AFI_SOFTWARE_BATCH_SIZE,
+        perPage: SOFTWARE_TITLE_LIST_LENGTH,
         query: "",
         orderDirection: "desc",
         orderKey: "hosts_count",
         teamId,
         availableForInstall: true,
-        packagesOnly: true,
+        platform: "darwin,windows,linux",
       },
     ],
     ({ queryKey: [queryKey] }) =>
       softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
-      select: (data) => data.software_titles,
+      select: (data): IEnhancedSoftwareTitle[] =>
+        data.software_titles.map((title) => {
+          const extension = title.software_package?.name.split(".").pop();
+          return {
+            ...title,
+            platform: formatSoftwarePlatform(title.source),
+            extension,
+          };
+        }),
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
   );
@@ -152,19 +184,65 @@ const InstallSoftwareModal = ({
     [formData]
   );
 
-  const availableSoftwareOptions = titlesAFI?.map((title) => {
-    const splitName = title.software_package?.name.split(".") ?? "";
-    const ext =
-      splitName.length > 1 ? splitName[splitName.length - 1] : undefined;
-    const platformString = ext
-      ? `${getPlatformDisplayFromPackageExtension(ext)} (.${ext}) • `
-      : "";
-    return {
-      label: title.name,
-      value: title.id,
-      helpText: `${platformString}${title.software_package?.version ?? ""}`,
+  // Filters and transforms software titles into dropdown options
+  // to include only software compatible with the policy's platform(s)
+  const availableSoftwareOptions = useCallback(
+    (policy: IFormPolicy) => {
+      const policyPlatforms = policy.platform.split(",");
+      return titlesAvailableForInstall
+        ?.filter(
+          (title) => title.platform && policyPlatforms.includes(title.platform)
+        )
+        .map((title) => {
+          return {
+            label: title.name,
+            value: title.id,
+            helpText: generateSoftwareOptionHelpText(title),
+          };
+        });
+    },
+    [titlesAvailableForInstall]
+  );
+
+  // Cache availableSoftwareOptions for each unique platform
+  const memoizedAvailableSoftwareOptions = useMemo(() => {
+    const cache = new Map();
+    return (policy: IFormPolicy) => {
+      let options = availableSoftwareOptions(policy) || [];
+      const installOptionsByPlatformMismatchSelectedInstaller =
+        policy.swIdToInstall &&
+        !options.some((opt) => opt.value === policy.swIdToInstall);
+
+      // More unique cache key if installOptionsByPlatformMismatchSelectedInstaller
+      const key = `${policy.platform}${
+        installOptionsByPlatformMismatchSelectedInstaller
+          ? `-${policy.swIdToInstall}`
+          : ""
+      }`;
+      if (!cache.has(key)) {
+        // Add the current software if it's not in the options
+        // due to user-created a platform mismatch
+        if (installOptionsByPlatformMismatchSelectedInstaller) {
+          const currentSoftware = titlesAvailableForInstall?.find(
+            (title) => title.id === policy.swIdToInstall
+          );
+          if (currentSoftware) {
+            options = [
+              {
+                label: currentSoftware.name,
+                value: currentSoftware.id,
+                helpText: generateSoftwareOptionHelpText(currentSoftware),
+              },
+              ...options,
+            ];
+          }
+        }
+
+        cache.set(key, options);
+      }
+      return cache.get(key);
     };
-  });
+  }, [availableSoftwareOptions, titlesAvailableForInstall]);
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
@@ -194,7 +272,7 @@ const InstallSoftwareModal = ({
         </Checkbox>
         {enabled && (
           <Dropdown
-            options={availableSoftwareOptions}
+            options={memoizedAvailableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
             value={swIdToInstall}
             onChange={onSelectPolicySoftware}
             placeholder="Select software"
@@ -208,13 +286,13 @@ const InstallSoftwareModal = ({
   };
 
   const renderContent = () => {
-    if (isTitlesAFIError) {
+    if (isTitlesAvailableForInstallError) {
       return <DataError />;
     }
-    if (isTitlesAFILoading) {
+    if (isTitlesAvailableForInstallLoading) {
       return <Spinner />;
     }
-    if (!titlesAFI?.length) {
+    if (!titlesAvailableForInstall?.length) {
       return (
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
@@ -226,16 +304,6 @@ const InstallSoftwareModal = ({
       );
     }
 
-    const compatibleTipContent = (
-      <>
-        .pkg for macOS.
-        <br />
-        .msi or .exe for Windows.
-        <br />
-        .deb for Linux.
-      </>
-    );
-
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
@@ -246,11 +314,11 @@ const InstallSoftwareModal = ({
             )}
           </ul>
           <span className="form-field__help-text">
-            Selected software, if{" "}
-            <TooltipWrapper tipContent={compatibleTipContent}>
-              compatible
-            </TooltipWrapper>{" "}
-            with the host, will be installed when hosts fail the chosen policy.{" "}
+            If compatible with the host, the selected software will be installed
+            when hosts fail the policy. App Store apps will not be installed if
+            hosts are not enrolled in MDM, or if no VPP licenses are available
+            for the app. If custom targets are enabled and a host with a failing
+            policy is <b>not</b> targeted, installation will be skipped.{" "}
             <CustomLink
               url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
               text="Learn more"

@@ -12,6 +12,7 @@ import {
   IFleetMaintainedAppDetails,
   ISoftwarePackage,
 } from "interfaces/software";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
@@ -20,7 +21,6 @@ import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/Pack
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
-import { join } from "path";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -75,6 +75,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   // used to trigger software refetches from sibling pages
   addedSoftwareToken?: string | null;
+  platform?: CommaSeparatedPlatformString;
   scope: "software-titles";
 }
 
@@ -373,7 +374,8 @@ export default {
     });
   },
 
-  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
+  // Endpoint for deleting packages or VPP
+  deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
       softwareId
@@ -407,7 +409,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+  getFleetMaintainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
     const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
     return sendRequest("GET", path);

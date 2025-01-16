@@ -4920,6 +4920,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	triggerReconcileProfiles := func() {

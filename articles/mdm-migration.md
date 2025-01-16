@@ -18,18 +18,18 @@ To migrate hosts, we will do the following steps:
 2. Assign hosts in Apple Business Manager (ABM) to Fleet
 3. Choose migration workflow and migrate hosts
 
-### Step 1: enroll hosts to Fleet
+### Step 1: Enroll hosts to Fleet
 
 1. First, enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
-### Step 2: assign hosts in Apple Business Manager (ABM) to Fleet
+### Step 2: Assign hosts in Apple Business Manager (ABM) to Fleet
 
 1. In ABM, unassign your hosts from your current MDM solution by selecting **Devices** and then selecting **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
 2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
-### Step 3: choose migration workflow and migrate hosts
+### Step 3: Choose migration workflow and migrate hosts
 
 There are two migration workflows in Fleet: default and end user.
 

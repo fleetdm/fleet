@@ -160,6 +160,8 @@ dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST))
 DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 ifeq ($(CI_TEST_PKG), main)
 	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+else ifeq ($(CI_TEST_PKG), integration)
+	CI_PKG_TO_TEST="server/service"
 else ifeq ($(CI_TEST_PKG), mysql)
 	CI_PKG_TO_TEST="server/datastore/mysql/..."
 else ifeq ($(CI_TEST_PKG), fleetctl)
