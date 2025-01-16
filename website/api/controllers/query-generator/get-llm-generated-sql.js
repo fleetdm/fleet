@@ -25,7 +25,12 @@ module.exports = {
 
 
   fn: async function ({naturalLanguageQuestion}) {
-
+    // Generate a random room name.
+    let roomId = await sails.helpers.strings.random();
+    if(this.req.isSocket) {
+      // Add the requesting socket to the room.
+      sails.sockets.join(this.req, roomId);
+    }
     let completeTables = sails.config.builtStaticContent.schemaTables;
     let prunedTables = completeTables.map((table)=>{
       let newTable = _.pick(table,['name','description','platforms', 'examples']);
@@ -55,7 +60,12 @@ module.exports = {
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
     let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o', true)
     .intercept((err)=>{
-      return new Error(`When trying to get a subset of tables to use to generate a query for an Admin user, the Open AI API returned an error. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      if(this.req.isSocket){
+        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+        sails.sockets.broadcast(roomId, 'error', {error: err});
+        sails.sockets.leave(this.req, roomId);
+      }
+      return new Error(`When trying to get a subset of tables to use to generate a query for an Admin user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
     });
 
 
@@ -95,9 +105,22 @@ module.exports = {
     }`;
     let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'o1-preview', true)
     .intercept((err)=>{
-      return new Error(`When trying to generate a query for an Admin user, the Open AI API returned an error. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      if(this.req.isSocket){
+        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+        sails.sockets.broadcast(roomId, 'error', {error: err});
+        sails.sockets.leave(this.req, roomId);
+      }
+      return new Error(`When trying to generate a query for an Admin user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
     });
-    return sqlReport;
+
+    // If this request was from a socket, we'll broadcast a 'queryGenerated' event with the sqlReport and unsubscribe the socket
+    if(this.req.isSocket){
+      sails.sockets.broadcast(roomId, 'queryGenerated', {result: sqlReport});
+      sails.sockets.leave(this.req, roomId);
+    } else {
+      // Otherwise, return the JSON sqlReport.
+      return sqlReport;
+    }
   }
 
 
