@@ -110,6 +110,7 @@ fleet:
 # tries to run.
 vulnProcessing:
   dedicated: true
+  schedule: "0 1 * * *"
   resources:
     limits:
       cpu: 1 # 1GHz

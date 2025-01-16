@@ -10,7 +10,7 @@ metadata:
   name: fleet-vulnprocessing
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: "0 1 * * *"
+  schedule: {{ .Values.vulnProcessing.schedule }}
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: 100
