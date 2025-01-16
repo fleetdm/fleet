@@ -66,6 +66,26 @@ interface IInstallSoftwareModal {
   teamId: number;
 }
 
+const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
+  const vppOption = title.source === "apps" && !!title.app_store_app;
+  let platformString = "";
+  let versionString = "";
+
+  if (vppOption) {
+    platformString = "macOS (App Store) • ";
+    versionString = title.app_store_app?.version || "";
+  } else {
+    if (title.platform && title.extension) {
+      platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
+        title.extension
+      }) • `;
+    }
+    versionString = title.software_package?.version || "";
+  }
+
+  return `${platformString}${versionString}`;
+};
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -174,28 +194,10 @@ const InstallSoftwareModal = ({
           (title) => title.platform && policyPlatforms.includes(title.platform)
         )
         .map((title) => {
-          const vppOption = title.source === "apps" && !!title.app_store_app;
-          const platformString = () => {
-            if (vppOption) {
-              return "macOS (App Store) • ";
-            }
-
-            return title.extension
-              ? `${
-                  title.platform && PLATFORM_DISPLAY_NAMES[title.platform]
-                } (.${title.extension}) • `
-              : "";
-          };
-          const versionString = () => {
-            return vppOption
-              ? title.app_store_app?.version
-              : title.software_package?.version ?? "";
-          };
-
           return {
             label: title.name,
             value: title.id,
-            helpText: `${platformString()}${versionString()}`,
+            helpText: generateSoftwareOptionHelpText(title),
           };
         });
     },
@@ -206,13 +208,41 @@ const InstallSoftwareModal = ({
   const memoizedAvailableSoftwareOptions = useMemo(() => {
     const cache = new Map();
     return (policy: IFormPolicy) => {
-      const key = policy.platform;
+      let options = availableSoftwareOptions(policy) || [];
+      const installOptionsByPlatformMismatchSelectedInstaller =
+        policy.swIdToInstall &&
+        !options.some((opt) => opt.value === policy.swIdToInstall);
+
+      // More unique cache key if installOptionsByPlatformMismatchSelectedInstaller
+      const key = `${policy.platform}${
+        installOptionsByPlatformMismatchSelectedInstaller
+          ? `-${policy.swIdToInstall}`
+          : ""
+      }`;
       if (!cache.has(key)) {
-        cache.set(key, availableSoftwareOptions(policy));
+        // Add the current software if it's not in the options
+        // due to user-created a platform mismatch
+        if (installOptionsByPlatformMismatchSelectedInstaller) {
+          const currentSoftware = titlesAvailableForInstall?.find(
+            (title) => title.id === policy.swIdToInstall
+          );
+          if (currentSoftware) {
+            options = [
+              {
+                label: currentSoftware.name,
+                value: currentSoftware.id,
+                helpText: generateSoftwareOptionHelpText(currentSoftware),
+              },
+              ...options,
+            ];
+          }
+        }
+
+        cache.set(key, options);
       }
       return cache.get(key);
     };
-  }, [availableSoftwareOptions]);
+  }, [availableSoftwareOptions, titlesAvailableForInstall]);
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
