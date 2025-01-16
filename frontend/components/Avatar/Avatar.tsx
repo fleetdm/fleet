@@ -13,6 +13,7 @@ interface IFleetAvatarProps {
 const FleetAvatar = ({ className }: IFleetAvatarProps) => {
   return (
     <svg
+      data-testid="fleet-avatar"
       className={className}
       width="32"
       height="32"
