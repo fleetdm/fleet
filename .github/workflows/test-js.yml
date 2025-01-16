@@ -65,7 +65,7 @@ jobs:
         run: yarn install --verbose
 
       - name: Log Yarn Dependency Tree
-        run: yarn list --all
+        run: yarn list --pattern jest
 
       - name: Run JS Tests
         run: |
