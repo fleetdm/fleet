@@ -50,18 +50,18 @@ jobs:
         with:
           node-version-file: package.json
 
-      - name: JS Dependency Cache
-        id: js-cache
-        uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-modules-
+      # - name: JS Dependency Cache
+      #   id: js-cache
+      #   uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+      #   with:
+      #     path: |
+      #       **/node_modules
+      #     key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-modules-
 
       - name: Install JS Dependencies
-        if: steps.js-cache.outputs.cache-hit != 'true'
+        # if: steps.js-cache.outputs.cache-hit != 'true'
         run: make deps-js
 
       - name: Run JS Tests
