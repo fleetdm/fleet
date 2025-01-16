@@ -456,11 +456,12 @@ org_settings:
 
 ### server_settings
 
-- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) (default: `true`).
-- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
-- `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
-- `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
-- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
+- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
+- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl). (default: `false`)
+- `query_reports_disabled` disables query reports and deletes existing reports. (default: `false`)
+- `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
 
 
@@ -471,6 +472,7 @@ Can only be configured for all teams (`org_settings`).
   ```yaml
 org_settings:
   server_settings:
+    ai_features_disabled: false
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
