@@ -2530,14 +2530,25 @@ spec:
     Or like this if there is a need for excutable access:
     /usr/bin/sudo /bin/chmod -R og-rw /Users/<username>
   query: |
-    SELECT 1 FROM find_cmd 
-    WHERE directory = '/System/Volumes/Data/Users' 
-      AND type = 'd' 
-      AND mindepth = '1' 
-      AND maxdepth = '1' 
-      AND not_perm = '700' 
-      AND path NOT LIKE '%/Shared' 
-      AND path NOT LIKE '%/Guest';
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM find_cmd WHERE ( 
+          directory = '/System/Volumes/Data/Users' 
+          AND type = 'd' 
+          AND mindepth = '1' 
+          AND maxdepth = '1' 
+
+          /* Only owner can read/write/execute */
+          AND not_perm != '700' 
+
+          /* Others can execute only */
+          AND not_perm != '701' 
+          AND not_perm != '710' 
+          AND not_perm != '711' 
+
+          AND path LIKE '%/Shared' 
+          AND path LIKE '%/Guest'
+          )
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
