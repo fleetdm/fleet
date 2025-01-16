@@ -46,6 +46,9 @@ spec:
                 cpu: {{ .Values.vulnProcessing.resources.requests.cpu }}
                 memory: {{ .Values.vulnProcessing.resources.requests.memory }}
             env:
+              ## BEGIN FLEET SECTION
+              - name: FLEET_VULNERABILITIES_DATABASES_PATH
+                value: /tmp/vuln # /tmp might not work on all cloud providers by default
               # - name: FLEET_SERVER_ADDRESS
               #   value: "0.0.0.0:{{ .Values.fleet.listenPort }}"
               # - name: FLEET_AUTH_BCRYPT_COST
@@ -76,6 +79,13 @@ spec:
               # - name: FLEET_SERVER_KEY
               #   value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
               # {{- end }}
+              {{- if .Values.fleet.license.secretName }}
+              - name: FLEET_LICENSE_KEY
+                valueFrom:
+                  secretKeyRef:
+                    key: {{ .Values.fleet.license.licenseKey }}
+                    name: {{ .Values.fleet.license.secretName }}
+              {{- end }}
               ## END FLEET SECTION
               ## BEGIN MYSQL SECTION
               - name: FLEET_MYSQL_ADDRESS
