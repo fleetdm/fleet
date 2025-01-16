@@ -206,13 +206,45 @@ const InstallSoftwareModal = ({
   const memoizedAvailableSoftwareOptions = useMemo(() => {
     const cache = new Map();
     return (policy: IFormPolicy) => {
-      const key = policy.platform;
+      let options = availableSoftwareOptions(policy) || [];
+      const installOptionsByPlatformMismatchSelectedInstaller =
+        policy.swIdToInstall &&
+        !options.some((opt) => opt.value === policy.swIdToInstall);
+
+      // More unique cache key if installOptionsByPlatformMismatchSelectedInstaller
+      const key = `${policy.platform}${
+        installOptionsByPlatformMismatchSelectedInstaller
+          ? `-${policy.swIdToInstall}`
+          : ""
+      }`;
       if (!cache.has(key)) {
-        cache.set(key, availableSoftwareOptions(policy));
+        // Add the current software if it's not in the options
+        // due to user-created a platform mismatch
+        if (installOptionsByPlatformMismatchSelectedInstaller) {
+          const currentSoftware = titlesAvailableForInstall?.find(
+            (title) => title.id === policy.swIdToInstall
+          );
+          if (currentSoftware) {
+            options = [
+              {
+                label: currentSoftware.name,
+                value: currentSoftware.id,
+                helpText: `${
+                  currentSoftware.platform
+                    ? PLATFORM_DISPLAY_NAMES[currentSoftware.platform]
+                    : ""
+                } • ${currentSoftware.software_package?.version || ""}`,
+              },
+              ...options,
+            ];
+          }
+        }
+
+        cache.set(key, options);
       }
       return cache.get(key);
     };
-  }, [availableSoftwareOptions]);
+  }, [availableSoftwareOptions, titlesAvailableForInstall]);
 
   const renderPolicySwInstallOption = (policy: IFormPolicy) => {
     const {
