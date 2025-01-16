@@ -2,10 +2,10 @@
   <div purpose="page-container">
     <div purpose="page-content">
 
-      <ajax-form :handle-submitting="handleSubmittingForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedQueryForm()" v-if="!showGeneratedQuery">
+      <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" v-if="!showGeneratedQuery">
         <h3 class="mb-4">Query generator</h3>
         <div class="form-group">
-          <label for="email-address">Ask a question</label>
+          <label for="email-address">Ask a question about your devices to generate queries</label>
           <textarea class="form-control" type="textarea" id="email-address"  :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
           <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
         </div>
