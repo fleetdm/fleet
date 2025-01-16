@@ -1257,6 +1257,7 @@ func main() {
 				trw,
 				startTime,
 				scriptsEnabledFn,
+				opt.ServerURL,
 			)),
 		)
 

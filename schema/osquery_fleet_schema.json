@@ -17870,6 +17870,12 @@
         "type": "integer",
         "required": false,
         "description": "1 if running scripts is enabled, 0 if disabled."
+      },
+      {
+        "name": "update_url",
+        "type": "text",
+        "required": false,
+        "description": "The Update Framework server URL."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
