@@ -1,19 +1,21 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
-
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
-const baseClass = "locked-host-activity-item";
+const baseClass = "canceled-software-install-activity-item";
 
-const LockedHostActivityItem = ({
+const CanceledSoftwareInstallActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
   return (
     <ActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name}</b> locked this host.
+      <>
+        <b>{activity.actor_full_name}</b> canceled{" "}
+        <b>{activity.details?.software_title}</b> install on this host.
+      </>
     </ActivityItem>
   );
 };
 
-export default LockedHostActivityItem;
+export default CanceledSoftwareInstallActivityItem;
