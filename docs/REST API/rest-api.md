@@ -2190,7 +2190,7 @@ the `software` table.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object.                                              |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.                                              |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -11571,9 +11571,9 @@ Verify the specified invite.
 
 #### Parameters
 
-| Name  | Type    | In   | Description                            |
-| ----- | ------- | ---- | -------------------------------------- |
-| token | integer | path | **Required.** The user's invite token. |
+| Name  | Type   | In   | Description                            |
+| ----- | -------| ---- | -------------------------------------- |
+| token | string | path | **Required.** The user's invite token. |
 
 #### Example
 

@@ -39,7 +39,6 @@ const EmptyUsersTable = () => (
 interface IUsersTableProps {
   router: InjectedRouter; // v3
 }
-
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
