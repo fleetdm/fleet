@@ -138,7 +138,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
         --update-url=$OLD_TUF_URL \
@@ -167,12 +166,20 @@ TUF_PORT=$NEW_TUF_PORT TUF_PATH=$NEW_TUF_PATH ./tools/tuf/test/run_server.sh
 echo "Building the new orbit that will perform the migration..."
 ROOT_KEYS2=$(./build/fleetctl updates roots --path $NEW_TUF_PATH)
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
-    -o orbit-darwin \
+    -o orbit-darwin-amd64 \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_FULL_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
     ./orbit/cmd/orbit
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
+    -o orbit-darwin-arm64 \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_FULL_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+    ./orbit/cmd/orbit
+lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o orbit-linux \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_FULL_VERSION \
@@ -246,12 +253,20 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
         echo "Build and push a new update to orbit to old and new repository (to test patching an invalid 1.38.0 would work for customers without access to new TUF)"
         ROOT_KEYS2=$(./build/fleetctl updates roots --path $NEW_TUF_PATH)
         CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
-            -o orbit-darwin \
+            -o orbit-darwin-amd64 \
             -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
             ./orbit/cmd/orbit
+        CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
+            -o orbit-darwin-arm64 \
+            -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+            ./orbit/cmd/orbit
+        lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 	    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
             -o orbit-linux \
             -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
@@ -322,12 +337,20 @@ done
 echo "Building and pushing a new update to orbit on the new repository (to test upgrades are working)..."
 ROOT_KEYS2=$(./build/fleetctl updates roots --path $NEW_TUF_PATH)
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build \
-    -o orbit-darwin \
+    -o orbit-darwin-amd64 \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
     ./orbit/cmd/orbit
+CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
+    -o orbit-darwin-arm64 \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+    ./orbit/cmd/orbit
+lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o orbit-linux \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
@@ -434,7 +457,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS1" \
         --update-url=$OLD_TUF_URL \
@@ -545,7 +567,6 @@ for pkgType in "${pkgTypes[@]}"; do
         --fleet-desktop \
         --fleet-url="$FLEET_URL" \
         --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
-        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --disable-open-folder \
         --disable-keystore \

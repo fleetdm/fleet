@@ -4679,7 +4679,7 @@ func (s *integrationTestSuite) TestUsers() {
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["osquery_version"]}	
+			"hidden_host_columns": ["osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be present, two endpoints
@@ -4701,7 +4701,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": ["hostname", "osquery_version"]}	
+			"hidden_host_columns": ["hostname", "osquery_version"]}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -4723,7 +4723,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// modify user ui settings, empty array, check they are returned correctly
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
 		"settings": {
-			"hidden_host_columns": []}	
+			"hidden_host_columns": []}
 	}`), http.StatusOK, &modResp)
 
 	// get session user with ui settings, should now be modified, two endpoints
@@ -6089,6 +6089,34 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
 	require.Len(t, config.Integrations.Zendesk, 0)
+
+	// enable webhooks
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "http://some/url"
+    			},
+	    		"failing_policies_webhook": {
+	     	 		"enable_failing_policies_webhook": true,
+     		 		"destination_url": "http://some/url",
+				"host_batch_size": 1000
+	    		},
+	    		"host_status_webhook": {
+	     	 		"enable_host_status_webhook": true,
+	     	 		"destination_url": "http://some/url",
+					  "host_percentage": 2,
+						"days_count": 1
+	    		}
+		}
+	}`), http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.WebhookSettings.ActivitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.ActivitiesWebhook.DestinationURL)
+	require.True(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
 func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {

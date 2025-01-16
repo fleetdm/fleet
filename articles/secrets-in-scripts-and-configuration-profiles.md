@@ -8,6 +8,8 @@ Currently, hiding secrets is only available using [Fleet's YAML (GitOps)](https:
 
 A secret can be used in a script or configuration profile by specifying a variable in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the actual secret value. The prefix `FLEET_SECRET_` is required to indicate that the variable is a secret, and Fleet reserves this prefix for secret variables.
 
+For macOS and Linux scripts, if a secret doesn't have the `$FLEET_SECRET_` prefix, it will be treated as a [local environment variable](https://support.apple.com/en-my/guide/terminal/apd382cc5fa-4f58-4449-b20a-41c53c006f8f/mac).
+
 1. You must add the secret to your repository's secrets to use them in GitOps.
 
 2. For the GitHub GitOps flow, they must also be added to the `env` section of your workflow file, as shown below:
@@ -75,7 +77,7 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 
 ## Known limitations and issues
 
-- Windows profiles are currently not re-sent to the device on fleetctl gitops update: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)
+- Windows profiles are currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)
 - Fleet does not hide the secret in script results. DO NOT print/echo your secrets to the console output.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
