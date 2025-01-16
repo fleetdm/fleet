@@ -178,7 +178,7 @@ const UserForm = ({
   const initiallyPasswordAuth = !isSsoEnabled;
 
   useEffect(() => {
-    setFormErrors({ ...formErrors, ...ancestorErrors });
+    setFormErrors((curErrs) => ({ ...curErrs, ...ancestorErrors }));
   }, [ancestorErrors]);
 
   useEffect(() => {
