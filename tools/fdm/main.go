@@ -51,11 +51,11 @@ func main() {
 		}
 	}
 
-	// Transform options into Makefile-compatible environment variables.
+	// Transform options into Makefile-compatible variables.
 	makeVars := transformToMakeVars(options)
 	makeVars = append(makeVars, "TOOL_CMD=fdm")
 
-	// Call the Makefile with the specified target, environment variables, and additional arguments.
+	// Call the Makefile with the specified target, Make variables, and additional arguments.
 	err = callMake(makeTarget, makeVars, makeArgs)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -72,7 +72,7 @@ func splitArgs(args []string) (map[string]string, []string) {
 	skipNext := false
 
 	for idx, arg := range args {
-		if skipNext == true {
+		if skipNext {
 			skipNext = false
 			continue
 		}
@@ -82,21 +82,30 @@ func splitArgs(args []string) (map[string]string, []string) {
 			continue
 		}
 
-		if isMakeArgs {
+		switch {
+		// If we're processing make args (anything after a bare -- )
+		// then add the current arg to the list.
+		case isMakeArgs:
 			makeArgs = append(makeArgs, arg)
-		} else if strings.HasPrefix(arg, "--") {
+		// Otherwise if the arg has a -- prefix, treat it like an option
+		// for the command.
+		case strings.HasPrefix(arg, "--"):
 			// Remove "--" and split by "=".
 			parts := strings.SplitN(arg[2:], "=", 2)
-			if len(parts) == 2 {
+			switch {
+			// Handle options like --name=foo
+			case len(parts) == 2:
 				options[parts[0]] = parts[1]
-			} else if idx+1 < len(args) && !strings.HasPrefix(args[idx+1], "--") {
+			// Handle options like --name foo
+			case idx+1 < len(args) && !strings.HasPrefix(args[idx+1], "--"):
 				options[arg[2:]] = args[idx+1]
 				skipNext = true
-			} else {
-				// Flags without values default to "true".
+			// Handle options like --useturbocharge by assuming they're booleans.
+			default:
 				options[parts[0]] = "true"
 			}
-		} else {
+		// Otherwise assume we're dealing with a positional argument.
+		default:
 			options["arg"+strconv.Itoa(positionalArgsIndex)] = arg
 			positionalArgsIndex++
 		}
@@ -105,20 +114,20 @@ func splitArgs(args []string) (map[string]string, []string) {
 	return options, makeArgs
 }
 
-// transformToMakeVars converts kebab-cased options to snake-cased Makefile env variables.
+// transformToMakeVars converts kebab-cased options to snake-cased Makefile variables.
 func transformToMakeVars(options map[string]string) []string {
 	var makeVars []string
 
 	for key, value := range options {
 		// Convert kebab-case to snake_case and uppercase.
-		envKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		makeVars = append(makeVars, fmt.Sprintf("%s=%s", envKey, value))
+		varName := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+		makeVars = append(makeVars, fmt.Sprintf("%s=%s", varName, value))
 	}
 
 	return makeVars
 }
 
-// callMake invokes the `make` command with the given target, environment variables, and additional arguments.
+// callMake invokes the `make` command with the given target, variables, and additional arguments.
 func callMake(target string, makeVars []string, makeArgs []string) error {
 	// Construct the command with target and makeArgs.
 	finalArgs := []string{target}
