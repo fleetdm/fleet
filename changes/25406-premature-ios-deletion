@@ -1,1 +1,1 @@
-- Fix bug where iOS devices were being removed prematurely by expiration policy
+- Fixed bug where iOS devices were being removed prematurely by expiration policy
