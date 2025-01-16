@@ -11571,9 +11571,9 @@ Verify the specified invite.
 
 #### Parameters
 
-| Name  | Type    | In   | Description                            |
-| ----- | ------- | ---- | -------------------------------------- |
-| token | integer | path | **Required.** The user's invite token. |
+| Name  | Type   | In   | Description                            |
+| ----- | -------| ---- | -------------------------------------- |
+| token | string | path | **Required.** The user's invite token. |
 
 #### Example
 
