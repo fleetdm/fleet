@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 type HostStatus string
@@ -1271,7 +1271,7 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(parts[1])
+	version, err := VersionToSemverVersion(parts[1])
 	if err != nil {
 		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
 	}
