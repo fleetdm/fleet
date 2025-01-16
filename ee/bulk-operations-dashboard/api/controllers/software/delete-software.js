@@ -19,7 +19,12 @@ module.exports = {
     softwareDeletionFailed: {
       description: 'The specified software could not be deleted from the Fleet instance.',
       statusCode: 409,
-    }
+    },
+
+    softwareInstallerMissing: {
+      description: 'The Fleet instance returned a 404 response when a request was sent to copy an existing software installer to a new team',
+      responseType: 'notFound',
+    },
   },
 
 
@@ -37,6 +42,12 @@ module.exports = {
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           }
+        })
+        .intercept({raw:{statusCode: 404}}, (error)=>{
+          sails.log.warn(`When attempting to delete the installer for ${software.name} (id: ${software.fleetApid}), the Fleet instance returned a 404 response when a request was delete the installer on team_id ${team.fleetApid}. Full Error: ${require('util').inspect(error, {depth: 1})}`);
+          // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
+          // part of the macOS setup experience, and must be removed before it can be deleted via API requests.
+          return 'softwareInstallerMissing';
         })
         .intercept({raw:{statusCode: 409}}, (error)=>{
           // If the Fleet instance's returns a 409 response, then the software is configured to be installed as
