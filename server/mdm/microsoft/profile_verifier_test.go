@@ -38,7 +38,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopHostMDMLocURIs(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -118,24 +118,6 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 }
 
 func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
-	ds := new(mock.Store)
-	ctx := context.Background()
-	host := &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-	}
-
-	type osqueryReport struct {
-		Name   string
-		Status string
-		LocURI string
-		Data   string
-	}
-	type hostProfile struct {
-		Name        string
-		RawContents []byte
-		RetryCount  uint
-	}
-
 	cases := []struct {
 		name              string
 		hostProfiles      []hostProfile
@@ -276,6 +258,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				}
 			}
 
+			ds := new(mock.Store)
 			ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 				installDate := host.DetailUpdatedAt.Add(-2 * time.Hour)
 				if tt.withinGracePeriod {
@@ -316,11 +299,26 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 
 			out, err := xml.Marshal(msg)
 			require.NoError(t, err)
-			require.NoError(t, VerifyHostMDMProfiles(ctx, ds, host, out))
+			require.NoError(t, VerifyHostMDMProfiles(context.Background(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false
 			ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked = false
 		})
 	}
+}
+
+// osqueryReport is used by TestVerifyHostMDMProfilesHappyPaths
+type osqueryReport struct {
+	Name   string
+	Status string
+	LocURI string
+	Data   string
+}
+
+// hostProfile is used by TestVerifyHostMDMProfilesHappyPaths
+type hostProfile struct {
+	Name        string
+	RawContents []byte
+	RetryCount  uint
 }

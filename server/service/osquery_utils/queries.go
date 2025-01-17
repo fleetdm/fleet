@@ -2290,7 +2290,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config` with `Policy/Result`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
@@ -2314,10 +2314,11 @@ func buildConfigProfilesWindowsQuery(
 		return ""
 	}
 	if !gotProfiles {
-		logger.Log(
+		level.Debug(logger).Log(
 			"component", "service",
 			"method", "QueryFunc - windows config profiles",
-			"info", "host doesn't have profiles to check",
+			"msg", "host doesn't have profiles to check",
+			"host_id", host.ID,
 		)
 		return ""
 	}
