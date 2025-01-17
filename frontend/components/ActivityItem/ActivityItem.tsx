@@ -2,7 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
   internationalTimeFormat,
@@ -108,6 +108,20 @@ const ActivityItem = ({
     onCancel();
   };
 
+  // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
+  // the backend. For now, if all these fields are empty, then we assume it was
+  // Fleet-initiated.
+  let fleetInitiated = false;
+  if (
+    !activity.actor_email &&
+    !activity.actor_full_name &&
+    (activity.type === ActivityType.InstalledSoftware ||
+      activity.type === ActivityType.InstalledAppStoreApp ||
+      activity.type === ActivityType.RanScript)
+  ) {
+    fleetInitiated = true;
+  }
+
   return (
     <div className={classNames}>
       <div className={`${baseClass}__avatar-wrapper`}>
@@ -117,7 +131,7 @@ const ActivityItem = ({
           user={{ gravatar_url }}
           size="small"
           hasWhiteBackground
-          useFleetAvatar={activity.fleet_initiated}
+          useFleetAvatar={fleetInitiated}
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>

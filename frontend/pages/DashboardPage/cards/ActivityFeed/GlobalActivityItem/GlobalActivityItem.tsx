@@ -1278,6 +1278,18 @@ const GlobalActivityItem = ({
 }: IActivityItemProps) => {
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
+  // Add the "Fleet" name to the activity if needed.
+  // TODO: remove/refactor this once we have "fleet-initiated" activities.
+  if (
+    !activity.actor_email &&
+    !activity.actor_full_name &&
+    (activity.type === ActivityType.InstalledSoftware ||
+      activity.type === ActivityType.InstalledAppStoreApp ||
+      activity.type === ActivityType.RanScript)
+  ) {
+    activity.actor_full_name = "Fleet";
+  }
+
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
 

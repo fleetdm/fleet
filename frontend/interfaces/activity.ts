@@ -127,7 +127,6 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
-  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 

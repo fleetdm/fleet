@@ -7,7 +7,6 @@ const DEFAULT_ACTIVITY_MOCK: IActivity = {
   actor_id: 1,
   actor_gravatar: "",
   actor_email: "test@example.com",
-  fleet_initiated: false,
   type: ActivityType.EditedAgentOptions,
 };
 

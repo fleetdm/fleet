@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IHostUpcomingActivity } from "interfaces/activity";
+import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -55,6 +55,18 @@ const UpcomingActivityFeed = ({
     <div className={baseClass}>
       <div className={`${baseClass}__feed-list`}>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
+          // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
+          // the backend. For now, if all these fields are empty, then we assume it was
+          // Fleet-initiated.
+          if (
+            !activity.actor_email &&
+            !activity.actor_full_name &&
+            (activity.type === ActivityType.InstalledSoftware ||
+              activity.type === ActivityType.InstalledAppStoreApp ||
+              activity.type === ActivityType.RanScript)
+          ) {
+            activity.actor_full_name = "Fleet";
+          }
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
           return (
