@@ -27,6 +27,8 @@ The `--type` flag is used to specify the fleetd installer type.
 
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
+To build an installer for ARM-based Linux, use the `--arch=arm64` flag with fleetctl.
+
 #### Example
 
 Generate fleetd on macOS (.pkg)

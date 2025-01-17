@@ -1203,10 +1203,11 @@ the way that the Fleet server works.
 				}
 
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) {
+					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) {
 					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
-					// For large software installers, the server time needs time to read the full
+					// For large software installers and bootstrap packages, the server time needs time to read the full
 					// request body so we use the zero value to remove the deadline and override the
 					// default read timeout.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
