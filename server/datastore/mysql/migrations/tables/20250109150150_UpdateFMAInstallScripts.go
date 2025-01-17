@@ -55,9 +55,9 @@ quit_application() {
 }
 `
 
-// This is a map from tokens to known app names. These app names differ from the name field we pull
+// This is a map from tokens to known app filenames. These app names differ from the name field we pull
 // from fleet_library_apps.
-var knownAppNames = map[string]string{"visual-studio-code": "Visual Studio Code.app", "firefox": "Firefox.app", "brave-browser": "Brave Browser.app"}
+var knownGoodAppFilenames = map[string]string{"visual-studio-code": "Visual Studio Code.app", "firefox": "Firefox.app", "brave-browser": "Brave Browser.app"}
 
 func Up_20250109150150(tx *sql.Tx) error {
 	var scriptsToModify []struct {
@@ -116,8 +116,10 @@ WHERE fla.token IN (?)
 			}
 		}
 
+		// Default to using the name we pulled + ".app". We know that is incorrect for some apps
+		// though, so look them up in our map of known good names and use that if it exists.
 		appFileName := fmt.Sprintf("%s.app", sc.AppName)
-		if knownName, ok := knownAppNames[sc.Token]; ok {
+		if knownName, ok := knownGoodAppFilenames[sc.Token]; ok {
 			appFileName = knownName
 		}
 
