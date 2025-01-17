@@ -463,7 +463,7 @@ org_settings:
 - `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
-
+- `ai_features_disabled` disables generative AI features, currently consisting of policy query SQL being sent to the LLM (default `false`).
 
 Can only be configured for all teams (`org_settings`).
 
