@@ -12,6 +12,7 @@ func TestIsADMX(t *testing.T) {
 	assert.False(t, IsADMX("not an ADMX policy"))
 	assert.False(t, IsADMX(`<![CDATA[bozo]]>`))
 	assert.False(t, IsADMX(`<![CDATA[<bozo/>]]>`))
+	assert.False(t, IsADMX(`<![CDATA[<bozo]]>`))
 	assert.True(t, IsADMX(`<![CDATA[<enabled/>]]>`))
 	assert.True(t, IsADMX(`<![CDATA[<disabled/>]]>`))
 	assert.True(t, IsADMX(`<![CDATA[<data id="id" value="value"/>]]>`))
@@ -21,6 +22,13 @@ func TestIsADMX(t *testing.T) {
 				]]>`))
 	assert.True(t,
 		IsADMX("&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;"))
+	assert.True(t, IsADMX(
+		`&lt;Enabled/&gt;
+      <![CDATA[<data id="ExecutionPolicy" value="AllSigned"/>]]>
+      <![CDATA[<data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`))
 }
 
 func TestEqual(t *testing.T) {
@@ -70,6 +78,18 @@ func TestEqual(t *testing.T) {
 			errorContains: "",
 		},
 		{
+			name: "enabled policies with data and nonstandard format",
+			a: `&lt;Enabled/&gt;
+      <![CDATA[<data id="ExecutionPolicy" value="AllSigned"/>]]>
+      <![CDATA[<data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
+			b:             "&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+			equal:         true,
+			errorContains: "",
+		},
+		{
 			name: "disabled policies with data",
 			a: `<![CDATA[<disabled/>
 				<data id="ExecutionPolicy" value="AllSigned"/>
@@ -79,18 +99,32 @@ func TestEqual(t *testing.T) {
 			errorContains: "",
 		},
 		{
-			name:          "unparsable policy",
+			name:          "unparsable policy a 1",
+			a:             "<bozo",
+			b:             "",
+			equal:         false,
+			errorContains: "unmarshalling ADMX policy",
+		},
+		{
+			name:          "unparsable policy a 2",
+			a:             "&lt;bozo",
+			b:             "",
+			equal:         false,
+			errorContains: "unmarshalling ADMX policy",
+		},
+		{
+			name:          "unparsable policy b 1",
 			a:             "",
 			b:             "<bozo",
 			equal:         false,
 			errorContains: "unmarshalling ADMX policy",
 		},
 		{
-			name:          "multiple CDATA",
-			a:             "<![CDATA[<enabled/>]]><![CDATA[<bozo>]]>",
-			b:             "",
+			name:          "unparsable policy b 2",
+			a:             "",
+			b:             "&lt;bozo",
 			equal:         false,
-			errorContains: "multiple CDATA matches found",
+			errorContains: "unmarshalling ADMX policy",
 		},
 		{
 			name: "unequal policies with missing enable",

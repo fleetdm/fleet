@@ -13,11 +13,8 @@
 package admx
 
 import (
-	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"html"
 	"regexp"
 	"slices"
 	"strings"
@@ -47,34 +44,21 @@ func Equal(a, b string) (bool, error) {
 }
 
 func unmarshal(a string) (admxPolicy, error) {
-	a, err := convertToXMLString(a)
+	// We unmarshal into a string to get the CDATA content and decode XML escape characters.
+	// We wrap the policy in an <admx> tag to ensure it can be unmarshalled by the XML decoder.
+	var unescaped string
+	err := xml.Unmarshal([]byte(`<admx>`+a+`</admx>`), &unescaped)
 	if err != nil {
-		return admxPolicy{}, fmt.Errorf("converting ADMX policy to XML string: %w", err)
+		return admxPolicy{}, fmt.Errorf("unmarshalling ADMX policy to string: %w", err)
 	}
+	// ADMX policy elements are not case-sensitive. For example: <enabled/> and <Enabled/> are equivalent
+	// For simplicity, we compare everything in lowercase.
 	var policy admxPolicy
-	err = xml.NewDecoder(bytes.NewReader([]byte(a))).Decode(&policy)
+	err = xml.Unmarshal([]byte(`<admx>`+strings.ToLower(unescaped)+`</admx>`), &policy)
 	if err != nil {
 		return admxPolicy{}, fmt.Errorf("unmarshalling ADMX policy: %w", err)
 	}
 	return policy, nil
-}
-
-func convertToXMLString(a string) (string, error) {
-	matches := cdataRegexp.FindAllStringSubmatch(a, -1)
-	if len(matches) > 1 {
-		return "", errors.New("multiple CDATA matches found in ADMX policy")
-	}
-	if len(matches) == 1 && len(matches[0]) > 1 {
-		// If CDATA is present, we extract the content. Otherwise, we use the original string.
-		a = matches[0][1]
-	}
-	a = html.UnescapeString(a)
-	// ADMX policy elements are not case-sensitive. For example: <enabled/> and <Enabled/> are equivalent
-	// For simplicity, we compare everything in lowercase.
-	a = strings.ToLower(a)
-	// We wrap the policy in a <policy> tag to ensure it can be unmarshalled by the XML decoder
-	a = `<policy>` + a + `</policy>`
-	return a, nil
 }
 
 type admxPolicy struct {
