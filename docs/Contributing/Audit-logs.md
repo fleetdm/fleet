@@ -1504,6 +1504,9 @@ This activity contains the following fields:
 - software_title: Name of the App Store app.
 - app_store_id: ID of the app on the Apple App Store.
 - command_uuid: UUID of the MDM command used to install the app.
+- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
+- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
+
 
 #### Example
 
@@ -1514,7 +1517,9 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
-  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "policy_id": 123,
+  "policy_name": "[Install Software] Logic Pro"
 }
 ```
 

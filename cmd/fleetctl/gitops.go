@@ -117,6 +117,7 @@ func gitopsCommand() *cli.Command {
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
 			// We keep track of the secrets to check if duplicates exist during dry run
@@ -227,7 +228,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsScripts)
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 				if err != nil {
 					return err
 				}

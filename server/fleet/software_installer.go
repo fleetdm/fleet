@@ -158,6 +158,19 @@ type SoftwarePackageResponse struct {
 	URL string `json:"url" db:"url"`
 }
 
+// VPPAppResponse is the response type used when applying app store apps by batch.
+type VPPAppResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
+	AppStoreID string `json:"app_store_id" db:"app_store_id"`
+	// Platform is the platform this title ID corresponds to
+	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+}
+
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
 	return "installable_entity"

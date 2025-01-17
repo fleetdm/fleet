@@ -448,7 +448,12 @@ module.exports.routes = {
     }
   },
 
-  'GET /admin/query-generator': { action: 'admin/view-query-generator' },
+  'GET /query-generator': {
+    action: 'query-generator/view-query-generator',
+    locals: {
+      showAdminLinks: true,
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -815,6 +820,7 @@ module.exports.routes = {
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
   'GET /learn-more-about/available-os-update-versions': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
+  'GET /learn-more-about/query-templates-for-automatic-software-install': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
@@ -908,5 +914,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
-  'POST /api/v1/admin/get-llm-generated-sql': { action: 'admin/get-llm-generated-sql' },
+  '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
 };

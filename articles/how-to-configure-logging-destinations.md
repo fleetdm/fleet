@@ -62,7 +62,7 @@ Before streaming data, ensure that you have the necessary infrastructure. The re
        - Region
 
 
-### Step 2: configure your destination
+### Step 2: Configure your destination
 
 
 #### For Sumo Logic
