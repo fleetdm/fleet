@@ -837,6 +837,7 @@ None.
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
+    "enable_gitops_mode": false,
     "additional_queries": null
   },
   "mdm": {
@@ -1130,6 +1131,7 @@ Modifies the Fleet's configuration with the supplied information.
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
+    "enable_gitops_mode": false,
     "additional_queries": null
   },
   "license": {
@@ -1866,6 +1868,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
+| enable_gitops_mode                | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
 | additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
 
 <br/>
@@ -1877,6 +1880,7 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
+    "enable_gitops_mode": false,
     "additional_queries": null
   }
 }
