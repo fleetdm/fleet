@@ -1,1 +1,0 @@
-* Removed request timeout on bootstrap package uploads for consistency with software package upload endpoints
