@@ -3,15 +3,13 @@
 # Script used to test the migration from a TUF repository to a new one.
 # It assumes the following:
 #   - User runs the script on macOS
-#   - User has a Ubuntu 22.04 and a Windows 10/11 VM (running on the same macOS host script runs on).
-#   - Fleet is running on the macOS host.
+#   - User has a Ubuntu/Fedora and Windows 10/11 VMs.
+#   - Fleet is running on the macOS host and tunneled by ngrok.
 #   - `fleetctl login` was ran on the localhost Fleet instance (to be able to run `fleectl query` commands).
-#   - host.docker.internal points to localhost on the macOS host.
-#   - host.docker.internal points to the macOS host on the two VMs (/etc/hosts on Ubuntu and C:\Windows\System32\Drivers\etc\hosts on Windows).
 #   - 1.37.0 is the last version of orbit that uses the old TUF repository
 #   - 1.38.0 is the new version of orbit that will use the new TUF repository.
-#   - Old TUF repository directory is ./test_tuf_old and server listens on 8081 (runs on the macOS host).
-#   - New TUF repository directory is ./test_tuf_new and server listens on 8082 (runs on the macOS host).
+#   - Old TUF repository directory is ./test_tuf_old and server listens on 8081 and is tunneled by ngrok (runs on the macOS host).
+#   - New TUF repository directory is ./test_tuf_new and server listens on 8082 and is tunneled by ngrok (runs on the macOS host).
 
 set -e
 
@@ -24,15 +22,15 @@ if [ -z "$NO_TEAM_ENROLL_SECRET" ]; then
     exit 1
 fi
 
-if [ -z "$WINDOWS_HOST_HOSTNAME" ]; then
-    echo "Missing WINDOWS_HOST_HOSTNAME"
+if [ -z "$HOSTNAMES" ]; then
+    echo "Missing HOSTNAME, must be list of hostnames space-separated"
     exit 1
 fi
-
-if [ -z "$LINUX_HOST_HOSTNAME" ]; then
-    echo "Missing LINUX_HOST_HOSTNAME"
-    exit 1
-fi
+THIS_HOSTNAME=$(hostname)
+HOSTNAMES_LIST="$THIS_HOSTNAME $HOSTNAMES"
+read -r -a all_hostnames <<< "$HOSTNAMES_LIST"
+echo "Testing on the following hostnames:"
+printf '* %s\n' "${all_hostnames[@]}"
 
 prompt () {
     printf "%s\n" "$1"
@@ -46,9 +44,11 @@ prompt () {
     done
 }
 
-echo "Uinstalling fleetd from macOS..."
+prompt "Please change 'const' to 'var' in orbit/pkg/update/update.go."
+
+echo "Uninstalling fleetd from macOS..."
 sudo orbit/tools/cleanup/cleanup_macos.sh
-prompt "Please manually uninstall fleetd from $WINDOWS_HOST_HOSTNAME and $LINUX_HOST_HOSTNAME."
+prompt "Please manually uninstall fleetd from $HOSTNAMES."
 
 OLD_TUF_PORT=8081
 if [ -z "$OLD_TUF_URL" ]; then
@@ -104,7 +104,7 @@ EOF
 fleetctl apply -f upgrade.yml
 
 echo "Generating a TUF repository on $OLD_TUF_PATH (aka \"old\")..."
-SYSTEMS="macos linux windows" \
+SYSTEMS="macos linux windows linux-arm64" \
 TUF_PATH=$OLD_TUF_PATH \
 TUF_PORT=$OLD_TUF_PORT \
 FLEET_DESKTOP=1 \
@@ -118,8 +118,10 @@ export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
 echo "Downloading and pushing latest released orbit from https://tuf.fleetctl.com to the old repository..."
 curl https://tuf.fleetctl.com/targets/orbit/macos/$OLD_FULL_VERSION/orbit --output orbit-darwin
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
-curl https://tuf.fleetctl.com/targets/orbit/linux/$OLD_FULL_VERSION/orbit --output orbit-linux
-./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
+curl https://tuf.fleetctl.com/targets/orbit/linux/$OLD_FULL_VERSION/orbit --output orbit-linux-amd64
+./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
+curl https://tuf.fleetctl.com/targets/orbit/linux-arm64/$OLD_FULL_VERSION/orbit --output orbit-linux-arm64
+./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
 curl https://tuf.fleetctl.com/targets/orbit/windows/$OLD_FULL_VERSION/orbit.exe --output orbit.exe
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $OLD_FULL_VERSION -t $OLD_MINOR_VERSION -t 1 -t stable
 
@@ -131,7 +133,7 @@ cp fleetctl_v4.60.0_macos/fleetctl fleetctl-v4.60.0
 cd ..
 chmod +x ./build/fleetctl-v4.60.0
 ROOT_KEYS1=$(./build/fleetctl-v4.60.0 updates roots --path $OLD_TUF_PATH)
-declare -a pkgTypes=("pkg" "deb" "msi")
+declare -a pkgTypes=("pkg" "deb" "msi" "rpm")
 for pkgType in "${pkgTypes[@]}"; do
     ./build/fleetctl-v4.60.0 package --type="$pkgType" \
         --enable-scripts \
@@ -144,13 +146,27 @@ for pkgType in "${pkgTypes[@]}"; do
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
+    if [ "$pkgType" == "deb" ] || [ "$pkgType" == "rpm" ]; then
+        ./build/fleetctl-v4.60.0 package --type="$pkgType" \
+            --arch=arm64 \
+            --enable-scripts \
+            --fleet-desktop \
+            --fleet-url="$FLEET_URL" \
+            --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
+            --debug \
+            --update-roots="$ROOT_KEYS1" \
+            --update-url=$OLD_TUF_URL \
+            --disable-open-folder \
+            --disable-keystore \
+            --update-interval=30s
+    fi
 done
 
 # Install fleetd generated with old fleetctl and using old TUF on devices.
 echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 CURRENT_DIR=$(pwd)
-prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb."
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi, $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_amd64.deb, $CURRENT_DIR/fleet-osquery_${OLD_FULL_VERSION}_arm64.deb, $CURRENT_DIR/fleet-osquery-${OLD_FULL_VERSION}.x86_64.rpm and $CURRENT_DIR/fleet-osquery-${OLD_FULL_VERSION}.aarch64.rpm."
 
 echo "Generating a new TUF repository from scratch on $NEW_TUF_PATH..."
 ./build/fleetctl updates init --path $NEW_TUF_PATH
@@ -181,7 +197,14 @@ CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
     ./orbit/cmd/orbit
 lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -o orbit-linux \
+    -o orbit-linux-amd64 \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_FULL_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+    ./orbit/cmd/orbit
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+    -o orbit-linux-arm64 \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_FULL_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
@@ -197,7 +220,8 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
 
 echo "Pushing new orbit to new repository on stable channel..."
 ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
-./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 
 if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
@@ -209,14 +233,13 @@ fi
 
 echo "Pushing new orbit to old repository!..."
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
-./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_FULL_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 
 if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
     echo "Checking version of updated orbit (to check device is responding even if TUF server is down)..."
-    THIS_HOSTNAME=$(hostname)
-    declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
-    for host_hostname in "${hostnames[@]}"; do
+    for host_hostname in "${all_hostnames[@]}"; do
         ORBIT_VERSION=""
         until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
             sleep 1
@@ -268,7 +291,14 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
             ./orbit/cmd/orbit
         lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 	    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-            -o orbit-linux \
+            -o orbit-linux-amd64 \
+            -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+            -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+            ./orbit/cmd/orbit
+	    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+            -o orbit-linux-arm64 \
             -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
@@ -282,10 +312,12 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
             -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
             ./orbit/cmd/orbit
         ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
-        ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+        ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+        ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
         ./build/fleetctl updates add --path $OLD_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
         ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
-        ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+        ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+        ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
         ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 
         echo "Checking orbit has auto-updated to $NEW_PATCH_VERSION using old TUF..."
@@ -310,8 +342,7 @@ fi
 
 echo "Checking version of updated orbit..."
 THIS_HOSTNAME=$(hostname)
-declare -a hostnames=("$THIS_HOSTNAME" "$WINDOWS_HOST_HOSTNAME" "$LINUX_HOST_HOSTNAME")
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
         sleep 1
@@ -326,7 +357,7 @@ prompt "Please restart fleetd on the Linux and Windows host."
 
 echo "Checking version of updated orbit..."
 THIS_HOSTNAME=$(hostname)
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
         sleep 1
@@ -352,7 +383,14 @@ CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
     ./orbit/cmd/orbit
 lipo -create orbit-darwin-amd64 orbit-darwin-arm64 -output orbit-darwin
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -o orbit-linux \
+    -o orbit-linux-amd64 \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
+    ./orbit/cmd/orbit
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
+    -o orbit-linux-arm64 \
     -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$NEW_PATCH_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.DefaultURL=$NEW_TUF_URL \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.defaultRootMetadata=$ROOT_KEYS2 \
@@ -366,11 +404,12 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/update.OldFleetTUFURL=$OLD_TUF_URL" \
     ./orbit/cmd/orbit
 ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-darwin --platform macos --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
-./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-amd64 --platform linux --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
+./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit-linux-arm64 --platform linux-arm64 --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 ./build/fleetctl updates add --path $NEW_TUF_PATH --target ./orbit.exe --platform windows --name orbit --version $NEW_PATCH_VERSION -t $NEW_MINOR_VERSION -t 1 -t stable
 
 echo "Waiting until update happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
         sleep 1
@@ -406,7 +445,7 @@ EOF
 fleetctl apply -f downgrade.yml
 
 echo "Waiting until downgrade happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
         sleep 1
@@ -442,7 +481,7 @@ EOF
 fleetctl apply -f upgrade.yml
 
 echo "Waiting until upgrade happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
         sleep 1
@@ -469,10 +508,10 @@ echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
-prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${NEW_FULL_VERSION}_amd64.deb."
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi, $CURRENT_DIR/fleet-osquery_${NEW_FULL_VERSION}_amd64.deb, $CURRENT_DIR/fleet-osquery_${NEW_FULL_VERSION}_arm64.deb, $CURRENT_DIR/fleet-osquery-${NEW_FULL_VERSION}.x86_64.rpm and $CURRENT_DIR/fleet-osquery-${NEW_FULL_VERSION}.aarch64.rpm."
 
 echo "Waiting until installation and auto-update to new repository happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
         sleep 1
@@ -508,7 +547,7 @@ EOF
 fleetctl apply -f downgrade.yml
 
 echo "Waiting until downgrade happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
         sleep 1
@@ -544,7 +583,7 @@ EOF
 fleetctl apply -f upgrade.yml
 
 echo "Waiting until upgrade happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
         sleep 1
@@ -577,10 +616,10 @@ echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
-prompt "Please install $CURRENT_DIR/fleet-osquery.msi and $CURRENT_DIR/fleet-osquery_${NEW_PATCH_VERSION}_amd64.deb."
+prompt "Please install $CURRENT_DIR/fleet-osquery.msi, $CURRENT_DIR/fleet-osquery_${NEW_PATCH_VERSION}_amd64.deb, $CURRENT_DIR/fleet-osquery_${NEW_PATCH_VERSION}_arm64.deb, $CURRENT_DIR/fleet-osquery-${NEW_PATCH_VERSION}.x86_64.rpm and $CURRENT_DIR/fleet-osquery-${NEW_PATCH_VERSION}.aarch64.rpm."
 
 echo "Waiting until installation and auto-update to new repository happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$NEW_PATCH_VERSION\"" ]; do
         sleep 1
@@ -615,7 +654,7 @@ EOF
 fleetctl apply -f downgrade.yml
 
 echo "Waiting until downgrade happens..."
-for host_hostname in "${hostnames[@]}"; do
+for host_hostname in "${all_hostnames[@]}"; do
     ORBIT_VERSION=""
     until [ "$ORBIT_VERSION" = "\"$OLD_FULL_VERSION\"" ]; do
         sleep 1
