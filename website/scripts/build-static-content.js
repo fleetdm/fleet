@@ -645,9 +645,9 @@ module.exports = {
             if(!openPosition.experience){
               throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing an "experience" value. To resolve, add an "experience" value to the "${openPosition.jobTitle}" position and try running this script again.`);
             }
-            if(openPosition.ote){
-              if(typeof openPosition.ote !== 'string') {
-                throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML has an invalid "ote" value. (expected a strong, but instead got a ${typeof openPosition.ote}) To resolve, change the "ote" value of the "${openPosition.jobTitle}" position to be a string that contains the on target earnings for this position and try running this script again.`);
+            if(openPosition.onTargetEarnings){
+              if(typeof openPosition.onTargetEarnings !== 'string') {
+                throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML has an invalid "onTargetEarnings" value. (expected a strong, but instead got a ${typeof openPosition.onTargetEarnings}) To resolve, change the "onTargetEarnings" value of the "${openPosition.jobTitle}" position to be a string that contains the on target earnings for this position and try running this script again.`);
               }
             }
             let pageTitle = openPosition.jobTitle;
