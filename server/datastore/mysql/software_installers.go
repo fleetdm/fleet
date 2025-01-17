@@ -1022,7 +1022,7 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 				MAX(id)
 			FROM host_software_installs
 			WHERE
-				software_installer_id = :installer_id AND host_id = :host_id
+				software_installer_id = :installer_id AND host_id = :host_id AND host_deleted_at IS NULL
 			GROUP BY
 				host_id, software_installer_id)
 `
