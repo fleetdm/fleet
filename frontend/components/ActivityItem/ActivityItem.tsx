@@ -117,6 +117,7 @@ const ActivityItem = ({
           user={{ gravatar_url }}
           size="small"
           hasWhiteBackground
+          useFleetAvatar={activity.fleet_initiated}
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
