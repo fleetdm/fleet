@@ -735,8 +735,13 @@ if [ "$cherry_pick_resolved" = "false" ]; then
             echo -n " - No PRs found, please verify they are not missing in the issue."
         fi
         for val in $prs_for_issue; do
-            echo -n " $val"
-            total_prs+=("$val")
+            pr_base_ref=$(gh pr view "$val" --json baseRefName | jq -r .baseRefName)
+            if [[ "$pr_base_ref" != "main" ]]; then
+                echo -n " - PR $val is not based off main. Skipping."
+            else
+                echo -n " $val"
+                total_prs+=("$val")
+            fi
         done
         echo
     done
@@ -873,4 +878,3 @@ else
     echo "Placeholder, Cherry pick failed....figure out what to do..."
     exit 1
 fi
-
