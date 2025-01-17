@@ -294,7 +294,9 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "pezhub" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
+                --assignee "pezhub"  --label "#g-mdm" --label ":release" \
+                --assignee "jmwatts" --label "#g-software" \
+                --assignee "xpkoala" --label "#g-orchestration"
             rm -f temp_qa_issue_file
         fi
     else
