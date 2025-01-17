@@ -9,6 +9,7 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+# The tool that was called on the command line (probably `make` or `fdm`).
 TOOL_CMD = "make"
 
 ifdef GO_BUILD_RACE_ENABLED
@@ -161,30 +162,13 @@ dump-test-schema: test-schema
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
-# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
-#						 
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
+# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
+# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.						 
 PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
-
-DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
-ifeq ($(CI_TEST_PKG), main)
-	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
-else ifeq ($(CI_TEST_PKG), integration)
-	CI_PKG_TO_TEST="server/service"
-else ifeq ($(CI_TEST_PKG), mysql)
-	CI_PKG_TO_TEST="server/datastore/mysql/..."
-else ifeq ($(CI_TEST_PKG), fleetctl)
-	CI_PKG_TO_TEST="cmd/fleetctl/..."
-else ifeq ($(CI_TEST_PKG), vuln)
-	CI_PKG_TO_TEST="server/vulnerabilities/..."
-else
-	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
-endif
-
-ci-pkg-list:
-	@echo $(CI_PKG_TO_TEST)
-
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
@@ -232,9 +216,36 @@ run-go-tests:
 debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
+# Set up packages for CI testing.
+DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+ifeq ($(CI_TEST_PKG), main)
+	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+else ifeq ($(CI_TEST_PKG), integration)
+	CI_PKG_TO_TEST="server/service"
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST="server/datastore/mysql/..."
+else ifeq ($(CI_TEST_PKG), fleetctl)
+	CI_PKG_TO_TEST="cmd/fleetctl/..."
+else ifeq ($(CI_TEST_PKG), vuln)
+	CI_PKG_TO_TEST="server/vulnerabilities/..."
+else
+	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
+endif
 # Command used in CI to run all tests.
 .help-short--test-go:
-	@echo "Run the Go tests (all packages and tests -- used in CI)"
+	@echo "Run Go tests for CI"
+.help-long--test-go:
+	@echo "Run one or more bundle of Go tests. These are bundled together to try and make CI testing more parallelizable (and thus faster)."
+.help-options--test-go:
+	@echo "CI_TEST_PKG=[test package]"
+	@echo "The test package bundle to run.  If not specified, all Go tests will run."
+.help-extra--test-go:
+	@echo "AVAILABLE TEST BUNDLES:"
+	@echo "  integration"
+	@echo "  mysql"
+	@echo "  fleetctl"
+	@echo "  vuln"
+	@echo "  main        (all tests not included in other bundles)"
 test-go: test-schema mock
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
