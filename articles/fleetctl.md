@@ -118,6 +118,7 @@ contexts:
     email: example@example.com
     token: your_token_here
 ```
+4. Now you're ready to run `fleetctl` commands!
 
 The token can also be set with `fleetctl config set --token`, but this may leak the token into a user's shell history.
 

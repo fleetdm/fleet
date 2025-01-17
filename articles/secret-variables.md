@@ -17,6 +17,8 @@ Examples of sensitive information include:
 
 A secret variable can be used in a script or MDM configuration profile by specifying the variable name in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the actual secret value. The prefix `FLEET_SECRET_` is required to indicate that the variable is a secret, and Fleet reserves this prefix for secret variables.
 
+For macOS and Linux scripts, if a secret doesn't have the `$FLEET_SECRET_` prefix, it will be treated as a local environment variable.
+
 **Example:**
 
 ```xml
@@ -114,6 +116,10 @@ EOF
 Afterward, you can upload the script/profile with secret variables via the Fleet API or UI.
 
 _Note:_ The checksum of Apple DDM profiles with secret variables now includes the timestamp of the last secrets update.
+
+## Escaping variable and interpolation
+
+The dollar sign ($) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
 ## Known limitations and issues
 

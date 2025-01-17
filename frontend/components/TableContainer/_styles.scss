@@ -1,8 +1,4 @@
 .table-container {
-  .form-field {
-    width: initial; // 100% causes weird rendering in dropdown
-  }
-
   // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
@@ -80,6 +76,10 @@
     gap: $pad-small;
     margin-top: 3px; // Fits button highlight during tabbing
 
+    .input-icon-field {
+      height: 40px; // Height 40px on table headers
+    }
+
     &.stack-table-controls {
       align-items: start;
 
@@ -142,6 +142,7 @@
 
     > span {
       line-height: 40px; // Match other header components' height but still align text baseline
+      min-width: fit-content;
     }
 
     .count-error {
