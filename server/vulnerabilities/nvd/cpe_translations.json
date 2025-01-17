@@ -545,5 +545,15 @@
       "product": ["cli"],
       "vendor": ["github"]
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["iterm2"],
+      "vendor": ["iterm2"]
+    }
   }
 ]
