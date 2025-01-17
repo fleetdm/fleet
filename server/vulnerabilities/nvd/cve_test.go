@@ -375,6 +375,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-37051"},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		},
 	}
 
 	cveOSTests := []struct {
