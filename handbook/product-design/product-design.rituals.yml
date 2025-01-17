@@ -16,7 +16,7 @@
   task: "Design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, create upcoming reference docs release branch, and align on priorities." 
+  description: "Create stories for feature requests prioritized during Feature fest and add these stories to the Drafting board, assign stories to product designers, create upcoming reference docs release branch, and align on priorities." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
