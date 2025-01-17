@@ -55,6 +55,10 @@ quit_application() {
 }
 `
 
+// This is a map from tokens to known app names. These app names differ from the name field we pull
+// from fleet_library_apps.
+var knownAppNames = map[string]string{"visual-studio-code": "Visual Studio Code.app", "firefox": "Firefox.app", "brave-browser": "Brave Browser.app"}
+
 func Up_20250109150150(tx *sql.Tx) error {
 	var scriptsToModify []struct {
 		InstallScriptContents string `db:"contents"`
@@ -113,10 +117,8 @@ WHERE fla.token IN (?)
 		}
 
 		appFileName := fmt.Sprintf("%s.app", sc.AppName)
-		if sc.Token == "visual-studio-code" {
-			// VSCode has the name "Microsoft Visual Studio Code" in fleet_library_apps, but the
-			// .app name is "Visual Studio Code.app", so account for that here.
-			appFileName = "Visual Studio Code.app"
+		if knownName, ok := knownAppNames[sc.Token]; ok {
+			appFileName = knownName
 		}
 
 		// This line will move the old version of the .app (if it exists) to the temporary directory
