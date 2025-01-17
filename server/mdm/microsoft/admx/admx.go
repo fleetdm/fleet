@@ -15,12 +15,9 @@ package admx
 import (
 	"encoding/xml"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 )
-
-var cdataRegexp = regexp.MustCompile(`(?s)<!\[CDATA\[(.*?)]]>`)
 
 func IsADMX(text string) bool {
 	// We try to unmarshal the string to see if it looks like a valid ADMX policy
