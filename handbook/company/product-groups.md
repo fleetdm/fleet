@@ -171,7 +171,7 @@ A user story is considered ready for implementation once:
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
-- [ ] Reviewed and approved during [weekly user story review](#user-story-review)
+- [ ] Reviewed and approved during [weekly user story review](#user-story-reviews)
 - [ ] [All checklists are complete](#defining-done)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
