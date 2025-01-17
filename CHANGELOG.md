@@ -2,8 +2,8 @@
 
 ### Bug fixes
 
-* Removed request timeout on bootstrap package uploads for consistency with software package upload endpoints
-* Fixed bug where iOS devices were being removed prematurely by expiration policy
+* Removed request timeout on bootstrap package uploads for consistency with software package upload endpoints.
+* Fixed bug where iOS devices were being removed prematurely by expiration policy.
 
 ## Fleet 4.62.1 (Jan 14, 2025)
 
