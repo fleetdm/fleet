@@ -108,9 +108,14 @@
       cursor: pointer;
     }
 
-    &--is-selected,
-    &:active {
-      background-color: $ui-vibrant-blue-25;
+    &--is-selected {
+      > span {
+        font-weight: $bold;
+      }
+
+      &:active {
+        background-color: $ui-vibrant-blue-25;
+      }
     }
 
     &--is-focused {

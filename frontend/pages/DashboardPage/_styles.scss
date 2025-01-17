@@ -60,16 +60,8 @@
     }
   }
 
-  &__platform_dropdown {
+  &__platform-filter {
     width: 138px;
-
-    .Select-menu-outer {
-      max-height: none;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
   }
 
   &__section {

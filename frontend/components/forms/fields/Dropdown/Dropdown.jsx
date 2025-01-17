@@ -138,7 +138,13 @@ class Dropdown extends Component {
       );
     }
     return (
-      <div className={`${baseClass}__option`}>
+      <div
+        className={`${baseClass}__option`}
+        style={{
+          backgroundColor: option.isSelected ? "#E5F7FF" : "#FFFFFF",
+          padding: "8px",
+        }}
+      >
         {option.label}
         {option.helpText && (
           <span className={`${baseClass}__help-text`}>{option.helpText}</span>

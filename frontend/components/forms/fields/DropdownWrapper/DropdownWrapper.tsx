@@ -184,11 +184,11 @@ const DropdownWrapper = ({
       boxShadow: "none",
       borderRadius: "4px",
       borderColor: state.isFocused
-        ? COLORS["core-fleet-blue"]
+        ? COLORS["core-vibrant-blue"]
         : COLORS["ui-fleet-black-10"],
       "&:hover": {
         boxShadow: "none",
-        borderColor: COLORS["core-fleet-blue"],
+        borderColor: COLORS["core-vibrant-blue"],
         ".dropdown-wrapper__single-value": {
           color: COLORS["core-vibrant-blue-over"],
         },
@@ -271,7 +271,9 @@ const DropdownWrapper = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "14px",
+      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: state.isSelected ? "bold" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
@@ -298,8 +300,9 @@ const DropdownWrapper = ({
       ".dropdown-wrapper__help-text": {
         fontSize: "12px",
         whiteSpace: "normal",
-        color: COLORS["ui-fleet-black-50"],
+        color: COLORS["ui-fleet-black-75"],
         fontStyle: "italic",
+        fontWeight: "normal",
       },
     }),
     menuPortal: (base) => ({ ...base, zIndex: 999 }), // Not hidden beneath scrollable sections

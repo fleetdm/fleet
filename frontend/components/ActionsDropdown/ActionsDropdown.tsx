@@ -157,7 +157,7 @@ const ActionsDropdown = ({
     placeholder: (provided, state) => ({
       ...provided,
       color: state.isFocused
-        ? COLORS["core-fleet-blue"]
+        ? COLORS["core-vibrant-blue"]
         : COLORS["core-fleet-black"],
       fontSize: "14px",
       lineHeight: "normal",

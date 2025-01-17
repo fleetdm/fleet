@@ -13,7 +13,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 
 import Icon from "components/Icon";
@@ -40,7 +40,7 @@ const generateDropdownOptions = (
   const filtered = options.filter(
     (o) =>
       !(
-        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
         (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
       )
   );
@@ -121,12 +121,13 @@ const TeamsDropdown = ({
       padding: "8px 0",
       backgroundColor: "initial",
       border: 0,
+      borderRadius: "4px",
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
         ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+          color: COLORS["core-vibrant-blue"],
         },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
@@ -210,7 +211,9 @@ const TeamsDropdown = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "14px",
+      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: state.isSelected ? "bold" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled

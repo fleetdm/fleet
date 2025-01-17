@@ -225,7 +225,12 @@ const UserMenu = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "15px",
+      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: state.isSelected ? "bold" : "normal",
+      "> .dropdown-wrapper__help-text": {
+        fontWeight: "normal", // TODO: Get this working
+      },
       color: COLORS["tooltip-bg"], // TODO: Why the mismatch in names in colors.scss and colors.ts
       whiteSpace: "nowrap",
       "&:hover": {

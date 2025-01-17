@@ -55,9 +55,7 @@
   }
 
   &__help-text {
-    font-size: $xx-small;
-    white-space: normal;
-    color: $ui-fleet-black-50;
+    @include help-text;
     font-style: italic;
   }
 }
@@ -326,6 +324,7 @@
         &.is-focused {
           background-color: $ui-vibrant-blue-10;
           color: $core-white;
+          font-weight: $bold;
         }
       }
     }
