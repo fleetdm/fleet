@@ -1068,10 +1068,54 @@ WHERE
 
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
+	// TODO(uniq): do we need to support team filtering or is that not needed because installers are
+	// associated to teams?
 
-	// TODO(mna): must also look in upcoming queue for pending, and most recent
-	// attempt for an installer might be in upcoming queue...
-	stmt := `
+	// TODO(uniq): do we need to handle the host_deleted_at and removed conditions somehow for upcoming
+	// installs like is happening with past installs?
+
+	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
+	// recent activity since we didn't really need to worry about the order of activities.
+	// Moving to a time-based approach would be more accurate but would require a more complex and
+	// potentially slower query.
+
+	stmt := `WITH 
+
+-- select most recent upcoming activities for each host
+upcoming AS (
+	SELECT
+		max(ua.id) AS upcoming_id, -- ensure we use only the most recent attempt for each host
+		host_id
+	FROM
+		upcoming_activities ua
+		JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		JOIN hosts h ON host_id = h.id
+	WHERE
+		activity_type IN('software_install', 'software_uninstall')
+		AND software_installer_id = :installer_id
+	GROUP BY
+		host_id
+),
+
+-- select most recent past activities for each host
+past AS (
+	SELECT
+		max(hsi.id) AS past_id, -- ensure we use only the most recent attempt for each host
+		host_id
+	FROM
+		host_software_installs hsi
+		JOIN hosts h ON host_id = h.id
+	WHERE
+		software_installer_id = :installer_id
+		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND host_deleted_at IS NULL
+		AND removed = 0
+	GROUP BY
+		host_id
+)
+
+-- count each status
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending_install, 1, 0)), 0) AS pending_install,
 	COALESCE(SUM( IF(status = :software_status_failed_install, 1, 0)), 0) AS failed_install,
@@ -1079,24 +1123,22 @@ SELECT
 	COALESCE(SUM( IF(status = :software_status_failed_uninstall, 1, 0)), 0) AS failed_uninstall,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
+
+-- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
-	software_installer_id,
+	past.host_id,
 	status
 FROM
-	host_software_installs hsi
-WHERE
-	software_installer_id = :installer_id
-	AND id IN(
-		SELECT
-			max(id) -- ensure we use only the most recently created install attempt for each host
-			FROM host_software_installs
-		WHERE
-			software_installer_id = :installer_id
-			AND host_deleted_at IS NULL
-			AND removed = 0
-		GROUP BY
-			host_id)
-) s`
+	past
+	JOIN host_software_installs hsi ON hsi.id = past_id
+UNION
+SELECT
+	upcoming.host_id,
+	IF(activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
+	FROM
+		upcoming
+		JOIN software_install_upcoming_activities siua ON upcoming_id = siua.upcoming_activity_id
+		JOIN upcoming_activities ua ON ua.id = upcoming_id) t`
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":                      installerID,
@@ -1119,16 +1161,42 @@ WHERE
 }
 
 func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
-	// Since VPP does not have uninstaller yet, we map the generic pending/failed statuses to the install statuses
-	switch status {
-	case fleet.SoftwarePending:
-		status = fleet.SoftwareInstallPending
-	case fleet.SoftwareFailed:
-		status = fleet.SoftwareInstallFailed
-	default:
-		// no change
+	// for pending status, we'll join through upcoming_activities
+	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
+		stmt := `JOIN (
+SELECT DISTINCT
+	host_id
+FROM 
+	upcoming_activities ua 
+	JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
+WHERE 
+	%s) hss ON hss.host_id = h.id`
+
+		filter := "vppua.adam_id = ? AND vppua.platform = ?"
+		switch status {
+		case fleet.SoftwareInstallPending:
+			filter += " AND ua.activity_type = 'vpp_app_install'"
+		case fleet.SoftwareUninstallPending:
+			// VPP does not have uninstaller yet so to preserve existing behavior of VPP filters we map uninstall to install
+			filter += " AND ua.activity_type = 'vpp_app_install'"
+		default:
+			// no change
+		}
+
+		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
 	}
-	// TODO(mna): must join with upcoming queue for pending
+
+	// Since VPP does not have uninstaller yet, we map the generic pending/failed statuses to the install statuses
+	if status == fleet.SoftwareFailed {
+		status = fleet.SoftwareInstallFailed
+	}
+
+	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
+	// recent activity since we didn't really need to worry about the order of activities.
+	// Moving to a time-based approach would be more accurate but would require a more complex and
+	// potentially slower query.
+
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -1147,7 +1215,7 @@ WHERE
 		GROUP BY
 			host_id, adam_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", "")) // TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
@@ -1163,15 +1231,14 @@ WHERE
 }
 
 func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
-	level.Info(ds.logger).Log("msg", "software installer join", "title_id", titleID, "status", status)
 	// for pending status, we'll join through upcoming_activities
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
 FROM 
-	software_install_upcoming_activities siua 
-	JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+	upcoming_activities ua 
+	JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 WHERE 
 	%s) hss ON hss.host_id = h.id`
 
@@ -1195,6 +1262,12 @@ WHERE
 		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
 	}
 
+	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
+	// recent activity since we didn't really need to worry about the order of activities.
+	// Moving to a time-based approach would be more accurate but would require a more complex and
+	// potentially slower query.
+
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -1207,7 +1280,8 @@ WHERE
 			max(id) -- ensure we use only the most recent install attempt for each host
 			FROM host_software_installs
 		WHERE
-			software_title_id = :title_id
+			host_id = hsi.host_id
+			AND software_title_id = :title_id
 			AND removed = 0
 		GROUP BY
 			host_id, software_title_id)
@@ -1218,7 +1292,7 @@ WHERE
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO(sarah): prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
+		// TODO(uniq): prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
 		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
 		"title_id": titleID,
 	})
