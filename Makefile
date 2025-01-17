@@ -157,7 +157,7 @@ endif
 	@echo "Update schema.sql from current migrations"
 test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
-
+dump-test-schema: test-schema
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
@@ -286,12 +286,14 @@ generate-dev: .prefix
 	@echo "Update mock data store"
 mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
+generate-mock: mock
 
 .help-short--doc:
 	@echo "Generate updated API documentation for activities, osquery flags"
 doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
+generate-doc: doc
 
 .help-short--deps:
 	@echo "Install dependent programs and libraries"
