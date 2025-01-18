@@ -203,8 +203,9 @@ const EditTeamsVppModal = ({
           Edit teams for <b>{currentToken.org_name}</b>.
         </p>
         <p>
-          If you remove a team, the App Store apps will be removed from that
-          team. They won&apos;t be uninstalled from hosts.
+          If you remove a team, App Store apps will be removed from that team,
+          and policy automations referencing those apps will be removed.
+          Installed apps won&apos;t be uninstalled from hosts.
         </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <TooltipWrapper
