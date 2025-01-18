@@ -16,6 +16,7 @@ import { IInvite } from "interfaces/invite";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
+import { getErrorReason } from "interfaces/errors";
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
@@ -58,11 +59,9 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
           "Registration successful! For security purposes, please log in."
         );
       } catch (error) {
-        console.error(error);
-        renderFlash(
-          "error",
-          "Could not complete registration, please try again."
-        );
+        const reason = getErrorReason(error);
+        console.error(reason);
+        renderFlash("error", reason);
       }
     },
     [invite_token, renderFlash, router, validInvite?.email]
