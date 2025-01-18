@@ -4,6 +4,7 @@
 #   hiringManagerName: 
 #   hiringManagerLinkedInUrl: 
 #   hiringManagerGithubUsername:
+#   onTargetEarnings: (Optional) A range of on target earnings for this role. If provided, this will replace the default range ('$48,000 - $480,000') on the page for this position.
 #   responsibilities: |
 #     Add markdown content to this field.
 #   experience: |
