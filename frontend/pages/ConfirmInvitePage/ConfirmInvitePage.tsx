@@ -91,8 +91,7 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
         </StackedWhiteBoxes>
       );
     }
-    // valid
-    // return form pre-filled with data from api response
+    // valid - return form pre-filled with data from api response
     return (
       <div className={`${baseClass}`}>
         <div className={`${baseClass}__lead-wrapper`}>
