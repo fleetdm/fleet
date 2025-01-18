@@ -10,11 +10,11 @@ import usersAPI from "services/entities/users";
 import inviteAPI, { IValidateInviteResp } from "services/entities/invites";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import Spinner from "components/Spinner";
 import { useQuery } from "react-query";
 import { IInvite } from "interfaces/invite";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
 
 interface IConfirmInvitePageProps {

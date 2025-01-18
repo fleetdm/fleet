@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -33,8 +33,8 @@ const ConfirmInviteForm = ({
     setFormData(newFormData);
   };
 
-  const onSubmit = useCallback(async () => {
-    await handleSubmit(formData);
+  const onSubmit = useCallback(() => {
+    handleSubmit(formData);
   }, [formData, handleSubmit]);
 
   return (
@@ -70,7 +70,6 @@ const ConfirmInviteForm = ({
       <Button
         onClick={onSubmit}
         className="confirm-invite-button"
-        type="submit"
         variant="brand"
       >
         Submit
