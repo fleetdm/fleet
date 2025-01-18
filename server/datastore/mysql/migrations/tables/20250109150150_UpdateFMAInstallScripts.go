@@ -16,7 +16,6 @@ func init() {
 }
 
 const quitApplicationFunc = `
-
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
@@ -54,6 +53,10 @@ quit_application() {
   fi
 }
 `
+
+// This is a map from tokens to known app filenames. These app names differ from the name field we pull
+// from fleet_library_apps.
+var knownGoodAppFilenames = map[string]string{"visual-studio-code": "Visual Studio Code.app", "firefox": "Firefox.app", "brave-browser": "Brave Browser.app"}
 
 func Up_20250109150150(tx *sql.Tx) error {
 	var scriptsToModify []struct {
@@ -112,11 +115,11 @@ WHERE fla.token IN (?)
 			}
 		}
 
+		// Default to using the name we pulled + ".app". We know that is incorrect for some apps
+		// though, so look them up in our map of known good names and use that if it exists.
 		appFileName := fmt.Sprintf("%s.app", sc.AppName)
-		if sc.Token == "visual-studio-code" {
-			// VSCode has the name "Microsoft Visual Studio Code" in fleet_library_apps, but the
-			// .app name is "Visual Studio Code.app", so account for that here.
-			appFileName = "Visual Studio Code.app"
+		if knownName, ok := knownGoodAppFilenames[sc.Token]; ok {
+			appFileName = knownName
 		}
 
 		// This line will move the old version of the .app (if it exists) to the temporary directory
