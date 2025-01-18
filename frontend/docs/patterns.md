@@ -198,6 +198,14 @@ export default PackComposerPage;
 
 ## Forms
 
+### Form buttons
+
+When building a React-controlled form, use the `Button` component for its submit button, and do not
+include a `type`, allowing it to default to `type="button"`, which is what we want. Using
+`type="submit"` leads to confusing behavior wherein the native HTML submit functionality
+interferes with our custom submit logic, causing the request to be canceled in a messy and hard to
+recognize way.
+
 ### Data validation
 
 #### How to validate
