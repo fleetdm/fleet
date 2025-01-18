@@ -33,6 +33,10 @@ const ConfirmInviteForm = ({
     setFormData(newFormData);
   };
 
+  const onSubmit = useCallback(async () => {
+    await handleSubmit(formData);
+  }, [formData, handleSubmit]);
+
   return (
     <form className={className} autoComplete="off">
       <InputField
@@ -64,7 +68,7 @@ const ConfirmInviteForm = ({
         parseTarget
       />
       <Button
-        onClick={handleSubmit}
+        onClick={onSubmit}
         className="confirm-invite-button"
         type="submit"
         variant="brand"
