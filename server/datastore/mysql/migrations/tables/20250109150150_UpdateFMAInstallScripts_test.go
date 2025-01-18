@@ -160,7 +160,6 @@ WHERE fla.token = ?`
 	expectedContentsTmpl := `
 #!/bin/sh
 
-
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
