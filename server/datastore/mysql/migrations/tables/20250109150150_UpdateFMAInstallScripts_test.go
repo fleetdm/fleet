@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -25,15 +26,27 @@ TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
-sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
+sudo cp -R "$TMPDIR/%s" "$APPDIR"
 	`
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
-	installScriptID, err := getOrInsertScript(txx, originalContents)
+	installScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Figma.app"))
 	require.NoError(t, err)
 	uninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
+	firefoxInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Firefox.app"))
+	require.NoError(t, err)
+	firefoxUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
+	vsCodeInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Visual Studio Code.app"))
+	require.NoError(t, err)
+	vsCodeUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
+	braveInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Brave Browser.app"))
+	require.NoError(t, err)
+	braveUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
 	require.NoError(t, err)
 	boxInstallScriptID, err := getOrInsertScript(txx, "echo install")
 	require.NoError(t, err)
@@ -56,6 +69,54 @@ sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
 		"com.figma.Desktop",
 		installScriptID,
 		uninstallScriptID,
+	)
+
+	// Insert Firefox (one of our target apps)
+	execNoErr(
+		t,
+		db,
+		`INSERT INTO fleet_library_apps (name, token, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"Mozilla Firefox",
+		"firefox",
+		"134.0.1",
+		"darwin",
+		"https://download-installer.cdn.mozilla.net/pub/firefox/releases/134.0.1/mac/en-US/Firefox%20134.0.1.dmg",
+		"b3342c12bb44b7c78351fb32442a0775c15fb2ac809c24447fd8f8d1e2a42c62",
+		"org.mozilla.firefox",
+		firefoxInstallScriptID,
+		firefoxUninstallScriptID,
+	)
+
+	// Insert VSCode (one of our target apps)
+	execNoErr(
+		t,
+		db,
+		`INSERT INTO fleet_library_apps (name, token, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"Microsoft Visual Studio Code",
+		"visual-studio-code",
+		"1.96.4",
+		"darwin",
+		"https://update.code.visualstudio.com/1.96.4/darwin-arm64/stable",
+		"331a1969ee128b251917ae76c58ac65eb1c81deb90aad277d6466f0531dffd8b",
+		"com.microsoft.VSCode",
+		vsCodeInstallScriptID,
+		vsCodeUninstallScriptID,
+	)
+
+	// Insert Brave (one of our target apps)
+	execNoErr(
+		t,
+		db,
+		`INSERT INTO fleet_library_apps (name, token, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"Brave",
+		"brave-browser",
+		"1.74.48.0",
+		"darwin",
+		"https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/174.48/Brave-Browser-arm64.dmg",
+		"c49b8d7e7029ed665bacafaf93a36b96b0889338f713ded62ed60c0306cf22af",
+		"com.brave.Browser",
+		braveInstallScriptID,
+		braveUninstallScriptID,
 	)
 
 	// Insert Box Drive, should be unaffected
@@ -96,10 +157,7 @@ FROM
 	ON fla.install_script_content_id = sc.id
 WHERE fla.token = ?`
 
-	err = sqlx.Get(db, &scriptContents, selectStmt, "figma")
-	require.NoError(t, err)
-
-	expectedContents := `
+	expectedContentsTmpl := `
 #!/bin/sh
 
 
@@ -113,7 +171,7 @@ quit_application() {
   fi
 
   local console_user
-  console_user=$(stat -f "%Su" /dev/console)
+  console_user=$(stat -f "%%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
@@ -148,13 +206,40 @@ TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
-quit_application com.figma.Desktop
-sudo [ -d "$APPDIR/Figma.app" ] && sudo mv "$APPDIR/Figma.app" "$TMPDIR/Figma.app.bkp"
-sudo cp -R "$TMPDIR/Figma.app" "$APPDIR"
+quit_application %[1]s
+sudo [ -d "$APPDIR/%[2]s" ] && sudo mv "$APPDIR/%[2]s" "$TMPDIR/%[2]s.bkp"
+sudo cp -R "$TMPDIR/%[2]s" "$APPDIR"
 	`
 
-	expectedChecksum := md5ChecksumScriptContent(expectedContents)
+	err = sqlx.Get(db, &scriptContents, selectStmt, "figma")
+	require.NoError(t, err)
 
+	expectedContents := fmt.Sprintf(expectedContentsTmpl, "com.figma.Desktop", "Figma.app")
+	expectedChecksum := md5ChecksumScriptContent(expectedContents)
+	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
+	require.Equal(t, expectedChecksum, scriptContents.Checksum)
+
+	err = sqlx.Get(db, &scriptContents, selectStmt, "firefox")
+	require.NoError(t, err)
+
+	expectedContents = fmt.Sprintf(expectedContentsTmpl, "org.mozilla.firefox", "Firefox.app")
+	expectedChecksum = md5ChecksumScriptContent(expectedContents)
+	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
+	require.Equal(t, expectedChecksum, scriptContents.Checksum)
+
+	err = sqlx.Get(db, &scriptContents, selectStmt, "visual-studio-code")
+	require.NoError(t, err)
+
+	expectedContents = fmt.Sprintf(expectedContentsTmpl, "com.microsoft.VSCode", "Visual Studio Code.app")
+	expectedChecksum = md5ChecksumScriptContent(expectedContents)
+	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
+	require.Equal(t, expectedChecksum, scriptContents.Checksum)
+
+	err = sqlx.Get(db, &scriptContents, selectStmt, "brave-browser")
+	require.NoError(t, err)
+
+	expectedContents = fmt.Sprintf(expectedContentsTmpl, "com.brave.Browser", "Brave Browser.app")
+	expectedChecksum = md5ChecksumScriptContent(expectedContents)
 	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
 	require.Equal(t, expectedChecksum, scriptContents.Checksum)
 
