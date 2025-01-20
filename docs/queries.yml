@@ -111,7 +111,7 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: MDM
+  name: MDM (macOS)
   platform: darwin
   description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in (if any).
   query: select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
@@ -122,15 +122,877 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: macOS profiles
+  name: macOS configuration profiles
   platform: darwin
-  description: Retrieves information about configuration profiles installed on a mscOS host.
+  description: Retrieves information about configuration profiles installed on a mscOS device.
   query: SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
   discoveryTable: macos_profiles
   purpose: Informational
   tags: built-in
 ---
-
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption key file (macOS)
+  platform: darwin
+  description: TODO
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
+  discoveryTable: filevault_prk
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption key file lines (macOS)
+  platform: darwin
+  description: TODO
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
+  discoveryTable: filevault_prk # Note: also file_lines, how do we want to handle this...?
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM (Windows)
+  platform: windows
+  description: Retrieves information about the mobile device management (MDM) solution a windows device is enrolled in.
+  query: |
+    WITH registry_keys AS (
+                            SELECT *
+                            FROM registry
+                            WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                        ),
+                        enrollment_info AS (
+                            SELECT
+                                MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                                MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                                MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                                MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                                MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                            FROM registry_keys
+                            GROUP BY key
+                        ),
+                        installation_info AS (
+                            SELECT data AS installation_type
+                            FROM registry
+                            WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                            LIMIT 1
+                        )
+                        SELECT
+                            e.aad_resource_id,
+                            e.discovery_service_url,
+                            e.provider_id,
+                            i.installation_type
+                        FROM installation_info i
+                        LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+            -- coalesce to 'unknown' and keep that state in the list
+            -- in order to account for hosts that might not have this
+            -- key, and servers
+                        WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+                        LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Munki info
+  platform: darwin
+  description: TODO
+  query: select version, errors, warnings from munki_info;
+  discoveryTable: munki_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (ChromeOS)
+  platform: chrome
+  description: TODO
+  query: SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1;
+  discoveryTable: munki_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (macOS/Linux)
+  platform: darwin, linux
+  description: TODO
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+      -- On Unix ia.interface is the name of the interface,
+      -- whereas on Windows ia.interface is the IP of the interface.
+        JOIN routes r ON r.interface = ia.interface
+    WHERE
+      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+      -- Type of route is "gateway" for Unix, "remote" for Windows.
+        AND r.type = 'gateway'
+      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+        AND (
+        -- Private IPv4 addresses.
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        -- Private IPv6 addresses start with 'fc' or 'fd'.
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (Windows)
+  platform: darwin, linux
+  description: TODO
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+      -- On Unix ia.interface is the name of the interface,
+      -- whereas on Windows ia.interface is the IP of the interface.
+        JOIN routes r ON r.interface = ia.address
+    WHERE
+      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+      -- Type of route is "gateway" for Unix, "remote" for Windows.
+        AND r.type = 'remote'
+      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+        AND (
+        -- Private IPv4 addresses.
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        -- Private IPv6 addresses start with 'fc' or 'fd'.
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Orbit information
+  platform: darwin, linux, windows
+  description: TODO
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+      -- On Unix ia.interface is the name of the interface,
+      -- whereas on Windows ia.interface is the IP of the interface.
+        JOIN routes r ON r.interface = ia.address
+    WHERE
+      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+      -- Type of route is "gateway" for Unix, "remote" for Windows.
+        AND r.type = 'remote'
+      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+        AND (
+        -- Private IPv4 addresses.
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        -- Private IPv6 addresses start with 'fc' or 'fd'.
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (ChromeOS)
+  platform: chrome
+  description: Retrieves information about a ChromeOS device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        os.version AS kernel_version
+      FROM
+        os_version os;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (unix)
+  platform: darwin, linux
+  description: Retrieves information about a Unix-based device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.extra,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        k.version AS kernel_version
+      FROM
+        os_version os,
+        kernel_info k;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (Windows)
+  platform: windows
+  description: Retrieves information about a Unix-based device's operating system.
+  query: |
+    WITH display_version_table AS (
+        SELECT data as display_version
+        FROM registry
+        WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+      ),
+      ubr_table AS (
+      SELECT data AS ubr
+      FROM registry
+      WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+      )
+      SELECT
+        os.name,
+        os.platform,
+        os.arch,
+        k.version as kernel_version,
+        COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+        COALESCE(d.display_version, '') AS display_version
+      FROM
+        os_version os,
+        kernel_info k
+      LEFT JOIN
+        display_version_table d
+      LEFT JOIN
+        ubr_table u;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system version (Windows)
+  platform: windows
+  description: Retrieves operating system version information from a windows device.
+  query: |
+    WITH display_version_table AS (
+          SELECT data as display_version
+          FROM registry
+          WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+        ),
+        ubr_table AS (
+          SELECT data AS ubr
+          FROM registry
+          WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+        )
+        SELECT
+          os.name,
+          COALESCE(d.display_version, '') AS display_version,
+          COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+        FROM
+          os_version os,
+          kernel_info k
+        LEFT JOIN
+          display_version_table d
+        LEFT JOIN
+          ubr_table u;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery flags
+  platform: darwin, linux, windows
+  description: Gathers information about the osquery process running on a device.
+  query: select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery information
+  platform: darwin, windows, linux
+  description: Gathers information about the osquery process running on a device.
+  query: select * from osquery_info limit 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Scheduled osquery statistics
+  platform: darwin, windows, linux
+  description: TODO
+  query: |
+    SELECT *,
+            (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+          FROM osquery_schedule;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Chrome)
+  platform: chrome
+  description: Gathers information about software installed on a ChromeOS device.
+  query: |
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      '' AS installed_path
+    FROM chrome_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (macOS)
+  platform: darwin
+  description: Gathers information about software installed on a device running linux.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Linux)
+  platform: linux
+  description: Gathers information about software installed on a device running linux.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software codesign (macOS)
+  platform: darwin
+  description: A software override query to append codesign information to macOS software entries. Requires `fleetd`
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Firefox override query (macOS)
+  platform: darwin
+  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  query: |
+    WITH app_paths AS (
+            SELECT path
+            FROM apps
+            WHERE bundle_identifier = 'org.mozilla.firefox'
+          ),
+          remoting_name AS (
+            SELECT value, path
+            FROM parse_ini
+            WHERE key = 'RemotingName'
+            AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+          )
+          SELECT
+            CASE
+              WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+              ELSE 'Firefox.app'
+            END AS name,
+            COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+            apps.bundle_identifier AS bundle_identifier,
+            '' AS extension_id,
+            '' AS browser,
+            'apps' AS source,
+            '' AS vendor,
+            apps.last_opened_time AS last_opened_at,
+            apps.path AS installed_path
+          FROM apps
+          LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+          WHERE apps.bundle_identifier = 'org.mozilla.firefox';
+  discoveryTable: parse_ini
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: VScode extensions
+  platform: darwin, windows, linux
+  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name,
+      version,
+      '' AS bundle_identifier,
+      uuid AS extension_id,
+      '' AS browser,
+      'vscode_extensions' AS source,
+      publisher AS vendor,
+      '' AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN vscode_extensions USING (uid)
+  discoveryTable: vscode_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Windows)
+  platform: windows
+  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'programs' AS source,
+      publisher AS vendor,
+      install_location AS installed_path
+    FROM programs
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM python_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'ie_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM ie_extensions
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'chocolatey_packages' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM chocolatey_packages;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: System information
+  platform: windows
+  description: Retrieves system information about a host.
+  query: select * from system_info limit 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Uptime
+  platform: darwin, linux, windows
+  description: TODO
+  query: select * from uptime limit 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users
+  platform: darwin, linux, windows
+  description: Retrieves information about user accounts on a device.
+  query: |
+    WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '');
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users (Chrome)
+  platform: chrome
+  description: Retrieves information about user accounts on a device.
+  query: SELECT uid, username, email FROM users;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Windows update history
+  platform: windows
+  description: SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded';
+  discoveryTable: windows_update_history
+  purpose: Informational
+  tags: built-in
+---
 
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
 apiVersion: v1
@@ -736,4 +1598,3 @@ spec:
   purpose: Informational
   tags: fleet, osquery, table, schema
   contributors: nonpunctual
----
