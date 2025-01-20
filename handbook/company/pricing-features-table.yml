@@ -283,7 +283,7 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync user accounts via Okta, AD, or any IDP. 
-  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
+  documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
