@@ -1597,6 +1597,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.currIndex < 0 {
 				m.currIndex = 0
 			}
+		case "p":
+			return m, tea.Batch(
+				tea.Printf("Command payload: \n%s\n", m.table.SelectedRow()[len(m.table.Columns())-2]),
+			)
 
 		}
 	}
@@ -1611,7 +1615,7 @@ func (m model) View() string {
 func printTableWithBubbleTea(c *cli.Context, columns []string, data [][]string) {
 	var btCols []table.Column
 	for _, c := range columns {
-		btCols = append(btCols, table.Column{Title: c, Width: len(c) + 5})
+		btCols = append(btCols, table.Column{Title: c, Width: len(c) + 20})
 	}
 
 	var btRows []table.Row
