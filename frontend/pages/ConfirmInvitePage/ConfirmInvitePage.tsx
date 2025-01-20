@@ -102,7 +102,6 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
           </p>
         </div>
         <ConfirmInviteForm
-          className={`${baseClass}__form`}
           defaultFormData={{
             // at this point we will have a valid invite per error check above
             name: validInvite?.name,
