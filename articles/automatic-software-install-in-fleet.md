@@ -1,5 +1,7 @@
 # Automatically install software
 
+_Available in Fleet Premium_
+
 Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring Fleet for automatic installation of software on hosts using uploaded custom packages or Fleet-maintained apps and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works. 
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
@@ -10,6 +12,7 @@ Fleet allows its users to upload trusted software installation files to be insta
 
 * Fleet Premium with Admin permissions.
 * Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater, or [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0) or greater for Apple App Store (VPP) apps.
+* For VPP apps, see [additional prerequisites](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
 
 ## Step-by-step instructions
 
