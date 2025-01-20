@@ -37,7 +37,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
-	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
 type OsqueryService interface {
@@ -654,7 +654,7 @@ type Service interface {
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 
 	// UninstallSoftwareTitle uninstalls a software title in the given host.
 	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error

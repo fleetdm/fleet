@@ -266,10 +266,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 
 	listStmts := []string{
 		// list pending scripts
-		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
-			IF(sua.policy_id IS NOT NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) as name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) as name,
 			u.id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
 			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
@@ -307,12 +306,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.activity_type = 'script'
 `,
 		// list pending software installs
-		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
-			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
-			-- so we mark those as "Fleet"
-			IF(ua.user_id IS NULL AND NOT JSON_EXTRACT(ua.payload, '$.self_service'), 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
 			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,
@@ -352,12 +348,9 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.activity_type = 'software_install'
 		`,
 		// list pending software uninstalls
-		// TODO(mna): should the user name IF use fleet_initiated?
 		`SELECT
 			ua.execution_id as uuid,
-			-- policies with automatic installers generate a host_software_installs with (user_id=NULL,self_service=0),
-			-- so we mark those as "Fleet"
-			IF(ua.user_id IS NULL, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
+			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, JSON_EXTRACT(ua.payload, '$.user.name'))) AS name,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, JSON_EXTRACT(ua.payload, '$.user.gravatar_url')) as gravatar_url,
 			COALESCE(u.email, JSON_EXTRACT(ua.payload, '$.user.email')) as user_email,

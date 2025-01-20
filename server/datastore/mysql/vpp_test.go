@@ -505,11 +505,11 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: u})
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, app1.VPPAppID, "a", "b", false, nil)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, app1.VPPAppID, "a", "b", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	// non-existing host
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID+1, app2.VPPAppID, "c", "d", true, nil)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID+1, app2.VPPAppID, "c", "d", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -524,7 +524,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		HardwareSerial: "654321b",
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", true, nil)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 
 	acts, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
