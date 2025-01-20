@@ -55,6 +55,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	err := ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
@@ -200,6 +201,21 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID3, exec2.InstallerID)
 	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 	require.True(t, exec2.SelfService)
+
+	// Create install request, don't fulfil it, delete and restore host.
+	// Should not appear in list of pending installs for that host.
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, false, nil)
+	require.NoError(t, err)
+
+	err = ds.DeleteHost(ctx, host3.ID)
+	require.NoError(t, err)
+
+	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
+	require.NoError(t, err)
+
+	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Empty(t, hostInstalls4)
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
