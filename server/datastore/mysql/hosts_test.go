@@ -119,6 +119,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
+		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -4114,6 +4115,92 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	_, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+
+	// host expiration is still disabled
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Len(t, hosts, 10)
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, deleted, 5)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+
+	// And it doesn't remove more than it should
+	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, deleted, 0)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	require.Len(t, hosts, 5)
+}
+
+func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
+	// iOS/iPadOS devices don't have host_seen_times, meaning they
+	// would previously rely on created_at records for removal,
+	// and get deleted once the host's age was beyong the expiry
+	// window. We now check detail_updated_at, something that gets
+	// updated every time details are refetched, if seen time is
+	// not present.
+	hostExpiryWindow := 70
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryEnabled = false
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		platform := "ios"
+		if i%2 == 0 {
+			platform = "ipados"
+		}
+		detailsUpdated := time.Now()
+		if i >= 5 {
+			detailsUpdated = detailsUpdated.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+		}
+
+		_, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: detailsUpdated,
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// There are no host_seen_times for ios/ipados devices
+		if _, err := q.ExecContext(context.Background(), "DELETE FROM host_seen_times"); err != nil {
+			return err
+		}
+		// Make sure created_at is old enough to always get
+		// removed, we want to make sure that
+		// detail_updated_at is the column being checked
+		if _, err := q.ExecContext(context.Background(), "UPDATE hosts SET created_at = '2020-01-01 00:00:01'"); err != nil {
+			return err
+		}
+		return nil
+	})
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 

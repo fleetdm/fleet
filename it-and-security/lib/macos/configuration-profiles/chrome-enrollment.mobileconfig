@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>CloudManagementEnrollmentToken</key>
-			<string>$MANAGED_CHROME_ENROLLMENT_TOKEN</string>
+			<string>$FLEET_SECRET_MANAGED_CHROME_ENROLLMENT_TOKEN</string>
 			<key>CloudReportingEnabled</key>
 			<true/>
 			<key>PayloadDisplayName</key>

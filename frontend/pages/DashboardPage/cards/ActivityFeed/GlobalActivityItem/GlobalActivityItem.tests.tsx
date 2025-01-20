@@ -6,7 +6,7 @@ import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
 
-import ActivityItem from ".";
+import GlobalActivityItem from ".";
 
 describe("Activity Feed", () => {
   it("renders avatar, actor name, timestamp", async () => {
@@ -17,7 +17,7 @@ describe("Activity Feed", () => {
       created_at: currentDate.toISOString(),
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Test User");
@@ -31,7 +31,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.CreatedPack,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("created pack.")).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("Activity Feed", () => {
       type: ActivityType.CreatedPack,
       details: { pack_name: "Test pack" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("created pack .")).toBeInTheDocument();
     expect(screen.getByText("Test pack")).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("Activity Feed", () => {
 
   it("renders a live_query type activity", () => {
     const activity = createMockActivity({ type: ActivityType.LiveQuery });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("ran a live query .")).toBeInTheDocument();
   });
@@ -61,7 +61,7 @@ describe("Activity Feed", () => {
         targets_count: 10,
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("ran a live query on 10 hosts.")
@@ -76,11 +76,10 @@ describe("Activity Feed", () => {
         query_sql: "SELECT * FROM users",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
-    expect(screen.getByText("Show query")).toBeInTheDocument();
   });
   it("renders a live_query type activity for a saved live query with targets and performance impact", () => {
     const activity = createMockActivity({
@@ -97,14 +96,13 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
     expect(
       screen.getByText(/with excessive performance impact on 10 hosts\./)
     ).toBeInTheDocument();
-    expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
   it("renders a live_query type activity for a saved live query with targets and no performance impact", () => {
@@ -122,19 +120,18 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
     expect(screen.queryByText(/Undetermined/)).toBeNull();
-    expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
   it("renders an applied_spec_pack type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecPack,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited a pack using fleetctl.")
@@ -145,7 +142,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecPolicy,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited policies using fleetctl.")
@@ -156,7 +153,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecSavedQuery,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited a query using fleetctl.")
@@ -168,7 +165,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AppliedSpecSavedQuery,
       details: { specs: [createMockQuery(), createMockQuery()] },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited queries using fleetctl.")
@@ -180,7 +177,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AppliedSpecTeam,
       details: { teams: [createMockTeamSummary()] },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited the team using fleetctl.")
@@ -195,7 +192,7 @@ describe("Activity Feed", () => {
         teams: [createMockTeamSummary(), createMockTeamSummary()],
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited multiple teams using fleetctl.")
@@ -206,7 +203,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.UserAddedBySSO,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("was added to Fleet by SSO.")).toBeInTheDocument();
   });
@@ -216,7 +213,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedAgentOptions,
       details: { team_name: "Test Team 1" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited agent options on team.")
@@ -229,7 +226,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedAgentOptions,
       details: { global: true },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("edited agent options.")).toBeInTheDocument();
   });
@@ -239,7 +236,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserLoggedIn,
       details: { public_ip: "192.168.0.1" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("successfully logged in from public IP 192.168.0.1.")
@@ -250,7 +247,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserLoggedIn,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("successfully logged in.")).toBeInTheDocument();
   });
@@ -260,7 +257,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserFailedLogin,
       details: { email: "foo@example.com", public_ip: "192.168.0.1" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(" failed to log in from public IP 192.168.0.1.", {
@@ -281,7 +278,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserCreated,
       details: { user_email: "newuser@example.com" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("created a user", { exact: false })
@@ -298,7 +295,7 @@ describe("Activity Feed", () => {
         user_id: 3,
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is the same as user_id:
     // "<name> activated their account."
@@ -312,7 +309,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserDeleted,
       details: { user_email: "newuser@example.com" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted a user", { exact: false })
@@ -329,7 +326,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserChangedGlobalRole,
       details: { user_email: "newuser@example.com", role: "maintainer" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -344,7 +341,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserChangedGlobalRole,
       details: { user_email: "newuser@example.com", role: "maintainer" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -363,7 +360,7 @@ describe("Activity Feed", () => {
         role: "observer",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is the same as user_id:
     // "<user_email> was assigned the <role> for all teams."
@@ -384,7 +381,7 @@ describe("Activity Feed", () => {
         role: "maintainer",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id on premium:
     // "<actor_full_name> changed <user_email> to <role> for all teams."
@@ -407,7 +404,7 @@ describe("Activity Feed", () => {
         role: "maintainer",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     //  If actor_id is different from user_id on free:
     // "<actor_full_name> changed <user_email> to <role>."
@@ -433,7 +430,7 @@ describe("Activity Feed", () => {
         team_name: "Test Team",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -453,7 +450,7 @@ describe("Activity Feed", () => {
         team_name: "Test Team",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     // If actor_id is the same as user_id:
     // "<user_email> was assigned the <role> role for the <team_name> team."
@@ -481,7 +478,7 @@ describe("Activity Feed", () => {
         team_name: "Test Team",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id:
     // "<actor_full_name> changed <user_email> to <role> for the <team_name> team."
@@ -506,7 +503,7 @@ describe("Activity Feed", () => {
         team_name: "Test Team",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -518,7 +515,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserDeletedGlobalRole,
       details: { user_email: "newuser@example.com", role: "maintainer" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -533,7 +530,7 @@ describe("Activity Feed", () => {
       type: ActivityType.UserDeletedGlobalRole,
       details: { user_email: "newuser@example.com", role: "maintainer" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
@@ -547,7 +544,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EnabledDiskEncryption,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("enforced disk encryption for hosts assigned to the", {
@@ -566,7 +563,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EnabledMacDiskEncryption,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("enforced disk encryption for hosts assigned to the", {
@@ -584,7 +581,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DisabledMacDiskEncryption,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -606,7 +603,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DisabledDiskEncryption,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -627,7 +624,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EnabledDiskEncryption,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("enforced disk encryption for hosts with no team.")
@@ -641,7 +638,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EnabledMacDiskEncryption,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("enforced disk encryption for hosts with no team.")
@@ -654,7 +651,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DisabledDiskEncryption,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -673,7 +670,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DisabledMacDiskEncryption,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -691,7 +688,7 @@ describe("Activity Feed", () => {
       type: ActivityType.ChangedMacOSSetupAssistant,
       details: { name: "dep-profile.json" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -708,7 +705,7 @@ describe("Activity Feed", () => {
       type: ActivityType.ChangedMacOSSetupAssistant,
       details: { name: "dep-profile.json", team_name: "Workstations" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -725,7 +722,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedMacOSSetupAssistant,
       details: { name: "dep-profile.json" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -742,7 +739,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedMacOSSetupAssistant,
       details: { name: "dep-profile.json", team_name: "Workstations" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -759,7 +756,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AddedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("added a bootstrap package (", { exact: false })
@@ -781,7 +778,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted a bootstrap package (", { exact: false })
@@ -803,7 +800,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AddedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("added a bootstrap package (", { exact: false })
@@ -822,7 +819,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted a bootstrap package (", { exact: false })
@@ -841,7 +838,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EnabledMacOSSetupEndUserAuth,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -858,7 +855,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacOSSetupEndUserAuth,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -873,7 +870,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DisabledMacOSSetupEndUserAuth,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -890,7 +887,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacOSSetupEndUserAuth,
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
@@ -908,7 +905,7 @@ describe("Activity Feed", () => {
         host_display_names: ["foo"],
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("transferred host", { exact: false })
@@ -926,7 +923,7 @@ describe("Activity Feed", () => {
         team_name: "Alphas",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("transferred host", { exact: false })
@@ -943,7 +940,7 @@ describe("Activity Feed", () => {
         host_display_names: ["foo", "bar", "baz"],
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("transferred 3 hosts", { exact: false })
@@ -963,7 +960,7 @@ describe("Activity Feed", () => {
         team_name: "Alphas",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("transferred 3 hosts", { exact: false })
@@ -981,7 +978,7 @@ describe("Activity Feed", () => {
         host_serial: "ABCD",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -1002,7 +999,7 @@ describe("Activity Feed", () => {
         mdm_platform: "apple",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
@@ -1022,11 +1019,10 @@ describe("Activity Feed", () => {
         host_display_name: "ABCD",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
-        console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
           "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
@@ -1040,7 +1036,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AddedScript,
       details: { script_name: "foo.sh", team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("added script ", { exact: false })
@@ -1062,7 +1058,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedScript,
       details: { team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited scripts", { exact: false })
@@ -1085,7 +1081,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedScript,
       details: { script_name: "foo.sh", team_name: "Alphas" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted script ", { exact: false })
@@ -1107,7 +1103,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AddedScript,
       details: { script_name: "foo.sh" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("added script ", { exact: false })
@@ -1123,7 +1119,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedScript,
       details: {},
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited scripts", { exact: false })
@@ -1138,7 +1134,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedScript,
       details: { script_name: "foo.sh" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted script ", { exact: false })
@@ -1158,7 +1154,7 @@ describe("Activity Feed", () => {
         team_name: "Alphas",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("added", { exact: false })).toBeInTheDocument();
     expect(
@@ -1184,7 +1180,7 @@ describe("Activity Feed", () => {
         team_name: "Alphas",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
@@ -1207,7 +1203,7 @@ describe("Activity Feed", () => {
         team_name: "Alphas",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("deleted", { exact: false })).toBeInTheDocument();
     expect(
@@ -1229,7 +1225,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AddedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("added", { exact: false })).toBeInTheDocument();
     expect(
@@ -1248,7 +1244,7 @@ describe("Activity Feed", () => {
         software_package: "foobar.pkg",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
@@ -1261,7 +1257,7 @@ describe("Activity Feed", () => {
       type: ActivityType.DeletedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("deleted", { exact: false })).toBeInTheDocument();
     expect(
@@ -1279,7 +1275,7 @@ describe("Activity Feed", () => {
         query_ids: [1, 2, 3],
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("deleted multiple queries", { exact: false })
@@ -1293,7 +1289,7 @@ describe("Activity Feed", () => {
         host_display_name: "Foo Host",
       },
     });
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
@@ -1310,7 +1306,7 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("Test Admin")).toBeInTheDocument();
   });
 
@@ -1325,7 +1321,7 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 
@@ -1340,7 +1336,7 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("Test Admin")).toBeInTheDocument();
   });
 
@@ -1355,7 +1351,7 @@ describe("Activity Feed", () => {
       },
     });
 
-    render(<ActivityItem activity={activity} isPremiumTier />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 
@@ -1363,7 +1359,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedNdesScepProxy,
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
@@ -1377,7 +1373,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedNdesScepProxy,
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
@@ -1391,7 +1387,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedNdesScepProxy,
     });
-    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
@@ -1399,41 +1395,5 @@ describe("Activity Feed", () => {
         /removed Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
       )
     ).toBeInTheDocument();
-  });
-
-  it("renders setup experience installed software correctly", () => {
-    const activity = createMockActivity({
-      type: ActivityType.InstalledSoftware,
-      actor_full_name: "",
-      actor_email: "",
-      actor_id: undefined,
-    });
-    render(<ActivityItem activity={activity} isPremiumTier />);
-
-    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
-  });
-
-  it("renders setup experience ran script correctly", () => {
-    const activity = createMockActivity({
-      type: ActivityType.RanScript,
-      actor_full_name: "",
-      actor_email: "",
-      actor_id: undefined,
-    });
-    render(<ActivityItem activity={activity} isPremiumTier />);
-
-    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
-  });
-
-  it("renders setup experience installed VPP app correctly", () => {
-    const activity = createMockActivity({
-      type: ActivityType.RanScript,
-      actor_full_name: "",
-      actor_email: "",
-      actor_id: undefined,
-    });
-    render(<ActivityItem activity={activity} isPremiumTier />);
-
-    expect(screen.getByText(/Fleet/)).toBeInTheDocument();
   });
 });

@@ -1,34 +1,25 @@
 # `migration_test.sh`
 
 This script is used to test the migration from one local TUF repository to a new local TUF repository (with new roots).
-The "old" TUF will be hosted on port 8081, and the new TUF will be hosted on port 8082.
 
 > Currently supports running on macOS only.
 
 The script is interactive and assumes the user will use a Windows and Ubuntu VM to install fleetd and test the changes on those platforms too.
 
-Usage:
+- `FLEET_URL`: The Fleet server will be hosted on https://localhost:8080, tunneled via ngrok to e.g. https://s123ssfsdgsdf.ngrok.app.
+- `OLD_TUF_URL`: The "old" TUF will be hosted on http://localhost:8081, tunneled via ngrok to e.g. https://121e9b4a4dab.ngrok.app.
+- `NEW_TUF_URL`: The "new" TUF will be hosted on http://localhost:8082, tunneled via ngrok to e.g. https://12oe8b5b3cc6.ngrok.app.
+- `SIMULATE_NEW_TUF_OUTAGE=1`: Simulates an outage of the new TUF server during the migration.
+- `ORBIT_PATCH_IN_OLD_TUF=1`: Simulates an outage of the new TUF server during the migration and a "need" to patch orbit on the old repository.
+- `HOSTNAMES`: Space separated list of hostname where fleetd will be installed to test the migration (as reported by osquery/Fleet).
+- `NO_TEAM_ENROLL_SECRET`: Enroll secret of "No team" on your Fleet instance.
 ```sh
-FLEET_URL=https://host.docker.internal:8080 \
-NO_TEAM_ENROLL_SECRET=... \
-WINDOWS_HOST_HOSTNAME=DESKTOP-USFLJ3H \
-LINUX_HOST_HOSTNAME=foobar-ubuntu \
-./tools/tuf/test/migration/migration_test.sh
-```
-
-To test TUFs with HTTPS instead of HTTP with two ngrok tunnels that connect to 8081/8082:
-```sh
+FLEET_URL=https://s123ssfsdgsdf.ngrok.app \
 OLD_TUF_URL=https://121e9b4a4dab.ngrok.app \
 NEW_TUF_URL=https://12oe8b5b3cc6.ngrok.app \
-```
-
-To simulate an outage of the new TUF server during the migration run the above with:
-```sh
-SIMULATE_NEW_TUF_OUTAGE=1 \
-```
-
-To simulate an outage of the new TUF server during the migration and a "need" to patch orbit on the old repository:
-```sh
+NO_TEAM_ENROLL_SECRET=... \
+HOSTNAMES="DESKTOP-USFLJ3H foobar-ubuntu" \
 SIMULATE_NEW_TUF_OUTAGE=1 \
 ORBIT_PATCH_IN_OLD_TUF=1 \
+./tools/tuf/test/migration/migration_test.sh
 ```

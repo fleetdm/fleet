@@ -2231,6 +2231,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 
 	case "result":
+		// NOTE(dantecatalfamo) We partially unmarshal the data here because osquery can send data we don't
+		// support unmarshaling, like differential query results. We also pass the raw data to logging
+		// facilities further down. Results are unmarshaled one at a time inside of SubmitResultLogs.
+		// We should re-address this once json/v2 releases and we can speed up parsing times.
 		var results []json.RawMessage
 		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
 		// Maybe there's a reason for it, we need to test such a change before fixing what appears
