@@ -781,4 +781,8 @@ func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, 
 
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	panic("unimplemented")
+	// err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
+	// if err != nil {
+	// 	return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+	// }
 }
