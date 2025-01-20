@@ -171,7 +171,7 @@ A user story is considered ready for implementation once:
 - [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
-- [ ] Reviewed and approved during [weekly user story review](#user-story-review)
+- [ ] Reviewed and approved during [weekly user story review](#user-story-reviews)
 - [ ] [All checklists are complete](#defining-done)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
@@ -201,7 +201,7 @@ To successfully deliver a user story, the people working on it need to know what
 
 Every user story has a product and engineering checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively specify, estimate, implement, and test the change. The Product Designer is the DRI for completing the product checklist, and the Engineering Manager (EM) is the DRI for completing the engineering checklist.
 
-When the Product Designer has completed the product checklist, it is moved to the "In review" column of the drafting board and reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
+When the Product Designer has completed the product checklist, it is moved to the "User story review" column of the drafting board and reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
 
 When a user story completes the review process, it is moved to the "Ready for spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
 

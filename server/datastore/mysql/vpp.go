@@ -616,7 +616,7 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string, selfService bool, policyID *uint,
+	commandUUID, associatedEventID string, opts fleet.HostSoftwareInstallOptions,
 ) error {
 	const (
 		insertUAStmt = `
@@ -651,26 +651,31 @@ VALUES
 		return ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
+	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
+	var priority int
+	if opts.ForSetupExperience {
+		// a bit naive/simplistic for now, but we'll support user-provided
+		// priorities in a future story and we can improve on how we manage those.
+		priority = 100
+	}
 	var userID *uint
-	fleetInitiated := true
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && policyID == nil {
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
-		fleetInitiated = false
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			0, // TODO(mna): detect if this is software install for setup exp, to boost priority
+			priority,
 			userID,
 			fleetInitiated,
 			commandUUID,
-			selfService,
+			opts.SelfService,
 			associatedEventID,
 			userID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert vpp install request")
 		}
 
 		activityID, _ := res.LastInsertId()
@@ -678,10 +683,10 @@ VALUES
 			activityID,
 			appID.AdamID,
 			appID.Platform,
-			policyID,
+			opts.PolicyID,
 		)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
 		}
 		return nil
 	})

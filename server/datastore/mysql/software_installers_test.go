@@ -126,19 +126,19 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, false, nil)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
-	hostInstall2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, false, nil)
+	hostInstall2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
-	hostInstall3, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, false, nil)
+	hostInstall3, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
-	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, false, nil)
+	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
@@ -291,7 +291,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.Equal(t, "foo.pkg", si.Name)
 
 			// non-existent host
-			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID, false, nil)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.ErrorAs(t, err, &nfe)
 
 			// Host with software install pending
@@ -305,7 +305,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostPendingInstall.ID, si.InstallerID, false, nil)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostPendingInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
 
 			// Host with software install failed
@@ -319,7 +319,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, false, nil)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
 			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// 	_, err = q.ExecContext(ctx, `
@@ -340,7 +340,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, false, nil)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
 			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// 	_, err = q.ExecContext(ctx, `
@@ -600,7 +600,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			beforeInstallRequest := time.Now()
-			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, false, nil)
+			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
 
 			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
@@ -1298,7 +1298,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	var count int
 
 	// install for correct policy & correct status
-	executionID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, false, &policy1.ID)
+	executionID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, fleet.HostSoftwareInstallOptions{PolicyID: &policy1.ID})
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
@@ -1313,7 +1313,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, 0, count)
 
 	// install for different policy & correct status
-	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, false, &policy2.ID)
+	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, hostSoftwareInstallsCount, fleet.SoftwareInstallPending, executionID)
@@ -1328,7 +1328,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, count)
 
 	// install for correct policy & incorrect status
-	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, false, &policy1.ID)
+	executionID, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, fleet.HostSoftwareInstallOptions{PolicyID: &policy1.ID})
 	require.NoError(t, err)
 
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1402,7 +1402,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Nil(t, host1LastInstall)
 
 	// Install installer.pkg on host1.
-	installUUID1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID1, false, nil)
+	installUUID1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	require.NotEmpty(t, installUUID1)
 
@@ -1432,7 +1432,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.SoftwareInstalled, *host1LastInstall.Status)
 
 	// Install installer2.pkg on host1.
-	installUUID2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID2, false, nil)
+	installUUID2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	require.NotEmpty(t, installUUID2)
 
@@ -1452,7 +1452,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
 	// Perform another installation of installer1.pkg.
-	installUUID3, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID1, false, nil)
+	installUUID3, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, softwareInstallerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	require.NotEmpty(t, installUUID3)
 
@@ -1751,7 +1751,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 							globalOrTeamID, payload.Installer.Title, payload.Installer.Source)
 						return err
 					})
-					_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swID, false, nil)
+					_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swID, fleet.HostSoftwareInstallOptions{})
 					require.NoError(t, err)
 					installerIDs[i] = swID
 				}

@@ -121,8 +121,8 @@ You'll know it's time for expedited drafting when:
 
 What happens during expedited drafting?
 1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 

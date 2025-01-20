@@ -325,7 +325,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)

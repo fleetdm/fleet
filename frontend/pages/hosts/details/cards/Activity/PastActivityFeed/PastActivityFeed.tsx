@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ActivityType, IHostPastActivity } from "interfaces/activity";
+import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore

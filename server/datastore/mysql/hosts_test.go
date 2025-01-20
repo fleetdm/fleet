@@ -7030,7 +7030,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	// Add an awaiting configuration entry
