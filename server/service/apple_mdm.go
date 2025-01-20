@@ -2980,7 +2980,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// TODO(mna): must activate next activity - ideally this would be done in the
+		// TODO(uniq): must activate next activity - ideally this would be done in the
 		// same transaction where we store the mdm command results...
 
 		// this might be a setup experience VPP install, so we'll try to update setup experience status

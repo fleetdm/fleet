@@ -67,7 +67,7 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	// TODO(mna): must consider upcoming queue for pending
+	// TODO(uniq): must consider upcoming queue for pending
 	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
@@ -606,7 +606,7 @@ VALUES
 		userID = &ctxUser.ID
 	}
 
-	// TODO(mna): activate next activity
+	// TODO(uniq): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,

@@ -2216,7 +2216,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			softwareIsInstalledOnHostClause)
 	}
 
-	// TODO(mna): this query is super complex, not even sure where upcoming activities fit in, but I think it does.
+	// TODO(uniq): this query is super complex, not even sure where upcoming activities fit in, but I think it does.
 	// Looks like it might impact upcoming software installs, scripts and VPP apps. May need to review the whole query
 	// to take a different approach, this is becoming unmaintainable.
 
@@ -2383,7 +2383,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
 
-	// TODO(mna): I think this should exclude software and VPP apps that is pending in upcoming activities
+	// TODO(uniq): I think this should exclude software and VPP apps that is pending in upcoming activities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2806,8 +2806,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 }
 
 func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
-	// TODO(mna): this is to set the results, so it should not touch the upcoming queue
-	// TODO(mna): this needs to activate the next activity
+	// TODO(uniq): this is to set the results, so it should not touch the upcoming queue
+	// TODO(uniq): this needs to activate the next activity
 	const stmt = `
 		UPDATE
 			host_software_installs
@@ -2848,7 +2848,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
-	// TODO(mna): this only returns installed software, so no impact on upcoming queue
+	// TODO(uniq): this only returns installed software, so no impact on upcoming queue
 
 	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
@@ -2896,7 +2896,7 @@ WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
 }
 
 func markHostSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
-	// TODO(mna): I think this only matters for non-pending installs, so no impact on upcoming queue
+	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_software_installs hsi
 INNER JOIN software_installers si ON hsi.software_installer_id = si.id
@@ -2915,7 +2915,7 @@ WHERE hsi.host_id = ? AND st.id IN (?)
 }
 
 func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
-	// TODO(mna): I think this only matters for non-pending installs, so no impact on upcoming queue
+	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_vpp_software_installs hvsi
 INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
