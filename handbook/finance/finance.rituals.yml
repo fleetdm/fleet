@@ -15,9 +15,7 @@
   description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#process-a-new-vendor-invoice"
   dri: "ireedy"
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
+  
 -
   task: "Complete Finance KPI inputs" 
   startedOn: "2024-02-16" 
