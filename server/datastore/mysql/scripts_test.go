@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NotNil(t, createdScript1.UserID)
 	require.Equal(t, u.ID, *createdScript1.UserID)
 	require.True(t, createdScript1.SyncRequest)
+	// createdScript1 is now activated, as the queue was empty
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
@@ -92,48 +94,46 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, pending)
 
-	// TODO(mna): uncomment once unified queue processing is implemented
-	/*
-		// record a result for this execution
-		hsr, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-			HostID:      1,
-			ExecutionID: createdScript.ExecutionID,
-			Output:      "foo",
-			Runtime:     2,
-			ExitCode:    0,
-			Timeout:     300,
-		})
-		require.NoError(t, err)
-		assert.Empty(t, action)
-		assert.NotNil(t, hsr)
+	// record a result for this execution
+	hsr, action, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript1.ExecutionID,
+		Output:      "foo",
+		Runtime:     2,
+		ExitCode:    0,
+		Timeout:     300,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, action)
+	assert.NotNil(t, hsr)
 
-		// record a duplicate result for this execution, will be ignored
-		hsr, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-			HostID:      1,
-			ExecutionID: createdScript.ExecutionID,
-			Output:      "foobarbaz",
-			Runtime:     22,
-			ExitCode:    1,
-			Timeout:     360,
-		})
-		require.NoError(t, err)
-		require.Nil(t, hsr)
+	// record a duplicate result for this execution, will be ignored
+	hsr, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript1.ExecutionID,
+		Output:      "foobarbaz",
+		Runtime:     22,
+		ExitCode:    1,
+		Timeout:     360,
+	})
+	require.NoError(t, err)
+	require.Nil(t, hsr)
 
-		// it is not pending anymore
-		pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
-		require.NoError(t, err)
-		require.Empty(t, pending)
+	// it is not pending anymore
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
+	require.NoError(t, err)
+	require.Empty(t, pending)
 
-		// the script result can be retrieved
-		script, err := ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
-		require.NoError(t, err)
-		expectScript := *createdScript
-		expectScript.Output = "foo"
-		expectScript.Runtime = 2
-		expectScript.ExitCode = ptr.Int64(0)
-		expectScript.Timeout = ptr.Int(300)
-		require.Equal(t, &expectScript, script)
-	*/
+	// the script result can be retrieved
+	script, err := ds.GetHostScriptExecutionResult(ctx, createdScript1.ExecutionID)
+	require.NoError(t, err)
+	expectScript := *createdScript1
+	expectScript.Output = "foo"
+	expectScript.Runtime = 2
+	expectScript.ExitCode = ptr.Int64(0)
+	expectScript.Timeout = ptr.Int(300)
+	expectScript.CreatedAt, script.CreatedAt = time.Time{}, time.Time{}
+	require.Equal(t, &expectScript, script)
 
 	// create another script execution request (null user id this time)
 	time.Sleep(time.Millisecond) // ensure a different timestamp
@@ -146,58 +146,59 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, createdScript2.ExecutionID)
 	require.Nil(t, createdScript2.UserID)
 	require.False(t, createdScript2.SyncRequest)
+	// createdScript2 is now activated as the queue was empty
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
 	require.NoError(t, err)
-	require.Len(t, pending, 2)
-	require.Equal(t, createdScript1.ID, pending[0].ID)
-	require.Equal(t, createdScript2.ID, pending[1].ID)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript2.ID, pending[0].ID)
 
-	/*
-		// the script result can be retrieved even if it has no result yet
-		script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
-		require.NoError(t, err)
-		require.Equal(t, createdScript, script)
+	// the script result can be retrieved even if it has no result yet
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
+	require.NoError(t, err)
+	expectedScript := *createdScript2
+	expectedScript.CreatedAt, script.CreatedAt = time.Time{}, time.Time{}
+	require.Equal(t, &expectedScript, script)
 
-		// record a result for this execution, with an output that is too large
-		largeOutput := strings.Repeat("a", 1000) +
-			strings.Repeat("b", 1000) +
-			strings.Repeat("c", 1000) +
-			strings.Repeat("d", 1000) +
-			strings.Repeat("e", 1000) +
-			strings.Repeat("f", 1000) +
-			strings.Repeat("g", 1000) +
-			strings.Repeat("h", 1000) +
-			strings.Repeat("i", 1000) +
-			strings.Repeat("j", 1000) +
-			strings.Repeat("k", 1000)
-		expectedOutput := strings.Repeat("b", 1000) +
-			strings.Repeat("c", 1000) +
-			strings.Repeat("d", 1000) +
-			strings.Repeat("e", 1000) +
-			strings.Repeat("f", 1000) +
-			strings.Repeat("g", 1000) +
-			strings.Repeat("h", 1000) +
-			strings.Repeat("i", 1000) +
-			strings.Repeat("j", 1000) +
-			strings.Repeat("k", 1000)
+	// record a result for this execution, with an output that is too large
+	largeOutput := strings.Repeat("a", 1000) +
+		strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
+	// Note that the expectation is that the "a"s get truncated
+	expectedOutput := strings.Repeat("b", 1000) +
+		strings.Repeat("c", 1000) +
+		strings.Repeat("d", 1000) +
+		strings.Repeat("e", 1000) +
+		strings.Repeat("f", 1000) +
+		strings.Repeat("g", 1000) +
+		strings.Repeat("h", 1000) +
+		strings.Repeat("i", 1000) +
+		strings.Repeat("j", 1000) +
+		strings.Repeat("k", 1000)
 
-		_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-			HostID:      1,
-			ExecutionID: createdScript.ExecutionID,
-			Output:      largeOutput,
-			Runtime:     10,
-			ExitCode:    1,
-			Timeout:     300,
-		})
-		require.NoError(t, err)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript2.ExecutionID,
+		Output:      largeOutput,
+		Runtime:     10,
+		ExitCode:    1,
+		Timeout:     300,
+	})
+	require.NoError(t, err)
 
-		// the script result can be retrieved
-		script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
-		require.NoError(t, err)
-		require.Equal(t, expectedOutput, script.Output)
-	*/
+	// the script result can be retrieved
+	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, expectedOutput, script.Output)
 
 	// create an async execution request
 	time.Sleep(time.Millisecond) // ensure a different timestamp
@@ -218,84 +219,59 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.NotNil(t, createdScript3.UserID)
 	require.Equal(t, u.ID, *createdScript3.UserID)
 	require.False(t, createdScript3.SyncRequest)
+	// createdScript3 is now activated as the queue was empty
 
 	// the script execution is now listed as pending for this host
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
 	require.NoError(t, err)
-	require.Len(t, pending, 3)
-	require.Equal(t, createdScript1.ID, pending[0].ID)
-	require.Equal(t, createdScript2.ID, pending[1].ID)
-	require.Equal(t, createdScript3.ID, pending[2].ID)
-
-	/*
-		// modify the timestamp of the script to simulate an script that has
-		// been pending for a long time
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE id = ?", time.Now().Add(-24*time.Hour), createdScript3.ID)
-			return err
-		})
-	*/
-
-	// modify the timestamp of the upcoming script to simulate an script that has
-	// been pending for a long time
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE id = ?", time.Now().Add(-24*time.Hour), createdScript3.ID)
-		return err
-	})
-
-	// the script execution still shows as pending (and is now next in line, oldest)
-	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
-	require.NoError(t, err)
-	require.Len(t, pending, 3)
+	require.Len(t, pending, 1)
 	require.Equal(t, createdScript3.ID, pending[0].ID)
-	require.Equal(t, createdScript1.ID, pending[1].ID)
-	require.Equal(t, createdScript2.ID, pending[2].ID)
-
-	/*
-		// modify the script to be a sync script that has
-		// been pending for a long time
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET sync_request = 1 WHERE id = ?", createdScript3.ID)
-			return err
-		})
-	*/
 
 	// modify the upcoming script to be a sync script that has
 	// been pending for a long time
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET payload = JSON_SET(payload, '$.sync_request', true) WHERE id = ?", createdScript3.ID)
+		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ?, payload = JSON_SET(payload, '$.sync_request', true) WHERE id = ?",
+			time.Now().Add(-24*time.Hour), createdScript3.ID)
 		return err
 	})
 
 	// the script is not pending anymore
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
 	require.NoError(t, err)
-	require.Len(t, pending, 2)
-	require.Equal(t, createdScript1.ID, pending[0].ID)
-	require.Equal(t, createdScript2.ID, pending[1].ID)
+	require.Len(t, pending, 0)
 
-	/*
-		// check that scripts with large unsigned error codes get
-		// converted to signed error codes
-		createdUnsignedScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-			HostID:         1,
-			ScriptContents: "echo",
-			UserID:         &u.ID,
-			SyncRequest:    true,
-		})
-		require.NoError(t, err)
+	// check that scripts with large unsigned error codes get
+	// converted to signed error codes
+	createdUnsignedScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
 
-		unsignedScriptResult, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-			HostID:      1,
-			ExecutionID: createdUnsignedScript.ExecutionID,
-			Output:      "foo",
-			Runtime:     1,
-			ExitCode:    math.MaxUint32,
-			Timeout:     300,
-		})
-		require.NoError(t, err)
-		require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
-	*/
+	// record a result for createdScript3 so that the unsigned script gets activated
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript3.ExecutionID,
+		Output:      "foo",
+		Runtime:     1,
+		ExitCode:    0,
+		Timeout:     0,
+	})
+	require.NoError(t, err)
+	// createdUnsignedScript is now activated, record its result
+
+	unsignedScriptResult, _, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdUnsignedScript.ExecutionID,
+		Output:      "foo",
+		Runtime:     1,
+		ExitCode:    math.MaxUint32,
+		Timeout:     300,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
 }
 
 func testScripts(t *testing.T, ds *Datastore) {

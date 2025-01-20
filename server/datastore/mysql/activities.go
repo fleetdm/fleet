@@ -642,7 +642,7 @@ SELECT
 	execution_id,
 	activity_type,
 	activated_at,
-	IF(ua.activated_at IS NULL, 0, 1) as topmost
+	IF(activated_at IS NULL, 0, 1) as topmost
 FROM
 	upcoming_activities
 WHERE
@@ -672,6 +672,7 @@ WHERE
 		ExecutionID  string     `db:"execution_id"`
 		ActivityType string     `db:"activity_type"`
 		ActivatedAt  *time.Time `db:"activated_at"`
+		Topmost      bool       `db:"topmost"`
 	}
 	var nextActivities []nextActivity
 	if err := sqlx.SelectContext(ctx, tx, &nextActivities, findNextStmt, hostID, maxMDMCommandActivations); err != nil {
