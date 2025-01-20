@@ -282,7 +282,7 @@
 #  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
-  description: Sync user accounts via Okta, AD, or any IDP. 
+  description: Sync macOS local user accounts via Okta, AD, or any IdP. 
   documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
@@ -290,8 +290,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  waysToUse:
-    - description: Automatically set admin access to Fleet based on your IDP
 #
 #  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
 #  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
@@ -1113,10 +1111,11 @@
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
-  usualDepartment: IT
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  waysToUse:
+    - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
