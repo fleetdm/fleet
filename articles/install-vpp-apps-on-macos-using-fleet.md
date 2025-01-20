@@ -6,6 +6,8 @@ _Available in Fleet Premium_
 
 In Fleet, you can install Apple App Store apps using the [Volume Purchasing Program (VPP)](https://support.apple.com/guide/app-store/volume-purchasing-app-store-mac-firc1767ec54/mac) on your macOS, iOS, and iPadOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your hosts.
 
+Once a VPP app has been added to a team, it can be [automatically installed on hosts via policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet) as of Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0).
+
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
 
@@ -59,7 +61,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
    the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and
    the host details are refetched, the app will show up as **Installed** in the **Software** tab.
 
->**Note:** VPP managed apps currently can't be uninstalled from devices. Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729).
+> Currently, VPP apps are installed as unmanaged, and can't be uninstalled from devices via Fleet. Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729).
 
 ## Install an app via self-service
 
@@ -92,12 +94,12 @@ Fleet also provides a REST API for managing apps programmatically. You can add, 
 
 ## Manage apps with GitOps
 
-To manage App Store apps using Fleet's best practice GitOps, check out the `software` key in the GitOps reference documentation [here](https://fleetdm.com/docs/using-fleet/gitops#software).
+To manage App Store apps using Fleet's best practice GitOps, check out the `software` key in [the GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software).
 
 <meta name="articleTitle" value="Install App Store (VPP) apps">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-12">
+<meta name="publishedOn" value="2025-01-21">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through installing VPP apps on macOS, iOS, and iPadOS using Fleet.">
