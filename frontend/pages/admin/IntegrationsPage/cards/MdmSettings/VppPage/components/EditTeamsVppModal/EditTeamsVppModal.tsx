@@ -204,8 +204,8 @@ const EditTeamsVppModal = ({
         </p>
         <p>
           If you remove a team, App Store apps will be removed from that team,
-          and policies that trigger automatic install of these apps will be removed.
-          Installed apps won&apos;t be uninstalled from hosts.
+          and policies that trigger automatic install of these apps will be
+          removed. Installed apps won&apos;t be uninstalled from hosts.
         </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <TooltipWrapper
