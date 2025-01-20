@@ -2807,6 +2807,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
 	// TODO(mna): this is to set the results, so it should not touch the upcoming queue
+	// TODO(mna): this needs to activate the next activity
 	const stmt = `
 		UPDATE
 			host_software_installs

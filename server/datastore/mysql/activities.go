@@ -604,3 +604,23 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 
 	return nil
 }
+
+// This function activates the next upcoming activity, if any, for the specified host.
+// It does a few things to achieve this:
+//   - If there was an activity already marked as activated (activated_at is
+//     not NULL), it deletes it, as calling this function means that the previous
+//     activated activity/ies is now completed (in a final state, either success
+//     or failure).
+//   - If there is an upcoming activity to activate next, it does so,
+//     respecting the priority and enqueue order. Acivation consists of inserting
+//     the activity in its respective table, e.g. `host_script_results` for
+//     scripts, `host_sofware_installs` for software installs,
+//     `host_vpp_software_installs` and nano command queue for VPP installs; and
+//     setting the activated_at timestamp in the `upcoming_activities` table.
+//   - As an optimization for MDM, if the activity type is `vpp_app_install`
+//     and the next few upcoming activities are all of this type, they are
+//     batched activated together (up to a limit) to reduce the processing
+//     latency and number of push notifications to send to this host.
+func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint) (activatedExecIDs []string, err error) {
+	panic("unimplemented")
+}

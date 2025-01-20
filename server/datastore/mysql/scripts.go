@@ -158,6 +158,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	string, error,
 ) {
 	// TODO(mna): this sets results of execution, so no impact on pending upcoming queue
+	// TODO(mna): must call activate next activity
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -1380,6 +1381,7 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 
 func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
 	// TODO(mna): this sets results, no impact on pending upcoming queue
+	// TODO(mna): must call activate next activity
 	stmt := `
 	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
 	`
