@@ -568,7 +568,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// Setup host 4. We will create upcoming activities, then
 	// delete and "restore" the host, similar to what would happen
 	// if you delete an ABM DEP host.
-	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	// h4A := hsr.ExecutionID
 	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
