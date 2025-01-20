@@ -608,19 +608,138 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 // This function activates the next upcoming activity, if any, for the specified host.
 // It does a few things to achieve this:
 //   - If there was an activity already marked as activated (activated_at is
-//     not NULL), it deletes it, as calling this function means that the previous
-//     activated activity/ies is now completed (in a final state, either success
-//     or failure).
+//     not NULL) and fromExecID is provided, it deletes it, as calling this
+//     function means that the previous activated activity/ies is now completed
+//     (in a final state, either success or failure).
 //   - If there is an upcoming activity to activate next, it does so,
-//     respecting the priority and enqueue order. Acivation consists of inserting
+//     respecting the priority and enqueue order. Activation consists of inserting
 //     the activity in its respective table, e.g. `host_script_results` for
 //     scripts, `host_sofware_installs` for software installs,
 //     `host_vpp_software_installs` and nano command queue for VPP installs; and
 //     setting the activated_at timestamp in the `upcoming_activities` table.
 //   - As an optimization for MDM, if the activity type is `vpp_app_install`
 //     and the next few upcoming activities are all of this type, they are
-//     batched activated together (up to a limit) to reduce the processing
+//     batch-activated together (up to a limit) to reduce the processing
 //     latency and number of push notifications to send to this host.
-func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint) (activatedExecIDs []string, err error) {
+//
+// When called after receiving results for an activity, the fromExecID argument
+// identifies that activity. This is important as many activities may have been
+// activated if all were MDM commands, and we must not enqueue the next until
+// all those commands did receive results.
+func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromExecID string) (activatedExecIDs []string, err error) {
+	const maxMDMCommandActivations = 5
+
+	const deleteCompletedStmt = `
+DELETE FROM upcoming_activities
+WHERE 
+	host_id = ? AND 
+	activated_at IS NOT NULL AND
+	execution_id = ?
+`
+
+	const findNextStmt = `
+SELECT
+	execution_id,
+	activity_type,
+	activated_at,
+	IF(ua.activated_at IS NULL, 0, 1) as topmost
+FROM
+	upcoming_activities
+WHERE
+	host_id = ? 
+ORDER BY topmost DESC, priority DESC, created_at ASC
+LIMIT ?
+`
+
+	const markActivatedStmt = `
+UPDATE upcoming_activities
+SET
+	activated_at = NOW()
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+`
+
+	// first we delete the completed activity, if any
+	if fromExecID != "" {
+		if _, err := tx.ExecContext(ctx, deleteCompletedStmt, hostID, fromExecID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete completed upcoming activity")
+		}
+	}
+
+	// next we look for an upcoming activity to activate
+	type nextActivity struct {
+		ExecutionID  string     `db:"execution_id"`
+		ActivityType string     `db:"activity_type"`
+		ActivatedAt  *time.Time `db:"activated_at"`
+	}
+	var nextActivities []nextActivity
+	if err := sqlx.SelectContext(ctx, tx, &nextActivities, findNextStmt, hostID, maxMDMCommandActivations); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find next upcoming activities to activate")
+	}
+
+	var toActivate []nextActivity
+	for _, act := range nextActivities {
+		if act.ActivatedAt != nil {
+			// there are still activated activities, do not activate more
+			break
+		}
+		if len(toActivate) > 0 {
+			// we already identified one to activate, allow more only if they are
+			// the same type and that type is vpp_app_install.
+			if toActivate[0].ActivityType != act.ActivityType || toActivate[0].ActivityType != "vpp_app_install" {
+				break
+			}
+		}
+		toActivate = append(toActivate, act)
+		activatedExecIDs = append(activatedExecIDs, act.ExecutionID)
+	}
+
+	if len(toActivate) == 0 {
+		return nil, nil
+	}
+
+	// activate the next activities as required for its activity type
+	var fn func(context.Context, sqlx.ExtContext, uint, []string) error
+	switch actType := toActivate[0].ActivityType; actType {
+	case "script":
+		fn = ds.activateNextScriptActivity
+	case "software_install":
+		fn = ds.activateNextSoftwareInstallActivity
+	case "software_uninstall":
+		fn = ds.activateNextSoftwareUninstallActivity
+	case "vpp_app_install":
+		fn = ds.activateNextVPPAppInstallActivity
+	default:
+		return nil, ctxerr.Errorf(ctx, "unsupported activity type %s", actType)
+	}
+	if err := fn(ctx, tx, hostID, activatedExecIDs); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next activities")
+	}
+
+	// finally, mark the activities as activated
+	stmt, args, err := sqlx.In(markActivatedStmt, hostID, activatedExecIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement to mark upcoming activities as activated")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark upcoming activities as activated")
+	}
+	return activatedExecIDs, nil
+}
+
+func (ds *Datastore) activateNextScriptActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	panic("unimplemented")
+}
+
+func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	panic("unimplemented")
 }
