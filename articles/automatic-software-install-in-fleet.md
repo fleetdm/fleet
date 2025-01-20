@@ -2,9 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet lets you automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring Fleet for automatic installation of software on hosts based on programmed policies. You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
-
-> Currently, Fleet-maintained apps and Apple App Store apps can be automatically installed on macOS hosts, and custom packages can be automatically installed on macOS, Windows, and Linux hosts.
+With Fleet, you can automatically install software across your macOS, Windows, and Linux hosts.
 
 ## Prerequisites
 
@@ -53,13 +51,9 @@ Upon failure of the selected policy, the selected software installation will be 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
 
-> If a software installer excludes a host via label scoping, the associated policy query will run but policy failures will show as `-` and a software install will not be queued.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry installing the app on the host's Host details page (learn how [here](https://fleetdm.com/guides/deploy-software-packages#install-the-package)). To retry on multiple hosts at once, head to **Policies > Manager Automations** in Fleet and turn the app's policy automation off and back on.
 
-### Notes on automated VPP installs
-
-VPP installs will not be queued for hosts that are not enrolled in MDM, or for apps that have run out of VPP licenses. If this issue affects a large number of hosts covered by a policy, after resolving the host and/or license count issue, remove and re-add the software automation. This will reset policy status for all hosts, and the app will install on hosts failing the policy query the next time policy queries run on those hosts.
-
-As with manual VPP installs, apps are currently installed unmanaged, and Fleet does not yet support uninstalling VPP apps.
+Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is coming soon.
 
 ## Templates for policy queries
 
