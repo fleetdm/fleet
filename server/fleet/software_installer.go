@@ -477,6 +477,7 @@ type SoftwarePackageOrApp struct {
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
 	Version       string                 `json:"version"`
+	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
 	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`

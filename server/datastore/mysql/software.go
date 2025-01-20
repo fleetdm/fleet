@@ -2226,6 +2226,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			COALESCE(si.platform, vap.platform) as platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
@@ -2384,6 +2385,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			st.id,
 			st.name,
 			st.source,
+			COALESCE(si.platform, vap.platform) as platform,
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
@@ -2508,6 +2510,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		id,
 		name,
 		source,
+		platform,
 		package_self_service,
 		package_name,
 		package_version,
@@ -2586,6 +2589,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 		LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 		PackageSelfService             *bool      `db:"package_self_service"`
+		Platform                       *string    `db:"platform"`
 		PackageName                    *string    `db:"package_name"`
 		PackageVersion                 *string    `db:"package_version"`
 		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
