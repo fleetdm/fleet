@@ -105,6 +105,7 @@ WHERE
 		priority = 100
 	}
 
+	// TODO(mna): activate next activity
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insUAStmt,
 		request.HostID,

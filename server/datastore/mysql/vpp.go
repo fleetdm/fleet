@@ -606,6 +606,7 @@ VALUES
 		userID = &ctxUser.ID
 	}
 
+	// TODO(mna): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,

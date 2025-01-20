@@ -818,6 +818,7 @@ VALUES
 	}
 	execID := uuid.NewString()
 
+	// TODO(mna): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -958,6 +959,7 @@ VALUES
 		fleetInitiated = false
 	}
 
+	// TODO(mna): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
