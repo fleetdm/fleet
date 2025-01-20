@@ -143,7 +143,16 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	for i, host := range hosts {
 		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
+
+		if req.Opts.PopulateLabels {
+			labels, err := svc.ListLabelsForHost(ctx, h.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID))
+			}
+			hostResponses[i].Labels = labels
+		}
 	}
+
 	return listHostsResponse{
 		Hosts:         hostResponses,
 		Software:      software,
@@ -1955,6 +1964,10 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		hostResps[i] = hr
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
+}
+
+func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
+	return svc.ds.ListLabelsForHost(ctx, hostID)
 }
 
 type osVersionsRequest struct {
