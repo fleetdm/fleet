@@ -283,7 +283,7 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync user accounts via Okta, AD, or any IDP. 
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
+  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
