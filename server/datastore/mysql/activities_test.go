@@ -285,9 +285,27 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 			}, nil, timestamp,
 		),
 	)
+
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, nil, fleet.ActivityInstalledAppStoreApp{
+				HostID:          1,
+				HostDisplayName: "A Host",
+				SoftwareTitle:   "Trello",
+				AppStoreID:      "123456",
+				CommandUUID:     "some uuid",
+				Status:          string(fleet.SoftwareInstalled),
+				SelfService:     false,
+				PolicyID:        ptr.Uint(1),
+				PolicyName:      ptr.String("Sample Policy"),
+			}, nil, timestamp,
+		),
+	)
+
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
 func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
@@ -454,7 +472,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	// install the VPP app on h1
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", false, nil)
 	require.NoError(t, err)
 	err = commander.EnqueueCommand(
 		ctx,
@@ -463,7 +481,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true)
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", true, nil)
 	require.NoError(t, err)
 	err = commander.EnqueueCommand(
 		ctx,

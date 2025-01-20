@@ -32,6 +32,25 @@ type User struct {
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
+
+	Settings *UserSettings `json:"settings,omitempty"`
+}
+
+type UserSettings struct {
+	HiddenHostColumns []string `json:"hidden_host_columns"`
+}
+
+// Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
+// custom Go type (UserSettings).
+func (us *UserSettings) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, us)
+	case string:
+		return json.Unmarshal([]byte(v), us)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
 }
 
 // IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
@@ -149,20 +168,21 @@ type UserListOptions struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Name                     *string     `json:"name,omitempty"`
-	Email                    *string     `json:"email,omitempty"`
-	Password                 *string     `json:"password,omitempty"`
-	GravatarURL              *string     `json:"gravatar_url,omitempty"`
-	Position                 *string     `json:"position,omitempty"`
-	InviteToken              *string     `json:"invite_token,omitempty"`
-	SSOInvite                *bool       `json:"sso_invite,omitempty"`
-	MFAEnabled               *bool       `json:"mfa_enabled,omitempty"`
-	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
-	GlobalRole               *string     `json:"global_role,omitempty"`
-	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
-	APIOnly                  *bool       `json:"api_only,omitempty"`
-	Teams                    *[]UserTeam `json:"teams,omitempty"`
-	NewPassword              *string     `json:"new_password,omitempty"`
+	Name                     *string       `json:"name,omitempty"`
+	Email                    *string       `json:"email,omitempty"`
+	Password                 *string       `json:"password,omitempty"`
+	GravatarURL              *string       `json:"gravatar_url,omitempty"`
+	Position                 *string       `json:"position,omitempty"`
+	InviteToken              *string       `json:"invite_token,omitempty"`
+	SSOInvite                *bool         `json:"sso_invite,omitempty"`
+	MFAEnabled               *bool         `json:"mfa_enabled,omitempty"`
+	SSOEnabled               *bool         `json:"sso_enabled,omitempty"`
+	GlobalRole               *string       `json:"global_role,omitempty"`
+	AdminForcedPasswordReset *bool         `json:"admin_forced_password_reset,omitempty"`
+	APIOnly                  *bool         `json:"api_only,omitempty"`
+	Teams                    *[]UserTeam   `json:"teams,omitempty"`
+	NewPassword              *string       `json:"new_password,omitempty"`
+	Settings                 *UserSettings `json:"settings,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {

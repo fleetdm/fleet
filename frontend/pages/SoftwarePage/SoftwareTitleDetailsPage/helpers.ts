@@ -25,7 +25,7 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
   const isPackage = isSoftwarePackage(packageData);
 
   return {
-    softwarePackage: isPackage ? packageData : undefined,
+    softwarePackage: packageData,
     name: (isPackage && packageData.name) || softwareTitle.name,
     version:
       (isSoftwarePackage(packageData)

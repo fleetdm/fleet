@@ -343,9 +343,14 @@ const HostSoftware = ({
       borderRadiusSize="xxlarge"
       paddingSize="xxlarge"
       includeShadow
-      className={baseClass}
+      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <p className="card__header">Software</p>
+      <div className={`card-header`}>Software</div>
+      {isMyDevicePage && (
+        <div className={`card-subheader`}>
+          Software installed on your device.
+        </div>
+      )}
       {renderHostSoftware()}
     </Card>
   );

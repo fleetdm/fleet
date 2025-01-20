@@ -21,7 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -34,9 +36,32 @@ import (
 const (
 	binDir     = "bin"
 	stagingDir = "staging"
+)
 
-	defaultURL      = "https://tuf.fleetctl.com"
-	defaultRootKeys = `{"signed":{"_type":"root","spec_version":"1.0","version":4,"expires":"2024-10-06T17:47:49Z","keys":{"0cd79ade57d278957069e03a0fca6b975b95c2895fb20bdc3075f71fc19a4474":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"4627d9071a4b4a78c5ee867ea70439583b08dbe4ff23514e3bcb0a292de9406f"}},"1a4d9beb826d1ff4e036d757cfcd6e36d0f041e58d25f99ef3a20ae3f8dd71e3":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"1083b5fedbcaf8f98163f2f7083bbb2761a334b2ba8de44df7be3feb846725f6"}},"3c1fbd1f3b3429d8ccadfb1abfbae5826d0cf74b0a6bcd384c3045d2fe27613c":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"b07555d05d4260410bdf12de7f76be905e288e801071877c7ca3d7f0459bee0f"}},"5003eae9f614f7e2a6c94167d20803eabffc6f65b8731e828e56d068f1b1d834":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"5d91bdfddc381e03d109e3e2f08413ed4ba181d98766eb97802967fb6cf2b87d"}},"5b99d0520321d0177d66b84136f3fc800dde1d36a501c12e28aa12d59a239315":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"8113955a28517752982ed6521e2162cf207605cfd316b8cba637c0a9b7a72856"}},"5f42172605e1a317c6bdae3891b4312a952759185941490624e052889821c929":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"86e26b13b9a64f7de4ad24b47e2bb9779a8628cae0e1afa61e56f2003c2ab586"}},"6c0e404295d4bf8915b46754b5f4546ab0d11ff7d83804d4aa2d178cfc38eafc":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"3782135dcec329bcd0e1eefc1acead987dc6a7d629db62c9fdde8bc8ff3fa781"}},"7cbbc9772d4d6acea33b7edf5a4bc52c85ff283475d428ffee73f9dbd0f62c89":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"f79d0d357aaa534a251abc7b0604725ba7b035eb53d1bdf5cc3173d73e3d9678"}},"7ea5cd46d58ac97ec1424007b7a6b0b3403308bb8aa8de885a75841f6f1d50dd":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"978cdddce95311d56b7fed39419a31019a38a1dab179cddb541ffaf99f442f1b"}},"94ca5921eb097bb871272c1cc3ea2cad833cb8d4c2dea4a826646be656059640":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6512498c7596f55a23405889539fadbcefecd0909e4af0b54e29f45d49f9b9f7"}},"ae943cb8be8a849b37c66ed46bdd7e905ba3118c0c051a6ee3cd30625855a076":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"e7ffa6355dedd0cd34defc903dfac05a7a8c1855d63be24cecb5577cfde1f990"}},"d940df08b59b12c30f95622a05cc40164b78a11dd7d408395ee4f79773331b30":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"64d15cc3cbaac7eccfd9e0de5a56a0789aadfec3d02e77bf9180b8090a2c48d6"}},"efb4e9bd7a7d9e045edf6f5140c9835dbcbb7770850da44bf15a800b248c810e":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"0b8b28b30b44ddb733c7457a7c0f75fcbac563208ea1fe7179b5888a4f1d2237"}}},"roles":{"root":{"keyids":["5f42172605e1a317c6bdae3891b4312a952759185941490624e052889821c929"],"threshold":1},"snapshot":{"keyids":["94ca5921eb097bb871272c1cc3ea2cad833cb8d4c2dea4a826646be656059640","1a4d9beb826d1ff4e036d757cfcd6e36d0f041e58d25f99ef3a20ae3f8dd71e3","7ea5cd46d58ac97ec1424007b7a6b0b3403308bb8aa8de885a75841f6f1d50dd","5003eae9f614f7e2a6c94167d20803eabffc6f65b8731e828e56d068f1b1d834"],"threshold":1},"targets":{"keyids":["0cd79ade57d278957069e03a0fca6b975b95c2895fb20bdc3075f71fc19a4474","ae943cb8be8a849b37c66ed46bdd7e905ba3118c0c051a6ee3cd30625855a076","6c0e404295d4bf8915b46754b5f4546ab0d11ff7d83804d4aa2d178cfc38eafc","3c1fbd1f3b3429d8ccadfb1abfbae5826d0cf74b0a6bcd384c3045d2fe27613c"],"threshold":1},"timestamp":{"keyids":["efb4e9bd7a7d9e045edf6f5140c9835dbcbb7770850da44bf15a800b248c810e","d940df08b59b12c30f95622a05cc40164b78a11dd7d408395ee4f79773331b30","7cbbc9772d4d6acea33b7edf5a4bc52c85ff283475d428ffee73f9dbd0f62c89","5b99d0520321d0177d66b84136f3fc800dde1d36a501c12e28aa12d59a239315"],"threshold":1}},"consistent_snapshot":false},"signatures":[{"keyid":"39a1db745ca254d8f8eb27493df8867264d9fb394572ecee76876f4d7e9cb753","sig":"841a44dcd98bbd78727f0b4b2a6e7dbb6d54e8469ca14965c9c5f9f7bb792dfe792f05e90a2724c75e966c007928ff7e7809de4608aab0bd27771f7b049c230f"},{"keyid":"5f42172605e1a317c6bdae3891b4312a952759185941490624e052889821c929","sig":"f6a16446edbbb632521649d21c2188b11eafeacb826caf2b8f3e2b8e9a343b573bca0a786c16ed2aeade25471c6d5103aac810ee05c50b044acd98d4b31d190c"},{"keyid":"63b4cb9241c93bca9218c67334da3651394de4cf36c44bb1320bad7111df7bba","sig":"62b5effddc00f7c9c06f4227cc1bfd4c09c47326a6c388451df28af798386d0e8d93412850bcc55f89147f439b5511bb63581ad09cd9ca215f72086348f9260b"},{"keyid":"656c44011cf8b80a4da765bec1516ee9598ffca5fa7ccb51f0a9feb04e6e6cbd","sig":"7b786c3825b206ed0c43fdfc852ebc5d363f7547a2f4940965c4c3eb89a8be069a5eddc942f8e796e645eea76b321dbbafc7f4c8d153181070da84d7a39bbe03"},{"keyid":"950097b911794bb554d7e83aa20c8aad11efcdc98f54b775fda76ac39eafa8fb","sig":"14e281d44c3384928e80a458214e4773f6c6c068a8d53e7458e8615fa5d1fe8f3daff11f736bec614cdba9e62d6f43850c6746cf2af7615445703af3ddeddb03"},{"keyid":"d6e90309d70431729bf722b089a8049efaf449230d94dc90bafa1cfc12d2b36f","sig":"bb7278ba1affc0c2bcbd952b7678ffa95268722121011df9ac18c19c1901e9c17ee3a1048a8471ca7c833ce86ecb054dc446c1ae473f118c1dc81a6e9b1dfb04"},{"keyid":"e5d1873c4d5268f650a26ea3c6ffb4bec1e523875888ebb6303fac2bfd578cd0","sig":"82019b8aba472b25f90899944db0ce94fd4ae1314f6336e2828bb30d592a9e3e34e6a66a75b1d310e0e85119a826bff345b99fe8647515057315da32e9847b04"}]}`
+const (
+	//
+	// For users using Fleet's TUF:
+	// 	- orbit 1.38.0+ we migrate TUF from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+	//	- orbit 1.38.0+ will start using `updates-metadata.json` instead of `tuf-metadata.json`. If it is missing
+	//	(which will be the case for the first run after the auto-update) then it will generate it from the new pinned roots.
+	//
+	// For users using a custom TUF:
+	//	- orbit 1.38.0+ will start using `updates-metadata.json` instead of `tuf-metadata.json` (if it is missing then
+	// 	  it will perform a copy).
+	//
+	// For both Fleet's TUF and custom TUF, fleetd packages built with fleetctl 4.63.0+ will contain both files
+	// `updates-metadata.json` and `tuf-metadata.json` (same content) to support downgrades to orbit 1.37.0 or lower.
+
+	//
+	// The following variables are used by `fleetctl package` and by orbit in the migration to the new TUF repository.
+	//
+
+	DefaultURL          = `https://updates.fleetdm.com`
+	MetadataFileName    = "updates-metadata.json"
+	defaultRootMetadata = `{"signed":{"_type":"root","spec_version":"1.0","version":6,"expires":"2026-01-08T22:23:47Z","keys":{"13f738181c9c50798d66316afaccf117658481b4db7b38715c358f522dc3bc40":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"34684874493cce2ac307c0dca88c241a287180c3eec9225c5f3e29bc4aeae080"}},"1ab0b9598e8b6ea653a24112f69b3eb3a84152c6a73d8dfdf43de4f63a93d3af":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"47a38623303bbe7b4ce47948011042b9387d7ec184642c156e06459d8fb6411b"}},"216e2dae905e73df943e003c428c7d340f21280750edb9d9ce2b15beeada667a":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"5c73ff497dc14380861892706c23bba0e3272c77c7f6f9524238b3a6b808b844"}},"2a83f45d24101ba91f669dca42981f97fc8bcde7cdf29c1887bc55c485103c49":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"e0bae1fae56d87e7f30f6359fd0a8cbfed231b19f58882e155c091c3bdb13c40"}},"3bc9408c1bcd999e69ba56b39e747656c6ebdafbd1e2c3e378c53e96e4477a64":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"8899adaa7ccd5bceb6a8c5f552fe4a9e59eb67e2a364db6638e06bbcf6f6eaeb"}},"4c0a5f49dc9665f13329d8157a2184985bd183503990469d06e32ad1bd6e70ee":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"eceeea79c6a353f5c7ed3be552a6144458ecf5fe78972eba88a77a45a230c58b"}},"57227c64d19605636d0afbab41d0887455de4287c6f328c5f69650005f793de0":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"d962cdf1d3e974f6c2b3d602260c87e0647fd54372afe7c31238f26a56a75443"}},"61e70c06858064c5e33e5009734222000610013e26fb6846ee17f55ddfb22da3":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"7e42b715cd9eedd8252a6b715fcfb8ef789531782ed19027a3c2ae11a2b0243b"}},"79a257e77793cb26d5d0cc0af6b2d2c94e7e8ca8b875dc504eb10fb343753f94":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"93409c7be4e3942ecff111d36cd097cda5778cb4f53305a07f20855b08f26071"}},"868858a9723ce357e8e251617ae11f7d3ae8a348588872cb2ce4149ee70ba155":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"f91c5b1fcb4ed3a1a65b956fa9025a89f458cea9036259b8cdfa276bc04faf45"}},"91629787db6e18b226027587733b2f667a7982eed9509c2e39dfeaf4cfb1a17a":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"3e2ac750e2e0eb22f87f35ad5309932b7b081c40891d249493fa9e2cef28066b"}},"97b3353aa23d09f88323e63cdc587a368df0a8818da67b91720b2cab00e68297":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"6b92f54f51eb617069a963a41aed75b4a23fca45e4c9ca8fc6d748d9b58b0451"}},"bc711f19576de2d71d1ca41eeccf7412f12c3ee4971185cd69066f8dc51d1ce6":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"7e39afe9a0310e7645ed389f243dc7156069d6972505cfbb460f8147949343cd"}},"c1ce9675f7302d2f09514f78ec7b3bdc00758d69b659e00c1c6731a4d0836bb9":{"keytype":"ed25519","scheme":"ed25519","keyid_hash_algorithms":["sha256","sha512"],"keyval":{"public":"a97c44dc10ee979ead46beb3be22f3407238e72b68240a41f92e65051eb27cb1"}}},"roles":{"root":{"keyids":["bc711f19576de2d71d1ca41eeccf7412f12c3ee4971185cd69066f8dc51d1ce6","4c0a5f49dc9665f13329d8157a2184985bd183503990469d06e32ad1bd6e70ee","57227c64d19605636d0afbab41d0887455de4287c6f328c5f69650005f793de0"],"threshold":1},"snapshot":{"keyids":["1ab0b9598e8b6ea653a24112f69b3eb3a84152c6a73d8dfdf43de4f63a93d3af","868858a9723ce357e8e251617ae11f7d3ae8a348588872cb2ce4149ee70ba155","97b3353aa23d09f88323e63cdc587a368df0a8818da67b91720b2cab00e68297"],"threshold":1},"targets":{"keyids":["3bc9408c1bcd999e69ba56b39e747656c6ebdafbd1e2c3e378c53e96e4477a64","c1ce9675f7302d2f09514f78ec7b3bdc00758d69b659e00c1c6731a4d0836bb9","2a83f45d24101ba91f669dca42981f97fc8bcde7cdf29c1887bc55c485103c49"],"threshold":1},"timestamp":{"keyids":["13f738181c9c50798d66316afaccf117658481b4db7b38715c358f522dc3bc40","79a257e77793cb26d5d0cc0af6b2d2c94e7e8ca8b875dc504eb10fb343753f94","91629787db6e18b226027587733b2f667a7982eed9509c2e39dfeaf4cfb1a17a","61e70c06858064c5e33e5009734222000610013e26fb6846ee17f55ddfb22da3","216e2dae905e73df943e003c428c7d340f21280750edb9d9ce2b15beeada667a"],"threshold":1}},"consistent_snapshot":false},"signatures":[{"keyid":"bc711f19576de2d71d1ca41eeccf7412f12c3ee4971185cd69066f8dc51d1ce6","sig":"7a0d8eda3e6058bf10f21bdda4b876c499b4182335ab943737c2121603d0e2ec707222e92eace3d10051264988705d9c51e2159d13e234d57441e60ba1a3c10a"}]}`
+
+	OldFleetTUFURL      = "https://tuf.fleetctl.com"
+	OldMetadataFileName = "tuf-metadata.json"
 )
 
 // Updater is responsible for managing update state.
@@ -122,32 +147,10 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}
 
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: opt.InsecureTransport,
-	}
-
-	if opt.ServerCertificatePath != "" {
-		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
-		if err != nil {
-			return nil, fmt.Errorf("loading server root CA: %w", err)
-		}
-		tlsConfig.RootCAs = rootCAs
-	}
-
-	if opt.ClientCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
-	}
-
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
-
-	remoteOpt := &client.HTTPRemoteOptions{
-		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
-	}
-	remoteStore, err := client.HTTPRemoteStore(opt.ServerURL, remoteOpt, httpClient)
+	remoteStore, err := createTUFRemoteStore(opt, opt.ServerURL)
 	if err != nil {
-		return nil, fmt.Errorf("init remote store: %w", err)
+		return nil, fmt.Errorf("get tls config: %w", err)
 	}
-
 	tufClient := client.NewClient(opt.LocalStore, remoteStore)
 
 	// TODO(lucas): Related to the NOTE below.
@@ -164,10 +167,13 @@ func NewUpdater(opt Options) (*Updater, error) {
 		return nil, fmt.Errorf("read metadata: %w", err)
 	}
 	if meta["root.json"] == nil {
-		// NOTE: This path is currently only used when (1) packaging Orbit (`fleetctl package`) and
-		// (2) in the edge-case when Orbit's metadata JSON local file is removed for some reason.
-		// When edge-case (2) happens, Orbit will attempt to use Fleet DM's root JSON
+		// NOTE: This path is currently only used when (1) packaging Orbit (`fleetctl package`), or
+		// (2) in the edge-case when orbit's metadata JSON local file is removed for some reason, or
+		// (3) first run on TUF migration from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+		//
+		// When edge-case (2) happens, orbit will attempt to use Fleet DM's root JSON
 		// (which may be unexpected on custom TUF Orbit deployments).
+		log.Info().Msg("initialize TUF from embedded root keys")
 		if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
 			return nil, fmt.Errorf("client init with configuration metadata: %w", err)
 		}
@@ -203,7 +209,7 @@ func NewDisabled(opt Options) *Updater {
 // UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
-		return fmt.Errorf("update metadata: %w", err)
+		return fmt.Errorf("client update: %w", err)
 	}
 	return nil
 }
@@ -223,6 +229,16 @@ func (u *Updater) SignaturesExpired() bool {
 	// client.Target fails with an expiration error.
 	_, err := u.Lookup(constant.OrbitTUFTargetName)
 	return IsExpiredErr(err)
+}
+
+// LookupsFail returns true if lookups are failing for any of the targets.
+func (u *Updater) LookupsFail() bool {
+	for target := range u.opt.Targets {
+		if _, err := u.Lookup(target); err != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // repoPath returns the path of the target in the remote repository.
@@ -735,4 +751,111 @@ func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
 	}
 
 	return true
+}
+
+// HasAccessToNewTUFServer will verify if the agent has access to Fleet's new TUF
+// by downloading the metadata and the orbit stable target.
+//
+// The metadata and the test target files will be downloaded to a temporary directory
+// that will be removed before this method returns.
+func HasAccessToNewTUFServer(opt Options) bool {
+	fp := filepath.Join(opt.RootDirectory, "new-tuf-checked")
+	ok, err := file.Exists(fp)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check new-tuf-checked file exists")
+		return false
+	}
+	if ok {
+		return true
+	}
+	tmpDir, err := os.MkdirTemp(opt.RootDirectory, "tuf-tmp*")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create tuf-tmp directory")
+		return false
+	}
+	defer os.RemoveAll(tmpDir)
+	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-tmp.json"))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create tuf-tmp local store")
+		return false
+	}
+	remoteStore, err := createTUFRemoteStore(opt, DefaultURL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create TUF remote store")
+		return false
+	}
+	tufClient := client.NewClient(localStore, remoteStore)
+	if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
+		log.Error().Err(err).Msg("failed to pin root keys")
+		return false
+	}
+	if _, err := tufClient.Update(); err != nil {
+		// Logging as debug to not fill logs until users allow connections to new TUF server.
+		log.Debug().Err(err).Msg("failed to update metadata from new TUF")
+		return false
+	}
+	tmpFile, err := secure.OpenFile(
+		filepath.Join(tmpDir, "orbit"),
+		os.O_CREATE|os.O_WRONLY,
+		constant.DefaultFileMode,
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed open temp file for download")
+		return false
+	}
+	defer tmpFile.Close()
+	// We are using the orbit stable target as the test target.
+	var (
+		platform   string
+		executable string
+	)
+	switch runtime.GOOS {
+	case "darwin":
+		platform = "macos"
+		executable = "orbit"
+	case "windows":
+		platform = "windows"
+		executable = "orbit.exe"
+	case "linux":
+		platform = "linux"
+		executable = "orbit"
+	}
+	if err := tufClient.Download(fmt.Sprintf("orbit/%s/stable/%s", platform, executable), &fileDestination{tmpFile}); err != nil {
+		// Logging as debug to not fill logs until users allow connections to new TUF server.
+		log.Debug().Err(err).Msg("failed to download orbit from TUF")
+		return false
+	}
+
+	if err := os.WriteFile(fp, []byte("new-tuf-checked"), constant.DefaultFileMode); err != nil {
+		// We log the error and return success below anyway because the access check was successful.
+		log.Error().Err(err).Msg("failed to write new-tuf-checked file")
+	}
+	// We assume access to the whole repository
+	// if the orbit macOS stable target is downloaded successfully.
+	return true
+}
+
+func createTUFRemoteStore(opt Options, serverURL string) (client.RemoteStore, error) {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: opt.InsecureTransport,
+	}
+	if opt.ServerCertificatePath != "" {
+		rootCAs, err := certificate.LoadPEM(opt.ServerCertificatePath)
+		if err != nil {
+			return nil, fmt.Errorf("loading server root CA: %w", err)
+		}
+		tlsConfig.RootCAs = rootCAs
+	}
+	if opt.ClientCertificate != nil {
+		tlsConfig.Certificates = []tls.Certificate{*opt.ClientCertificate}
+	}
+	remoteOpt := &client.HTTPRemoteOptions{
+		UserAgent: fmt.Sprintf("orbit/%s (%s %s)", build.Version, runtime.GOOS, runtime.GOARCH),
+	}
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
+	remoteStore, err := client.HTTPRemoteStore(serverURL, remoteOpt, httpClient)
+	if err != nil {
+		return nil, fmt.Errorf("init remote store: %w", err)
+	}
+	return remoteStore, nil
 }

@@ -15,6 +15,7 @@
   &__name {
     font-size: $x-small;
     font-weight: $bold;
+    overflow-wrap: anywhere; // Prevent long file name overflow
   }
 
   &__platform {

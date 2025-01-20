@@ -1023,10 +1023,20 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
 	}, nil)
 	require.NoError(t, err)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.example.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}},
 	}, nil)
+	require.NoError(t, err)
+
+	// insert a policy referring to one of the VPP apps
+	vpp2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), vpp2.TitleID)
+	require.NoError(t, err)
+	vppPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
+		Name:           "VPP Policy",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &vpp2Meta.VPPAppsTeamsID,
+	})
 	require.NoError(t, err)
 
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
@@ -1065,6 +1075,11 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	names := make([]nameSource, 0, len(titles))
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
+		if title.ID == vpp2.TitleID {
+			assert.Len(t, title.AppStoreApp.AutomaticInstallPolicies, 1)
+			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].Name, "VPP Policy")
+			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+		}
 	}
 	assert.ElementsMatch(t, []nameSource{
 		{name: "bar", source: "deb_packages"},

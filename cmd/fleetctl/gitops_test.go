@@ -1105,6 +1105,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
@@ -1930,6 +1933,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 				return nil
 			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
+			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
@@ -1990,6 +1996,106 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
+	startAndServeVPPServer(t)
+
+	cases := []struct {
+		noTeamFile string
+		wantErr    string
+		vppApps    []fleet.VPPAppResponse
+	}{
+		{
+			noTeamFile: "testdata/gitops/subdir/no_team_vpp_policies_valid.yml",
+			vppApps: []fleet.VPPAppResponse{
+				{ // for more test coverage
+					Platform: fleet.MacOSPlatform,
+				},
+				{ // for more test coverage
+					TitleID:  ptr.Uint(122),
+					Platform: fleet.MacOSPlatform,
+				},
+				{
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(123),
+					AppStoreID: "1",
+					Platform:   fleet.IOSPlatform,
+				},
+				{
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(124),
+					AppStoreID: "1",
+					Platform:   fleet.MacOSPlatform,
+				},
+				{
+					TeamID:     ptr.Uint(0),
+					TitleID:    ptr.Uint(125),
+					AppStoreID: "1",
+					Platform:   fleet.IPadOSPlatform,
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.noTeamFile), func(t *testing.T) {
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			tokExpire := time.Now().Add(time.Hour)
+			token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return c.vppApps, nil
+			}
+			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+				return &fleet.VPPTokenDB{
+					ID:        1,
+					OrgName:   "Fleet",
+					Location:  "Earth",
+					RenewDate: tokExpire,
+					Token:     string(token),
+					Teams:     nil,
+				}, nil
+			}
+			labelToIDs := map[string]uint{
+				fleet.BuiltinLabelMacOS14Plus: 1,
+				"a":                           2,
+				"b":                           3,
+			}
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				// for this test, recognize labels a and b (as well as the built-in macos 14+ one)
+				ret := make(map[string]uint)
+				for _, lbl := range labels {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = id
+					}
+				}
+				return ret, nil
+			}
+
+			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
+			globalFile := "./testdata/gitops/global_config_no_paths.yml"
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			t.Cleanup(func() {
+				os.Remove(dstPath)
+			})
+			err = file.Copy(c.noTeamFile, dstPath, 0o755)
+			require.NoError(t, err)
+			_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
 func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 	startSoftwareInstallerServer(t)
 	startAndServeVPPServer(t)
@@ -2034,6 +2140,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
+			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
@@ -2113,6 +2222,9 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
+			}
+			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+				return []fleet.VPPAppResponse{}, nil
 			}
 
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
@@ -3317,6 +3429,26 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitOpsWebhooksDisable(t *testing.T) {
+	_, appConfig, _ := setupFullGitOpsPremiumServer(t)
+
+	webhook := &(*appConfig).WebhookSettings
+	webhook.ActivitiesWebhook.Enable = true
+	webhook.FailingPoliciesWebhook.Enable = true
+	webhook.HostStatusWebhook.Enable = true
+	webhook.VulnerabilitiesWebhook.Enable = true
+
+	// Run config with no webooks settings
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_windows_migration_true_true.yml"})
+	require.NoError(t, err)
+
+	webhook = &(*appConfig).WebhookSettings
+	require.False(t, webhook.ActivitiesWebhook.Enable)
+	require.False(t, webhook.FailingPoliciesWebhook.Enable)
+	require.False(t, webhook.HostStatusWebhook.Enable)
+	require.False(t, webhook.VulnerabilitiesWebhook.Enable)
 }
 
 type memKeyValueStore struct {

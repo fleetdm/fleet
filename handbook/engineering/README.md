@@ -220,24 +220,12 @@ In these cases there are two differences in our process:
 
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
-A PR should be merged if:
+If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
-- It's a change that is needed and useful.
-- The CI is passing.
-- Tests are in place.
-- Documentation is updated.
-- Changes file is created.
+For PRs that change the product:
 
-For PRs that aren't ready to merge:
-
-- Thank the contributor for their hard work and explain why we can't merge the changes yet.
-- Encourage the contributor to reach out in the #fleet channel of osquery Slack to get help from the rest of the community.
-- Offer code review and coaching to help get the PR ready to go (see note below).
-- Keep an eye out for any updates or responses.
-
-> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR.
-
-If everything is good to go, approve the review.
+- Set the PR to draft.
+- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
 
 For PRs that will not be merged:
 

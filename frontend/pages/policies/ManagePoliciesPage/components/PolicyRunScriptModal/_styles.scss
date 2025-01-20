@@ -1,5 +1,10 @@
 .manage-policies-page {
   .policy-run-script-modal {
+    .form-field__help-text {
+      font-size: 14px;
+      line-height: 21px;
+    }
+
     .form-field--dropdown {
       width: 276px;
       .Select-placeholder {

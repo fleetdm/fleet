@@ -102,10 +102,12 @@ func cronVulnerabilities(
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
 
+		start := time.Now()
 		level.Info(logger).Log("msg", "updating vulnerability host counts")
-		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
+		if err := ds.UpdateVulnerabilityHostCounts(ctx, config.MaxConcurrency); err != nil {
 			return fmt.Errorf("updating vulnerability host counts: %w", err)
 		}
+		level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
 	}
 
 	return nil
@@ -633,6 +635,7 @@ func newWorkerIntegrationsSchedule(
 	logger kitlog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -681,9 +684,10 @@ func newWorkerIntegrationsSchedule(
 		DEPClient:  depCli,
 	}
 	appleMDM := &worker.AppleMDM{
-		Datastore: ds,
-		Log:       logger,
-		Commander: commander,
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
