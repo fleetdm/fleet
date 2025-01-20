@@ -510,6 +510,15 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 	return users, nil
 }
 
+func (ds *Datastore) ListHostUsers(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
+	users, err := loadHostUsersDB(ctx, ds.reader(ctx), hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading host users")
+	}
+
+	return users, nil
+}
+
 // hostRefs are the tables referenced by hosts.
 //
 // Defined here for testing purposes.

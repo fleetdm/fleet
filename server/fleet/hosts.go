@@ -207,6 +207,12 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all Hosts returned
+	PopulateLabels bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 

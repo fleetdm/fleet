@@ -252,6 +252,9 @@ type Datastore interface {
 	// the implementation for the exact list.
 	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
 
+	// ListHostUsers returns a list of users that are currently on the host
+	ListHostUsers(ctx context.Context, hostID uint) ([]HostUser, error)
+
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.

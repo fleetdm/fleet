@@ -228,6 +228,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	if opt.PopulateUsers {
+		for _, host := range hosts {
+			hu, err := svc.ds.ListHostUsers(ctx, host.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID))
+			}
+			host.Users = hu
+		}
+	}
+
 	return hosts, nil
 }
 
