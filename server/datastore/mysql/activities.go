@@ -631,8 +631,8 @@ func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.E
 
 	const deleteCompletedStmt = `
 DELETE FROM upcoming_activities
-WHERE 
-	host_id = ? AND 
+WHERE
+	host_id = ? AND
 	activated_at IS NOT NULL AND
 	execution_id = ?
 `
@@ -646,7 +646,7 @@ SELECT
 FROM
 	upcoming_activities
 WHERE
-	host_id = ? 
+	host_id = ?
 ORDER BY topmost DESC, priority DESC, created_at ASC
 LIMIT ?
 `
@@ -729,7 +729,45 @@ WHERE
 }
 
 func (ds *Datastore) activateNextScriptActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	panic("unimplemented")
+	const insStmt = `
+INSERT INTO
+	host_script_results
+(host_id, execution_id, script_content_id, output, script_id, policy_id, 
+	user_id, sync_request, setup_experience_script_id, is_internal)
+SELECT
+	ua.host_id,
+	ua.execution_id,
+	sua.script_content_id,
+	'',
+	sua.script_id,
+	sua.policy_id,
+	ua.user_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.sync_request'), 0),
+	sua.setup_experience_script_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.is_internal'), 0)
+FROM
+	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua 
+		ON sua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY 
+	ua.priority DESC, ua.created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate scripts")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate scripts")
+	}
+	return nil
 }
 
 func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
