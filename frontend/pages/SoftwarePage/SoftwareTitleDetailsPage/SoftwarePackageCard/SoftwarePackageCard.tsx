@@ -30,6 +30,8 @@ import Tag from "components/Tag";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import CustomLink from "components/CustomLink";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -318,7 +320,20 @@ const SoftwareInstallerCard = ({
   const versionInfo = version ? (
     <span>{version}</span>
   ) : (
-    <TooltipWrapper tipContent={`Fleet couldn't read the version from ${name}`}>
+    <TooltipWrapper
+      tipContent={
+        <span>
+          Fleet couldn&apos;t read the version from ${name}.{" "}
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+            text="Learn more"
+            color="core-fleet-white"
+            iconColor="core-fleet-white"
+          />
+        </span>
+      }
+    >
       Version (unknown)
     </TooltipWrapper>
   );
