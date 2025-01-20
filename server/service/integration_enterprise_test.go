@@ -13373,7 +13373,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-	// title shows up with "unknown" as the version
+	// title shows up with blank version
 	resp := listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -13383,7 +13383,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.Equal(t, "NoVersion.app", resp.SoftwareTitles[0].Name)
-	require.Equal(t, "unknown", resp.SoftwareTitles[0].SoftwarePackage.Version)
+	require.Equal(t, "", resp.SoftwareTitles[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {

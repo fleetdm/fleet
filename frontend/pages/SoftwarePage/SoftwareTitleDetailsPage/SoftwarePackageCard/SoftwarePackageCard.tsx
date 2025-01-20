@@ -228,7 +228,7 @@ const SoftwareActionsDropdown = ({
 
 interface ISoftwareInstallerCardProps {
   name: string;
-  version: string;
+  version: string | null;
   uploadedAt: string; // TODO: optional?
   status: {
     installed: number;
@@ -315,12 +315,20 @@ const SoftwareInstallerCard = ({
     );
   };
 
+  const versionInfo = version ? (
+    <span>{version}</span>
+  ) : (
+    <TooltipWrapper tipContent={`Fleet couldn't read the version from ${name}`}>
+      Version (unknown)
+    </TooltipWrapper>
+  );
+
   const renderDetails = () => {
     return !uploadedAt ? (
-      <span>Version {version}</span>
+      versionInfo
     ) : (
       <>
-        <span>Version {version} &bull; </span>
+        {versionInfo} &bull;{" "}
         <TooltipWrapper
           tipContent={internationalTimeFormat(new Date(uploadedAt))}
           underline={false}
