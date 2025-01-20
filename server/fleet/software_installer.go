@@ -683,3 +683,20 @@ type HostSoftwareInstallOptions struct {
 	PolicyID           *uint
 	ForSetupExperience bool
 }
+
+// IsFleetInitiated returns true if the software install is initiated by Fleet.
+// Software installs initiated via a policy are fleet-initiated (and we also
+// make sure SelfService is false, as this case is always user-initiated).
+func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
+	return !o.SelfService && o.PolicyID != nil
+}
+
+// Priority returns the upcoming activities queue priority to use for this
+// software installation. Software installed for the setup experience is
+// prioritized over other software installations.
+func (o HostSoftwareInstallOptions) Priority() int {
+	if o.ForSetupExperience {
+		return 100
+	}
+	return 0
+}

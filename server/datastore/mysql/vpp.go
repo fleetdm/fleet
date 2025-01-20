@@ -601,13 +601,6 @@ VALUES
 		return ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
-	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
-	var priority int
-	if opts.ForSetupExperience {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
@@ -616,9 +609,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			priority,
+			opts.Priority(),
 			userID,
-			fleetInitiated,
+			opts.IsFleetInitiated(),
 			commandUUID,
 			opts.SelfService,
 			associatedEventID,

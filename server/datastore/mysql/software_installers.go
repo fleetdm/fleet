@@ -812,13 +812,6 @@ VALUES
 		return "", ctxerr.Wrap(ctx, err, "getting installer data")
 	}
 
-	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
-	var priority int
-	if opts.ForSetupExperience {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
@@ -828,9 +821,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			priority,
+			opts.Priority(),
 			userID,
-			fleetInitiated,
+			opts.IsFleetInitiated(),
 			execID,
 			opts.SelfService,
 			installerDetails.Filename,
@@ -1174,10 +1167,10 @@ func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareIn
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM 
-	software_install_upcoming_activities siua 
+FROM
+	software_install_upcoming_activities siua
 	JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
-WHERE 
+WHERE
 	%s) hss ON hss.host_id = h.id`
 
 		filter := "siua.software_title_id = ?"
