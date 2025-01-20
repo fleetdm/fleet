@@ -3,7 +3,7 @@
   "version": "0.99.99",
   "description": "The premier osquery fleet manager.",
   "engines": {
-    "node": "20.11.1",
+    "node": "20.18.1",
     "yarn": ">=1.22.21"
   },
   "private": true,
