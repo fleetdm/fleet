@@ -608,9 +608,9 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 // This function activates the next upcoming activity, if any, for the specified host.
 // It does a few things to achieve this:
 //   - If there was an activity already marked as activated (activated_at is
-//     not NULL) and fromExecID is provided, it deletes it, as calling this
-//     function means that the previous activated activity/ies is now completed
-//     (in a final state, either success or failure).
+//     not NULL) and fromCompletedExecID is provided, it deletes it, as calling
+//     this function means that the previous activated activity/ies is now
+//     completed (in a final state, either success or failure).
 //   - If there is an upcoming activity to activate next, it does so,
 //     respecting the priority and enqueue order. Activation consists of inserting
 //     the activity in its respective table, e.g. `host_script_results` for
@@ -622,11 +622,11 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 //     batch-activated together (up to a limit) to reduce the processing
 //     latency and number of push notifications to send to this host.
 //
-// When called after receiving results for an activity, the fromExecID argument
-// identifies that activity. This is important as many activities may have been
-// activated if all were MDM commands, and we must not enqueue the next until
-// all those commands did receive results.
-func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromExecID string) (activatedExecIDs []string, err error) {
+// When called after receiving results for an activity, the fromCompletedExecID
+// argument identifies that activity. This is important as many activities may
+// have been activated if all were MDM commands, and we must not enqueue the
+// next until all those commands did receive results.
+func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromCompletedExecID string) (activatedExecIDs []string, err error) {
 	const maxMDMCommandActivations = 5
 
 	const deleteCompletedStmt = `
@@ -661,8 +661,8 @@ WHERE
 `
 
 	// first we delete the completed activity, if any
-	if fromExecID != "" {
-		if _, err := tx.ExecContext(ctx, deleteCompletedStmt, hostID, fromExecID); err != nil {
+	if fromCompletedExecID != "" {
+		if _, err := tx.ExecContext(ctx, deleteCompletedStmt, hostID, fromCompletedExecID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete completed upcoming activity")
 		}
 	}
@@ -732,7 +732,7 @@ func (ds *Datastore) activateNextScriptActivity(ctx context.Context, tx sqlx.Ext
 	const insStmt = `
 INSERT INTO
 	host_script_results
-(host_id, execution_id, script_content_id, output, script_id, policy_id, 
+(host_id, execution_id, script_content_id, output, script_id, policy_id,
 	user_id, sync_request, setup_experience_script_id, is_internal)
 SELECT
 	ua.host_id,
@@ -747,12 +747,12 @@ SELECT
 	COALESCE(JSON_EXTRACT(ua.payload, '$.is_internal'), 0)
 FROM
 	upcoming_activities ua
-	INNER JOIN script_upcoming_activities sua 
+	INNER JOIN script_upcoming_activities sua
 		ON sua.upcoming_activity_id = ua.id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
-ORDER BY 
+ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 

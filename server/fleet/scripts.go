@@ -154,6 +154,16 @@ type HostScriptRequestPayload struct {
 	SetupExperienceScriptID *uint `json:"-"`
 }
 
+// Priority returns the priority to assign to this activity in the upcoming
+// activities queue. It is the default priority except when the script is part
+// of the setup experience flow.
+func (r HostScriptRequestPayload) Priority() int {
+	if r.SetupExperienceScriptID != nil {
+		return 100
+	}
+	return 0
+}
+
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
 	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
 		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)

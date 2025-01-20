@@ -43,7 +43,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, false)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
 }
@@ -56,12 +56,12 @@ func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, requ
 		if request.ScriptContentID == 0 {
 			return errors.New("script contents must be saved prior to execution")
 		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		return err
 	})
 }
 
-func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
 		insUAStmt = `
 INSERT INTO upcoming_activities
@@ -98,18 +98,10 @@ WHERE
 `
 	)
 
-	var priority int
-	if request.SetupExperienceScriptID != nil {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
-
-	// TODO(uniq): activate next activity
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insUAStmt,
 		request.HostID,
-		priority,
+		request.Priority(),
 		request.UserID,
 		request.PolicyID != nil, // fleet-initiated if request is via a policy failure
 		execID,
@@ -138,6 +130,10 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
 	}
+
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next activity")
+	}
 	return &script, nil
 }
 
@@ -158,8 +154,6 @@ func truncateScriptResult(output string) string {
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
 	string, error,
 ) {
-	// TODO(uniq): this sets results of execution, so no impact on pending upcoming queue
-	// TODO(uniq): must call activate next activity
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -212,6 +206,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
+			// still do the activate next activity to ensure progress as there was
+			// an unexpected flow if we get here.
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
+
 			// succeed but leave hsr nil
 			return nil
 		}
@@ -270,6 +270,11 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 				}
 			}
 		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -1145,7 +1150,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -1195,7 +1200,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -1246,7 +1251,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}
