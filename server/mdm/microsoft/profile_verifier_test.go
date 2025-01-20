@@ -223,6 +223,41 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{"N2", "N4"},
 			toRetry:  []string{"N1"},
 		},
+		{
+			name: "single profile with CDATA reported and verified",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{
+					"L1": `
+      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
+				}), 0},
+			},
+			report: []osqueryReport{{"N1", "200", "L1",
+				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "single profile with CDATA to retry",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{
+					"L1": `
+      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
+				}), 0},
+			},
+			report: []osqueryReport{{"N1", "200", "L1",
+				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
 	}
 
 	for _, tt := range cases {
