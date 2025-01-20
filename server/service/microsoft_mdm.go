@@ -1507,8 +1507,11 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, reqMsg); err != nil {
-		return nil, fmt.Errorf("store incoming msgs: %w", err)
+	enrichedSyncML := svc.enrichSyncML(reqMsg)
+	if enrichedSyncML.HasCommands() {
+		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML); err != nil {
+			return nil, fmt.Errorf("store incoming msgs: %w", err)
+		}
 	}
 
 	// Iterate over the operations and process them
@@ -1530,6 +1533,29 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 	}
 
 	return responseCmds, nil
+}
+
+// enrichSyncML will enrich the incoming SyncML message with status and results commands
+func (svc *Service) enrichSyncML(reqMsg *mdm_types.SyncML) mdm_types.EnrichedSyncML {
+	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+	for _, protoOp := range enrichedSyncML.SyncML.GetOrderedCmds() {
+		// results and status should contain a command they're referencing
+		cmdRef := protoOp.Cmd.CmdRef
+		if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
+			continue
+		}
+
+		switch protoOp.Verb {
+		case fleet.CmdStatus:
+			enrichedSyncML.CmdRefUUIDToStatus[*cmdRef] = protoOp.Cmd
+		case fleet.CmdResults:
+			enrichedSyncML.CmdRefUUIDToResults[*cmdRef] = protoOp.Cmd
+		default:
+			continue
+		}
+		enrichedSyncML.CmdRefUUIDs = append(enrichedSyncML.CmdRefUUIDs, *cmdRef)
+	}
+	return enrichedSyncML
 }
 
 // getPendingMDMCmds returns the list of pending MDM commands for the device

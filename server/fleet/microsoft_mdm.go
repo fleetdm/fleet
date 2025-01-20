@@ -857,6 +857,25 @@ type SyncML struct {
 	Raw []byte `xml:"-"`
 }
 
+type EnrichedSyncML struct {
+	*SyncML
+	CmdRefUUIDToStatus  map[string]SyncMLCmd
+	CmdRefUUIDToResults map[string]SyncMLCmd
+	CmdRefUUIDs         []string
+}
+
+func (e EnrichedSyncML) HasCommands() bool {
+	return len(e.CmdRefUUIDs) > 0
+}
+
+func NewEnrichedSyncML(syncML *SyncML) EnrichedSyncML {
+	return EnrichedSyncML{
+		SyncML:              syncML,
+		CmdRefUUIDToStatus:  make(map[string]SyncMLCmd),
+		CmdRefUUIDToResults: make(map[string]SyncMLCmd),
+	}
+}
+
 type SyncHdr struct {
 	VerDTD    string   `xml:"VerDTD"`
 	VerProto  string   `xml:"VerProto"`
