@@ -1,29 +1,21 @@
 import React from "react";
 import { find, lowerCase, noop, trimEnd } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
 
-import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { ActivityType, IActivity } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
 import {
   AppleDisplayPlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
-
 import {
-  addGravatarUrlToResource,
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
-  internationalTimeFormat,
 } from "utilities/helpers";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
-import Avatar from "components/Avatar";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import ReactTooltip from "react-tooltip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { COLORS } from "styles/var/colors";
 
-const baseClass = "activity-item";
+import ActivityItem from "components/ActivityItem";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+
+const baseClass = "global-activity-item";
 
 const PREMIUM_ACTIVITIES = new Set([
   "created_team",
@@ -39,6 +31,18 @@ const PREMIUM_ACTIVITIES = new Set([
   "tranferred_hosts",
   "enabled_windows_mdm_migration",
   "disabled_windows_mdm_migration",
+]);
+
+const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanScript,
+  ActivityType.AddedSoftware,
+  ActivityType.EditedSoftware,
+  ActivityType.DeletedSoftware,
+  ActivityType.InstalledSoftware,
+  ActivityType.UninstalledSoftware,
+  ActivityType.EnabledActivityAutomations,
+  ActivityType.EditedActivityAutomations,
+  ActivityType.LiveQuery,
 ]);
 
 const getProfileMessageSuffix = (
@@ -96,16 +100,9 @@ const getMacOSSetupAssistantMessage = (
 };
 
 const TAGGED_TEMPLATES = {
-  liveQueryActivityTemplate: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      targets_count: count,
-      query_name: queryName,
-      query_sql: querySql,
-      stats,
-    } = activity.details || {};
+  liveQueryActivityTemplate: (activity: IActivity) => {
+    const { targets_count: count, query_name: queryName, stats } =
+      activity.details || {};
 
     const impactDescription = stats
       ? getPerformanceImpactDescription(stats)
@@ -135,23 +132,6 @@ const TAGGED_TEMPLATES = {
         <span className={`${baseClass}__details-content`}>
           ran {queryNameCopy} {impactCopy} {hostCountCopy}.
         </span>
-        {querySql && (
-          <>
-            <Button
-              className={`${baseClass}__show-query-link`}
-              variant="text-link"
-              onClick={() =>
-                onDetailsClick?.(ActivityType.LiveQuery, {
-                  query_sql: querySql,
-                  stats,
-                })
-              }
-            >
-              Show query{" "}
-              <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-            </Button>
-          </>
-        )}
       </>
     );
   },
@@ -683,32 +663,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  // TODO: Combine ranScript template with host details page templates
-  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
-  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
-  ranScript: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { script_name, host_display_name, script_execution_id } =
-      activity.details || {};
+  ranScript: (activity: IActivity) => {
+    const { script_name, host_display_name } = activity.details || {};
     return (
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        <b>{host_display_name}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{host_display_name}</b>.
       </>
     );
   },
@@ -892,18 +853,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  addedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  addedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -914,38 +864,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  editedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  editedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -956,38 +879,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  deletedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const {
-      software_title,
-      software_package,
-      self_service,
-      labels_include_any,
-      labels_exclude_any,
-    } = activity.details || {};
-
+  deletedSoftware: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -998,30 +894,11 @@ const TAGGED_TEMPLATES = {
           </>
         ) : (
           "no team."
-        )}{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(activity.type, {
-              software_title,
-              software_package,
-              self_service,
-              labels_include_any,
-              labels_exclude_any,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        )}
       </>
     );
   },
-  installedSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
+  installedSoftware: (activity: IActivity) => {
     const { details } = activity;
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1042,22 +919,11 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallStatusPredicate(status)} <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() => onDetailsClick?.(activity.type, details)}
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{hostName}</b>.
       </>
     );
   },
-  uninstalledSoftware: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
+  uninstalledSoftware: (activity: IActivity) => {
     const { details } = activity;
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1076,15 +942,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallStatusPredicate(status)} software <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} from{" "}
-        <b>{hostName}</b>.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() => onDetailsClick?.(activity.type, details)}
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
+        <b>{hostName}</b>.
       </>
     );
   },
@@ -1160,73 +1018,21 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enabledActivityAutomations: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { webhook_url } = activity.details || {};
-    return (
-      <>
-        {" "}
-        enabled activity automations.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.EnabledActivityAutomations, {
-              webhook_url,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
-      </>
-    );
+  enabledActivityAutomations: () => {
+    return <> enabled activity automations.</>;
   },
-  editedActivityAutomations: (
-    activity: IActivity,
-    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
-  ) => {
-    const { webhook_url } = activity.details || {};
-    return (
-      <>
-        {" "}
-        edited activity automations.{" "}
-        <Button
-          className={`${baseClass}__show-query-link`}
-          variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.EditedActivityAutomations, {
-              webhook_url,
-            })
-          }
-        >
-          Show details{" "}
-          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-        </Button>
-      </>
-    );
+  editedActivityAutomations: () => {
+    return <> edited activity automations.</>;
   },
   disabledActivityAutomations: () => {
     return <> disabled activity automations.</>;
   },
 };
 
-const getDetail = (
-  activity: IActivity,
-  isPremiumTier: boolean,
-  onDetailsClick?: (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => void
-) => {
+const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
-      return TAGGED_TEMPLATES.liveQueryActivityTemplate(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
     }
     case ActivityType.AppliedSpecPack: {
       return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
@@ -1364,7 +1170,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
     case ActivityType.RanScript: {
-      return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.ranScript(activity);
     }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
@@ -1409,19 +1215,19 @@ const getDetail = (
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
     }
     case ActivityType.AddedSoftware: {
-      return TAGGED_TEMPLATES.addedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.addedSoftware(activity);
     }
     case ActivityType.EditedSoftware: {
-      return TAGGED_TEMPLATES.editedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.editedSoftware(activity);
     }
     case ActivityType.DeletedSoftware: {
-      return TAGGED_TEMPLATES.deletedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
     }
     case ActivityType.InstalledSoftware: {
-      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.installedSoftware(activity);
     }
     case ActivityType.UninstalledSoftware: {
-      return TAGGED_TEMPLATES.uninstalledSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
@@ -1430,7 +1236,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
     }
     case ActivityType.InstalledAppStoreApp: {
-      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+      return TAGGED_TEMPLATES.installedSoftware(activity);
     }
     case ActivityType.EnabledVpp: {
       return TAGGED_TEMPLATES.enabledVpp(activity);
@@ -1439,16 +1245,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.disabledVpp(activity);
     }
     case ActivityType.EnabledActivityAutomations: {
-      return TAGGED_TEMPLATES.enabledActivityAutomations(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.enabledActivityAutomations();
     }
     case ActivityType.EditedActivityAutomations: {
-      return TAGGED_TEMPLATES.editedActivityAutomations(
-        activity,
-        onDetailsClick
-      );
+      return TAGGED_TEMPLATES.editedActivityAutomations();
     }
     case ActivityType.DisabledActivityAutomations: {
       return TAGGED_TEMPLATES.disabledActivityAutomations();
@@ -1463,28 +1263,20 @@ const getDetail = (
 interface IActivityItemProps {
   activity: IActivity;
   isPremiumTier: boolean;
-  isSandboxMode?: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
    * details is showing the query for a live query action.
    */
-  onDetailsClick?: (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => void;
+  onDetailsClick?: ShowActivityDetailsHandler;
 }
 
-const ActivityItem = ({
+const GlobalActivityItem = ({
   activity,
   isPremiumTier,
-  isSandboxMode = false,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const { actor_email } = activity;
-  const { gravatar_url } = actor_email
-    ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   // Add the "Fleet" name to the activity if needed.
   // TODO: remove/refactor this once we have "fleet-initiated" activities.
@@ -1497,10 +1289,6 @@ const ActivityItem = ({
   ) {
     activity.actor_full_name = "Fleet";
   }
-
-  const activityCreatedAt = new Date(activity.created_at);
-  const indicatePremiumFeature =
-    isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
@@ -1530,45 +1318,17 @@ const ActivityItem = ({
   };
 
   return (
-    <div className={baseClass}>
-      <Avatar
-        className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url }}
-        size="small"
-        hasWhiteBackground
-      />
-      <div className={`${baseClass}__details-wrapper`}>
-        <div className="activity-details">
-          {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
-          <span className={`${baseClass}__details-topline`}>
-            {renderActivityPrefix()}
-            {getDetail(activity, isPremiumTier, onDetailsClick)}
-          </span>
-          <br />
-          <span
-            className={`${baseClass}__details-bottomline`}
-            data-tip
-            data-for={`activity-${activity.id}`}
-          >
-            {formatDistanceToNowStrict(activityCreatedAt, {
-              addSuffix: true,
-            })}
-          </span>
-          <ReactTooltip
-            className="date-tooltip"
-            place="top"
-            type="dark"
-            effect="solid"
-            id={`activity-${activity.id}`}
-            backgroundColor={COLORS["tooltip-bg"]}
-          >
-            {internationalTimeFormat(activityCreatedAt)}
-          </ReactTooltip>
-        </div>
-      </div>
-      <div className={`${baseClass}__dash`} />
-    </div>
+    <ActivityItem
+      activity={activity}
+      hideCancel
+      hideShowDetails={!hasDetails}
+      onShowDetails={onDetailsClick}
+      className={baseClass}
+    >
+      {renderActivityPrefix()}
+      {getDetail(activity, isPremiumTier)}
+    </ActivityItem>
   );
 };
 
-export default ActivityItem;
+export default GlobalActivityItem;

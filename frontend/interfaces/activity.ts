@@ -97,18 +97,22 @@ export enum ActivityType {
   EnabledActivityAutomations = "enabled_activity_automations",
   EditedActivityAutomations = "edited_activity_automations",
   DisabledActivityAutomations = "disabled_activity_automations",
+  CanceledScript = "canceled_script",
+  CanceledSoftwareInstall = "canceled_software_install",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.CanceledScript
+  | ActivityType.CanceledSoftwareInstall;
 
-// This is a subset of ActivityType that are shown only for the host upcoming activities
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
@@ -132,6 +136,7 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
 };
 
 export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
