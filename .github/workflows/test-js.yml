@@ -58,7 +58,7 @@ jobs:
             **/node_modules
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-modules-
+            ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install JS Dependencies
         if: steps.js-cache.outputs.cache-hit != 'true'
