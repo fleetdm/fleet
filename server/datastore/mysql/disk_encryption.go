@@ -57,7 +57,7 @@ WHERE host_id IN (?)
 		return nil
 	}
 
-	delteStmt, deleteArgs, err := sqlx.In(
+	deleteStmt, deleteArgs, err := sqlx.In(
 		"DELETE FROM host_disk_encryption_keys WHERE host_id IN (?)",
 		hostIDs,
 	)
@@ -65,6 +65,6 @@ WHERE host_id IN (?)
 		return ctxerr.Wrap(ctx, err, "building query")
 	}
 
-	_, err = tx.ExecContext(ctx, delteStmt, deleteArgs...)
+	_, err = tx.ExecContext(ctx, deleteStmt, deleteArgs...)
 	return err
 }
