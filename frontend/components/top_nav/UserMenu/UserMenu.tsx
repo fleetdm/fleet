@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { keyframes } from "@emotion/react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
-  OptionProps,
   components,
+  DropdownIndicatorProps,
   GroupBase,
+  OptionProps,
+  StylesConfig,
 } from "react-select-5";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
@@ -38,7 +38,9 @@ const bounceDownAnimation = keyframes`
   }
 `;
 
-const getOptionBackgroundColor = (state: any) => {
+const getOptionBackgroundColor = (
+  state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
+) => {
   return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
@@ -229,7 +231,7 @@ const UserMenu = ({
       backgroundColor: getOptionBackgroundColor(state),
       fontWeight: state.isSelected ? "bold" : "normal",
       "> .dropdown-wrapper__help-text": {
-        fontWeight: "normal", // TODO: Get this working
+        fontWeight: "normal", // TODO: Get this working and make sure tooltips don't bold either
       },
       color: COLORS["tooltip-bg"], // TODO: Why the mismatch in names in colors.scss and colors.ts
       whiteSpace: "nowrap",

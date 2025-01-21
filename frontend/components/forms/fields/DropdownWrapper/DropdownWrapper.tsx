@@ -12,12 +12,14 @@
 import classnames from "classnames";
 import React from "react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
-  OptionProps,
   components,
+  DropdownIndicatorProps,
+  GroupBase,
+  OptionProps,
   PropsValue,
   SingleValue,
+  StylesConfig,
+  ValueContainerProps,
 } from "react-select-5";
 
 import { COLORS } from "styles/var/colors";
@@ -28,10 +30,10 @@ import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/Dropd
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 
-const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+const getOptionBackgroundColor = (
+  state: OptionProps<CustomOptionType, false>
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 export interface CustomOptionType {
@@ -129,7 +131,11 @@ const DropdownWrapper = ({
   };
 
   const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<CustomOptionType, false, any>
+    props: DropdownIndicatorProps<
+      CustomOptionType,
+      false,
+      GroupBase<CustomOptionType>
+    >
   ) => {
     const { isFocused, selectProps } = props;
     const color =
@@ -151,7 +157,10 @@ const DropdownWrapper = ({
     );
   };
 
-  const ValueContainer = ({ children, ...props }: any) => {
+  const ValueContainer = ({
+    children,
+    ...props
+  }: ValueContainerProps<CustomOptionType, false>) => {
     const iconToDisplay = iconName || (tableFilter ? "filter" : null);
 
     return (
@@ -195,6 +204,9 @@ const DropdownWrapper = ({
         ".dropdown-wrapper__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
+        ".filter-icon path": {
+          fill: COLORS["core-vibrant-blue-over"],
+        },
       },
       // When tabbing
       // Relies on --is-focused for styling as &:focus-visible cannot be applied
@@ -205,6 +217,9 @@ const DropdownWrapper = ({
         ".dropdown-wrapper__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
+        ".filter-icon path": {
+          fill: COLORS["core-vibrant-blue-over"],
+        },
       },
       ...(state.isDisabled && {
         ".dropdown-wrapper__single-value": {
@@ -213,6 +228,9 @@ const DropdownWrapper = ({
         ".dropdown-wrapper__indicator path": {
           stroke: COLORS["ui-fleet-black-50"],
         },
+        ".filter-icon path": {
+          fill: COLORS["ui-fleet-black-50"],
+        },
       }),
       "&:active": {
         ".dropdown-wrapper__single-value": {
@@ -220,6 +238,9 @@ const DropdownWrapper = ({
         },
         ".dropdown-wrapper__indicator path": {
           stroke: COLORS["core-vibrant-blue-down"],
+        },
+        ".filter-icon path": {
+          fill: COLORS["core-vibrant-blue-down"],
         },
       },
       ...(state.menuIsOpen && {

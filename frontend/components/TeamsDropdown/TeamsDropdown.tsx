@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
   components,
+  DropdownIndicatorProps,
+  GroupBase,
+  OptionProps,
+  StylesConfig,
 } from "react-select-5";
 
 import { COLORS } from "styles/var/colors";
@@ -48,10 +50,14 @@ const generateDropdownOptions = (
   return filtered;
 };
 
-const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+const getOptionBackgroundColor = (
+  state: OptionProps<
+    INumberDropdownOption,
+    false,
+    GroupBase<INumberDropdownOption>
+  >
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 interface ITeamsDropdownProps {
