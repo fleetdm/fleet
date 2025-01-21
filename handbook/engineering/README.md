@@ -232,7 +232,7 @@ The EM will be the contact point for the contributor and will ensure the PR is r
 - Set the PR to draft.
 - Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
 
-#### For PRs that will not be merged:
+**For PRs that will not be merged:**
 
 - Thank the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
