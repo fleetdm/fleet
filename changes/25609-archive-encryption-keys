@@ -1,0 +1,1 @@
+Instead of deleting, disk encryption keys are now archived when host moves to a team that has disk encryption disabled.
