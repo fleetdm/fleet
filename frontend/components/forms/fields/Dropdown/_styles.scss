@@ -37,7 +37,7 @@
           color: $core-vibrant-red;
           border: 1px solid $core-vibrant-red;
           box-sizing: border-box;
-          border-radius: 4px;
+          border-radius: $border-radius;
         }
 
         .Select-arrow {
@@ -237,13 +237,15 @@
     margin: 0;
     padding: 10px;
     display: block;
+    border-radius: $border-radius;
+
+    &.is-selected {
+      background-color: transparent;
+      font-weight: bold;
+    }
 
     &.is-focused {
       background-color: $ui-vibrant-blue-10;
-
-      .dropdown__option {
-        background-color: $ui-vibrant-blue-10;
-      }
 
       .Select-icon {
         color: $ui-vibrant-blue-10;
@@ -328,7 +330,6 @@
         &.is-focused {
           background-color: $ui-vibrant-blue-10;
           color: $core-white;
-          font-weight: $bold;
         }
       }
     }

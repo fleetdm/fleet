@@ -139,13 +139,7 @@ class Dropdown extends Component {
       );
     }
     return (
-      <div
-        className={`${baseClass}__option`}
-        style={{
-          backgroundColor: option.isSelected ? "#E5F7FF" : "#FFFFFF",
-          padding: "8px",
-        }}
-      >
+      <div className={`${baseClass}__option`}>
         {option.label}
         {option.helpText && (
           <span className={`${baseClass}__help-text`}>{option.helpText}</span>
@@ -215,38 +209,6 @@ class Dropdown extends Component {
       [`${baseClass}__select--disabled`]: disabled,
     });
 
-    const customStyles = {
-      option: (provided, state) => ({
-        ...provided,
-        color: COLORS["core-fleet-black"],
-        fontSize: "14px", // Assuming $x-small is 14px
-        margin: 0,
-        padding: "10px",
-        display: "block",
-        backgroundColor: "transparent",
-        fontWeight: state.isSelected ? "bold" : "normal",
-        "&:hover": {
-          backgroundColor: state.isDisabled
-            ? "transparent"
-            : COLORS["ui-vibrant-blue-10"],
-        },
-        "&:active": {
-          backgroundColor: state.isDisabled
-            ? "transparent"
-            : COLORS["ui-vibrant-blue-10"],
-        },
-        ".dropdown-wrapper__option": {
-          backgroundColor: "transparent",
-          padding: 0,
-        },
-        ...(state.isDisabled && {
-          color: COLORS["ui-fleet-black-50"],
-          fontStyle: "italic",
-          cursor: "not-allowed",
-        }),
-      }),
-    };
-
     return (
       <FormField
         {...formFieldProps}
@@ -254,7 +216,6 @@ class Dropdown extends Component {
         className={wrapperClassName}
       >
         <Select
-          styles={customStyles}
           className={selectClasses}
           clearable={clearable}
           disabled={disabled}

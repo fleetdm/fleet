@@ -229,11 +229,7 @@ const UserMenu = ({
       fontSize: "15px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: state.isSelected ? "bold" : "normal",
-      "> .dropdown-wrapper__help-text": {
-        fontWeight: "normal", // TODO: Get this working and make sure tooltips don't bold either
-      },
-      color: COLORS["tooltip-bg"], // TODO: Why the mismatch in names in colors.scss and colors.ts
+      color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-vibrant-blue-10"],
