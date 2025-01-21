@@ -25,4 +25,12 @@ graph TD
     RUS --> OW[Overwrite PostInstallScriptOutput]
     RUS2 --> RUS
     OW --> Failed[Status: Failed]
+    RR["Report results to Fleet (POST /orbit/software_install/result)"]
+    StatusFailed --> RR
+    StatusInstalled --> RR
+    StatusFailed2 --> RR
+    Failed --> RR
+    RR --> |Success| D["Done (execution marked as installed)"]
+    RR --> |Fail| SP[Status: pending]
+    SP --> Start
 ```
