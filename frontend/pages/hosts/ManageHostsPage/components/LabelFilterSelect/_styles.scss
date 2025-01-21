@@ -110,8 +110,13 @@
     }
 
     &--is-selected {
-      font-weight: $bold;
       background-color: transparent;
+
+      .option-label {
+        span {
+          font-weight: $bold;
+        }
+      }
     }
 
     &--is-focused {
