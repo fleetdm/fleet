@@ -222,7 +222,7 @@ If you're assigned a community pull request for review, it is important to keep 
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
-#### For PRs that change the product:
+**For PRs that change the product:**
 
 - Assign the PR to the appropriate product group EM (Engineering Manager).
 - Notify the EM in the #help-engineering Slack channel.
