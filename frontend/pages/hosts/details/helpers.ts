@@ -15,6 +15,16 @@ const convertWinDiskEncryptionStatusToSettingStatus = (
     : diskEncryptionStatus;
 };
 
+const generateWindowsDiskEncryptionMessage = (
+  status: WindowsDiskEncryptionStatus,
+  detail: string
+) => {
+  if (status === "failed") {
+    detail += " Fleet will retry automatically.";
+  }
+  return detail;
+};
+
 /**
  * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
@@ -26,11 +36,11 @@ export const generateWinDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This s the only type of profile that can have this value
+    profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "windows",
     name: "Disk Encryption",
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
-    detail,
+    detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
     operation_type: null,
   };
 };
@@ -46,7 +56,7 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This s the only type of profile that can have this value
+    profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "linux",
     name: "Disk Encryption",
     status: diskEncryptionStatus,
