@@ -2118,6 +2118,7 @@ ON DUPLICATE KEY UPDATE
 		Platform:      "darwin",
 		TeamID:        nil,
 	})
+	require.NoError(t, err)
 
 	// TODO(uniq): insert software title without installer to introduce a gap between title id and
 	// installer id
@@ -2156,13 +2157,13 @@ ON DUPLICATE KEY UPDATE
 	require.Equal(t, titleID2, *meta2.TitleID)
 
 	// add some software install requests
-	exec1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta1.InstallerID, false, nil)
+	exec1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta1.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	exec2, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta2.InstallerID, false, nil)
+	exec2, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta2.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	_, err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, meta2.InstallerID, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, meta2.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	expectStatus := fleet.SoftwarePending
@@ -2290,16 +2291,17 @@ ON DUPLICATE KEY UPDATE
 			Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
 		}, nil)
+		require.NoError(t, err)
 
 		// TODO(uniq): add tests with platform variants
 
 		cmd1 := uuid.NewString()
 		event1 := uuid.NewString()
-		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, v1.VPPAppID, cmd1, event1, false, nil))
+		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, v1.VPPAppID, cmd1, event1, fleet.HostSoftwareInstallOptions{}))
 
 		cmd2 := uuid.NewString()
 		event2 := uuid.NewString()
-		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, v1.VPPAppID, cmd2, event2, false, nil))
+		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, v1.VPPAppID, cmd2, event2, fleet.HostSoftwareInstallOptions{}))
 
 		expectStatus = fleet.SoftwareInstallPending
 		gotHosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{

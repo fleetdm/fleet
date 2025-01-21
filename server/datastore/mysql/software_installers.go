@@ -1076,9 +1076,6 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 	// TODO(uniq): do we need to support team filtering or is that not needed because installers are
 	// associated to teams?
 
-	// TODO(uniq): do we need to handle the host_deleted_at and removed conditions somehow for upcoming
-	// installs like is happening with past installs?
-
 	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
@@ -1182,18 +1179,19 @@ WHERE
 		case fleet.SoftwareInstallPending:
 			filter += " AND ua.activity_type = 'vpp_app_install'"
 		case fleet.SoftwareUninstallPending:
-			// VPP does not have uninstaller yet so to preserve existing behavior of VPP filters we map uninstall to install
+			// TODO: Update this when VPP supports uninstall, for now we map uninstall to install to preserve existing behavior of VPP filters
 			filter += " AND ua.activity_type = 'vpp_app_install'"
 		default:
-			// no change
+			// no change, we're just filtering by app_id and platform so it will pick up any
+			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
 		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
 	}
 
-	// Since VPP does not have uninstaller yet, we map the generic pending/failed statuses to the install statuses
+	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
 	if status == fleet.SoftwareFailed {
-		status = fleet.SoftwareInstallFailed
+		status = fleet.SoftwareInstallFailed // TODO: When VPP supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
 	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
@@ -1297,7 +1295,7 @@ WHERE
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO(uniq): prior code was joining based on installer id bug based on how list options are parsed [1] it seems like this should be the title id
+		// TODO(uniq): prior code was joining based on installer id but based on how list options are parsed [1] it seems like this should be the title id
 		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
 		"title_id": titleID,
 	})
