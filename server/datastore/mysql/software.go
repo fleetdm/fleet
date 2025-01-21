@@ -355,7 +355,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, err
 	}
 
-	err = ds.withRetryTxx(
+	err = ds.withTx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
@@ -363,15 +363,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
-			// are runnning inside ds.withRetryTxx.
-			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
-			for key, value := range incomingByChecksum {
-				incomingByChecksumCopy[key] = value
-			}
-
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
+				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
 			)
 			if err != nil {
 				return err
