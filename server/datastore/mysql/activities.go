@@ -845,7 +845,7 @@ INSERT INTO
 SELECT
 	ua.execution_id,
 	'InstallApplication',
-	%s,
+	CONCAT(?, vaua.adam_id, ?, ua.execution_id, ?),
 	?
 FROM
 	upcoming_activities ua
@@ -856,7 +856,7 @@ WHERE
 	ua.execution_id IN (?)
 `
 
-	const rawCmdField = `CONCAT('<?xml version="1.0" encoding="UTF-8"?>
+	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -872,12 +872,16 @@ WHERE
         <key>RequestType</key>
         <string>InstallApplication</string>
         <key>iTunesStoreID</key>
-        <integer>', vaua.adam_id, '</integer>
+        <integer>`
+
+	const rawCmdPart2 = `</integer>
     </dict>
     <key>CommandUUID</key>
-    <string>', ua.execution_id, '</string>
+    <string>`
+
+	const rawCmdPart3 = `</string>
 </dict>
-</plist>')`
+</plist>`
 
 	const insNanoQueueStmt = `
 INSERT INTO
@@ -914,7 +918,7 @@ WHERE
 	}
 
 	// insert the nano command
-	stmt, args, err = sqlx.In(fmt.Sprintf(insCmdStmt, rawCmdField), mdm.CommandSubtypeNone, hostID, execIDs)
+	stmt, args, err = sqlx.In(insCmdStmt, rawCmdPart1, rawCmdPart2, rawCmdPart3, mdm.CommandSubtypeNone, hostID, execIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
 	}
