@@ -296,7 +296,7 @@ Use `labels_include_all` to target hosts that have all labels in the array, `lab
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
-- `install_agent_manually` specifies wheter Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
+- `manual_agent_install` specifies wheter Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
