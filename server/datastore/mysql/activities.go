@@ -837,7 +837,43 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	panic("unimplemented")
+	const insStmt = `
+INSERT INTO 
+	host_software_installs
+(execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, 
+	software_title_id, software_title_name, version)
+SELECT
+	ua.execution_id,
+	ua.host_id,
+	siua.software_installer_id,
+	ua.user_id,
+	1,  -- uninstall
+	'', -- no installer_filename for uninstalls
+	siua.software_title_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.software_title_name'), '[deleted title]'),
+	'unknown'
+FROM
+	upcoming_activities ua 
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate software uninstalls")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate software uninstalls")
+	}
+	return nil
 }
 
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
@@ -979,6 +1015,5 @@ WHERE
 			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
 		}
 	}
-
 	return nil
 }
