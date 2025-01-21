@@ -76,11 +76,6 @@
         gap: 20px;
       }
 
-      li > p {
-        display: flex;
-        gap: 4px;
-      }
-
       .page-description {
         font-size: 16px;
         margin-bottom: 48px;
@@ -108,6 +103,10 @@
 
       #main-content {
         padding: 48px 24px;
+      }
+
+      .device-enroll-message {
+        margin-top: 48px;
       }
     </style>
   </head>
@@ -160,8 +159,17 @@
           <div class="install-profile-container">
             <img class="install-profile-img" src="" alt="select install" />
           </div>
+          <p>
+            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
+            MANAGEMENT warning. Click <b>Install</b> again for each warning.
+            When you see a <b>Remote Management</b> prompt, click
+            <b>Trust</b> to complete enrollment.
+          </p>
         </li>
       </ol>
+      <p class="device-enroll-message">
+        Your device will now be enrolled in Fleet.
+      </p>
     </section>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
