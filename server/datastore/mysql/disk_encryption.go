@@ -9,6 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
+	})
+}
+
 func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
 	// We are using Apple's encryption profile to determine if any hosts, including Windows and Linux, are encrypted.
 	// This is a safe assumption since encryption is enabled for the whole team.
@@ -31,19 +37,24 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 		return nil
 	}
 
-	const moveKeysToArchiveQuery = `
+	const copyKeysToArchiveQuery = `
 INSERT INTO host_disk_encryption_keys_archive (host_id, base64_encrypted, base64_encrypted_salt, key_slot, decryptable, original_created_at, original_updated_at, reset_requested, client_error)
 SELECT host_id, base64_encrypted, base64_encrypted_salt, key_slot, decryptable, created_at as original_created_at, updated_at as original_updated_at, reset_requested, client_error
 FROM host_disk_encryption_keys
 WHERE host_id IN (?)
 `
-	moveStmt, moveArgs, err := sqlx.In(moveKeysToArchiveQuery, hostIDs)
+	moveStmt, moveArgs, err := sqlx.In(copyKeysToArchiveQuery, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building move encryption keys query")
 	}
-	_, err = tx.ExecContext(ctx, moveStmt, moveArgs...)
+	result, err := tx.ExecContext(ctx, moveStmt, moveArgs...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "moving encryption keys to archive table")
+	}
+	lastInsertID, _ := result.LastInsertId()
+	if lastInsertID == 0 {
+		// Nothing was copied, so there is nothing to delete.
+		return nil
 	}
 
 	delteStmt, deleteArgs, err := sqlx.In(

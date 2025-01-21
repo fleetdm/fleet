@@ -3551,12 +3551,6 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 
-func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
-	})
-}
-
 func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
 	if teamID == nil {
 		teamID = ptr.Uint(0)
