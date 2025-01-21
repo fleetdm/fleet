@@ -26,7 +26,7 @@ func TestScripts(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"HostScriptResult", testHostScriptResult},
-		{"DEPRestoredHost", testListPensingScriptDEPRestoration},
+		{"DEPRestoredHost", testListPendingScriptDEPRestoration},
 		{"Scripts", testScripts},
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
@@ -260,7 +260,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
 }
 
-func testListPensingScriptDEPRestoration(t *testing.T, ds *Datastore) {
+func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host := test.NewHost(t, ds, "host", "10.0.0.1", "1", "uuid1", time.Now())
