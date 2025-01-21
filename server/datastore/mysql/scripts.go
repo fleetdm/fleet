@@ -1392,9 +1392,9 @@ func (ds *Datastore) updateUninstallStatusFromResult(ctx context.Context, tx sql
 	if _, err := tx.ExecContext(ctx, stmt, exitCode, executionID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update uninstall status from result")
 	}
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, executionID); err != nil {
-		return ctxerr.Wrap(ctx, err, "activate next activity")
-	}
+	// NOTE: no need to call activateNextUpcomingActivity here as this function
+	// is called from SetHostScriptExecutionResult which will call it before
+	// completing.
 	return nil
 }
 

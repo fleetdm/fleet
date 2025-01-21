@@ -841,6 +841,8 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	// TODO(uniq): must also insert in host_script_results, as the software install is two-part
+	// see https://github.com/fleetdm/fleet/blob/47f25c51a960949d158f8944e4d3ff9f4941409d/ee/server/service/software_installers.go#L1262-L1282
 	const insStmt = `
 INSERT INTO
 	host_software_installs

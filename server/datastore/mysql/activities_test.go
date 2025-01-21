@@ -1103,6 +1103,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 
 func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1110,6 +1111,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -1127,6 +1130,22 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "vpp2",
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	require.NoError(t, err)
+
+	// create a software installer that can be installed later
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
 	require.NoError(t, err)
 
 	// activating an empty queue is fine, nothing activated
@@ -1194,4 +1213,102 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd := string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+
+	// insert a result for that command and create the past activity,
+	// which triggers the next activity to be activated (should be none
+	// in this scenario, as one is still active)
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: vpp1_1,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+
+	// vpp1_2 is now the next nano command
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_2, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp2.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_2+"<")
+
+	// create a pending software install request
+	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// activating does nothing because the VPP app 2 is still activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// trying to activate from a non-activated execution id (here, the software
+	// install sw1_1 one) does not delete that activity - it deletes only if it
+	// was activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_1)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+
+	// create a pending uninstall request
+	sw1_2 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	require.NoError(t, err)
+
+	// still hasn't changed the pending queue
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 3)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+	require.Equal(t, sw1_2, pendingActs[2].UUID)
+	require.True(t, pendingActs[2].Cancellable)
+
+	// insert a result for the vpp1_2 command
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_2,
+		Status:      "Error",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp2.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_2,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// software install activity is now activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, sw1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_2, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
 }
