@@ -259,7 +259,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			case "":
 				// do nothing
 			case "uninstall":
-				err = updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
+				err = ds.updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "update host uninstall action based on script result")
 				}
@@ -1385,14 +1385,15 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
 
-func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
-	// TODO(uniq): this sets results, no impact on pending upcoming queue
-	// TODO(uniq): must call activate next activity
+func (ds *Datastore) updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
 	stmt := `
 	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
 	`
 	if _, err := tx.ExecContext(ctx, stmt, exitCode, executionID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update uninstall status from result")
+	}
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, executionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "activate next activity")
 	}
 	return nil
 }

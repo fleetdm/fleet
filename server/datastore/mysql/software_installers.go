@@ -818,7 +818,6 @@ VALUES
 	}
 	execID := uuid.NewString()
 
-	// TODO(uniq): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -845,6 +844,10 @@ VALUES
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
 		}
 		return nil
 	})
@@ -900,14 +903,6 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
 
-		// TODO(uniq): To be reviewed once software uninstsall is better understood,
-		// as it is it wouldn't work because the same execution_id is used to
-		// insert a script execution request and the software uninstall request.
-		// Although I think one way to solve this would be to enqueue an uninstall
-		// activity in upcoming_activities, and when it's ready to run, insert in
-		// both host_script_results and host_software_installs, as it does today.
-		// So while it's pending, it's a single row in upcoming_activities, and when
-		// it's about to run, it's exactly the same as today.
 		insertUAStmt = `
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
@@ -959,7 +954,6 @@ VALUES
 		fleetInitiated = false
 	}
 
-	// TODO(uniq): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -982,6 +976,10 @@ VALUES
 		)
 		if err != nil {
 			return err
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
 		}
 		return nil
 	})
