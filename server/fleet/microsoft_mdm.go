@@ -869,11 +869,29 @@ func (e EnrichedSyncML) HasCommands() bool {
 }
 
 func NewEnrichedSyncML(syncML *SyncML) EnrichedSyncML {
-	return EnrichedSyncML{
+	result := EnrichedSyncML{
 		SyncML:              syncML,
 		CmdRefUUIDToStatus:  make(map[string]SyncMLCmd),
 		CmdRefUUIDToResults: make(map[string]SyncMLCmd),
 	}
+	for _, protoOp := range result.SyncML.GetOrderedCmds() {
+		// results and status should contain a command they're referencing
+		cmdRef := protoOp.Cmd.CmdRef
+		if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
+			continue
+		}
+
+		switch protoOp.Verb {
+		case CmdStatus:
+			result.CmdRefUUIDToStatus[*cmdRef] = protoOp.Cmd
+		case CmdResults:
+			result.CmdRefUUIDToResults[*cmdRef] = protoOp.Cmd
+		default:
+			continue
+		}
+		result.CmdRefUUIDs = append(result.CmdRefUUIDs, *cmdRef)
+	}
+	return result
 }
 
 type SyncHdr struct {

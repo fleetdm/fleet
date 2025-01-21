@@ -231,21 +231,6 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	const (
-		findCommandsStmt    = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
-		saveFullRespStmt    = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
-
-		insertResultsStmt = `
-INSERT INTO windows_mdm_command_results
-    (enrollment_id, command_uuid, raw_result, response_id, status_code)
-VALUES %s
-ON DUPLICATE KEY UPDATE
-    raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
-`
-	)
-
 	enrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting enrolled device with device ID")
@@ -253,6 +238,7 @@ ON DUPLICATE KEY UPDATE
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// store the full response
+		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving full response")
@@ -260,6 +246,7 @@ ON DUPLICATE KEY UPDATE
 		responseID, _ := sqlResult.LastInsertId()
 
 		// find commands we sent that match the UUID responses we've got
+		const findCommandsStmt = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
 		stmt, params, err := sqlx.In(findCommandsStmt, enrichedSyncML.CmdRefUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
@@ -271,7 +258,8 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		if len(matchingCmds) == 0 {
-			ds.logger.Log("warn", "unmatched commands", "uuids", enrichedSyncML.CmdRefUUIDs)
+			level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", enrichedSyncML.CmdRefUUIDs, "mdm_device_id",
+				deviceID)
 			return nil
 		}
 
@@ -335,6 +323,14 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// store the command results
+		const insertResultsStmt = `
+INSERT INTO windows_mdm_command_results
+    (enrollment_id, command_uuid, raw_result, response_id, status_code)
+VALUES %s
+ON DUPLICATE KEY UPDATE
+    raw_result = COALESCE(VALUES(raw_result), raw_result),
+    status_code = COALESCE(VALUES(status_code), status_code)
+`
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
@@ -354,7 +350,8 @@ ON DUPLICATE KEY UPDATE
 		for _, cmd := range matchingCmds {
 			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
 		}
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
+		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
+		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
 		}
