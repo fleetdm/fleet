@@ -69,6 +69,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
 	// 'Context cancelled' errors when the server drops long-lasting connections.
 	expBo.MaxElapsedTime = 1 * time.Minute
+	expBo.InitialInterval = 2 * time.Second
 	bo := backoff.WithMaxRetries(expBo, 5)
 	return backoff.Retry(operation, bo)
 }

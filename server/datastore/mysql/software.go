@@ -355,7 +355,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, err
 	}
 
-	err = ds.withTx(
+	// Software ingestion is the currently most expensive operation on "distributed/write" for hosts.
+	//
+	// We do not use withRetryTxx on purpose for software ingestion to avoid a thundering herd issue during enrollment,
+	// where the retries due to deadlocks/wait-timeouts saturate the DB writer and make all of Fleet unresponsive overall.
+	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
@@ -370,6 +374,13 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 			r.Inserted = inserted
+
+			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
+			// are runnning inside ds.withRetryTxx.
+			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
+			for key, value := range incomingByChecksum {
+				incomingByChecksumCopy[key] = value
+			}
 
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
 				return err
