@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { AxiosResponse } from "axios";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -196,7 +197,20 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       // quick exit if there was an error adding the software. Skip the policy
       // creation.
-      renderFlash("error", getErrorMessage(error));
+
+      const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
+      if (
+        ae.status === 408 ||
+        ae.status === 500 ||
+        getErrorMessage(error).includes("json decoder error") // 400 bad request when really slow
+      ) {
+        renderFlash(
+          "error",
+          "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough."
+        );
+      } else {
+        renderFlash("error", "Couldn't add. Please try again.");
+      }
       setShowAddFleetAppSoftwareModal(false);
       return;
     }
