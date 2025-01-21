@@ -1,14 +1,11 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
-import { noop } from "lodash";
+import { Meta, StoryObj } from "@storybook/react";
 
 import FlashMessage from ".";
 
-import { IFlashMessage } from "./FlashMessage";
-
 import "../../index.scss";
 
-export default {
+const meta: Meta<typeof FlashMessage> = {
   component: FlashMessage,
   title: "Components/FlashMessage",
   argTypes: {
@@ -28,8 +25,10 @@ export default {
       isVisible: true,
     },
   },
-} as Meta;
+};
 
-const Template: Story<IFlashMessage> = (props) => <FlashMessage {...props} />;
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof FlashMessage>;
+
+export const Default: Story = {};
