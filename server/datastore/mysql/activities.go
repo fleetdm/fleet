@@ -796,7 +796,44 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	panic("unimplemented")
+	const insStmt = `
+INSERT INTO host_software_installs
+	(execution_id, host_id, software_installer_id, user_id, self_service,
+		policy_id, installer_filename, version, software_title_id, software_title_name)
+SELECT
+	ua.execution_id,
+	ua.host_id,
+	siua.software_installer_id,
+	ua.user_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
+	siua.policy_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.installer_filename'), '[deleted installer]'),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.version'), 'unknown'),
+	siua.software_title_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.software_title_name'), '[deleted title]')
+FROM
+	upcoming_activities ua
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate software installs")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate software installs")
+	}
+	return nil
 }
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
