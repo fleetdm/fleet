@@ -590,7 +590,7 @@ org_settings:
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
-- `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
+- `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
 
 #### Example
 
@@ -630,8 +630,7 @@ org_settings:
 
 - `enable_vulnerabilities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
-- `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
-- `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
+- `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
 
 #### Example
 
