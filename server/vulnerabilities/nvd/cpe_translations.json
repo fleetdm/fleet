@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -90,6 +100,15 @@
     "filter": {
       "product": ["docker_desktop"],
       "vendor": ["docker"]
+    }
+  },
+  {
+    "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
