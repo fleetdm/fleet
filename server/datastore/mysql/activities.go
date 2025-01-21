@@ -40,14 +40,8 @@ func (ds *Datastore) NewActivity(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-		if ranScriptActivity.PolicyID != nil {
-			userName = &automationActivityAuthor
-		}
-	} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
-		if softwareInstallActivity.PolicyID != nil {
-			userName = &automationActivityAuthor
-		}
+	} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+		userName = &automationActivityAuthor
 	}
 
 	cols := []string{"user_id", "user_name", "activity_type", "details", "created_at"}
