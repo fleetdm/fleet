@@ -241,6 +241,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_script_results
   WHERE
     host_id = ? AND
+    host_deleted_at IS NULL AND
     %s
   	%s
   ORDER BY
@@ -504,7 +505,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 	deleteStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
-		WHERE 
+		WHERE
 			policy_id = ? AND
 			script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?

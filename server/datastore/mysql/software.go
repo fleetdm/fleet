@@ -2259,7 +2259,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						-- get the status of the latest attempt; 27-1 is the length of the timestamp
 					    SUBSTRING(MAX(CONCAT(created_at, COALESCE(status, ''))), 27) AS hsi_status
 					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0
+					WHERE host_id = :host_id AND removed = 0 AND host_deleted_at IS NULL
 					GROUP BY host_id, software_installer_id
 					UNION
 					-- get latest install attempt
@@ -2271,7 +2271,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
 						NULL as hsi_status
 					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0
+					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0 AND host_deleted_at IS NULL
 					GROUP BY host_id, software_installer_id
 					UNION
 					-- get latest uninstall attempt
@@ -2283,7 +2283,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_uninstall_execution_id,
 						NULL as hsi_status
 						FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 1
+					WHERE host_id = :host_id AND removed = 0 AND uninstall = 1 AND host_deleted_at IS NULL
 					GROUP BY host_id, software_installer_id
 				) as hsi_group
 				GROUP BY hsi_group.host_id, hsi_group.software_installer_id
@@ -2311,7 +2311,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
 			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			AND 
+			AND
 		    -- label membership check
 			(
 			 	-- do the label membership check only for software installers
@@ -2346,9 +2346,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 						UNION
 
-						-- exclude any, ignore software that depends on labels created 
-						-- _after_ the label_updated_at timestamp of the host (because 
-						-- we don't have results for that label yet, the host may or may 
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
 						-- not be a member).
 						SELECT
 							COUNT(*) AS count_installer_labels,
@@ -2358,7 +2358,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							software_installer_labels sil
 							LEFT OUTER JOIN labels lbl
 								ON lbl.id = sil.label_id
-							LEFT OUTER JOIN label_membership lm 
+							LEFT OUTER JOIN label_membership lm
 								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 						WHERE
 							sil.software_installer_id = si.id
@@ -2473,9 +2473,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 						UNION
 
-						-- exclude any, ignore software that depends on labels created 
-						-- _after_ the label_updated_at timestamp of the host (because 
-						-- we don't have results for that label yet, the host may or may 
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
 						-- not be a member).
 						SELECT
 							COUNT(*) AS count_installer_labels,
@@ -2485,7 +2485,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							software_installer_labels sil
 							LEFT OUTER JOIN labels lbl
 								ON lbl.id = sil.label_id
-							LEFT OUTER JOIN label_membership lm 
+							LEFT OUTER JOIN label_membership lm
 								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 						WHERE
 							sil.software_installer_id = si.id
