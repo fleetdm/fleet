@@ -133,7 +133,7 @@ const TeamsDropdown = ({
       "&:hover": {
         boxShadow: "none",
         ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue"],
+          color: COLORS["core-fleet-blue"],
         },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],

@@ -196,11 +196,11 @@ const DropdownWrapper = ({
       boxShadow: "none",
       borderRadius: "4px",
       borderColor: state.isFocused
-        ? COLORS["core-vibrant-blue"]
+        ? COLORS["core-fleet-blue"]
         : COLORS["ui-fleet-black-10"],
       "&:hover": {
         boxShadow: "none",
-        borderColor: COLORS["core-vibrant-blue"],
+        borderColor: COLORS["core-fleet-blue"],
         ".dropdown-wrapper__single-value": {
           color: COLORS["core-vibrant-blue-over"],
         },
