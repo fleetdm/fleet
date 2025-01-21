@@ -365,9 +365,6 @@ func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
-	// TODO(mna): uncomment the commented-out non-pending portions of this test
-	// once the upcoming queue can run.
-
 	noUserCtx := context.Background()
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -456,24 +453,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install the VPP app on h1
-	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	// err = commander.EnqueueCommand(
-	// 	ctx,
-	// 	[]string{h1.UUID},
-	// 	createRawAppleCmd("InstallApplication", vppCommand1),
-	// )
-	// require.NoError(t, err)
+	// vppCommand1 is now active for h1
+
 	// install the VPP app on h2, self-service
 	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
-	// err = commander.EnqueueCommand(
-	// 	ctx,
-	// 	[]string{h1.UUID},
-	// 	createRawAppleCmd("InstallApplication", vppCommand2),
-	// )
-	// require.NoError(t, err)
+	// vppCommand2 is now active for h2
 
 	// create a sync script request for h1 that has been pending for >
 	// MaxWaitTime, will still show up (sync scripts go through the upcoming
@@ -513,27 +500,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h1E := hsr.ExecutionID
 	t.Log("h1E", h1E)
 
-	// create some software installs requests for h1, make some complete
-	// h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	// require.NoError(t, err)
+	// create some software installs requests for h1
 	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	t.Log("h1Bar", h1Bar)
-	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-	// 	HostID:                    h1.ID,
-	// 	InstallUUID:               h1FooFailed,
-	// 	PreInstallConditionOutput: ptr.String(""), // pre-install failed
-	// })
-	// require.NoError(t, err)
-	// h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	// require.NoError(t, err)
-	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-	// 	HostID:                    h1.ID,
-	// 	InstallUUID:               h1FooInstalled,
-	// 	PreInstallConditionOutput: ptr.String("ok"),
-	// 	InstallScriptExitCode:     ptr.Int(0),
-	// })
-	// require.NoError(t, err)
 
 	// No user for this one and not Self-service, means it was installed by Fleet
 	policy, err := ds.NewTeamPolicy(ctx, 0, &u.ID, fleet.PolicyPayload{
@@ -542,20 +512,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy.ID})
-	t.Log("h1Fleet", h1Fleet)
 	require.NoError(t, err)
+	t.Log("h1Fleet", h1Fleet)
 
-	// create a single pending request for h2, as well as a non-pending one
+	// create a single pending request for h2
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h2A := hsr.ExecutionID
 	t.Log("h2A", h2A)
-	// hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
-	// require.NoError(t, err)
-	// _, _, err = ds.SetHostScriptExecutionResult(ctx,
-	// 	&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
-	// require.NoError(t, err)
-	// h2F := hsr.ExecutionID
 	// add a pending software install request for h2
 	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
@@ -585,19 +549,20 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
 	require.NoError(t, err)
 
-	// // force-set the order of the created_at timestamps
+	// force-set the order of the created_at timestamps
+	// even if vppCommand1 and 2 are later, since they are already activated
+	// (because they were enqueued first) they will show up first.
 	SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "upcoming_activities", "execution_id",
-		h1A, h1B /*h1FooFailed,*/, h1Bar, h1C, h1D, h1E /*h1FooInstalled,*/, h1Fleet, h2SelfService, h2Bar, h2A /*h2F,*/, vppCommand1, vppCommand2, h2SetupExp)
+		h1A, h1B, h1Bar, h1C, h1D, h1E, h1Fleet, h2SelfService, h2Bar, h2A, vppCommand1, vppCommand2, h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
-		hSyncExpired: true,
-		h1A:          true,
-		h1B:          true,
-		h1C:          true,
-		h1D:          false,
-		h1E:          false,
-		h2A:          true,
-		//h2F:           true,
+		hSyncExpired:  true,
+		h1A:           true,
+		h1B:           true,
+		h1C:           true,
+		h1D:           false,
+		h1E:           false,
+		h2A:           true,
 		h1Fleet:       false,
 		h2SelfService: false,
 		h1Bar:         true,
@@ -623,8 +588,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 	// to simplify map, false = cancellable, true = NON-cancellable
 	execIDsNonCancellable := map[string]bool{
-		hSyncExpired: true,
-		h2SetupExp:   true,
+		vppCommand1: true,
+		vppCommand2: true,
 	}
 
 	cases := []struct {
@@ -636,49 +601,49 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{hSyncExpired, h1A},
+			wantExecs: []string{vppCommand1, hSyncExpired},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1B, h1Bar},
+			wantExecs: []string{h1A, h1B},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1C, h1D},
+			wantExecs: []string{h1Bar, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1E, h1Fleet},
+			wantExecs: []string{h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 4, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{vppCommand1},
+			wantExecs: []string{h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{hSyncExpired, h1A, h1B, h1Bar},
+			wantExecs: []string{vppCommand1, hSyncExpired, h1A, h1B},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{h1C, h1D, h1E, h1Fleet},
+			wantExecs: []string{h1Bar, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{vppCommand1},
+			wantExecs: []string{h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
@@ -690,7 +655,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SetupExp, h2SelfService, h2Bar, h2A, vppCommand2}, // setup experience is top-priority
+			wantExecs: []string{vppCommand2, h2SetupExp, h2SelfService, h2Bar, h2A}, // setup experience is top-priority, but vppCommand2 was already activated
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
