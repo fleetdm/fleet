@@ -107,6 +107,8 @@
 
       .device-enroll-message {
         margin-top: 48px;
+        display: flex;
+        gap: 8px;
       }
     </style>
   </head>
@@ -168,6 +170,7 @@
         </li>
       </ol>
       <p class="device-enroll-message">
+        <img src="{{.URLPrefix}}/assets/images/check.svg" />
         Your device will now be enrolled in Fleet.
       </p>
     </section>
