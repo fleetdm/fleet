@@ -307,7 +307,7 @@ const DropdownWrapper = ({
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-vibrant-blue-25"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],

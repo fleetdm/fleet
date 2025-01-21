@@ -235,7 +235,7 @@ const UserMenu = ({
         backgroundColor: COLORS["ui-vibrant-blue-10"],
       },
       "&:active": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
+        backgroundColor: COLORS["ui-vibrant-blue-25"],
       },
       "&:last-child, &:nth-last-of-type(2)": {
         borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,

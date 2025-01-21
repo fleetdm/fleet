@@ -103,23 +103,23 @@
 
   .label-filter-select__option {
     padding: 10px 1rem;
+    border-radius: $border-radius;
 
     &:hover {
       cursor: pointer;
     }
 
     &--is-selected {
-      > span {
-        font-weight: $bold;
-      }
-
-      &:active {
-        background-color: $ui-vibrant-blue-25;
-      }
+      font-weight: $bold;
+      background-color: transparent;
     }
 
     &--is-focused {
       background-color: $ui-vibrant-blue-10;
+
+      &:active {
+        background-color: $ui-vibrant-blue-25;
+      }
     }
 
     &--is-disabled {
