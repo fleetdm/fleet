@@ -2,3 +2,4 @@
 * Added software installs to the new `upcoming_activities` table.
 * Added vpp apps installs to the new `upcoming_activities` table.
 * Updated the list upcoming activities endpoint to use the new `upcoming_activities` table as source of truth.
+* Added support to activate the next activity when one is enqueued or when one is completed.
