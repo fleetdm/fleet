@@ -223,15 +223,16 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"team_id,optional"`
-	VulnerableOnly      bool    `query:"vulnerable,optional"`
-	AvailableForInstall bool    `query:"available_for_install,optional"`
-	SelfServiceOnly     bool    `query:"self_service,optional"`
-	KnownExploit        bool    `query:"exploit,optional"`
-	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
-	PackagesOnly        bool    `query:"packages_only,optional"`
-	Platform            string  `query:"platform,optional"`
+	TeamID                     *uint   `query:"team_id,optional"`
+	VulnerableOnly             bool    `query:"vulnerable,optional"`
+	AvailableForInstall        bool    `query:"available_for_install,optional"`
+	SelfServiceOnly            bool    `query:"self_service,optional"`
+	KnownExploit               bool    `query:"exploit,optional"`
+	MinimumCVSS                float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                float64 `query:"max_cvss_score,optional"`
+	PackagesOnly               bool    `query:"packages_only,optional"`
+	Platform                   string  `query:"platform,optional"`
+	ExcludeFleetMaintainedApps bool    `query:"exclude_fleet_maintained_apps,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {

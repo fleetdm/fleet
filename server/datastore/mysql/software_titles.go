@@ -298,7 +298,7 @@ LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND %s
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
--- placeholder for JOIN on software/software_cve
+-- placeholder for JOIN on software/software_cve/fleet_library_apps
 %s
 -- placeholder for optional extra WHERE filter
 WHERE %s
@@ -337,7 +337,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		vppAppsTeamsJoinCond = "FALSE"
 	}
 
-	additionalWhere := "TRUE"
+	additionalWhere := ""
 	match := opt.ListOptions.MatchQuery
 	softwareJoin := ""
 	if match != "" || opt.VulnerableOnly {
@@ -408,6 +408,21 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 	if opt.SelfServiceOnly {
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
+	}
+
+	// if excluding fleet maintained apps, join on the fleet_library_apps table by bundle ID
+	// and filter out any row from software_titles that has a matching row in fleet_library_apps.
+	if opt.ExcludeFleetMaintainedApps {
+		softwareJoin += `LEFT JOIN fleet_library_apps fla ON st.bundle_identifier = fla.bundle_identifier`
+		if additionalWhere != "" {
+			additionalWhere += " AND "
+		}
+		additionalWhere += "fla.id is NULL"
+	}
+
+	// Default additionalWhere to "TRUE"
+	if additionalWhere == "" {
+		additionalWhere = "TRUE"
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
