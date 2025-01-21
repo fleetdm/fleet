@@ -4,6 +4,7 @@ import classnames from "classnames";
 import { noop, pick } from "lodash";
 import Select from "react-select";
 
+import { COLORS } from "styles/var/colors";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
@@ -214,6 +215,38 @@ class Dropdown extends Component {
       [`${baseClass}__select--disabled`]: disabled,
     });
 
+    const customStyles = {
+      option: (provided, state) => ({
+        ...provided,
+        color: COLORS["core-fleet-black"],
+        fontSize: "14px", // Assuming $x-small is 14px
+        margin: 0,
+        padding: "10px",
+        display: "block",
+        backgroundColor: "transparent",
+        fontWeight: state.isSelected ? "bold" : "normal",
+        "&:hover": {
+          backgroundColor: state.isDisabled
+            ? "transparent"
+            : COLORS["ui-vibrant-blue-10"],
+        },
+        "&:active": {
+          backgroundColor: state.isDisabled
+            ? "transparent"
+            : COLORS["ui-vibrant-blue-10"],
+        },
+        ".dropdown-wrapper__option": {
+          backgroundColor: "transparent",
+          padding: 0,
+        },
+        ...(state.isDisabled && {
+          color: COLORS["ui-fleet-black-50"],
+          fontStyle: "italic",
+          cursor: "not-allowed",
+        }),
+      }),
+    };
+
     return (
       <FormField
         {...formFieldProps}
@@ -221,6 +254,7 @@ class Dropdown extends Component {
         className={wrapperClassName}
       >
         <Select
+          styles={customStyles}
           className={selectClasses}
           clearable={clearable}
           disabled={disabled}

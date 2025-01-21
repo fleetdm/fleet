@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
@@ -39,9 +40,11 @@ const SoftwareFiltersModal = ({
   );
   const [hasKnownExploit, setHasKnownExploit] = useState(vulnFilters.exploit);
 
-  const onChangeSeverity = (value: string) => {
+  const onChangeSeverity = (
+    selectedSeverity: SingleValue<CustomOptionType>
+  ) => {
     const selectedOption = SEVERITY_DROPDOWN_OPTIONS.find(
-      (option) => option.value === value
+      (option) => option.value === selectedSeverity?.value
     );
     if (selectedOption) {
       setSeverity(selectedOption);
@@ -60,7 +63,13 @@ const SoftwareFiltersModal = ({
   const renderSeverityLabel = () => {
     return (
       <TooltipWrapper
-        tipContent="The worst case impact across different environments (CVSS version 3.x base score)."
+        tipContent={
+          <>
+            The worst case impact across different environments
+            <br />
+            (CVSS version 3.x base score).
+          </>
+        }
         clickable={false}
       >
         Severity
@@ -80,14 +89,15 @@ const SoftwareFiltersModal = ({
           activeText="Vulnerable software"
         />
         {isPremiumTier && (
-          <Dropdown
+          <DropdownWrapper
+            name="severity-filter"
             label={renderSeverityLabel()}
             options={SEVERITY_DROPDOWN_OPTIONS}
             value={severity}
             onChange={onChangeSeverity}
             placeholder="Any severity"
             className={`${baseClass}__select-severity`}
-            disabled={!vulnSoftwareFilterEnabled}
+            isDisabled={!vulnSoftwareFilterEnabled}
           />
         )}
         {isPremiumTier && (

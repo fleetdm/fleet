@@ -51,6 +51,7 @@ export interface IDropdownWrapper {
   onChange: (newValue: SingleValue<CustomOptionType>) => void;
   name: string;
   className?: string;
+  wrapperClassname?: string;
   labelClassname?: string;
   error?: string;
   label?: JSX.Element | string;
@@ -74,6 +75,7 @@ const DropdownWrapper = ({
   name,
   className,
   labelClassname,
+  wrapperClassname,
   error,
   label,
   helpText,
@@ -86,6 +88,7 @@ const DropdownWrapper = ({
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: tableFilter,
+    [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {

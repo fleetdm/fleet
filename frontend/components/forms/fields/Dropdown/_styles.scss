@@ -241,6 +241,10 @@
     &.is-focused {
       background-color: $ui-vibrant-blue-10;
 
+      .dropdown__option {
+        background-color: $ui-vibrant-blue-10;
+      }
+
       .Select-icon {
         color: $ui-vibrant-blue-10;
       }
