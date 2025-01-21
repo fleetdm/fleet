@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -61,6 +62,29 @@ func (ds *Datastore) NewActivity(
 	if userEmail != nil {
 		args = append(args, userEmail)
 		cols = append(cols, "user_email")
+	}
+
+	if vppAct, ok := activity.(fleet.ActivityInstalledAppStoreApp); ok {
+		// NOTE: ideally this would be called in the same transaction as storing
+		// the nanomdm command results, but the current design doesn't allow for
+		// that with the nano store being a distinct entity to our datastore (we
+		// should get rid of that distinction eventually, we've broken it already
+		// in some places and it doesn't bring much benefit anymore).
+		//
+		// Instead, this gets called from CommandAndReportResults, which is
+		// executed after the results have been saved in nano, but we already
+		// accept this non-transactional fact for many other states we manage in
+		// Fleet (wipe, lock results, setup experience results, etc. - see all
+		// critical data that gets updated in CommandAndReportResults) so there's
+		// no reason to treat the unified queue differently.
+		//
+		// This place here is a bit hacky but perfect for VPP apps as the activity
+		// gets created only when the MDM command status is in a final state
+		// (success or failure), which is exactly when we want to activate the next
+		// activity.
+		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), vppAct.HostID, vppAct.CommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -780,9 +804,140 @@ func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, 
 }
 
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	panic("unimplemented")
-	// err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
-	// if err != nil {
-	// 	return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
-	// }
+	const insStmt = `
+INSERT INTO
+	host_vpp_software_installs
+(host_id, adam_id, platform, command_uuid,
+	user_id, associated_event_id, self_service, policy_id)
+SELECT
+	ua.host_id,
+	vaua.adam_id,
+	vaua.platform,
+	ua.execution_id,
+	ua.user_id,
+	JSON_EXTRACT(ua.payload, '$.associated_event_id'),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
+	vaua.policy_id
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const getHostUUIDStmt = `
+SELECT
+	uuid
+FROM
+	hosts
+WHERE
+	id = ?
+`
+
+	const insCmdStmt = `
+INSERT INTO
+	nano_commands
+(command_uuid, request_type, command, subtype)
+SELECT
+	ua.execution_id,
+	'InstallApplication',
+	%s,
+	?
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+`
+
+	const rawCmdField = `CONCAT('<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagementFlags</key>
+        <integer>0</integer>
+        <key>Options</key>
+        <dict>
+            <key>PurchaseMethod</key>
+            <integer>1</integer>
+        </dict>
+        <key>RequestType</key>
+        <string>InstallApplication</string>
+        <key>iTunesStoreID</key>
+        <integer>', vaua.adam_id, '</integer>
+    </dict>
+    <key>CommandUUID</key>
+    <string>', ua.execution_id, '</string>
+</dict>
+</plist>')`
+
+	const insNanoQueueStmt = `
+INSERT INTO
+	nano_enrollment_queue
+(id, command_uuid)
+SELECT
+	?,
+	execution_id
+FROM
+	upcoming_activities
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	// get the host uuid, requires for the nano tables
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// insert the host vpp app row
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+	}
+
+	// insert the nano command
+	stmt, args, err = sqlx.In(fmt.Sprintf(insCmdStmt, rawCmdField), mdm.CommandSubtypeNone, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano commands")
+	}
+
+	// enqueue the nano command in the nano queue
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano queue")
+	}
+
+	// best-effort APNs push notification to the host, not critical because we
+	// have a cron job that will retry for hosts with pending MDM commands.
+	if ds.pusher != nil {
+		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		}
+	}
+
+	return nil
 }

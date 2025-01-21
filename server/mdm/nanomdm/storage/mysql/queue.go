@@ -137,8 +137,6 @@ func (m *MySQLStorage) deleteCommandTx(r *mdm.Request, result *mdm.CommandResult
 	return tx.Commit()
 }
 
-// TODO(uniq): this is where we could activate the next activity on VPP app
-// install results in a transaction.
 func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandResults) error {
 	if err := m.updateLastSeen(r); err != nil {
 		return err

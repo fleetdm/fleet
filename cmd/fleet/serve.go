@@ -511,6 +511,7 @@ the way that the Fleet server works.
 			} else {
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
+			mds.WithPusher(mdmPushService)
 
 			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
 				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)

@@ -606,7 +606,6 @@ VALUES
 		userID = &ctxUser.ID
 	}
 
-	// TODO(uniq): activate next activity
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
@@ -631,6 +630,10 @@ VALUES
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
 		}
 		return nil
 	})
