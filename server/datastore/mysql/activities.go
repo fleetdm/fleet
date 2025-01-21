@@ -660,7 +660,8 @@ SELECT
 	execution_id,
 	activity_type,
 	activated_at,
-	IF(activated_at IS NULL, 0, 1) as topmost
+	IF(activated_at IS NULL, 0, 1) as topmost,
+	priority
 FROM
 	upcoming_activities
 WHERE
@@ -691,6 +692,7 @@ WHERE
 		ActivityType string     `db:"activity_type"`
 		ActivatedAt  *time.Time `db:"activated_at"`
 		Topmost      bool       `db:"topmost"`
+		Priority     int        `db:"priority"`
 	}
 	var nextActivities []nextActivity
 	if err := sqlx.SelectContext(ctx, tx, &nextActivities, findNextStmt, hostID, maxMDMCommandActivations); err != nil {
@@ -704,9 +706,17 @@ WHERE
 			break
 		}
 		if len(toActivate) > 0 {
-			// we already identified one to activate, allow more only if they are
-			// the same type and that type is vpp_app_install.
-			if toActivate[0].ActivityType != act.ActivityType || toActivate[0].ActivityType != "vpp_app_install" {
+			// we already identified one to activate, allow more only if they are a)
+			// the same type, b) that type is vpp_app_install, c) the same priority.
+			// The reason for that is to batch-activate MDM commands to reduce
+			// latency and push notifications required, and the same priority check
+			// is because we can't enforce the ordering of commands if they don't
+			// share the same priority (we transfer the created_at timestamp to the
+			// nano queue, which guarantees same order of processing for activities
+			// with the same priority).
+			if toActivate[0].ActivityType != act.ActivityType ||
+				toActivate[0].ActivityType != "vpp_app_install" ||
+				toActivate[0].Priority != act.Priority {
 				break
 			}
 		}
@@ -832,9 +842,9 @@ ORDER BY
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insStmt = `
-INSERT INTO 
+INSERT INTO
 	host_software_installs
-(execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename, 
+(execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename,
 	software_title_id, software_title_name, version)
 SELECT
 	ua.execution_id,
@@ -847,7 +857,7 @@ SELECT
 	COALESCE(JSON_EXTRACT(ua.payload, '$.software_title_name'), '[deleted title]'),
 	'unknown'
 FROM
-	upcoming_activities ua 
+	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
 		ON siua.upcoming_activity_id = ua.id
 WHERE
@@ -953,15 +963,18 @@ WHERE
 	const insNanoQueueStmt = `
 INSERT INTO
 	nano_enrollment_queue
-(id, command_uuid)
+(id, command_uuid, created_at)
 SELECT
 	?,
-	execution_id
+	execution_id,
+	created_at -- force same timestamp to keep ordering
 FROM
 	upcoming_activities
 WHERE
 	host_id = ? AND
 	execution_id IN (?)
+ORDER BY
+	priority DESC, created_at ASC
 `
 
 	// sanity-check that there's something to activate

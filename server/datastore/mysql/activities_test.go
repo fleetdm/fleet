@@ -13,6 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -37,6 +39,7 @@ func TestActivity(t *testing.T) {
 		{"ListHostPastActivities", testListHostPastActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
+		{"ActivateNextActivity", testActivateNextActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1096,4 +1099,99 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
+}
+
+func testActivateNextActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
+	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: h1.UUID}, Context: ctx}
+
+	// create a couple VPP apps that can be installed later
+	vppApp1 := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	require.NoError(t, err)
+	vppApp2 := &fleet.VPPApp{
+		Name: "vpp_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp2", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp2",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	require.NoError(t, err)
+
+	// activating an empty queue is fine, nothing activated
+	execIDs, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// activating when empty with an unknown completed exec id is fine
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, uuid.NewString())
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// create a script execution request
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         h1.ID,
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	script1_1 := hsr.ExecutionID
+
+	// add a couple install requests for vpp1 and vpp2
+	vpp1_1 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	vpp1_2 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp2.VPPAppID, vpp1_2, "event-id-2", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// activating does nothing because the script is still activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// pending activities are script1_1, vpp1_1, vpp1_2
+	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 3)
+	require.Equal(t, script1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, vpp1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+	require.Equal(t, vpp1_2, pendingActs[2].UUID)
+	require.True(t, pendingActs[2].Cancellable)
+
+	// set a script result, will activate both VPP apps
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
+	})
+	require.NoError(t, err)
+
+	// pending activities are vpp1_1, vpp1_2, both are non-cancellable because activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, vpp1_2, pendingActs[1].UUID)
+	require.False(t, pendingActs[1].Cancellable)
+
+	// nano commands have been inserted
+	cmd, err := nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd := string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
 }
