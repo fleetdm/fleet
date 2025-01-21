@@ -1391,8 +1391,6 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 		UninstallScript:  "sleep",
 	})
 	require.NoError(t, err)
-
-	// Add a couple of apps to the Fleet library.
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:    "Another Fleet Maintained App",
 		Token:   "xxxyyy",
