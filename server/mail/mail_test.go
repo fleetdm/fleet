@@ -55,7 +55,6 @@ func TestMail(t *testing.T) {
 	}
 
 	for _, f := range testFunctions {
-
 		r, err := NewService(config.TestConfig())
 		require.NoError(t, err)
 
