@@ -1047,7 +1047,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		decryptable = ptr.Bool(true)
 	}
 
-	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable); err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
 	}
 
@@ -1110,7 +1110,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	return svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
 }
 
 func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {

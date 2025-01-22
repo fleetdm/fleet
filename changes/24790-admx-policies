@@ -1,0 +1,1 @@
+Fixes issue verifying Windows CSP profiles that contain ADMX policies.

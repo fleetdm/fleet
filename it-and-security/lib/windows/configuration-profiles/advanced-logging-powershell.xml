@@ -8,9 +8,10 @@
       <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI>
     </Target>
     <Data>
-      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
-      <data id="Listbox_ModuleNames" value="*"/>
-      <data id="OutputDirectory" value="false"/>
+      &lt;Enabled/&gt;
+      <![CDATA[<data id="ExecutionPolicy" value="AllSigned"/>]]>
+      <![CDATA[<data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="true"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>
     </Data>

@@ -7,6 +7,6 @@
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
     </Target>
-    <Data>1</Data>
+    <Data>0</Data>
   </Item>
 </Replace>
