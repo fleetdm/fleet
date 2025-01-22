@@ -26,7 +26,7 @@
   // Up to 3 cards are in a single row.
   // 16pt gap
   @media (min-width: $break-sm) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     grid-template-rows: 1fr;
     gap: $pad-medium;
 
