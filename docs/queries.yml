@@ -4,7 +4,7 @@ kind: built-in
 spec:
   name: Battery
   platform: windows, darwin
-  description: Retrieves information about a devices battery.
+  description: Determines battery health based on the cycle count, designed capacity, and max capacity of the battery.
   query: |
     SELECT 
       serial_number, cycle_count, designed_capacity, max_capacity 
@@ -122,9 +122,9 @@ kind: built-in
 spec:
   name: Kubequery info
   platform: windows, darwin, linux, chrome
-  description: Retrieves the email address of Google Chrome profile on a host.
+  description: Retrieves information about Kubernetes clusters running kubequery.
   query: SELECT * FROM kubernetes_info
-  # discovery: kubernetes_info # Note: this value is commented out because this table does not currently exist in the osquery schema.
+  # discovery: kubernetes_info # Note: this value is commented out because this table is from kubequery and does not exist in the osquery schema.
   purpose: Informational
   tags: built-in
 ---
@@ -133,7 +133,7 @@ kind: built-in
 spec:
   name: MDM (macOS)
   platform: darwin
-  description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in (if any).
+  description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in.
   query: |
     SELECT 
       enrolled, server_url, installed_from_dep, payload_identifier 
@@ -147,7 +147,7 @@ kind: built-in
 spec:
   name: MDM configuration profiles
   platform: darwin
-  description: Retrieves information about configuration profiles installed on a mscOS device.
+  description: Retrieves information about mobile device management (MDM) configuration profiles installed on a macOS device.
   query: |
     SELECT 
       display_name, identifier, install_date 
@@ -162,7 +162,7 @@ kind: built-in
 spec:
   name: MDM Disk encryption key file
   platform: darwin
-  description: TODO
+  description: Retrieves the encrypted FileVault recovery key for managed macOS devices.
   query: |
     WITH
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
@@ -177,13 +177,13 @@ kind: built-in
 spec:
   name: MDM Disk encryption key file lines
   platform: darwin
-  description: TODO
+  description: Retrieves the encrypted FileVault recovery key and checks for related file data on managed macOS devices.
   query: |
     WITH
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
-        fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
-      SELECT encrypted, filevault_key FROM de LEFT JOIN fv
-  discovery: filevault_prk # Note: also file_lines, how do we want to handle this...?
+        fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+      SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
+  discovery: filevault_prk # TODO: this query's discovery query also checks for file_lines.
   purpose: Informational
   tags: built-in
 ---
@@ -222,9 +222,6 @@ spec:
                             i.installation_type
                         FROM installation_info i
                         LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-            -- coalesce to 'unknown' and keep that state in the list
-            -- in order to account for hosts that might not have this
-            -- key, and servers
                         WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
                         LIMIT 1
   purpose: Informational
@@ -235,7 +232,7 @@ kind: built-in
 spec:
   name: Munki info
   platform: darwin
-  description: TODO
+  description: Retrives information about the last Munki run on a macOS device.
   query: |
     SELECT 
       version, errors, warnings 
@@ -249,7 +246,7 @@ kind: built-in
 spec:
   name: Network interfaces (Chrome)
   platform: chrome
-  description: TODO
+  description: Retrives information about a ChromeOS device's current network.
   query: |
     SELECT 
     ipv4 AS address, mac 
@@ -262,7 +259,7 @@ kind: built-in
 spec:
   name: Network interfaces (macOS/Linux)
   platform: darwin, linux
-  description: TODO
+  description: Retrieves information about network interfaces on macOS and Linux devices
   query: |
     SELECT
         ia.address,
@@ -270,28 +267,20 @@ spec:
     FROM
         interface_addresses ia
         JOIN interface_details id ON id.interface = ia.interface
-      -- On Unix ia.interface is the name of the interface,
-      -- whereas on Windows ia.interface is the IP of the interface.
         JOIN routes r ON r.interface = ia.interface
     WHERE
-      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
         (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
-      -- Type of route is "gateway" for Unix, "remote" for Windows.
         AND r.type = 'gateway'
-      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
         AND (
-        -- Private IPv4 addresses.
         inet_aton(ia.address) IS NOT NULL AND (
           split(ia.address, '.', 0) = '10'
           OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
           OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
         )
-        -- Private IPv6 addresses start with 'fc' or 'fd'.
         OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
       )
     ORDER BY
         r.metric ASC,
-      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
       inet_aton(ia.address) IS NOT NULL DESC
     LIMIT 1;
   purpose: Informational
@@ -301,8 +290,8 @@ apiVersion: v1
 kind: built-in
 spec:
   name: Network interfaces (Windows)
-  platform: darwin, linux
-  description: TODO
+  platform: windows
+  description: Retrieves information about network interfaces on devices running windows.
   query: |
     SELECT
         ia.address,
@@ -310,28 +299,20 @@ spec:
     FROM
         interface_addresses ia
         JOIN interface_details id ON id.interface = ia.interface
-      -- On Unix ia.interface is the name of the interface,
-      -- whereas on Windows ia.interface is the IP of the interface.
         JOIN routes r ON r.interface = ia.address
     WHERE
-      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
         (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
-      -- Type of route is "gateway" for Unix, "remote" for Windows.
         AND r.type = 'remote'
-      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
         AND (
-        -- Private IPv4 addresses.
         inet_aton(ia.address) IS NOT NULL AND (
           split(ia.address, '.', 0) = '10'
           OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
           OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
         )
-        -- Private IPv6 addresses start with 'fc' or 'fd'.
         OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
       )
     ORDER BY
         r.metric ASC,
-      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
       inet_aton(ia.address) IS NOT NULL DESC
     LIMIT 1;
   purpose: Informational
@@ -342,7 +323,7 @@ kind: built-in
 spec:
   name: Orbit information
   platform: darwin, linux, windows
-  description: TODO
+  description: Retreives configuration information the osquery version and configuration manager running on a device.
   query: SELECT * FROM orbit_info
   purpose: Informational
   tags: built-in
@@ -398,7 +379,7 @@ kind: built-in
 spec:
   name: Operating system information (Windows)
   platform: windows
-  description: Retrieves information about a Unix-based device's operating system.
+  description: Retrieves information about a Windows device's operating system.
   query: |
     WITH display_version_table AS (
         SELECT data as display_version
@@ -432,7 +413,7 @@ kind: built-in
 spec:
   name: Operating system version (Windows)
   platform: windows
-  description: Retrieves operating system version information from a windows device.
+  description: Retrieves operating system version information from a Windows device.
   query: |
     WITH display_version_table AS (
           SELECT data as display_version
@@ -463,7 +444,7 @@ kind: built-in
 spec:
   name: Osquery flags
   platform: darwin, linux, windows
-  description: Gathers information about the osquery process running on a device.
+  description: Retrieves the values of osquery configuration flags related to query scheduling, configuration updates, and logging intervals for active processes.
   query: |
     SELECT 
       name, value
@@ -487,7 +468,7 @@ kind: built-in
 spec:
   name: Scheduled osquery statistics
   platform: darwin, windows, linux
-  description: TODO
+  description: Retrieves statistics about queries that are scheduled on a device.
   query: |
     SELECT *,
             (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
@@ -713,9 +694,9 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Software codesign (macOS)
+  name: Software codesign
   platform: darwin
-  description: A software override query to append codesign information to macOS software entries. Requires `fleetd`
+  description: A software override query to append codesign information to macOS software entries. Requires fleetd
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -811,9 +792,9 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Software Firefox override query (macOS)
+  name: Software Firefox
   platform: darwin
-  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  description: A software override query to differentiate between Firefox and Firefox ESR on macOS. Requires fleetd
   query: |
     WITH app_paths AS (
             SELECT path
@@ -851,7 +832,7 @@ kind: built-in
 spec:
   name: VScode extensions
   platform: darwin, windows, linux
-  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  description: Gathers information about Visual Studio Code extensions installed on a device.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -877,7 +858,7 @@ kind: built-in
 spec:
   name: Software (Windows)
   platform: windows
-  description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
+  description: Gathers information about software installed on a device running Windows.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -950,7 +931,7 @@ kind: built-in
 spec:
   name: System information
   platform: windows
-  description: Retrieves system information about a host.
+  description: Retrieves information about a device's hardware.
   query: SELECT * FROM system_info LIMIT 1
   purpose: Informational
   tags: built-in
@@ -960,7 +941,7 @@ kind: built-in
 spec:
   name: Uptime
   platform: darwin, linux, windows
-  description: TODO
+  description: Retrieves the amount time passed since a device's last boot.
   query: SELECT * FROM uptime LIMIT 1
   purpose: Informational
   tags: built-in
@@ -970,7 +951,7 @@ kind: built-in
 spec:
   name: Users
   platform: darwin, linux, windows
-  description: Retrieves information about user accounts on a device.
+  description: Retrieves information about user accounts.
   query: |
     WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -984,7 +965,7 @@ kind: built-in
 spec:
   name: Users (Chrome)
   platform: chrome
-  description: Retrieves information about user accounts on a device.
+  description: Retrieves information about user accounts on a ChromeOS device.
   query: |
     SELECT 
       uid, username, email 
@@ -997,7 +978,8 @@ kind: built-in
 spec:
   name: Windows update history
   platform: windows
-  description: |
+  description: Retrieves the history of the update events on a Windows host.
+  query: |
     SELECT 
       date, title
     FROM windows_update_history
@@ -1006,7 +988,6 @@ spec:
   purpose: Informational
   tags: built-in
 ---
-
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
 apiVersion: v1
 kind: query
