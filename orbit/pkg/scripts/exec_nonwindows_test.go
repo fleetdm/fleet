@@ -44,7 +44,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 		},
 		{
 			name:     "bash shebang",
-			contents: "#!" + bashPath + "\n[ -z \"$ZSH_VERSION\" ] && echo 1",
+			contents: "#!" + bashPath + "\n[ -n \"$BASH_VERSION\" ] && echo 1",
 			output:   "1",
 		},
 		{
