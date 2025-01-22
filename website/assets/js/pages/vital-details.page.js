@@ -15,13 +15,15 @@ parasails.registerPage('vital-details', {
     //…
   },
   mounted: async function () {
-    // Set the selected platform from the user's hash.
-    // This lets us persist the user's filter when they navigate to a new page.
+    // Set the selected platform from the hash in the user's URL.
+    // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
     if(['#macos','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
     }
 
-    // if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+    // Note: Docsearch will be disabled on this page until a search index has been created for it.
+    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+    // if(this.algoliaPublicKey) {
     //   docsearch({
     //     appId: 'NZXAYZXDGH',
     //     apiKey: this.algoliaPublicKey,
@@ -61,7 +63,7 @@ parasails.registerPage('vital-details', {
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
-          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span> ');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span>');
         }
         $(block).html(replacementHMTL);
         let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight

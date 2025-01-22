@@ -41,7 +41,7 @@ module.exports = {
     // Get all the osquery table names, we'll use this list to determine which tables are used.
     let allTableNames = _.pluck(allTablesInformation, 'title');
     // Create an array of words in the query.
-    let queryWords = _.words(policy.query, /[^ ]+/g);
+    let queryWords = _.words(policy.query, /[^ \n;]+/g);
     let columnNamesForSyntaxHighlighting = [];
     let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays

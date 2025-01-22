@@ -41,12 +41,11 @@ module.exports = {
     // Get all the osquery table names, we'll use this list to determine which tables are used.
     let allTableNames = _.pluck(allTablesInformation, 'title');
     // Create an array of words in the vital.
-    let queryWords = _.words(thisVital.query, /[^ ]+/g);
+    let queryWords = _.words(thisVital.query, /[^ \n;]+/g);
     let columnNamesForSyntaxHighlighting = [];
     let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays
     let intersectionBetweenQueryWordsAndTableNames = _.intersection(queryWords, allTableNames);
-    console.log(intersectionBetweenQueryWordsAndTableNames);
     // For each matched osquery table, add the keywordsForSyntaxHighlighting and the names of the tables used into two arrays.
     for(let tableName of intersectionBetweenQueryWordsAndTableNames) {
       let tableMentionedInThisQuery = _.find(sails.config.builtStaticContent.markdownPages, {title: tableName});
@@ -56,7 +55,6 @@ module.exports = {
     }
     // Remove the table names from the array of column names to highlight.
     columnNamesForSyntaxHighlighting = _.difference(columnNamesForSyntaxHighlighting, tableNamesForSyntaxHighlighting);
-    console.log(columnNamesForSyntaxHighlighting);
 
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if vital.name or vital.description are missing.
     let pageTitleForMeta = thisVital.name ? thisVital.name + ' | Query details' : 'Query details';
