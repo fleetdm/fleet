@@ -40,6 +40,7 @@ func TestActivity(t *testing.T) {
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
+		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1373,6 +1374,108 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Empty(t, execIDs)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
+}
+
+func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: h1.UUID}, Context: ctx}
+
+	vppApp1 := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	require.NoError(t, err)
+
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// create a pending software install request
+	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// set a result for the software install
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                h1.ID,
+		InstallUUID:           sw1_1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	// create a pending script execution request
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         h1.ID,
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	script1_1 := hsr.ExecutionID
+
+	// set a result for the script
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
+	})
+	require.NoError(t, err)
+
+	// create a pending uninstall request
+	sw1_2 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	require.NoError(t, err)
+
+	// set a result for the software uninstall
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      h1.ID,
+		ExecutionID: sw1_2,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// create a pending vpp app install
+	vpp1_1 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// set the result for the vpp app
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: vpp1_1,
+		Status:      "Error",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// the upcoming queue should be empty, each result having emptied the list
+	// and each enqueue having triggered the next activity.
+	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 0)
 }
