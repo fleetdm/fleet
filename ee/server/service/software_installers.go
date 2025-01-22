@@ -1252,48 +1252,23 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		}
 	}
 
-	// TODO(mna): an uninstall request will first go in the upcoming_activities
-	// queue, and only when that activity is ready to run will the internal script
-	// be created in host_script_requests. Keeping it here but commented, for when
-	// we implement the queue execution.
+	// Get the uninstall script to validate there is one, will use the standard
+	// script infrastructure to run it.
+	_, err = svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
+					WithStatus(http.StatusNotFound), "getting uninstall script contents")
+		}
+		return err
+	}
 
-	// // Get the uninstall script and use the standard script infrastructure to run it.
-	// contents, err := svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
-	// if err != nil {
-	// 	if fleet.IsNotFound(err) {
-	// 		return ctxerr.Wrap(ctx,
-	// 			fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
-	// 				WithStatus(http.StatusNotFound), "getting uninstall script contents")
-	// 	}
-	// 	return err
-	// }
-	// var teamID uint
-	// if host.TeamID != nil {
-	// 	teamID = *host.TeamID
-	// }
-	// // create the script execution request; the host will be notified of the
-	// // script execution request via the orbit config's Notifications mechanism.
-	// request := fleet.HostScriptRequestPayload{
-	// 	HostID:          host.ID,
-	// 	ScriptContents:  string(contents),
-	// 	ScriptContentID: installer.UninstallScriptContentID,
-	// 	TeamID:          teamID,
-	// }
-	// if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
-	// 	request.UserID = &ctxUser.ID
-	// }
-	// scriptResult, err := svc.ds.NewInternalScriptExecutionRequest(ctx, &request)
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "create script execution request")
-	// }
-
-	// Update the host software installs table with the uninstall request.
 	// Pending uninstalls will automatically show up in the UI Host Details -> Activity -> Upcoming tab.
 	execID := uuid.NewString()
 	if err = svc.insertSoftwareUninstallRequest(ctx, execID, host, installer); err != nil {
 		return err
 	}
-
 	return nil
 }
 

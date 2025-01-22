@@ -1144,6 +1144,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		Source:          "apps",
 		Version:         "0.0.1",
 		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -1196,6 +1197,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	scriptRes, err := ds.GetHostScriptExecutionResult(ctx, script1_1)
+	require.NoError(t, err)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
 	// pending activities are vpp1_1, vpp1_2, both are non-cancellable because activated
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1231,6 +1237,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		CommandUUID: vpp1_1,
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
+
+	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1)
+	require.NoError(t, err)
+	require.Len(t, appleCmdRes, 1)
+	require.Equal(t, "Acknowledged", appleCmdRes[0].Status)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1303,6 +1314,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	}, []byte(`{}`), time.Now())
 	require.NoError(t, err)
 
+	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2)
+	require.NoError(t, err)
+	require.Len(t, appleCmdRes, 1)
+	require.Equal(t, "Error", appleCmdRes[0].Status)
+
 	// software install activity is now activated
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1311,4 +1327,52 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_2, pendingActs[1].UUID)
 	require.True(t, pendingActs[1].Cancellable)
+
+	// set a result for the software install
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                h1.ID,
+		InstallUUID:           sw1_1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstalled, swRes.Status)
+
+	// activating does nothing because the sw1_2 was automatically activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_1)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, sw1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+
+	// set a result for the software uninstall
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      h1.ID,
+		ExecutionID: sw1_2,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// because the install and uninstall are for the same software installer,
+	// only the latest attempt is shown in the summary and it is the uninstall.
+	swSummary, err := ds.GetSummaryHostSoftwareInstalls(ctx, sw1)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		FailedUninstall: 1,
+	}, *swSummary)
+
+	// activating does nothing because the queue is now empty
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_2)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
 }

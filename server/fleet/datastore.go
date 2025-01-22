@@ -1616,9 +1616,6 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// NewInternalScriptExecutionRequest creates a new host script result entry with
-	// just the script to run information (result is not yet available), with the script marked as internal.
-	NewInternalScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will

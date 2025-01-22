@@ -841,9 +841,31 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
-	// TODO(uniq): must also insert in host_script_results, as the software install is two-part
-	// see https://github.com/fleetdm/fleet/blob/47f25c51a960949d158f8944e4d3ff9f4941409d/ee/server/service/software_installers.go#L1262-L1282
-	const insStmt = `
+	const insScriptStmt = `
+INSERT INTO 
+	host_script_results 
+(host_id, execution_id, script_content_id, output, user_id, is_internal) 
+SELECT 
+	ua.host_id,
+	ua.execution_id,
+	si.uninstall_script_content_id,
+	'',
+	ua.user_id,
+	1
+FROM
+	upcoming_activities ua 
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id 
+	INNER JOIN software_installers si
+		ON si.id = siua.software_installer_id
+WHERE 
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const insSwStmt = `
 INSERT INTO
 	host_software_installs
 (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename,
@@ -872,12 +894,21 @@ ORDER BY
 	if len(execIDs) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+
+	stmt, args, err := sqlx.In(insScriptStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert to activate software uninstalls")
+		return ctxerr.Wrap(ctx, err, "prepare insert script to activate software uninstalls")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert to activate software uninstalls")
+		return ctxerr.Wrap(ctx, err, "insert script to activate software uninstalls")
+	}
+
+	stmt, args, err = sqlx.In(insSwStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert software to activate software uninstalls")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert software to activate software uninstalls")
 	}
 	return nil
 }

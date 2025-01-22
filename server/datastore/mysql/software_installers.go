@@ -988,6 +988,7 @@ VALUES
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// TODO(uniq): could this return result for uninstalls too?
 	query := `
 SELECT
 	hsi.execution_id AS execution_id,

@@ -48,19 +48,6 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 	})
 }
 
-// TODO(uniq): might become unused after unified queue implementation
-func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	var res *fleet.HostScriptResult
-	var err error
-	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if request.ScriptContentID == 0 {
-			return errors.New("script contents must be saved prior to execution")
-		}
-		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
-		return err
-	})
-}
-
 func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
 		insUAStmt = `
