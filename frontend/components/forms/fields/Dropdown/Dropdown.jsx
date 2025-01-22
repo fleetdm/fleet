@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { noop, pick } from "lodash";
 import Select from "react-select";
 
-import { COLORS } from "styles/var/colors";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
