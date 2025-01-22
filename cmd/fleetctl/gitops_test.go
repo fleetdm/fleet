@@ -2652,7 +2652,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
-			if *(*tm).Filename == filename {
+			if (*tm).Filename != nil && *(*tm).Filename == filename {
 				return *tm, nil
 			}
 		}
@@ -3431,7 +3431,7 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
-func TestGitOpsWebhooksDisable(t *testing.T) {
+func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := setupFullGitOpsPremiumServer(t)
 
 	webhook := &(*appConfig).WebhookSettings
@@ -3449,6 +3449,36 @@ func TestGitOpsWebhooksDisable(t *testing.T) {
 	require.False(t, webhook.FailingPoliciesWebhook.Enable)
 	require.False(t, webhook.HostStatusWebhook.Enable)
 	require.False(t, webhook.VulnerabilitiesWebhook.Enable)
+}
+
+func TestGitOpsTeamWebhooksDisable(t *testing.T) {
+	teamName := "TestTeamWebhooksDisable"
+
+	ds, _, savedTeams := setupFullGitOpsPremiumServer(t)
+
+	// Create a new team.
+	ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
+		ActivitiesWebhook:      &fleet.ActivitiesWebhookSettings{Enable: true},
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{Enable: true},
+		HostStatusWebhook:      &fleet.HostStatusWebhookSettings{Enable: true},
+		VulnerabilitiesWebhook: &fleet.VulnerabilitiesWebhookSettings{Enable: true},
+	}}})
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Do a GitOps run with no webhook settings.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_empty.yml"})
+	require.NoError(t, err)
+
+	// Check that the team's webhook settings are disabled.
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.NotNil(t, team.Config.WebhookSettings)
+	require.False(t, team.Config.WebhookSettings.ActivitiesWebhook.Enable)
+	require.False(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.False(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.False(t, team.Config.WebhookSettings.VulnerabilitiesWebhook.Enable)
 }
 
 type memKeyValueStore struct {
