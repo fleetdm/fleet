@@ -73,6 +73,11 @@ module.exports.routes = {
     }
   },
 
+  'GET /vitals/:slug': { action: 'view-vital-details' },
+
+  'GET /policies': { action: 'view-policy-library' },
+  'GET /policies/:slug': { action: 'view-policy-details' },
+
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -760,6 +765,7 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
   'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /vitals':                 '/vitals/battery',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet',
