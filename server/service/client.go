@@ -1789,8 +1789,6 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
-	str := string(group.Teams[0])
-	fmt.Println(str)
 	teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,
