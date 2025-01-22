@@ -122,30 +122,11 @@ controls:
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
 policies:
   - path: ../lib/macos/policies/device-health.yml
-  - path: ../lib/macos/policies/upgrade-firefox.yml
+  - path: ../lib/macos/policies/update-firefox.yml
+  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/windows/policies/device-health.yml
   - path: ../lib/linux/policies/linux-device-health.yml
-  - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
-    critical: true
-    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-    resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false
-  - name: macOS - System maintenance complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Drew’s MacBook Pro','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
-    critical: false
-    description: Determines if the device has completed system maintenance.
-    resolution: We will perform system maintenance on your device.
-    platform: darwin
-    calendar_events_enabled: true
-  - name: macOS - Upgrade Slack
-    query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
-    critical: false
-    description: The host may be running an outdated version of Slack, which could pose security vulnerabilities or compatibility issues.
-    resolution: The host's Slack application will likely be updated to a version that is greater than or equal to '4.40.126'.
-    platform: darwin
-    calendar_events_enabled: false
 queries:
   - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-fleetd-information.yml
@@ -167,4 +148,3 @@ software:
     - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
-      - app_store_id: '1333542190' # 1Password 7 Desktop

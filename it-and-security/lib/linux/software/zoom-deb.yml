@@ -1,4 +1,4 @@
 url: https://zoom.us/client/6.2.11.5069/zoom_amd64.deb
 self-service: true
-pre_install_query:
-  path: ../queries/all-deb-hosts.yml
+labels_include_any:
+  - "Debian-based Linux hosts"
