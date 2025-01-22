@@ -1967,6 +1967,10 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
 	return svc.ds.ListLabelsForHost(ctx, hostID)
 }
 
