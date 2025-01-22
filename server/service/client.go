@@ -1608,25 +1608,55 @@ func (c *Client) DoGitOps(
 		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
 		team["software"].(map[string]any)["packages"] = config.Software.Packages
 		team["secrets"] = config.TeamSettings["secrets"]
-		team["webhook_settings"] = map[string]interface{}{}
-		clearHostStatusWebhook := true
-		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
-			if _, ok := webhookSettings.(map[string]interface{}); ok {
-				if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
-					clearHostStatusWebhook = false
-					team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
-				}
-			} else if webhookSettings != nil {
-				return nil, fmt.Errorf("team_settings.webhook_settings config is not a map but a %T", webhookSettings)
-			}
+
+		// Ensure webhooks settings exists
+		webhookSettings, ok := config.TeamSettings["webhook_settings"]
+		if !ok || webhookSettings == nil {
+			webhookSettings = map[string]any{}
+			config.TeamSettings["webhook_settings"] = webhookSettings
 		}
-		if clearHostStatusWebhook {
-			// Clear out any existing host_status_webhook settings
-			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
+
+		activitiesWebhook, ok := webhookSettings.(map[string]any)["activities_webhook"]
+		if !ok || activitiesWebhook == nil {
+			activitiesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["activities_webhook"] = activitiesWebhook
 		}
+		// make sure the "enable" key either exists, or set to false
+		if _, ok := activitiesWebhook.(map[string]any)["enable_activities_webhook"]; !ok {
+			activitiesWebhook.(map[string]any)["enable_activities_webhook"] = false
+		}
+
+		hostStatusWebhook, ok := webhookSettings.(map[string]any)["host_status_webhook"]
+		if !ok || hostStatusWebhook == nil {
+			hostStatusWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["host_status_webhook"] = hostStatusWebhook
+		}
+		if _, ok := hostStatusWebhook.(map[string]any)["enable_host_status_webhook"]; !ok {
+			hostStatusWebhook.(map[string]any)["enable_host_status_webhook"] = false
+		}
+
+		failingPoliciesWebhook, ok := webhookSettings.(map[string]any)["failing_policies_webhook"]
+		if !ok || failingPoliciesWebhook == nil {
+			failingPoliciesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["failing_policies_webhook"] = failingPoliciesWebhook
+		}
+		if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
+			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
+		}
+
+		vulnerabilitiesWebhook, ok := webhookSettings.(map[string]any)["vulnerabilities_webhook"]
+		if !ok || vulnerabilitiesWebhook == nil {
+			vulnerabilitiesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["vulnerabilities_webhook"] = vulnerabilitiesWebhook
+		}
+		if _, ok := vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"]; !ok {
+			vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"] = false
+		}
+
+		team["webhook_settings"] = webhookSettings
+
 		// Integrations
 		var integrations interface{}
-		var ok bool
 		if integrations, ok = config.TeamSettings["integrations"]; !ok || integrations == nil {
 			integrations = map[string]interface{}{}
 		}
@@ -1759,6 +1789,8 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
+	str := string(group.Teams[0])
+	fmt.Println(str)
 	teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,

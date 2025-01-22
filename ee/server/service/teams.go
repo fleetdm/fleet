@@ -1332,6 +1332,21 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		team.Config.WebhookSettings.FailingPoliciesWebhook = spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
+	if spec.WebhookSettings.ActivitiesWebhook != nil {
+		fleet.ValidateEnabledActivitiesWebhook(*spec.WebhookSettings.ActivitiesWebhook, invalid)
+		team.Config.WebhookSettings.ActivitiesWebhook = spec.WebhookSettings.ActivitiesWebhook
+	}
+
+	if spec.WebhookSettings.VulnerabilitiesWebhook != nil {
+		fleet.ValidateEnabledVulnerabilitiesIntegrations(*spec.WebhookSettings.VulnerabilitiesWebhook, fleet.Integrations{}, invalid)
+		team.Config.WebhookSettings.VulnerabilitiesWebhook = spec.WebhookSettings.VulnerabilitiesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {

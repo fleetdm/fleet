@@ -465,7 +465,10 @@ type TeamSpec struct {
 }
 
 type TeamSpecWebhookSettings struct {
-	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	ActivitiesWebhook      *ActivitiesWebhookSettings      `json:"activities_webhook"`
+	VulnerabilitiesWebhook *VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
