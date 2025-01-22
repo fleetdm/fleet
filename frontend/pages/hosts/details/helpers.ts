@@ -15,12 +15,21 @@ const convertWinDiskEncryptionStatusToSettingStatus = (
     : diskEncryptionStatus;
 };
 
+const generateWindowsDiskEncryptionMessage = (
+  status: WindowsDiskEncryptionStatus,
+  detail: string
+) => {
+  if (status === "failed") {
+    detail += ". Fleet will retry automatically.";
+  }
+  return detail;
+};
+
 /**
  * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const generateWinDiskEncryptionSetting = (
   diskEncryptionStatus: WindowsDiskEncryptionStatus,
   detail: string
