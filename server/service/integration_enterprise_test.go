@@ -1784,7 +1784,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 
 	// modify the team's config - enable the webhook
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},

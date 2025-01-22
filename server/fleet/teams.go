@@ -174,10 +174,8 @@ type TeamConfig struct {
 
 type TeamWebhookSettings struct {
 	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
-	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
-	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
-	ActivitiesWebhook      *ActivitiesWebhookSettings      `json:"activities_webhook"`
-	VulnerabilitiesWebhook *VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
+	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
 type TeamSpecSoftwareAsset struct {
