@@ -37,6 +37,10 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+const (
+	SameProfileNameEditWindowsErrorMsg = "Couldn't edit window_settings.custom_settings. More than one configuration profile have the same name (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+)
+
 ////////////////////////////////////////////////////////////////////////////////
 // GET /mdm/apple
 ////////////////////////////////////////////////////////////////////////////////
@@ -1435,7 +1439,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err != nil {
 		var existsErr existsErrorInterface
 		if errors.As(err, &existsErr) {
-			err = fleet.NewInvalidArgumentError("profile", "Couldn't upload. A configuration profile with this name already exists.").
+			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
 		}
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1776,7 +1780,8 @@ func validateFleetVariables(ctx context.Context, appleProfiles map[int]*fleet.MD
 }
 
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
-	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration) error {
+	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
+) error {
 	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
 	// ".mobileconfig" or ".json" or ".xml"
 	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
@@ -1826,7 +1831,7 @@ func fmtDuplicateNameErrMsg(name, fileType1, fileType2 string) string {
 		part2 = "macOS .json file name"
 	}
 
-	base := fmt.Sprintf(`Couldn’t edit custom_settings. More than one configuration profile have the same name '%s'`, name)
+	base := SameProfileNameEditWindowsErrorMsg
 	detail := ` (%s).`
 	switch {
 	case part1 == part2:
@@ -2014,10 +2019,9 @@ func getAppleProfiles(
 				"duplicate mobileconfig profile by name")
 		}
 
-		// TODO: confirm error messages
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, SameProfileNameEditWindowsErrorMsg),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = "mobileconfig"
