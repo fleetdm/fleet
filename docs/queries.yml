@@ -116,17 +116,17 @@ spec:
   discovery: google_chrome_profiles
   purpose: Informational
   tags: built-in
----
-apiVersion: v1
-kind: built-in
-spec:
-  name: Kubequery info
-  platform: windows, darwin, linux, chrome
-  description: Retrieves information about Kubernetes clusters running kubequery.
-  query: SELECT * FROM kubernetes_info
-  # discovery: kubernetes_info # Note: this value is commented out because this table is from kubequery and does not exist in the osquery schema.
-  purpose: Informational
-  tags: built-in
+# --- # Note: this vital is commented out because it requires the kubequery osquery extension.
+# apiVersion: v1
+# kind: built-in
+# spec:
+#   name: Kubequery info
+#   platform: windows, darwin, linux, chrome
+#   description: Retrieves information about Kubernetes clusters running kubequery.
+#   query: SELECT * FROM kubernetes_info
+#   # discovery: kubernetes_info # Note: this value is commented out because this table is from kubequery and does not exist in the osquery schema.
+#   purpose: Informational
+#   tags: built-in
 ---
 apiVersion: v1
 kind: built-in
