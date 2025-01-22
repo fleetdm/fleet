@@ -505,6 +505,7 @@ for pkgType in "${pkgTypes[@]}"; do
 done
 
 echo "Installing fleetd package on macOS..."
+sudo ./orbit/tools/cleanup/cleanup_macos.sh
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
@@ -613,6 +614,7 @@ for pkgType in "${pkgTypes[@]}"; do
 done
 
 echo "Installing fleetd package on macOS..."
+sudo ./orbit/tools/cleanup/cleanup_macos.sh
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
