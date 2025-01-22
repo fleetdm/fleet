@@ -1,0 +1,2 @@
+- Added retry logic to orbit's call to `POST /orbit/software_install/result` to avoid incorrectly
+  reporting a failure when the installation actually succeded (e.g. while installing Crowdstrike Falcon)
