@@ -40,7 +40,7 @@ You can add hosts to a team in Fleet by either enrolling the host with a team's 
 
 ### Transfer a host
 
-1. In FleetUI, navigate to the **Hosts** page and select the host you wish to transfer.
+1. In Fleet UI, navigate to the **Hosts** page and select the host you wish to transfer.
 2. From the host details page, press **Actions > Transfer** and follow the on-screen instructions.
 
 > Quick tip: You can hit the checkbox next to the host you wish to transfer to access its quick menu. From there, select **Transfer** and follow the on-screen instructions.
