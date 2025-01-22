@@ -271,7 +271,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// team.Config.
 		invalid := &fleet.InvalidArgumentError{}
 		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
-			team.Config.WebhookSettings.FailingPoliciesWebhook,
+			*team.Config.WebhookSettings.FailingPoliciesWebhook,
 			team.Config.Integrations,
 			invalid,
 		)

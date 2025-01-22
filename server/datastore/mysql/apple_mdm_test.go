@@ -606,7 +606,6 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 	assert.Equal(t, &fleet.MDMDeliveryVerifying, gotProfs[0].Status)
-
 }
 
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
@@ -4265,7 +4264,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
 	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
 	tc.Config.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("10.15.4")
-	tc.Config.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
+	tc.Config.WebhookSettings.FailingPoliciesWebhook = &fleet.FailingPoliciesWebhookSettings{
 		Enable:         true,
 		DestinationURL: "https://example.com/webhook",
 	}
