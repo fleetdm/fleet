@@ -123,6 +123,64 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
+func (ds *Datastore) UpdateLabelMembershipByHostIds(ctx context.Context, labelID uint, hostIds []uint) (err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// delete all label membership
+		sql := `
+	DELETE FROM label_membership WHERE label_id = ?
+	`
+		_, err := tx.ExecContext(ctx, sql, labelID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear membership for ID")
+		}
+
+		if len(hostIds) == 0 {
+			return nil
+		}
+
+		// Split hostIds into batches to avoid parameter limit in MySQL.
+		for _, hostIds := range batchHostIds(hostIds) {
+			// Use ignore because duplicate hostIds could appear in
+			// different batches and would result in duplicate key errors.
+			values := []interface{}{}
+			placeholders := []string{}
+
+			for _, hostID := range hostIds {
+				values = append(values, labelID, hostID)
+				placeholders = append(placeholders, "(?, ?)")
+			}
+
+			// Build the final SQL query with the dynamically generated placeholders
+			sql := `
+INSERT IGNORE INTO label_membership (label_id, host_id)
+VALUES ` + strings.Join(placeholders, ", ")
+			sql, args, err := sqlx.In(sql, values...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build membership IN statement")
+			}
+			_, err = tx.ExecContext(ctx, sql, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+			}
+		}
+		return nil
+	})
+
+	return ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIds transaction")
+}
+
+func batchHostIds(hostIds []uint) [][]uint {
+	// same functionality as `batchHostnames`, but for host IDs
+	const batchSize = 50000 // Large, but well under the undocumented limit
+	batches := make([][]uint, 0, (len(hostIds)+batchSize-1)/batchSize)
+
+	for batchSize < len(hostIds) {
+		hostIds, batches = hostIds[batchSize:], append(batches, hostIds[0:batchSize:batchSize])
+	}
+	batches = append(batches, hostIds)
+	return batches
+}
+
 func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
@@ -994,6 +1052,9 @@ func (ds *Datastore) LabelsByName(ctx context.Context, names []string) (map[stri
 
 	return result, nil
 }
+
+// AsyncBatchUpdateLabelMembership first clears the label_membership table of all label_id + host_id
+// tuples for the label_id, then inserts the batch of label_id + host_id tuples represented by the [2]uint array.
 
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the
 // batch of label_id + host_id tuples represented by the [2]uint array.
