@@ -20,7 +20,7 @@ const generateWindowsDiskEncryptionMessage = (
   detail: string
 ) => {
   if (status === "failed") {
-    detail += " Fleet will retry automatically.";
+    detail += ". Fleet will retry automatically.";
   }
   return detail;
 };
@@ -30,7 +30,6 @@ const generateWindowsDiskEncryptionMessage = (
  * this as we don't have a windows disk encryption profile in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const generateWinDiskEncryptionSetting = (
   diskEncryptionStatus: WindowsDiskEncryptionStatus,
   detail: string
