@@ -367,20 +367,20 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
-			)
-			if err != nil {
-				return err
-			}
-			r.Inserted = inserted
-
 			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
 			// are runnning inside ds.withRetryTxx.
 			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
 			for key, value := range incomingByChecksum {
 				incomingByChecksumCopy[key] = value
 			}
+
+			inserted, err := ds.insertNewInstalledHostSoftwareDB(
+				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
+			)
+			if err != nil {
+				return err
+			}
+			r.Inserted = inserted
 
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
 				return err
