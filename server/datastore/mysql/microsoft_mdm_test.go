@@ -334,7 +334,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
-			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
 			checkExpected(t, nil, hostIDsByDEStatus{
 				// status is still pending because hosts_disks hasn't been updated yet
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -438,7 +438,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		})
 
 		// ensure hosts[0] is set to verified for the rest of the tests
-		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
 		checkExpected(t, nil, hostIDsByDEStatus{
 			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
@@ -447,7 +447,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 		t.Run("BitLocker failed status", func(t *testing.T) {
 			// set hosts[1] to failed
-			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1].ID, "", "test-error", ptr.Bool(false)))
+			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1], "", "test-error", ptr.Bool(false)))
 
 			expected := hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
@@ -767,7 +767,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				checkExpected(t, nil, expected)
 
 				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
 				// simulate bitlocker verifying status by ensuring host_disks updated at timestamp is before host_disk_encryption_key
 				updateHostDisks(t, hosts[0].ID, true, time.Now().Add(-10*time.Minute))
 				// status for hosts[0] now verifying because bitlocker status is verifying and host[0] has
@@ -819,7 +819,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// all hosts are pending because no profiles and disk encryption is enabled
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "test-key", "", ptr.Bool(true)))
+				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
 				// status is still pending because hosts_disks hasn't been updated yet
 				checkExpected(t, nil, expected)
 
@@ -870,7 +870,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// all hosts are pending because no profiles and disk encryption is enabled
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "", "some-bitlocker-error", nil))
+				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "", "some-bitlocker-error", nil))
 				// status for hosts[0] now failed because any failed status takes precedence
 				expected = hostIDsByProfileStatus{
 					fleet.MDMDeliveryFailed:  []uint{hosts[0].ID},
