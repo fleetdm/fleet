@@ -505,8 +505,11 @@ for pkgType in "${pkgTypes[@]}"; do
         --update-interval=30s
 done
 
-echo "Installing fleetd package on macOS..."
+echo "Uninstalling fleetd package from macOS..."
 sudo ./orbit/tools/cleanup/cleanup_macos.sh
+echo "Sleeping 60 seconds..."
+sleep 60
+echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
@@ -614,8 +617,11 @@ for pkgType in "${pkgTypes[@]}"; do
         --update-interval=30s
 done
 
-echo "Installing fleetd package on macOS..."
+echo "Uninstalling fleetd package from macOS..."
 sudo ./orbit/tools/cleanup/cleanup_macos.sh
+echo "Sleeping 60 seconds..."
+sleep 60
+echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
 CURRENT_DIR=$(pwd)
