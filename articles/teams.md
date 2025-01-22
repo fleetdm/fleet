@@ -36,7 +36,7 @@ You can add hosts to a team in Fleet by either enrolling the host with a team's 
 1. In Fleet UI, navigate to **Settings > Teams** and select the team you wish to add a host to.
 2. Select **Add hosts** and follow the on-screen instructions.
 
-> Quick tip: When viewing a specific team (from the Teams dropdown), Selecting **Add hosts** will display instructions to add new hosts directly to that team.
+> Quick tip: When viewing a specific team (from the **Teams** dropdown), Selecting **Add hosts** will display instructions to add new hosts directly to that team.
 
 ### Transfer a host
 
