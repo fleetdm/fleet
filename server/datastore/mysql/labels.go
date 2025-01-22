@@ -123,7 +123,7 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (ds *Datastore) UpdateLabelMembershipByHostIds(ctx context.Context, labelID uint, hostIds []uint) (err error) {
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// delete all label membership
 		sql := `
@@ -166,7 +166,7 @@ VALUES ` + strings.Join(placeholders, ", ")
 		return nil
 	})
 
-	return ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIds transaction")
+	return ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
 }
 
 func batchHostIds(hostIds []uint) [][]uint {

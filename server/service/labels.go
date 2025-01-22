@@ -185,7 +185,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
-	// use SaveLabel to update label info, and UpdateLabelMembershipByHostIds to update membership. Approach using label
+	// use SaveLabel to update label info, and UpdateLabelMembershipByHostIDs to update membership. Approach using label
 	// names and ApplyLabelSpecs doesn't work for multiple hosts with the same name.
 
 	if payload.Hosts != nil {
@@ -196,7 +196,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := svc.ds.UpdateLabelMembershipByHostIds(ctx, label.ID, hostIds); err != nil {
+		if err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds); err != nil {
 			return nil, nil, err
 		}
 	}
