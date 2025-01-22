@@ -1616,16 +1616,6 @@ func (c *Client) DoGitOps(
 			config.TeamSettings["webhook_settings"] = webhookSettings
 		}
 
-		activitiesWebhook, ok := webhookSettings.(map[string]any)["activities_webhook"]
-		if !ok || activitiesWebhook == nil {
-			activitiesWebhook = map[string]any{}
-			webhookSettings.(map[string]any)["activities_webhook"] = activitiesWebhook
-		}
-		// make sure the "enable" key either exists, or set to false
-		if _, ok := activitiesWebhook.(map[string]any)["enable_activities_webhook"]; !ok {
-			activitiesWebhook.(map[string]any)["enable_activities_webhook"] = false
-		}
-
 		hostStatusWebhook, ok := webhookSettings.(map[string]any)["host_status_webhook"]
 		if !ok || hostStatusWebhook == nil {
 			hostStatusWebhook = map[string]any{}
@@ -1642,15 +1632,6 @@ func (c *Client) DoGitOps(
 		}
 		if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
 			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
-		}
-
-		vulnerabilitiesWebhook, ok := webhookSettings.(map[string]any)["vulnerabilities_webhook"]
-		if !ok || vulnerabilitiesWebhook == nil {
-			vulnerabilitiesWebhook = map[string]any{}
-			webhookSettings.(map[string]any)["vulnerabilities_webhook"] = vulnerabilitiesWebhook
-		}
-		if _, ok := vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"]; !ok {
-			vulnerabilitiesWebhook.(map[string]any)["enable_vulnerabilities_webhook"] = false
 		}
 
 		team["webhook_settings"] = webhookSettings
