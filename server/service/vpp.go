@@ -179,7 +179,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
 	}
 
-	decoded.ID = uint(id)
+	decoded.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return &decoded, nil
 }
