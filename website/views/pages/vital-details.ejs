@@ -95,11 +95,11 @@
               <pre><code class="hljs sql"><%- thisVital.query %></code></pre>
             </div>
           </div>
-          <% if(thisVital.discoveryTable) {%>
+          <% if(thisVital.discovery) {%>
             <div purpose="discovery-table-note">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div>
-                <p>This query uses the <code><%- thisVital.discoveryTable %></code> data table. <a href="/tables/<%- thisVital.discoveryTable %>">Learn more</a></p>
+                <p>This query uses the <code><%- thisVital.discovery %></code> data table. <a href="/tables/<%- thisVital.discovery %>">Learn more</a></p>
               </div>
             </div>
           <% } %>

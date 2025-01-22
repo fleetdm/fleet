@@ -11,7 +11,7 @@ spec:
     FROM battery
   purpose: Informational
   tags: built-in
-  discoveryTable: battery
+  discovery: battery
 ---
 apiVersion: v1
 kind: built-in
@@ -113,7 +113,7 @@ spec:
       email 
     FROM google_chrome_profiles 
     WHERE NOT ephemeral AND email <> ''
-  discoveryTable: google_chrome_profiles
+  discovery: google_chrome_profiles
   purpose: Informational
   tags: built-in
 ---
@@ -124,7 +124,7 @@ spec:
   platform: windows, darwin, linux, chrome
   description: Retrieves the email address of Google Chrome profile on a host.
   query: SELECT * FROM kubernetes_info
-  # discoveryTable: kubernetes_info # Note: this value is commented out because this table does not currently exist in the osquery schema.
+  # discovery: kubernetes_info # Note: this value is commented out because this table does not currently exist in the osquery schema.
   purpose: Informational
   tags: built-in
 ---
@@ -138,7 +138,7 @@ spec:
     SELECT 
       enrolled, server_url, installed_from_dep, payload_identifier 
     FROM mdm
-  discoveryTable: mdm
+  discovery: mdm
   purpose: Informational
   tags: built-in
 ---
@@ -153,7 +153,7 @@ spec:
       display_name, identifier, install_date 
     FROM macos_profiles 
     WHERE type = "Configuration"
-  discoveryTable: macos_profiles
+  discovery: macos_profiles
   purpose: Informational
   tags: built-in
 ---
@@ -168,7 +168,7 @@ spec:
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
       SELECT encrypted, filevault_key FROM de LEFT JOIN fv
-  discoveryTable: filevault_prk
+  discovery: filevault_prk
   purpose: Informational
   tags: built-in
 ---
@@ -183,7 +183,7 @@ spec:
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
       SELECT encrypted, filevault_key FROM de LEFT JOIN fv
-  discoveryTable: filevault_prk # Note: also file_lines, how do we want to handle this...?
+  discovery: filevault_prk # Note: also file_lines, how do we want to handle this...?
   purpose: Informational
   tags: built-in
 ---
@@ -240,7 +240,7 @@ spec:
     SELECT 
       version, errors, warnings 
     FROM munki_info
-  discoveryTable: munki_info
+  discovery: munki_info
   purpose: Informational
   tags: built-in
 ---
@@ -842,7 +842,7 @@ spec:
           FROM apps
           LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
           WHERE apps.bundle_identifier = 'org.mozilla.firefox'
-  discoveryTable: parse_ini
+  discovery: parse_ini
   purpose: Informational
   tags: built-in
 ---
@@ -868,7 +868,7 @@ spec:
       '' AS last_opened_at,
       path AS installed_path
     FROM cached_users CROSS JOIN vscode_extensions USING (uid)
-  discoveryTable: vscode_extensions
+  discovery: vscode_extensions
   purpose: Informational
   tags: built-in
 ---
@@ -1002,7 +1002,7 @@ spec:
       date, title
     FROM windows_update_history
     WHERE result_code = 'Succeeded';
-  discoveryTable: windows_update_history
+  discovery: windows_update_history
   purpose: Informational
   tags: built-in
 ---
