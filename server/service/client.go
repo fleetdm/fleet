@@ -1613,7 +1613,6 @@ func (c *Client) DoGitOps(
 		webhookSettings, ok := config.TeamSettings["webhook_settings"]
 		if !ok || webhookSettings == nil {
 			webhookSettings = map[string]any{}
-			config.TeamSettings["webhook_settings"] = webhookSettings
 		}
 
 		hostStatusWebhook, ok := webhookSettings.(map[string]any)["host_status_webhook"]
