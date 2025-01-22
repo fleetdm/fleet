@@ -1087,7 +1087,7 @@ type ClearAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installe
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
-type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
+type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
@@ -6711,11 +6711,11 @@ func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId s
 	return s.GetSoftwareInstallDetailsFunc(ctx, executionId)
 }
 
-func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error) {
 	s.mu.Lock()
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
+	return s.ListPendingSoftwareInstallsFunc(ctx, hostID, onlyActivePending)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {

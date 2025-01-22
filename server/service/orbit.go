@@ -310,10 +310,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
-	// TODO(uniq): this needs to list those already in host_software_installs, NOT
-	// those in upcoming_activities. Seems to be only called here, but could be
-	// a flag so that it stays general-purpose?
-	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	// load the (active, ready to execute) pending software install executions for that host
+	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID, true)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}

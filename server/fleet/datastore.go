@@ -1725,7 +1725,7 @@ type Datastore interface {
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
 	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
-	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+	ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
