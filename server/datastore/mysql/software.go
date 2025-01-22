@@ -2209,7 +2209,10 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR `, onlyVulnerableJoin)
+
+	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
 		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,

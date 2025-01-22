@@ -617,16 +617,32 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
 		// check for software installer metadata
 		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-		if err != nil {
+		switch {
+		case fleet.IsNotFound(err):
+			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+			}
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case err != nil:
 			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+
+		default:
+			// TODO(uniq): prior code was joining on installer id but based on how list options are parsed [1] it seems like this should be the title id
+			// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+			}
+			softwareStatusJoin = installerJoin
+			joinParams = append(joinParams, installerParams...)
 		}
-		// TODO(sarah): are we missing VPP apps here? see ds.applyHostFilters
-		installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-		}
-		softwareStatusJoin = installerJoin
-		joinParams = append(joinParams, installerParams...)
 	}
 	if softwareStatusJoin != "" {
 		query += softwareStatusJoin

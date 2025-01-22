@@ -67,35 +67,85 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	// TODO(uniq): must consider upcoming queue for pending
-	stmt := fmt.Sprintf(`
+	// TODO(uniq): do we need to handle host_deleted_at and removed similar to GetSummaryHostSoftwareInstalls?
+
+	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as below
+
+	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
+	// recent activity since we didn't really need to worry about the order of activities.
+	// Moving to a time-based approach would be more accurate but would require a more complex and
+	// potentially slower query.
+
+	stmt := `
+WITH
+
+-- select most recent upcoming activities for each host
+upcoming AS (
+	SELECT
+		max(ua.id) AS upcoming_id, -- ensure we use only the most recent attempt for each host
+		host_id
+	FROM
+		upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vua ON ua.id = vua.upcoming_activity_id
+		JOIN hosts h ON host_id = h.id
+	WHERE
+		activity_type = 'vpp_app_install'
+		AND adam_id = :adam_id
+		AND vua.platform = :platform
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	GROUP BY
+		host_id
+),
+
+-- select most recent past activities for each host
+past AS (
+	SELECT
+		max(hvsi.id) AS past_id, -- ensure we use only the most recent attempt for each host
+		host_id
+	FROM
+		host_vpp_software_installs hvsi
+		JOIN hosts h ON host_id = h.id
+	WHERE
+		adam_id = :adam_id
+		AND hvsi.platform = :platform
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+	GROUP BY
+		host_id
+)
+
+-- count each status
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
+
+-- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
-	%s
+	past.host_id,
+	CASE
+		WHEN ncr.status = :mdm_status_acknowledged THEN
+			:software_status_installed
+		WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
+			:software_status_failed
+		ELSE
+			NULL -- either pending or not installed via VPP App
+	END AS status
 FROM
-	host_vpp_software_installs hvsi
-INNER JOIN
-	hosts h ON hvsi.host_id = h.id
-LEFT OUTER JOIN
-	nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
-WHERE
-	hvsi.adam_id = :adam_id AND hvsi.platform = :platform AND
-	(h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0)) AND
-	hvsi.id IN (
-		SELECT
-			max(hvsi2.id) -- ensure we use only the most recently created install attempt for each host
-		FROM
-			host_vpp_software_installs hvsi2
-		WHERE
-			hvsi2.adam_id = :adam_id AND hvsi2.platform = :platform
-		GROUP BY
-			hvsi2.host_id
-	)
-) s`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
+	past
+	JOIN host_vpp_software_installs hvsi ON hvsi.id = past_id
+	JOIN hosts h ON h.id = past.host_id
+	JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+UNION
+SELECT
+	upcoming.host_id,
+	:software_status_pending AS status
+	FROM
+		upcoming
+		JOIN vpp_app_upcoming_activities vua ON upcoming_id = vua.upcoming_activity_id
+		JOIN upcoming_activities ua ON ua.id = upcoming_id) t`
 
 	var tmID uint
 	if teamID != nil {
