@@ -954,15 +954,15 @@ INSERT INTO
 SELECT
 	ua.execution_id,
 	'InstallApplication',
-	CONCAT(?, vaua.adam_id, ?, ua.execution_id, ?),
-	?
+	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
+	:subtype
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua
 		ON vaua.upcoming_activity_id = ua.id
 WHERE
-	ua.host_id = ? AND
-	ua.execution_id IN (?)
+	ua.host_id = :host_id AND
+	ua.execution_id IN (:execution_ids)
 `
 
 	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1030,9 +1030,21 @@ ORDER BY
 	}
 
 	// insert the nano command
-	stmt, args, err = sqlx.In(insCmdStmt, rawCmdPart1, rawCmdPart2, rawCmdPart3, mdm.CommandSubtypeNone, hostID, execIDs)
+	namedArgs := map[string]any{
+		"raw_cmd_part1": rawCmdPart1,
+		"raw_cmd_part2": rawCmdPart2,
+		"raw_cmd_part3": rawCmdPart3,
+		"subtype":       mdm.CommandSubtypeNone,
+		"host_id":       hostID,
+		"execution_ids": execIDs,
+	}
+	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+	}
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
