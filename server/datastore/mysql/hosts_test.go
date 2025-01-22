@@ -8033,6 +8033,14 @@ func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected
 	require.NoError(t, err)
 	require.Equal(t, expectedKey, got.Base64Encrypted)
 	require.Equal(t, expectedDecryptable, got.Decryptable)
+	if expectedKey != "" {
+		var archiveKey string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveKey,
+				`SELECT base64_encrypted FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, hostID)
+		})
+		assert.Equal(t, expectedKey, archiveKey)
+	}
 }
 
 func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
@@ -8117,17 +8125,34 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
-	key, err := ds.GetHostDiskEncryptionKey(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Equal(t, "bazqux", key.Base64Encrypted)
+	checkLUKSEncryptionKey(t, ds, host2.ID, "bazqux", "fuzzmuffin")
 
 	// persists when host hasn't had anything queued
 	err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", 1)
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
-	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
+	checkLUKSEncryptionKey(t, ds, host3.ID, "newstuff", "fuzzball")
+}
+
+func checkLUKSEncryptionKey(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedSalt string) {
+	got, err := ds.GetHostDiskEncryptionKey(context.Background(), hostID)
 	require.NoError(t, err)
-	require.Equal(t, "newstuff", key.Base64Encrypted)
+	require.Equal(t, expectedKey, got.Base64Encrypted)
+	if expectedKey != "" {
+		var archiveKey string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveKey,
+				`SELECT base64_encrypted FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, hostID)
+		})
+		assert.Equal(t, expectedKey, archiveKey)
+		var archiveSalt string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveSalt,
+				`SELECT base64_encrypted_salt FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`,
+				hostID)
+		})
+		assert.Equal(t, expectedSalt, archiveSalt)
+	}
 }
 
 func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {

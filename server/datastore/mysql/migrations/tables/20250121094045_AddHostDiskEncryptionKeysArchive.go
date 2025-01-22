@@ -10,7 +10,14 @@ func init() {
 }
 
 func Up_20250121094045(tx *sql.Tx) error {
-	_, err := tx.Exec(`ALTER TABLE host_disk_encryption_keys
+	_, err := tx.Exec(`ALTER TABLE host_disks
+		MODIFY COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT NOW(6),
+		MODIFY COLUMN updated_at TIMESTAMP(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6)`)
+	if err != nil {
+		return fmt.Errorf("failed to alter host_disks table: %w", err)
+	}
+
+	_, err = tx.Exec(`ALTER TABLE host_disk_encryption_keys
 		MODIFY COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT NOW(6),
 		MODIFY COLUMN updated_at TIMESTAMP(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6)`)
 	if err != nil {
