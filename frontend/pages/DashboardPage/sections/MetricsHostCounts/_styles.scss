@@ -1,0 +1,42 @@
+.metrics-host-counts {
+  display: grid;
+  gap: $pad-smedium;
+
+  // >= 320px and < 576px
+  // Each card is on its own row, up to 3 rows.
+  // 12pt gap
+  @media (min-width: $break-mobile-xs) {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, auto);
+  }
+
+  // >= 576px and < 880px
+  // The first card (TotalHosts) is on a row by itself.
+  // The second and third cards (if present) are on the second row.
+  @media (min-width: $break-mobile-md) {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto;
+
+    & > *:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  // >= 880px
+  // Up to 3 cards are in a single row.
+  // 16pt gap
+  @media (min-width: $break-sm) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: 1fr;
+    gap: $pad-medium;
+
+    // Undo total hosts getting it's own row
+    & > *:first-child {
+      grid-column: initial;
+    }
+
+    & > * {
+      min-width: 0; // Prevents content from causing overflow
+    }
+  }
+}

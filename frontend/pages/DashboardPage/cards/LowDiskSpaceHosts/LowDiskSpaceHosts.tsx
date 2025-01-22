@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
-import HostCountCard from "../HostsSummary/HostCountCard";
+import HostCountCard from "../HostCountCard";
 
 const baseClass = "hosts-low-space";
 

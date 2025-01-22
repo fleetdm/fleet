@@ -66,7 +66,8 @@ import {
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import HostsSummary from "./cards/HostsSummary";
+import PlatformHostCounts from "./sections/PlatformHostCounts";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
@@ -535,30 +536,44 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostsSummaryCards = (
-    <HostsSummary
-      currentTeamId={teamIdForApi}
-      macCount={macCount}
-      windowsCount={windowsCount}
-      linuxCount={linuxCount}
-      chromeCount={chromeCount}
-      iosCount={iosCount}
-      ipadosCount={ipadosCount}
-      isLoadingHostsSummary={isHostSummaryFetching}
-      builtInLabels={labels}
-      showHostsUI={showHostsUI}
-      selectedPlatform={selectedPlatform}
-      errorHosts={!!errorHosts}
-      totalHostCount={
-        !isHostSummaryFetching && !errorHosts
-          ? hostSummaryData?.totals_hosts_count
-          : undefined
-      }
-      isPremiumTier={isPremiumTier}
-      missingCount={missingCount}
-      lowDiskSpaceCount={lowDiskSpaceCount}
-      selectedPlatformLabelId={selectedPlatformLabelId}
-    />
+  const HostCountCards = (
+    <>
+      <PlatformHostCounts
+        currentTeamId={teamIdForApi}
+        macCount={macCount}
+        windowsCount={windowsCount}
+        linuxCount={linuxCount}
+        chromeCount={chromeCount}
+        iosCount={iosCount}
+        ipadosCount={ipadosCount}
+        isLoadingHostsSummary={isHostSummaryFetching}
+        builtInLabels={labels}
+        showHostsUI={showHostsUI}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
+      />
+      <MetricsHostCounts
+        currentTeamId={teamIdForApi}
+        isLoadingHostsSummary={isHostSummaryFetching}
+        showHostsUI={showHostsUI}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
+        isPremiumTier={isPremiumTier}
+        missingCount={missingCount}
+        lowDiskSpaceCount={lowDiskSpaceCount}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+      />
+    </>
   );
 
   const WelcomeHostCard = useInfoCard({
@@ -862,14 +877,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
-        <div className="host-sections">
+        <div className={`${baseClass}__host-sections`}>
           <>
             {isHostSummaryFetching && (
               <div className="spinner">
                 <Spinner />
               </div>
             )}
-            {HostsSummaryCards}
+            {HostCountCards}
           </>
         </div>
         {renderCards()}

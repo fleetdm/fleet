@@ -1,12 +1,9 @@
 .host-count-card {
-  flex: 1 1 calc(16.666% - 16px);
-  //done
-
+  // TODO: Figure out how to move this to Card/_styles.scss
   a {
     font-weight: normal;
     color: $core-fleet-black;
     text-decoration: none;
-    border-radius: 8px;
   }
   // TODO: keyboard accessibility styling
 
@@ -18,7 +15,6 @@
     text-align: left;
     height: fit-content;
     padding: $x-large;
-    border-radius: 8px;
     border: 1px solid $ui-fleet-black-10;
     background: $core-white;
     //done

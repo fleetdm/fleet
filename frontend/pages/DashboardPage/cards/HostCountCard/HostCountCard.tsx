@@ -6,6 +6,7 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
+import Card from "components/Card";
 
 interface IHostCountCard {
   count: number;
@@ -105,17 +106,15 @@ const HostCountCard = ({
     );
   };
 
-  // Uses Link instead of Button to include right click functionality
-  // Cannot use Link disable option as it doesn't allow hover of tooltip
   return (
     <div className={baseClass} style={opacity} data-testid="card">
-      {notSupported ? (
-        <div className={classes}>{renderCard()}</div>
-      ) : (
-        <Link className={classes} to={path}>
-          {renderCard()}
-        </Link>
-      )}
+      <Card
+        className={classes}
+        borderRadiusSize="large"
+        path={notSupported ? undefined : path}
+      >
+        {renderCard()}
+      </Card>
     </div>
   );
 };

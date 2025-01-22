@@ -1,23 +1,17 @@
 import React, { useCallback } from "react";
 import PATHS from "router/paths";
 
-import {
-  LOW_DISK_SPACE_GB,
-  PLATFORM_NAME_TO_LABEL_NAME,
-} from "pages/DashboardPage/helpers";
+import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 import { IHostSummary } from "interfaces/host_summary";
 import { PlatformValueOptions } from "utilities/constants";
 import DataError from "components/DataError";
-import LowDiskSpaceHosts from "../LowDiskSpaceHosts";
-import MissingHosts from "../MissingHosts";
-import TotalHosts from "../TotalHosts";
 
-import PlatformCountTile from "./HostCountCard";
+import HostCountCard from "../../cards/HostCountCard";
 
-const baseClass = "hosts-summary";
+const baseClass = "platform-host-counts";
 
-interface IHostSummaryProps {
+interface IPlatformHostCountsProps {
   currentTeamId: number | undefined;
   macCount: number;
   windowsCount: number;
@@ -31,13 +25,9 @@ interface IHostSummaryProps {
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
-  isPremiumTier?: boolean;
-  missingCount: number;
-  lowDiskSpaceCount: number;
-  selectedPlatformLabelId?: number;
 }
 
-const HostsSummary = ({
+const PlatformHostCounts = ({
   currentTeamId,
   macCount,
   windowsCount,
@@ -51,11 +41,7 @@ const HostsSummary = ({
   errorHosts,
   selectedPlatform,
   totalHostCount,
-  isPremiumTier,
-  missingCount,
-  lowDiskSpaceCount,
-  selectedPlatformLabelId,
-}: IHostSummaryProps): JSX.Element => {
+}: IPlatformHostCountsProps): JSX.Element => {
   // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
   if (showHostsUI) {
@@ -87,7 +73,7 @@ const HostsSummary = ({
     }
 
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="darwin"
         count={macCount}
         isLoading={isLoadingHostsSummary}
@@ -111,7 +97,7 @@ const HostsSummary = ({
       return <></>;
     }
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="windows"
         count={windowsCount}
         isLoading={isLoadingHostsSummary}
@@ -135,7 +121,7 @@ const HostsSummary = ({
       return <></>;
     }
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="linux"
         count={linuxCount}
         isLoading={isLoadingHostsSummary}
@@ -160,7 +146,7 @@ const HostsSummary = ({
     }
 
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="chrome"
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
@@ -185,7 +171,7 @@ const HostsSummary = ({
     }
 
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="iOS"
         count={iosCount}
         isLoading={isLoadingHostsSummary}
@@ -210,7 +196,7 @@ const HostsSummary = ({
     }
 
     return (
-      <PlatformCountTile
+      <HostCountCard
         iconName="iPadOS"
         count={ipadosCount}
         isLoading={isLoadingHostsSummary}
@@ -255,80 +241,11 @@ const HostsSummary = ({
     return <DataError card />;
   }
 
-  const TotalHostsCard = (
-    <TotalHosts
-      totalCount={totalHostCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
-      selectedPlatformLabelId={selectedPlatformLabelId}
-      currentTeamId={currentTeamId}
-    />
-  );
-
-  const MissingHostsCard = (
-    <MissingHosts
-      missingCount={missingCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
-      selectedPlatformLabelId={selectedPlatformLabelId}
-      currentTeamId={currentTeamId}
-    />
-  );
-
-  const LowDiskSpaceHostsCard = (
-    <LowDiskSpaceHosts
-      lowDiskSpaceGb={LOW_DISK_SPACE_GB}
-      lowDiskSpaceCount={lowDiskSpaceCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
-      selectedPlatformLabelId={selectedPlatformLabelId}
-      currentTeamId={currentTeamId}
-      notSupported={selectedPlatform === "chrome"}
-    />
-  );
-
-  const nonZeroPlatformCount = Object.values({
-    macCount,
-    windowsCount,
-    linuxCount,
-    chromeCount,
-    iosCount,
-    ipadosCount,
-  }).filter(Boolean).length;
-
-  if (nonZeroPlatformCount === 1) {
-    return (
-      <div className={baseClass} style={opacity}>
-        {renderCounts(currentTeamId)}
-        {isPremiumTier &&
-          selectedPlatform !== "ios" &&
-          selectedPlatform !== "ipados" && (
-            <>
-              {TotalHostsCard}
-              {MissingHostsCard}
-              {LowDiskSpaceHostsCard}
-            </>
-          )}
-      </div>
-    );
-  }
-
   return (
-    <>
-      <div className={baseClass} style={opacity}>
-        {renderCounts(currentTeamId)}
-      </div>
-      {isPremiumTier &&
-        selectedPlatform !== "ios" &&
-        selectedPlatform !== "ipados" && (
-          <div className={baseClass} style={opacity}>
-            {TotalHostsCard}
-            {MissingHostsCard}
-            {LowDiskSpaceHostsCard}
-          </div>
-        )}
-    </>
+    <div className={baseClass} style={opacity}>
+      {renderCounts(currentTeamId)}
+    </div>
   );
 };
 
-export default HostsSummary;
+export default PlatformHostCounts;
