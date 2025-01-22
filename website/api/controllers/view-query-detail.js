@@ -16,6 +16,10 @@ module.exports = {
     success: { viewTemplatePath: 'pages/query-detail' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
+    redirectToPolicy: {
+      description: 'The requesting user has been redirected to a policy page.',
+      responseType: 'redirect'
+    },
   },
 
 
@@ -23,6 +27,8 @@ module.exports = {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
       throw {badConfig: 'builtStaticContent.queries'};
+    } else if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.policies)) {
+      throw {badConfig: 'builtStaticContent.policies'};
     } else if (!_.isString(sails.config.builtStaticContent.queryLibraryYmlRepoPath)) {
       throw {badConfig: 'builtStaticContent.queryLibraryYmlRepoPath'};
     }
@@ -31,7 +37,15 @@ module.exports = {
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
     if (!query) {
-      throw 'notFound';
+      // If we didn't find a query matching this slug, check to see if there is a policy with a matching slug.
+      // Note: We do this because policies used to be on /queries/* pages. This way, all old URLs that policies used to live at will still bring users to the correct page.
+      let policyWithThisSlug = _.find(sails.config.builtStaticContent.policies, {kind: 'policy', slug: slug});
+      if(policyWithThisSlug){
+        // If we foudn a matchign policy, redirect the user.
+        throw {redirect: `/policies/${policyWithThisSlug.slug}`};
+      } else {
+        throw 'notFound';
+      }
     }
 
     // Find the related osquery table documentation for tables used in this query, and grab the keywordsForSyntaxHighlighting from each table used.
