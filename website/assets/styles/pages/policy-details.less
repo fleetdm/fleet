@@ -312,41 +312,44 @@
         white-space: break-spaces;
       }
       &.no-linebreaks {
+        word-break: break-word;
         white-space: normal;
       }
       font-family: 'Source Code Pro';
       font-size: 14px;
       font-weight: 400;
       line-height: 150%;
-      .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-        color: #AE6DDF;
-      }
       [purpose='line-break']:not(:first-of-type)::before {
         content: '\a';
       }
-      .hljs-attr { // For table and column names
-        .hljs-keyword {
+      &:not(.nohighlight) {
+        .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
+          color: #AE6DDF;
+        }
+        .hljs-attr { // For table and column names
+          .hljs-keyword {
+            color: #FFF;
+          }
+          .hljs-string { // For words wrapped in quotation marks
+            color: #FFF;
+          }
           color: #FFF;
+          background-color: #AE6DDF;
+          border-radius: 3px;
+          white-space: pre;
+          vertical-align: baseline;
+          span {
+            padding: 0;
+          }
+        }
+        .hljs-number {
+          color: #f5871f;
         }
         .hljs-string { // For words wrapped in quotation marks
-          color: #FFF;
-        }
-        color: #FFF;
-        background-color: #AE6DDF;
-        border-radius: 3px;
-        white-space: pre;
-        vertical-align: baseline;
-        span {
-          padding: 0;
-        }
-      }
-      .hljs-number {
-        color: #f5871f;
-      }
-      .hljs-string { // For words wrapped in quotation marks
-        color: #4fd061;
-        .hljs-keyword {
           color: #4fd061;
+          .hljs-keyword {
+            color: #4fd061;
+          }
         }
       }
 

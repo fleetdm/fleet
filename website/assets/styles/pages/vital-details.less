@@ -81,7 +81,8 @@
         padding-top: 6px;
         padding-bottom: 6px;
         border: none;
-        } &::placeholder {
+        }
+        &::placeholder {
           font-size: 16px;
           line-height: 24px;
           color: #8B8FA2;
@@ -142,7 +143,7 @@
       width: 240px;
       // text-wrap: nowrap;
       padding: 4px 8px;
-      &:hover{
+      &:hover {
         text-decoration: none;
         border-radius: 4px;
         background: #F9FAFC;
@@ -349,6 +350,7 @@
           white-space: break-spaces;
         }
         &.no-linebreaks {
+          word-break: break-word;
           white-space: normal;
         }
         font-family: 'Source Code Pro';
@@ -420,7 +422,7 @@
     }
     code {
       color: #515774;
-      font-family: "Source Code Pro";
+      font-family: 'Source Code Pro';
       font-size: 14px;
       line-height: 16px; /* 114.286% */
       border-radius: 2px;
@@ -446,8 +448,6 @@
       margin-left: 8px;
     }
     color: var(--UI-Fleet-Black-75, #515774);
-
-    /* Body SM (FKA Card text) */
     font-family: Inter;
     font-size: 14px;
     font-style: normal;
@@ -462,15 +462,22 @@
     font-weight: 800;
     line-height: 16.8px;
   }
+  .modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out, -webkit-transform 0.3s ease-out;
+    -webkit-transform: translate(-25%, 0%);
+    transform: translate(-25%, 0%);
+  }
+  .modal.show .modal-dialog {
+    -webkit-transform: translate(0, 0);
+    transform: translate(0, 0);
+  }
   [parasails-component='modal'] {
-    .modal.fade .modal-dialog {
-      -webkit-transform: translate(-25%, 0);
-      transform: translate(-25%, 0);
-    }
+
     [purpose='modal-dialog'] {
       margin-left: 16px;
       [purpose='modal-content'] {
         display: flex;
+        height: calc(~'100vh - 72px');
         margin-top: 0px;
         max-width: 366px;
         padding: 48px 24px 24px 24px;
@@ -491,7 +498,7 @@
             width: 100%;
             // text-wrap: nowrap;
             padding: 4px 8px;
-            &:hover{
+            &:hover {
               text-decoration: none;
               border-radius: 4px;
               background: #F9FAFC;
