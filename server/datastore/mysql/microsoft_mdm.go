@@ -512,7 +512,7 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereEncrypted        = `(hd.encrypted IS NOT NULL AND hd.encrypted = 1)`
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
-		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR))`
+		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 	)
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
