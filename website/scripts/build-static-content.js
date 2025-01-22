@@ -121,6 +121,10 @@ module.exports = {
           });//∞
           // Now expand queries with relevant profile data for the contributors.
           for (let query of queries) {
+            // Skip built-in queries.
+            if(query.kind === 'built-in'){
+              continue;
+            }
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
             for (let username of usernames) {
