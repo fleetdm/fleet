@@ -38,7 +38,7 @@ describe("HostCountCard - component", () => {
       />
     );
 
-    const card = screen.getByTestId("tile");
+    const card = screen.getByTestId("card");
 
     expect(card).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
     expect(card).toBeVisible();
