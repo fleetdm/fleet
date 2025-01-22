@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -149,7 +149,7 @@ func ServeStaticAssets(path string) http.Handler {
 	contentTypes := []string{"text/javascript", "text/css"}
 	withoutGzip := http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
 
-	withOpts, err := gziphandler.GzipHandlerWithOpts(gziphandler.ContentTypes(contentTypes))
+	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
 	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
 		return withoutGzip
 	}
