@@ -10,7 +10,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
@@ -130,6 +132,24 @@ func TestPreconditionCheck(t *testing.T) {
 	require.False(t, success)
 	require.Error(t, err)
 	require.Equal(t, "", output)
+}
+
+type mockOrbitClient struct {
+	getInstallerDetails       func(installID string) (*fleet.SoftwareInstallDetails, error)
+	downloadSoftwareInstaller func(installerID uint, downloadDir string) (string, error)
+	saveInstallerResult       func(payload *fleet.HostSoftwareInstallResultPayload) error
+}
+
+func (f *mockOrbitClient) GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error) {
+	return f.getInstallerDetails(installID)
+}
+
+func (f *mockOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
+	return f.downloadSoftwareInstaller(installerID, downloadDir)
+}
+
+func (f *mockOrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
+	return f.saveInstallerResult(payload)
 }
 
 func TestInstallerRun(t *testing.T) {
@@ -413,6 +433,65 @@ func TestInstallerRun(t *testing.T) {
 		numPostInstallMatches := strings.Count(*savedInstallerResult.PostInstallScriptOutput, string(execOutput))
 		assert.Equal(t, 2, numPostInstallMatches)
 	})
+
+	t.Run("failed results upload", func(t *testing.T) {
+		resetAll()
+		var retries int
+		// set a shorter interval to speed up tests
+		r.retryOpts = []retry.Option{retry.WithInterval(1 * time.Second), retry.WithMaxAttempts(5)}
+		oc := &mockOrbitClient{
+			getInstallerDetails: func(installID string) (*fleet.SoftwareInstallDetails, error) {
+				return &fleet.SoftwareInstallDetails{}, nil
+			},
+			downloadSoftwareInstaller: func(installerID uint, downloadDir string) (string, error) {
+				return tmpDir, nil
+			},
+		}
+		r.OrbitClient = oc
+
+		testCases := []struct {
+			desc                    string
+			expectedRetries         int
+			expectedErr             string
+			saveInstallerResultFunc func(payload *fleet.HostSoftwareInstallResultPayload) error
+		}{
+			{
+				desc:            "multiple retries, eventual success",
+				expectedRetries: 4,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					if retries != 4 {
+						return errors.New("save results error")
+					}
+
+					return nil
+				},
+			},
+
+			{
+				desc:            "multiple retries, eventual failure",
+				expectedRetries: 5,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					return errors.New("save results error")
+				},
+				expectedErr: "save results error",
+			},
+		}
+		for _, tC := range testCases {
+			t.Run(tC.desc, func(t *testing.T) {
+				oc.saveInstallerResult = tC.saveInstallerResultFunc
+				err := r.run(context.Background(), &config)
+				if tC.expectedErr != "" {
+					require.ErrorContains(t, err, tC.expectedErr)
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, tC.expectedRetries, retries)
+				retries = 0
+			})
+		}
+	})
 }
 
 func TestScriptsDisabled(t *testing.T) {
@@ -425,7 +504,6 @@ func TestScriptsDisabled(t *testing.T) {
 	}
 
 	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
-
 		queryFnResMap := make(map[string]string, 0)
 		queryFnResMap["col"] = "true"
 		queryFnResArr := []map[string]string{queryFnResMap}

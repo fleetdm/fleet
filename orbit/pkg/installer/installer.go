@@ -74,6 +74,8 @@ type Runner struct {
 	osqueryConnectionMutex sync.Mutex
 
 	rootDirPath string
+
+	retryOpts []retry.Option
 }
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
@@ -83,6 +85,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 		scriptsEnabled:            scriptsEnabled,
 		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
 		rootDirPath:               rootDirPath,
+		retryOpts:                 []retry.Option{retry.WithMaxAttempts(5)},
 	}
 
 	return r
@@ -141,7 +144,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		}
 		err = retry.Do(func() error {
 			return r.OrbitClient.SaveInstallerResult(payload)
-		})
+		}, r.retryOpts...)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
