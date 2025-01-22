@@ -478,16 +478,16 @@ func TestInstallerRun(t *testing.T) {
 				expectedErr: "save results error",
 			},
 		}
-		for _, tC := range testCases {
-			t.Run(tC.desc, func(t *testing.T) {
-				oc.saveInstallerResult = tC.saveInstallerResultFunc
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				oc.saveInstallerResult = tc.saveInstallerResultFunc
 				err := r.run(context.Background(), &config)
-				if tC.expectedErr != "" {
-					require.ErrorContains(t, err, tC.expectedErr)
+				if tc.expectedErr != "" {
+					require.ErrorContains(t, err, tc.expectedErr)
 				} else {
 					require.NoError(t, err)
 				}
-				require.Equal(t, tC.expectedRetries, retries)
+				require.Equal(t, tc.expectedRetries, retries)
 				retries = 0
 			})
 		}
