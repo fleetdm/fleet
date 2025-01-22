@@ -1,4 +1,4 @@
-# From understanding host vitals :0
+# Host vital queries (from `server/service/osquery_utils/queries.go`)
 apiVersion: v1
 kind: built-in
 spec:
