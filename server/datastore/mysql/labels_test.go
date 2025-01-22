@@ -51,7 +51,7 @@ func TestBatchHostIdsSmall(t *testing.T) {
 func TestBatchHostIdsLarge(t *testing.T) {
 	large := []uint{}
 	for i := 0; i < 230000; i++ {
-		large = append(large, uint(i))
+		large = append(large, uint(i)) //nolint:gosec // dismiss G115
 	}
 	batched := batchHostIds(large)
 	require.Equal(t, 5, len(batched))
