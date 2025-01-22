@@ -7562,7 +7562,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost}, false, time.Now())
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
 	require.NoError(t, err)
 	checkNotification(true)
 
@@ -7605,7 +7605,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
 	require.NoError(t, err)
 	checkNotification(true)
 

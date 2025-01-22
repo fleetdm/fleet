@@ -16,44 +16,33 @@ import (
 )
 
 type encryptionKey struct {
-	Base string `db:"base64_encrypted"`
-	Salt string `db:"base64_encrypted_salt"`
+	Base      string `db:"base64_encrypted"`
+	Salt      string `db:"base64_encrypted_salt"`
+	KeySlot   *uint
+	CreatedAt time.Time
+	NotFound  bool
 }
 
 func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key, clientError string,
 	decryptable *bool) error {
 
-	getExistingKeyStmt := `SELECT base64_encrypted, base64_encrypted_salt FROM host_disk_encryption_keys WHERE host_id = ?`
-	var existingKey encryptionKey
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingKey, getExistingKeyStmt, host.ID)
-	var doInsert bool
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		// no existing key, proceed to insert
-		doInsert = true
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "getting existing key")
+	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting existing key, if present")
 	}
 
 	// TODO: add salt here
-	var keySlot uint
+	var keySlot *uint
 	var encryptedBase64Salt string
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
 	createdAt := time.Now().UTC()
-	// We save only valid and different keys to reduce noise.
-	if (encryptedBase64Key != "" && existingKey.Base != encryptedBase64Key) ||
-		(encryptedBase64Salt != "" && existingKey.Salt != encryptedBase64Salt) {
-		const insertKeyIntoArchiveStmt = `
-INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, created_at)
-VALUES (?, ?, ?, ?, ?)`
-		_, err = ds.writer(ctx).ExecContext(ctx, insertKeyIntoArchiveStmt, host.ID, host.HardwareSerial, existingKey.Base, existingKey.Salt,
-			keySlot, createdAt)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting key into archive")
-		}
+	var incomingKey = encryptionKey{Base: encryptedBase64Key, Salt: encryptedBase64Salt, KeySlot: keySlot, CreatedAt: createdAt}
+	err = ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "archiving key")
 	}
 
-	if doInsert {
+	if existingKey.NotFound {
 		_, err = ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
   (host_id, base64_encrypted, client_error, decryptable, created_at)
@@ -91,7 +80,39 @@ WHERE host_id = ?
 	return nil
 }
 
-func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string,
+func (ds *Datastore) getExistingHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (encryptionKey, error) {
+	getExistingKeyStmt := `SELECT base64_encrypted, base64_encrypted_salt FROM host_disk_encryption_keys WHERE host_id = ?`
+	var existingKey encryptionKey
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingKey, getExistingKeyStmt, host.ID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// no existing key, proceed to insert
+		existingKey.NotFound = true
+	case err != nil:
+		return encryptionKey{}, ctxerr.Wrap(ctx, err, "getting existing key")
+	}
+	return existingKey, nil
+}
+
+func (ds *Datastore) archiveHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, incomingKey encryptionKey,
+	existingKey encryptionKey) error {
+	// We archive only valid and different keys to reduce noise.
+	if (incomingKey.Base != "" && existingKey.Base != incomingKey.Base) ||
+		(incomingKey.Salt != "" && existingKey.Salt != incomingKey.Salt) {
+		const insertKeyIntoArchiveStmt = `
+INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, created_at)
+VALUES (?, ?, ?, ?, ?)`
+		_, err := ds.writer(ctx).ExecContext(ctx, insertKeyIntoArchiveStmt, host.ID, host.HardwareSerial, incomingKey.Base,
+			incomingKey.Salt,
+			incomingKey.KeySlot, incomingKey.CreatedAt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting key into archive")
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string,
 	keySlot uint) error {
 	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
 		return errors.New("passphrase and salt must be set")
@@ -108,7 +129,7 @@ ON DUPLICATE KEY UPDATE
   base64_encrypted_salt = VALUES(base64_encrypted_salt),
   key_slot = VALUES(key_slot),
   client_error = ''
-`, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+`, host.ID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 	return err
 }
 

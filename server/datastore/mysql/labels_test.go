@@ -1240,8 +1240,8 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	// verifying status
 	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
-	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[0], "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1], "key-1", true, oneMinuteAfterThreshold)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)

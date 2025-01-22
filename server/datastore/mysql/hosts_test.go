@@ -907,8 +907,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "morton", 1)) // set host 1 to verified
-	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))     // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
@@ -941,8 +941,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "mutton", 2)) // set host 1 to verified
-	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))     // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
@@ -3409,7 +3409,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	// host 0 needs to finish key rotation (action required), host 1 has finished key rotation but profile is verifying
-	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1], "key-1", true, oneMinuteAfterThreshold)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -8105,15 +8105,15 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 
 	// no change when blank key or salt attempted to save
-	err = ds.SaveLUKSData(ctx, host1.ID, "", "", 0)
+	err = ds.SaveLUKSData(ctx, host1, "", "", 0)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
-	err = ds.SaveLUKSData(ctx, host1.ID, "foo", "", 0)
+	err = ds.SaveLUKSData(ctx, host1, "foo", "", 0)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 
 	// persists with passphrase and salt set
-	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin", 0)
+	err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", 0)
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
@@ -8122,7 +8122,7 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.Equal(t, "bazqux", key.Base64Encrypted)
 
 	// persists when host hasn't had anything queued
-	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "fuzzball", 1)
+	err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", 1)
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
