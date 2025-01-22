@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -145,5 +146,13 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 }
 
 func ServeStaticAssets(path string) http.Handler {
-	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+	contentTypes := []string{"text/javascript", "text/css"}
+	withoutGzip := http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+
+	withOpts, err := gziphandler.GzipHandlerWithOpts(gziphandler.ContentTypes(contentTypes))
+	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
+		return withoutGzip
+	}
+
+	return withOpts(withoutGzip)
 }
