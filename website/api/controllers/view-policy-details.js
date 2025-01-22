@@ -58,8 +58,8 @@ module.exports = {
 
 
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if policy.name or policy.description are missing.
-    let pageTitleForMeta = policy.name ? policy.name + ' | Query details' : 'Query details';
-    let pageDescriptionForMeta = policy.description ? policy.description : 'View more information about a query in Fleet\'s standard query library';
+    let pageTitleForMeta = policy.name ? policy.name + ' | Policy details' : 'Policy details';
+    let pageDescriptionForMeta = policy.description ? policy.description : 'View more information about a policy in Fleet\'s standard query library';
     // Respond with view.
     return {
       policy,

@@ -57,8 +57,8 @@ module.exports = {
     columnNamesForSyntaxHighlighting = _.difference(columnNamesForSyntaxHighlighting, tableNamesForSyntaxHighlighting);
 
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if vital.name or vital.description are missing.
-    let pageTitleForMeta = thisVital.name ? thisVital.name + ' | Query details' : 'Query details';
-    let pageDescriptionForMeta = thisVital.description ? thisVital.description : 'TODO';
+    let pageTitleForMeta = thisVital.name ? thisVital.name + ' | Vital details' : 'Vital details';
+    let pageDescriptionForMeta = thisVital.description ? thisVital.description : 'Explore Fleet’s built-in queries for collecting and storing important device information.';
     let vitals = _.where(sails.config.builtStaticContent.queries, {kind: 'built-in'});
     let macOsVitals = _.filter(vitals, (vital)=>{
       let platformsForThisPolicy = vital.platform.split(', ');
