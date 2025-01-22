@@ -627,23 +627,22 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 // It does a few things to achieve this:
 //   - If there was an activity already marked as activated (activated_at is
 //     not NULL) and fromCompletedExecID is provided, it deletes it, as calling
-//     this function means that the previous activated activity/ies is now
-//     completed (in a final state, either success or failure).
-//   - If there is an upcoming activity to activate next, it does so,
-//     respecting the priority and enqueue order. Activation consists of inserting
-//     the activity in its respective table, e.g. `host_script_results` for
-//     scripts, `host_sofware_installs` for software installs,
-//     `host_vpp_software_installs` and nano command queue for VPP installs; and
-//     setting the activated_at timestamp in the `upcoming_activities` table.
+//     this function means that this activated activity is now completed (in a
+//     final state, either success or failure).
+//   - If no other activity is still activated and there is an upcoming
+//     activity to activate next, it does so, respecting the priority and enqueue
+//     order. Activation consists of inserting the activity in its respective
+//     table, e.g. `host_script_results` for scripts, `host_sofware_installs` for
+//     software installs, `host_vpp_software_installs` and nano command queue for
+//     VPP installs; and setting the activated_at timestamp in the
+//     `upcoming_activities` table.
 //   - As an optimization for MDM, if the activity type is `vpp_app_install`
 //     and the next few upcoming activities are all of this type, they are
 //     batch-activated together (up to a limit) to reduce the processing
 //     latency and number of push notifications to send to this host.
 //
 // When called after receiving results for an activity, the fromCompletedExecID
-// argument identifies that activity. This is important as many activities may
-// have been activated if all were MDM commands, and we must not enqueue the
-// next until all those commands did receive results.
+// argument identifies that completed activity.
 func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromCompletedExecID string) (activatedExecIDs []string, err error) {
 	const maxMDMCommandActivations = 5
 
@@ -842,10 +841,10 @@ ORDER BY
 
 func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insScriptStmt = `
-INSERT INTO 
-	host_script_results 
-(host_id, execution_id, script_content_id, output, user_id, is_internal) 
-SELECT 
+INSERT INTO
+	host_script_results
+(host_id, execution_id, script_content_id, output, user_id, is_internal)
+SELECT
 	ua.host_id,
 	ua.execution_id,
 	si.uninstall_script_content_id,
@@ -853,12 +852,12 @@ SELECT
 	ua.user_id,
 	1
 FROM
-	upcoming_activities ua 
+	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
-		ON siua.upcoming_activity_id = ua.id 
+		ON siua.upcoming_activity_id = ua.id
 	INNER JOIN software_installers si
 		ON si.id = siua.software_installer_id
-WHERE 
+WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
 ORDER BY
