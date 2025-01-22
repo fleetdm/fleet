@@ -417,6 +417,7 @@ for host_hostname in "${all_hostnames[@]}"; do
     done
 done
 
+prompt "Check that your orbit is on 1.38.2 on all your devices"
 echo "Downgrading to $OLD_FULL_VERSION..."
 cat << EOF > downgrade.yml
 ---
