@@ -1,1 +1,1 @@
-- Fixes Fleet's handling of VPP token renewal requests
+* Fixed a bug in Fleet's handling of VPP token renewal requests
