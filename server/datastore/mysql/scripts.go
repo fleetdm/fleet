@@ -270,10 +270,13 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	internalWhere := ""
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
+	extraWhere := ""
 	if onlyShowInternal {
-		internalWhere = " AND JSON_EXTRACT(payload, '$.is_internal') = 1"
+		extraWhere = " AND JSON_EXTRACT(ua.payload, '$.is_internal') = 1"
+	}
+	if onlyActivePending {
+		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
 	listStmt := fmt.Sprintf(`
   SELECT
@@ -303,7 +306,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 			)
 			%s
-		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, internalWhere)
+		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, extraWhere)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())

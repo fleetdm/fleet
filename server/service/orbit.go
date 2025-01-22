@@ -294,10 +294,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// load the pending script executions for that host
-	// TODO(uniq): this must not list pending in upcoming activities, only pending
-	// in host_script_results!
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	// load the (active, ready to execute) pending script executions for that host
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled, true)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}

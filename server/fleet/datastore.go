@@ -1629,7 +1629,7 @@ type Datastore interface {
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
