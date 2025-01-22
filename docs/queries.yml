@@ -5,7 +5,10 @@ spec:
   name: Battery
   platform: windows, darwin
   description: Retrieves information about a devices battery.
-  query: SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery;
+  query: |
+    SELECT 
+      serial_number, cycle_count, designed_capacity, max_capacity 
+    FROM battery
   purpose: Informational
   tags: built-in
   discoveryTable: battery
@@ -16,7 +19,7 @@ spec:
   name: ChromeOS profile user info
   platform: chrome
   description: Retrieves information about profiles on ChromeOS devices
-  query: SELECT email FROM users;
+  query: SELECT email FROM users
   purpose: Informational
   tags: built-in
 ---
@@ -26,7 +29,12 @@ spec:
   name: Disk encryption (macOS)
   platform: darwin
   description: Retrieves the disk encryption status of a macOS device.
-  query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
+  query: |
+    SELECT 
+      1 
+    FROM disk_encryption 
+    WHERE user_uuid IS NOT "" 
+    AND filevault_status = 'on' LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -36,7 +44,11 @@ spec:
   name: Disk encryption (Linux)
   platform: linux
   description: Retrieves the disk encryption status of a device running Linux.
-  query: SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;
+  query: |
+    SELECT 
+      de.encrypted, m.path 
+    FROM disk_encryption de 
+    JOIN mounts m ON m.device_alias = de.name
   purpose: Informational
   tags: built-in
 ---
@@ -54,7 +66,7 @@ spec:
           (SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
         THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
       END)
-      SELECT 1 FROM encrypted WHERE enabled IS NOT NULL;
+      SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
   purpose: Informational
   tags: built-in
 ---
@@ -65,10 +77,12 @@ spec:
   platform: linux, darwin
   description: Retrieves total amount of free disk space on a host.
   query: |
-    SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-           round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-           round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
-    FROM mounts WHERE path = '/' LIMIT 1;
+    SELECT 
+      (blocks_available * 100 / blocks) AS percent_disk_space_available,
+      round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+    FROM mounts
+    WHERE path = '/' LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -79,10 +93,12 @@ spec:
   platform: windows
   description: Retrieves total amount of free disk space on a Windows host.
   query: |
-    SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
-           ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
-           ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
-    FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
+    SELECT 
+      ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
+      ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+      ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
+    FROM logical_drives
+    WHERE file_system = 'NTFS' LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -90,9 +106,13 @@ apiVersion: v1
 kind: built-in
 spec:
   name: Google Chrome profiles
-  platform: windows
+  platform: windows, darwin, linux, chrome
   description: Retrieves the email address of Google Chrome profile on a host.
-  query: SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> '';
+  query: |
+    SELECT 
+      email 
+    FROM google_chrome_profiles 
+    WHERE NOT ephemeral AND email <> ''
   discoveryTable: google_chrome_profiles
   purpose: Informational
   tags: built-in
@@ -103,8 +123,8 @@ spec:
   name: Kubequery info
   platform: windows, darwin, linux, chrome
   description: Retrieves the email address of Google Chrome profile on a host.
-  query: SELECT * from kubernetes_info;
-  discoveryTable: kubernetes_info
+  query: SELECT * FROM kubernetes_info
+  # discoveryTable: kubernetes_info # Note: this value is commented out because this table does not currently exist in the osquery schema.
   purpose: Informational
   tags: built-in
 ---
@@ -114,7 +134,10 @@ spec:
   name: MDM (macOS)
   platform: darwin
   description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in (if any).
-  query: select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
+  query: |
+    SELECT 
+      enrolled, server_url, installed_from_dep, payload_identifier 
+    FROM mdm
   discoveryTable: mdm
   purpose: Informational
   tags: built-in
@@ -122,10 +145,14 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: macOS configuration profiles
+  name: MDM configuration profiles
   platform: darwin
   description: Retrieves information about configuration profiles installed on a mscOS device.
-  query: SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
+  query: |
+    SELECT 
+      display_name, identifier, install_date 
+    FROM macos_profiles 
+    WHERE type = "Configuration"
   discoveryTable: macos_profiles
   purpose: Informational
   tags: built-in
@@ -133,14 +160,14 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Disk encryption key file (macOS)
+  name: MDM Disk encryption key file
   platform: darwin
   description: TODO
   query: |
     WITH
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
-      SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv
   discoveryTable: filevault_prk
   purpose: Informational
   tags: built-in
@@ -148,14 +175,14 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Disk encryption key file lines (macOS)
+  name: MDM Disk encryption key file lines
   platform: darwin
   description: TODO
   query: |
     WITH
         de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
         fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
-      SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv
   discoveryTable: filevault_prk # Note: also file_lines, how do we want to handle this...?
   purpose: Informational
   tags: built-in
@@ -199,7 +226,7 @@ spec:
             -- in order to account for hosts that might not have this
             -- key, and servers
                         WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                        LIMIT 1;
+                        LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -209,7 +236,10 @@ spec:
   name: Munki info
   platform: darwin
   description: TODO
-  query: select version, errors, warnings from munki_info;
+  query: |
+    SELECT 
+      version, errors, warnings 
+    FROM munki_info
   discoveryTable: munki_info
   purpose: Informational
   tags: built-in
@@ -217,11 +247,13 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Network interfaces (ChromeOS)
+  name: Network interfaces (Chrome)
   platform: chrome
   description: TODO
-  query: SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1;
-  discoveryTable: munki_info
+  query: |
+    SELECT 
+    ipv4 AS address, mac 
+    FROM network_interfaces LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -311,44 +343,14 @@ spec:
   name: Orbit information
   platform: darwin, linux, windows
   description: TODO
-  query: |
-    SELECT
-        ia.address,
-        id.mac
-    FROM
-        interface_addresses ia
-        JOIN interface_details id ON id.interface = ia.interface
-      -- On Unix ia.interface is the name of the interface,
-      -- whereas on Windows ia.interface is the IP of the interface.
-        JOIN routes r ON r.interface = ia.address
-    WHERE
-      -- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
-        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
-      -- Type of route is "gateway" for Unix, "remote" for Windows.
-        AND r.type = 'remote'
-      -- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
-        AND (
-        -- Private IPv4 addresses.
-        inet_aton(ia.address) IS NOT NULL AND (
-          split(ia.address, '.', 0) = '10'
-          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
-          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
-        )
-        -- Private IPv6 addresses start with 'fc' or 'fd'.
-        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
-      )
-    ORDER BY
-        r.metric ASC,
-      -- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
-      inet_aton(ia.address) IS NOT NULL DESC
-    LIMIT 1;
+  query: SELECT * FROM orbit_info
   purpose: Informational
   tags: built-in
 ---
 apiVersion: v1
 kind: built-in
 spec:
-  name: Operating system information (ChromeOS)
+  name: Operating system information (Chrome)
   platform: chrome
   description: Retrieves information about a ChromeOS device's operating system.
   query: |
@@ -370,7 +372,7 @@ spec:
 apiVersion: v1
 kind: built-in
 spec:
-  name: Operating system information (unix)
+  name: Operating system information (macOS/Linux)
   platform: darwin, linux
   description: Retrieves information about a Unix-based device's operating system.
   query: |
@@ -387,7 +389,7 @@ spec:
         k.version AS kernel_version
       FROM
         os_version os,
-        kernel_info k;
+        kernel_info k
   purpose: Informational
   tags: built-in
 ---
@@ -421,7 +423,7 @@ spec:
       LEFT JOIN
         display_version_table d
       LEFT JOIN
-        ubr_table u;
+        ubr_table u
   purpose: Informational
   tags: built-in
 ---
@@ -452,7 +454,7 @@ spec:
         LEFT JOIN
           display_version_table d
         LEFT JOIN
-          ubr_table u;
+          ubr_table u
   purpose: Informational
   tags: built-in
 ---
@@ -462,7 +464,11 @@ spec:
   name: Osquery flags
   platform: darwin, linux, windows
   description: Gathers information about the osquery process running on a device.
-  query: select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
+  query: |
+    SELECT 
+      name, value
+    FROM osquery_flags
+    WHERE name IN ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
   purpose: Informational
   tags: built-in
 ---
@@ -472,7 +478,7 @@ spec:
   name: Osquery information
   platform: darwin, windows, linux
   description: Gathers information about the osquery process running on a device.
-  query: select * from osquery_info limit 1
+  query: SELECT * FROM osquery_info LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -485,7 +491,7 @@ spec:
   query: |
     SELECT *,
             (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-          FROM osquery_schedule;
+          FROM osquery_schedule
   purpose: Informational
   tags: built-in
 ---
@@ -602,7 +608,7 @@ spec:
       '' AS vendor,
       '' AS arch,
       path AS installed_path
-    FROM python_packages;
+    FROM python_packages
   purpose: Informational
   tags: built-in
 ---
@@ -700,7 +706,7 @@ spec:
       '' AS vendor,
       '' AS arch,
       path AS installed_path
-    FROM python_packages;
+    FROM python_packages
   purpose: Informational
   tags: built-in
 ---
@@ -798,7 +804,7 @@ spec:
       '' AS vendor,
       '' AS arch,
       path AS installed_path
-    FROM python_packages;
+    FROM python_packages
   purpose: Informational
   tags: built-in
 ---
@@ -835,7 +841,7 @@ spec:
             apps.path AS installed_path
           FROM apps
           LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
-          WHERE apps.bundle_identifier = 'org.mozilla.firefox';
+          WHERE apps.bundle_identifier = 'org.mozilla.firefox'
   discoveryTable: parse_ini
   purpose: Informational
   tags: built-in
@@ -935,7 +941,7 @@ spec:
       'chocolatey_packages' AS source,
       '' AS vendor,
       path AS installed_path
-    FROM chocolatey_packages;
+    FROM chocolatey_packages
   purpose: Informational
   tags: built-in
 ---
@@ -945,7 +951,7 @@ spec:
   name: System information
   platform: windows
   description: Retrieves system information about a host.
-  query: select * from system_info limit 1;
+  query: SELECT * FROM system_info LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -955,7 +961,7 @@ spec:
   name: Uptime
   platform: darwin, linux, windows
   description: TODO
-  query: select * from uptime limit 1;
+  query: SELECT * FROM uptime LIMIT 1
   purpose: Informational
   tags: built-in
 ---
@@ -969,7 +975,7 @@ spec:
     WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
      FROM users LEFT JOIN cached_groups USING (gid)
-     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '');
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
   purpose: Informational
   tags: built-in
 ---
@@ -979,7 +985,10 @@ spec:
   name: Users (Chrome)
   platform: chrome
   description: Retrieves information about user accounts on a device.
-  query: SELECT uid, username, email FROM users;
+  query: |
+    SELECT 
+      uid, username, email 
+    FROM users;
   purpose: Informational
   tags: built-in
 ---
@@ -988,7 +997,11 @@ kind: built-in
 spec:
   name: Windows update history
   platform: windows
-  description: SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded';
+  description: |
+    SELECT 
+      date, title
+    FROM windows_update_history
+    WHERE result_code = 'Succeeded';
   discoveryTable: windows_update_history
   purpose: Informational
   tags: built-in
