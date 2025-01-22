@@ -172,7 +172,7 @@ func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) fun
 			return cfg, ctxerr.Wrap(ctx, err, "map team integrations to global integrations")
 		}
 
-		teamAutomation := getActiveAutomation(*team.Config.WebhookSettings.FailingPoliciesWebhook, intgs)
+		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, intgs)
 		teamCfg := FailingPolicyAutomationConfig{
 			AutomationType: teamAutomation,
 		}

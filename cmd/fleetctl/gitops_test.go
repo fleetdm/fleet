@@ -3458,10 +3458,8 @@ func TestGitOpsTeamWebhooksDisable(t *testing.T) {
 
 	// Create a new team.
 	ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
-		ActivitiesWebhook:      &fleet.ActivitiesWebhookSettings{Enable: true},
-		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{Enable: true},
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true},
 		HostStatusWebhook:      &fleet.HostStatusWebhookSettings{Enable: true},
-		VulnerabilitiesWebhook: &fleet.VulnerabilitiesWebhookSettings{Enable: true},
 	}}})
 	require.NotNil(t, *savedTeams[teamName])
 
@@ -3475,10 +3473,8 @@ func TestGitOpsTeamWebhooksDisable(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, team)
 	require.NotNil(t, team.Config.WebhookSettings)
-	require.False(t, team.Config.WebhookSettings.ActivitiesWebhook.Enable)
 	require.False(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.False(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
-	require.False(t, team.Config.WebhookSettings.VulnerabilitiesWebhook.Enable)
 }
 
 type memKeyValueStore struct {
