@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -138,9 +139,13 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				continue
 			}
 		}
-		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+		err = retry.Do(func() error {
+			return r.OrbitClient.SaveInstallerResult(payload)
+		})
+		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
+
 	}
 	if len(errs) != 0 {
 		return errors.Join(errs...)
