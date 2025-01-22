@@ -304,7 +304,6 @@ const CalendarEventsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
-          // disabled={!formData.enabled}
         />
         <Button
           type="button"
@@ -397,8 +396,7 @@ const CalendarEventsModal = ({
       className={baseClass}
       width="large"
     >
-      {/* {configured ? renderConfiguredModal() : renderPlaceholderModal()} */}
-      {renderConfiguredModal()}
+      {configured ? renderConfiguredModal() : renderPlaceholderModal()}
     </Modal>
   );
 };
