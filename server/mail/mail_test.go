@@ -237,6 +237,7 @@ func getLastRawMailpitMessageFrom(t *testing.T, address string) string {
 	require.NotNilf(t, messageID, "could not find message from %s in mailpit", address)
 
 	res, err = http.Get(fmt.Sprintf("http://127.0.0.1:8026/api/v1/message/%s/raw", messageID))
+	require.NoError(t, err)
 
 	rawMail, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
