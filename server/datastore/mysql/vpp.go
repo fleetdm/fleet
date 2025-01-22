@@ -78,7 +78,7 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	// potentially slower query.
 
 	stmt := `
-WITH 
+WITH
 
 -- select most recent upcoming activities for each host
 upcoming AS (
@@ -93,7 +93,7 @@ upcoming AS (
 		activity_type = 'vpp_app_install'
 		AND adam_id = :adam_id
 		AND vua.platform = :platform
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))	
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 	GROUP BY
 		host_id
 ),
@@ -651,13 +651,6 @@ VALUES
 		return ctxerr.Wrap(ctx, err, "checking if host exists")
 	}
 
-	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
-	var priority int
-	if opts.ForSetupExperience {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
@@ -666,9 +659,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			priority,
+			opts.Priority(),
 			userID,
-			fleetInitiated,
+			opts.IsFleetInitiated(),
 			commandUUID,
 			opts.SelfService,
 			associatedEventID,
@@ -687,6 +680,10 @@ VALUES
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
 		}
 		return nil
 	})

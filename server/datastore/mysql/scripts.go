@@ -18,7 +18,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// TODO(mna): does it still make sense to have that sync/async distinction?
+// TODO(uniq): does it still make sense to have that sync/async distinction?
 // A pending script is a pending script, no?
 const whereFilterPendingScript = `
 	exit_code IS NULL
@@ -43,25 +43,12 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, false)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
 }
 
-// TODO(mna): might become unused after unified queue implementation
-func (ds *Datastore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	var res *fleet.HostScriptResult
-	var err error
-	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if request.ScriptContentID == 0 {
-			return errors.New("script contents must be saved prior to execution")
-		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
-		return err
-	})
-}
-
-func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
 		insUAStmt = `
 INSERT INTO upcoming_activities
@@ -98,17 +85,10 @@ WHERE
 `
 	)
 
-	var priority int
-	if request.SetupExperienceScriptID != nil {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
-
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insUAStmt,
 		request.HostID,
-		priority,
+		request.Priority(),
 		request.UserID,
 		request.PolicyID != nil, // fleet-initiated if request is via a policy failure
 		execID,
@@ -137,6 +117,10 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
 	}
+
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next activity")
+	}
 	return &script, nil
 }
 
@@ -157,7 +141,6 @@ func truncateScriptResult(output string) string {
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
 	string, error,
 ) {
-	// TODO(mna): this sets results of execution, so no impact on pending upcoming queue
 	const resultExistsStmt = `
 	SELECT
 		1
@@ -210,6 +193,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
+			// still do the activate next activity to ensure progress as there was
+			// an unexpected flow if we get here.
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
+
 			// succeed but leave hsr nil
 			return nil
 		}
@@ -257,7 +246,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			case "":
 				// do nothing
 			case "uninstall":
-				err = updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
+				err = ds.updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "update host uninstall action based on script result")
 				}
@@ -268,6 +257,11 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 				}
 			}
 		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -345,7 +339,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 }
 
 func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
-	// TODO(mna): this should probably return if it's pending still in upcoming_activities too
+	// TODO(uniq): this should probably return if it's pending still in upcoming_activities too
 	const getStmt = `
   SELECT
     hsr.id,
@@ -535,7 +529,7 @@ var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn'
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO(mna): delete pending execution from upcoming_activities
+		// TODO(uniq): delete pending execution from upcoming_activities
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
@@ -702,7 +696,7 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		ExitCode    *int64     `db:"exit_code"`
 	}
 
-	// TODO(mna): must also look in upcoming queue, looks like this returns the latest
+	// TODO(uniq): must also look in upcoming queue, looks like this returns the latest
 	// execution/pending state for each script for a host?
 	sql := `
 SELECT
@@ -793,7 +787,7 @@ WHERE
 `
 	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
-	// TODO(mna): must clear pending executions from upcoming_activities too
+	// TODO(uniq): must clear pending executions from upcoming_activities too
 	const clearAllPendingExecutions = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
@@ -811,7 +805,7 @@ WHERE
   name NOT IN (?)
 `
 
-	// TODO(mna): must also clear pending executions from upcoming_activities
+	// TODO(uniq): must also clear pending executions from upcoming_activities
 	const clearPendingExecutionsNotInList = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
@@ -827,7 +821,7 @@ ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id), id=LAST_INSERT_ID(id)
 `
 
-	// TODO(mna): must also clear pending executions from upcoming_activities
+	// TODO(uniq): must also clear pending executions from upcoming_activities
 	const clearPendingExecutionsWithObsoleteScript = `DELETE FROM host_script_results WHERE
        		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
        		  AND script_id = ? AND script_content_id != ?`
@@ -1143,7 +1137,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -1193,7 +1187,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -1244,7 +1238,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request, true)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}
@@ -1378,14 +1372,16 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
 
-func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
-	// TODO(mna): this sets results, no impact on pending upcoming queue
+func (ds *Datastore) updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
 	stmt := `
 	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
 	`
 	if _, err := tx.ExecContext(ctx, stmt, exitCode, executionID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update uninstall status from result")
 	}
+	// NOTE: no need to call activateNextUpcomingActivity here as this function
+	// is called from SetHostScriptExecutionResult which will call it before
+	// completing.
 	return nil
 }
 

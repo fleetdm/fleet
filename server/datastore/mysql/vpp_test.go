@@ -462,6 +462,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		HardwareSerial: "654321a",
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", BundleIdentifier: "b1"},
 		{Name: "foo", Version: "0.0.2", BundleIdentifier: "b1"},
@@ -524,6 +525,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		HardwareSerial: "654321b",
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 

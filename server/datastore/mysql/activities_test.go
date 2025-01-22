@@ -13,6 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -37,6 +39,8 @@ func TestActivity(t *testing.T) {
 		{"ListHostPastActivities", testListHostPastActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
+		{"ActivateNextActivity", testActivateNextActivity},
+		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -383,9 +387,6 @@ func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
-	// TODO(mna): uncomment the commented-out non-pending portions of this test
-	// once the upcoming queue can run.
-
 	noUserCtx := context.Background()
 
 	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -474,24 +475,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// install the VPP app on h1
-	// commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp.VPPAppID, vppCommand1, "event-id-1", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	// err = commander.EnqueueCommand(
-	// 	ctx,
-	// 	[]string{h1.UUID},
-	// 	createRawAppleCmd("InstallApplication", vppCommand1),
-	// )
-	// require.NoError(t, err)
+	// vppCommand1 is now active for h1
+
 	// install the VPP app on h2, self-service
 	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
-	// err = commander.EnqueueCommand(
-	// 	ctx,
-	// 	[]string{h1.UUID},
-	// 	createRawAppleCmd("InstallApplication", vppCommand2),
-	// )
-	// require.NoError(t, err)
+	// vppCommand2 is now active for h2
 
 	// create a sync script request for h1 that has been pending for >
 	// MaxWaitTime, will still show up (sync scripts go through the upcoming
@@ -531,27 +522,10 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	h1E := hsr.ExecutionID
 	t.Log("h1E", h1E)
 
-	// create some software installs requests for h1, make some complete
-	// h1FooFailed, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	// require.NoError(t, err)
+	// create some software installs requests for h1
 	h1Bar, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	t.Log("h1Bar", h1Bar)
-	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-	// 	HostID:                    h1.ID,
-	// 	InstallUUID:               h1FooFailed,
-	// 	PreInstallConditionOutput: ptr.String(""), // pre-install failed
-	// })
-	// require.NoError(t, err)
-	// h1FooInstalled, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1Meta.InstallerID, false, nil)
-	// require.NoError(t, err)
-	// err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-	// 	HostID:                    h1.ID,
-	// 	InstallUUID:               h1FooInstalled,
-	// 	PreInstallConditionOutput: ptr.String("ok"),
-	// 	InstallScriptExitCode:     ptr.Int(0),
-	// })
-	// require.NoError(t, err)
 
 	// No user for this one and not Self-service, means it was installed by Fleet
 	policy, err := ds.NewTeamPolicy(ctx, 0, &u.ID, fleet.PolicyPayload{
@@ -560,20 +534,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	h1Fleet, err := ds.InsertSoftwareInstallRequest(noUserCtx, h1.ID, sw1Meta.InstallerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy.ID})
-	t.Log("h1Fleet", h1Fleet)
 	require.NoError(t, err)
+	t.Log("h1Fleet", h1Fleet)
 
-	// create a single pending request for h2, as well as a non-pending one
+	// create a single pending request for h2
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h2A := hsr.ExecutionID
 	t.Log("h2A", h2A)
-	// hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
-	// require.NoError(t, err)
-	// _, _, err = ds.SetHostScriptExecutionResult(ctx,
-	// 	&fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
-	// require.NoError(t, err)
-	// h2F := hsr.ExecutionID
 	// add a pending software install request for h2
 	h2Bar, err := ds.InsertSoftwareInstallRequest(ctx, h2.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
@@ -603,19 +571,20 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
 	require.NoError(t, err)
 
-	// // force-set the order of the created_at timestamps
+	// force-set the order of the created_at timestamps
+	// even if vppCommand1 and 2 are later, since they are already activated
+	// (because they were enqueued first) they will show up first.
 	SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "upcoming_activities", "execution_id",
-		h1A, h1B /*h1FooFailed,*/, h1Bar, h1C, h1D, h1E /*h1FooInstalled,*/, h1Fleet, h2SelfService, h2Bar, h2A /*h2F,*/, vppCommand1, vppCommand2, h2SetupExp)
+		h1A, h1B, h1Bar, h1C, h1D, h1E, h1Fleet, h2SelfService, h2Bar, h2A, vppCommand1, vppCommand2, h2SetupExp)
 
 	execIDsWithUser := map[string]bool{
-		hSyncExpired: true,
-		h1A:          true,
-		h1B:          true,
-		h1C:          true,
-		h1D:          false,
-		h1E:          false,
-		h2A:          true,
-		//h2F:           true,
+		hSyncExpired:  true,
+		h1A:           true,
+		h1B:           true,
+		h1C:           true,
+		h1D:           false,
+		h1E:           false,
+		h2A:           true,
 		h1Fleet:       false,
 		h2SelfService: false,
 		h1Bar:         true,
@@ -641,8 +610,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 	// to simplify map, false = cancellable, true = NON-cancellable
 	execIDsNonCancellable := map[string]bool{
-		hSyncExpired: true,
-		h2SetupExp:   true,
+		vppCommand1: true,
+		vppCommand2: true,
 	}
 
 	cases := []struct {
@@ -654,49 +623,49 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{hSyncExpired, h1A},
+			wantExecs: []string{vppCommand1, hSyncExpired},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1B, h1Bar},
+			wantExecs: []string{h1A, h1B},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1C, h1D},
+			wantExecs: []string{h1Bar, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 3, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{h1E, h1Fleet},
+			wantExecs: []string{h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 4, PerPage: 2},
 			hostID:    h1.ID,
-			wantExecs: []string{vppCommand1},
+			wantExecs: []string{h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{hSyncExpired, h1A, h1B, h1Bar},
+			wantExecs: []string{vppCommand1, hSyncExpired, h1A, h1B},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{h1C, h1D, h1E, h1Fleet},
+			wantExecs: []string{h1Bar, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 4},
 			hostID:    h1.ID,
-			wantExecs: []string{vppCommand1},
+			wantExecs: []string{h1Fleet},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
 		},
 		{
@@ -708,7 +677,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{PerPage: 5},
 			hostID:    h2.ID,
-			wantExecs: []string{h2SetupExp, h2SelfService, h2Bar, h2A, vppCommand2}, // setup experience is top-priority
+			wantExecs: []string{vppCommand2, h2SetupExp, h2SelfService, h2Bar, h2A}, // setup experience is top-priority, but vppCommand2 was already activated
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
@@ -1131,4 +1100,382 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
+}
+
+func testActivateNextActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
+	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: h1.UUID}, Context: ctx}
+
+	// create a couple VPP apps that can be installed later
+	vppApp1 := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	require.NoError(t, err)
+	vppApp2 := &fleet.VPPApp{
+		Name: "vpp_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp2", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp2",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	require.NoError(t, err)
+
+	// create a software installer that can be installed later
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// activating an empty queue is fine, nothing activated
+	execIDs, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// activating when empty with an unknown completed exec id is fine
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, uuid.NewString())
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// create a script execution request
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         h1.ID,
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	script1_1 := hsr.ExecutionID
+
+	// add a couple install requests for vpp1 and vpp2
+	vpp1_1 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	vpp1_2 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp2.VPPAppID, vpp1_2, "event-id-2", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// activating does nothing because the script is still activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// pending activities are script1_1, vpp1_1, vpp1_2
+	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 3)
+	require.Equal(t, script1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, vpp1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+	require.Equal(t, vpp1_2, pendingActs[2].UUID)
+	require.True(t, pendingActs[2].Cancellable)
+
+	// set a script result, will activate both VPP apps
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
+	})
+	require.NoError(t, err)
+
+	scriptRes, err := ds.GetHostScriptExecutionResult(ctx, script1_1)
+	require.NoError(t, err)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// pending activities are vpp1_1, vpp1_2, both are non-cancellable because activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, vpp1_2, pendingActs[1].UUID)
+	require.False(t, pendingActs[1].Cancellable)
+
+	// nano commands have been inserted
+	cmd, err := nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd := string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+
+	// insert a result for that command and create the past activity,
+	// which triggers the next activity to be activated (should be none
+	// in this scenario, as one is still active)
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: vpp1_1,
+		Status:      "Acknowledged",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1)
+	require.NoError(t, err)
+	require.Len(t, appleCmdRes, 1)
+	require.Equal(t, "Acknowledged", appleCmdRes[0].Status)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+
+	// vpp1_2 is now the next nano command
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_2, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp2.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_2+"<")
+
+	// create a pending software install request
+	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// activating does nothing because the VPP app 2 is still activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	// trying to activate from a non-activated execution id (here, the software
+	// install sw1_1 one) does not delete that activity - it deletes only if it
+	// was activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_1)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+
+	// create a pending uninstall request
+	sw1_2 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	require.NoError(t, err)
+
+	// still hasn't changed the pending queue
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 3)
+	require.Equal(t, vpp1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_1, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+	require.Equal(t, sw1_2, pendingActs[2].UUID)
+	require.True(t, pendingActs[2].Cancellable)
+
+	// insert a result for the vpp1_2 command
+	cmdRes = &mdm.CommandResults{
+		CommandUUID: vpp1_2,
+		Status:      "Error",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp2.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_2,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2)
+	require.NoError(t, err)
+	require.Len(t, appleCmdRes, 1)
+	require.Equal(t, "Error", appleCmdRes[0].Status)
+
+	// software install activity is now activated
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 2)
+	require.Equal(t, sw1_1, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+	require.Equal(t, sw1_2, pendingActs[1].UUID)
+	require.True(t, pendingActs[1].Cancellable)
+
+	// set a result for the software install
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                h1.ID,
+		InstallUUID:           sw1_1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstalled, swRes.Status)
+
+	// activating does nothing because the sw1_2 was automatically activated
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_1)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 1)
+	require.Equal(t, sw1_2, pendingActs[0].UUID)
+	require.False(t, pendingActs[0].Cancellable)
+
+	// set a result for the software uninstall
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      h1.ID,
+		ExecutionID: sw1_2,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// because the install and uninstall are for the same software installer,
+	// only the latest attempt is shown in the summary and it is the uninstall.
+	swSummary, err := ds.GetSummaryHostSoftwareInstalls(ctx, sw1)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+		FailedUninstall: 1,
+	}, *swSummary)
+
+	// activating does nothing because the queue is now empty
+	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, sw1_2)
+	require.NoError(t, err)
+	require.Empty(t, execIDs)
+
+	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
+}
+
+func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: h1.UUID}, Context: ctx}
+
+	vppApp1 := &fleet.VPPApp{
+		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
+		BundleIdentifier: "vpp1",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	require.NoError(t, err)
+
+	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	sw1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installer1,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// create a pending software install request
+	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// set a result for the software install
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                h1.ID,
+		InstallUUID:           sw1_1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	// create a pending script execution request
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         h1.ID,
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	script1_1 := hsr.ExecutionID
+
+	// set a result for the script
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
+	})
+	require.NoError(t, err)
+
+	// create a pending uninstall request
+	sw1_2 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	require.NoError(t, err)
+
+	// set a result for the software uninstall
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      h1.ID,
+		ExecutionID: sw1_2,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// create a pending vpp app install
+	vpp1_1 := uuid.NewString()
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// set the result for the vpp app
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: vpp1_1,
+		Status:      "Error",
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      h1.ID,
+		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
+		CommandUUID: vpp1_1,
+	}, []byte(`{}`), time.Now())
+	require.NoError(t, err)
+
+	// the upcoming queue should be empty, each result having emptied the list
+	// and each enqueue having triggered the next activity.
+	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, pendingActs, 0)
 }

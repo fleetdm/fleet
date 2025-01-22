@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -53,6 +54,7 @@ type Datastore struct {
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
+	pusher nano_push.Pusher
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
@@ -100,6 +102,12 @@ type Datastore struct {
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
+}
+
+// WithPusher sets an APNs pusher for the datastore, used when activating
+// next activities that require MDM commands.
+func (ds *Datastore) WithPusher(p nano_push.Pusher) {
+	ds.pusher = p
 }
 
 // reader returns the DB instance to use for read-only statements, which is the

@@ -1035,8 +1035,6 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type NewInternalScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
-
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
@@ -2726,9 +2724,6 @@ type DataStore struct {
 
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
-
-	NewInternalScriptExecutionRequestFunc        NewInternalScriptExecutionRequestFunc
-	NewInternalScriptExecutionRequestFuncInvoked bool
 
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
@@ -6532,13 +6527,6 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	s.NewHostScriptExecutionRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
-}
-
-func (s *DataStore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	s.mu.Lock()
-	s.NewInternalScriptExecutionRequestFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewInternalScriptExecutionRequestFunc(ctx, request)
 }
 
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {

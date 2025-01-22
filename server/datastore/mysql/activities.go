@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -55,6 +56,29 @@ func (ds *Datastore) NewActivity(
 	if userEmail != nil {
 		args = append(args, userEmail)
 		cols = append(cols, "user_email")
+	}
+
+	if vppAct, ok := activity.(fleet.ActivityInstalledAppStoreApp); ok {
+		// NOTE: ideally this would be called in the same transaction as storing
+		// the nanomdm command results, but the current design doesn't allow for
+		// that with the nano store being a distinct entity to our datastore (we
+		// should get rid of that distinction eventually, we've broken it already
+		// in some places and it doesn't bring much benefit anymore).
+		//
+		// Instead, this gets called from CommandAndReportResults, which is
+		// executed after the results have been saved in nano, but we already
+		// accept this non-transactional fact for many other states we manage in
+		// Fleet (wipe, lock results, setup experience results, etc. - see all
+		// critical data that gets updated in CommandAndReportResults) so there's
+		// no reason to treat the unified queue differently.
+		//
+		// This place here is a bit hacky but perfect for VPP apps as the activity
+		// gets created only when the MDM command status is in a final state
+		// (success or failure), which is exactly when we want to activate the next
+		// activity.
+		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), vppAct.HostID, vppAct.CommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -596,5 +620,440 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		}
 	}
 
+	return nil
+}
+
+// This function activates the next upcoming activity, if any, for the specified host.
+// It does a few things to achieve this:
+//   - If there was an activity already marked as activated (activated_at is
+//     not NULL) and fromCompletedExecID is provided, it deletes it, as calling
+//     this function means that the previous activated activity/ies is now
+//     completed (in a final state, either success or failure).
+//   - If there is an upcoming activity to activate next, it does so,
+//     respecting the priority and enqueue order. Activation consists of inserting
+//     the activity in its respective table, e.g. `host_script_results` for
+//     scripts, `host_sofware_installs` for software installs,
+//     `host_vpp_software_installs` and nano command queue for VPP installs; and
+//     setting the activated_at timestamp in the `upcoming_activities` table.
+//   - As an optimization for MDM, if the activity type is `vpp_app_install`
+//     and the next few upcoming activities are all of this type, they are
+//     batch-activated together (up to a limit) to reduce the processing
+//     latency and number of push notifications to send to this host.
+//
+// When called after receiving results for an activity, the fromCompletedExecID
+// argument identifies that activity. This is important as many activities may
+// have been activated if all were MDM commands, and we must not enqueue the
+// next until all those commands did receive results.
+func (ds *Datastore) activateNextUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, fromCompletedExecID string) (activatedExecIDs []string, err error) {
+	const maxMDMCommandActivations = 5
+
+	const deleteCompletedStmt = `
+DELETE FROM upcoming_activities
+WHERE
+	host_id = ? AND
+	activated_at IS NOT NULL AND
+	execution_id = ?
+`
+
+	const findNextStmt = `
+SELECT
+	execution_id,
+	activity_type,
+	activated_at,
+	IF(activated_at IS NULL, 0, 1) as topmost,
+	priority
+FROM
+	upcoming_activities
+WHERE
+	host_id = ?
+ORDER BY topmost DESC, priority DESC, created_at ASC
+LIMIT ?
+`
+
+	const markActivatedStmt = `
+UPDATE upcoming_activities
+SET
+	activated_at = NOW()
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+`
+
+	// first we delete the completed activity, if any
+	if fromCompletedExecID != "" {
+		if _, err := tx.ExecContext(ctx, deleteCompletedStmt, hostID, fromCompletedExecID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete completed upcoming activity")
+		}
+	}
+
+	// next we look for an upcoming activity to activate
+	type nextActivity struct {
+		ExecutionID  string     `db:"execution_id"`
+		ActivityType string     `db:"activity_type"`
+		ActivatedAt  *time.Time `db:"activated_at"`
+		Topmost      bool       `db:"topmost"`
+		Priority     int        `db:"priority"`
+	}
+	var nextActivities []nextActivity
+	if err := sqlx.SelectContext(ctx, tx, &nextActivities, findNextStmt, hostID, maxMDMCommandActivations); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find next upcoming activities to activate")
+	}
+
+	var toActivate []nextActivity
+	for _, act := range nextActivities {
+		if act.ActivatedAt != nil {
+			// there are still activated activities, do not activate more
+			break
+		}
+		if len(toActivate) > 0 {
+			// we already identified one to activate, allow more only if they are a)
+			// the same type, b) that type is vpp_app_install, c) the same priority.
+			// The reason for that is to batch-activate MDM commands to reduce
+			// latency and push notifications required, and the same priority check
+			// is because we can't enforce the ordering of commands if they don't
+			// share the same priority (we transfer the created_at timestamp to the
+			// nano queue, which guarantees same order of processing for activities
+			// with the same priority).
+			if toActivate[0].ActivityType != act.ActivityType ||
+				toActivate[0].ActivityType != "vpp_app_install" ||
+				toActivate[0].Priority != act.Priority {
+				break
+			}
+		}
+		toActivate = append(toActivate, act)
+		activatedExecIDs = append(activatedExecIDs, act.ExecutionID)
+	}
+
+	if len(toActivate) == 0 {
+		return nil, nil
+	}
+
+	// activate the next activities as required for its activity type
+	var fn func(context.Context, sqlx.ExtContext, uint, []string) error
+	switch actType := toActivate[0].ActivityType; actType {
+	case "script":
+		fn = ds.activateNextScriptActivity
+	case "software_install":
+		fn = ds.activateNextSoftwareInstallActivity
+	case "software_uninstall":
+		fn = ds.activateNextSoftwareUninstallActivity
+	case "vpp_app_install":
+		fn = ds.activateNextVPPAppInstallActivity
+	default:
+		return nil, ctxerr.Errorf(ctx, "unsupported activity type %s", actType)
+	}
+	if err := fn(ctx, tx, hostID, activatedExecIDs); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next activities")
+	}
+
+	// finally, mark the activities as activated
+	stmt, args, err := sqlx.In(markActivatedStmt, hostID, activatedExecIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement to mark upcoming activities as activated")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark upcoming activities as activated")
+	}
+	return activatedExecIDs, nil
+}
+
+func (ds *Datastore) activateNextScriptActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	const insStmt = `
+INSERT INTO
+	host_script_results
+(host_id, execution_id, script_content_id, output, script_id, policy_id,
+	user_id, sync_request, setup_experience_script_id, is_internal)
+SELECT
+	ua.host_id,
+	ua.execution_id,
+	sua.script_content_id,
+	'',
+	sua.script_id,
+	sua.policy_id,
+	ua.user_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.sync_request'), 0),
+	sua.setup_experience_script_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.is_internal'), 0)
+FROM
+	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua
+		ON sua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate scripts")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate scripts")
+	}
+	return nil
+}
+
+func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	const insStmt = `
+INSERT INTO host_software_installs
+	(execution_id, host_id, software_installer_id, user_id, self_service,
+		policy_id, installer_filename, version, software_title_id, software_title_name)
+SELECT
+	ua.execution_id,
+	ua.host_id,
+	siua.software_installer_id,
+	ua.user_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
+	siua.policy_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.installer_filename'), '[deleted installer]'),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.version'), 'unknown'),
+	siua.software_title_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.software_title_name'), '[deleted title]')
+FROM
+	upcoming_activities ua
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate software installs")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate software installs")
+	}
+	return nil
+}
+
+func (ds *Datastore) activateNextSoftwareUninstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	const insScriptStmt = `
+INSERT INTO 
+	host_script_results 
+(host_id, execution_id, script_content_id, output, user_id, is_internal) 
+SELECT 
+	ua.host_id,
+	ua.execution_id,
+	si.uninstall_script_content_id,
+	'',
+	ua.user_id,
+	1
+FROM
+	upcoming_activities ua 
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id 
+	INNER JOIN software_installers si
+		ON si.id = siua.software_installer_id
+WHERE 
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const insSwStmt = `
+INSERT INTO
+	host_software_installs
+(execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename,
+	software_title_id, software_title_name, version)
+SELECT
+	ua.execution_id,
+	ua.host_id,
+	siua.software_installer_id,
+	ua.user_id,
+	1,  -- uninstall
+	'', -- no installer_filename for uninstalls
+	siua.software_title_id,
+	COALESCE(JSON_EXTRACT(ua.payload, '$.software_title_name'), '[deleted title]'),
+	'unknown'
+FROM
+	upcoming_activities ua
+	INNER JOIN software_install_upcoming_activities siua
+		ON siua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(insScriptStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert script to activate software uninstalls")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert script to activate software uninstalls")
+	}
+
+	stmt, args, err = sqlx.In(insSwStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert software to activate software uninstalls")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert software to activate software uninstalls")
+	}
+	return nil
+}
+
+func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	const insStmt = `
+INSERT INTO
+	host_vpp_software_installs
+(host_id, adam_id, platform, command_uuid,
+	user_id, associated_event_id, self_service, policy_id)
+SELECT
+	ua.host_id,
+	vaua.adam_id,
+	vaua.platform,
+	ua.execution_id,
+	ua.user_id,
+	JSON_EXTRACT(ua.payload, '$.associated_event_id'),
+	COALESCE(JSON_EXTRACT(ua.payload, '$.self_service'), 0),
+	vaua.policy_id
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+ORDER BY
+	ua.priority DESC, ua.created_at ASC
+`
+
+	const getHostUUIDStmt = `
+SELECT
+	uuid
+FROM
+	hosts
+WHERE
+	id = ?
+`
+
+	const insCmdStmt = `
+INSERT INTO
+	nano_commands
+(command_uuid, request_type, command, subtype)
+SELECT
+	ua.execution_id,
+	'InstallApplication',
+	CONCAT(?, vaua.adam_id, ?, ua.execution_id, ?),
+	?
+FROM
+	upcoming_activities ua
+	INNER JOIN vpp_app_upcoming_activities vaua
+		ON vaua.upcoming_activity_id = ua.id
+WHERE
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
+`
+
+	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>ManagementFlags</key>
+        <integer>0</integer>
+        <key>Options</key>
+        <dict>
+            <key>PurchaseMethod</key>
+            <integer>1</integer>
+        </dict>
+        <key>RequestType</key>
+        <string>InstallApplication</string>
+        <key>iTunesStoreID</key>
+        <integer>`
+
+	const rawCmdPart2 = `</integer>
+    </dict>
+    <key>CommandUUID</key>
+    <string>`
+
+	const rawCmdPart3 = `</string>
+</dict>
+</plist>`
+
+	const insNanoQueueStmt = `
+INSERT INTO
+	nano_enrollment_queue
+(id, command_uuid, created_at)
+SELECT
+	?,
+	execution_id,
+	created_at -- force same timestamp to keep ordering
+FROM
+	upcoming_activities
+WHERE
+	host_id = ? AND
+	execution_id IN (?)
+ORDER BY
+	priority DESC, created_at ASC
+`
+
+	// sanity-check that there's something to activate
+	if len(execIDs) == 0 {
+		return nil
+	}
+
+	// get the host uuid, requires for the nano tables
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// insert the host vpp app row
+	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert to activate vpp apps")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
+	}
+
+	// insert the nano command
+	stmt, args, err = sqlx.In(insCmdStmt, rawCmdPart1, rawCmdPart2, rawCmdPart3, mdm.CommandSubtypeNone, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano commands")
+	}
+
+	// enqueue the nano command in the nano queue
+	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert nano queue")
+	}
+
+	// best-effort APNs push notification to the host, not critical because we
+	// have a cron job that will retry for hosts with pending MDM commands.
+	if ds.pusher != nil {
+		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
+			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
+		}
+	}
 	return nil
 }

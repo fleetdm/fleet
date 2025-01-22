@@ -812,13 +812,6 @@ VALUES
 		return "", ctxerr.Wrap(ctx, err, "getting installer data")
 	}
 
-	fleetInitiated := !opts.SelfService && opts.PolicyID != nil
-	var priority int
-	if opts.ForSetupExperience {
-		// a bit naive/simplistic for now, but we'll support user-provided
-		// priorities in a future story and we can improve on how we manage those.
-		priority = 100
-	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
@@ -828,9 +821,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			priority,
+			opts.Priority(),
 			userID,
-			fleetInitiated,
+			opts.IsFleetInitiated(),
 			execID,
 			opts.SelfService,
 			installerDetails.Filename,
@@ -851,6 +844,10 @@ VALUES
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
 		}
 		return nil
 	})
@@ -906,14 +903,6 @@ func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executi
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
 
-		// TODO(mna): To be reviewed once software uninstsall is better understood,
-		// as it is it wouldn't work because the same execution_id is used to
-		// insert a script execution request and the software uninstall request.
-		// Although I think one way to solve this would be to enqueue an uninstall
-		// activity in upcoming_activities, and when it's ready to run, insert in
-		// both host_script_results and host_software_installs, as it does today.
-		// So while it's pending, it's a single row in upcoming_activities, and when
-		// it's about to run, it's exactly the same as today.
 		insertUAStmt = `
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
@@ -988,6 +977,10 @@ VALUES
 		if err != nil {
 			return err
 		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
 		return nil
 	})
 
@@ -995,6 +988,7 @@ VALUES
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	// TODO(uniq): could this return result for uninstalls too?
 	query := `
 SELECT
 	hsi.execution_id AS execution_id,
@@ -1082,7 +1076,7 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 	// Moving to a time-based approach would be more accurate but would require a more complex and
 	// potentially slower query.
 
-	stmt := `WITH 
+	stmt := `WITH
 
 -- select most recent upcoming activities for each host
 upcoming AS (
@@ -1168,10 +1162,10 @@ func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInsta
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM 
-	upcoming_activities ua 
+FROM
+	upcoming_activities ua
 	JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
-WHERE 
+WHERE
 	%s) hss ON hss.host_id = h.id`
 
 		filter := "vppua.adam_id = ? AND vppua.platform = ?"
@@ -1239,10 +1233,10 @@ func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareIn
 		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
-FROM 
-	upcoming_activities ua 
+FROM
+	upcoming_activities ua
 	JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-WHERE 
+WHERE
 	%s) hss ON hss.host_id = h.id`
 
 		filter := "siua.software_title_id = ?"
@@ -1302,7 +1296,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-	// TODO(mna): I think that if there's none in host_software_installs, must take
+	// TODO(uniq): I think that if there's none in host_software_installs, must take
 	// latest in upcoming queue (latest attempt might actually be in upcoming).
 	stmt := `
 		SELECT execution_id, hsi.status
@@ -1380,7 +1374,7 @@ WHERE
   team_id = ?
 `
 
-	// TODO(mna): this deletes from host_script_results but is related to software installs
+	// TODO(uniq): this deletes from host_script_results but is related to software installs
 	// must add deletion from upcoming queue (here and many others below)
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
@@ -1899,7 +1893,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 }
 
 func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
-	// TODO(mna): must also look in upcoming queue
+	// TODO(uniq): must also look in upcoming queue
 	stmt := `
 	SELECT name
 	FROM software_titles st
