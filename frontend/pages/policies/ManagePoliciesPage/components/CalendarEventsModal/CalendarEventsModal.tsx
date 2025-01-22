@@ -190,48 +190,50 @@ const CalendarEventsModal = ({
     return (
       <div className="form-field">
         <div className="form-field__label">Policies:</div>
-        <ul className="automated-policies-section">
-          {formData.policies.map((policy) => {
-            const { isChecked, name, id } = policy;
-            return (
-              <li className="policy-row" id={`policy-row--${id}`} key={id}>
-                <Checkbox
-                  value={isChecked}
-                  name={name}
-                  // can't use parseTarget as value needs to be set to !currentValue
-                  onChange={() => {
-                    onPolicyEnabledChange({ name, value: !isChecked });
-                  }}
-                  disabled={!formData.enabled}
-                >
-                  <TooltipTruncatedText value={name} />
-                </Checkbox>
-                <Button
-                  variant="text-icon"
-                  onClick={() => {
-                    setSelectedPolicyToPreview(
-                      policies.find((p) => p.id === id)
-                    );
-                    togglePreviewCalendarEvent();
-                  }}
-                  className="policy-row__preview-button"
-                >
-                  <Icon name="eye" /> Preview
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-        <span className="form-field__help-text">
-          A calendar event will be created for end users if one of their hosts
-          fail any of these policies.{" "}
-          <CustomLink
-            url="https://www.fleetdm.com/learn-more-about/calendar-events"
-            text="Learn more"
-            newTab
-            disableKeyboardNavigation={!formData.enabled}
-          />
-        </span>
+        <div>
+          <ul className="automated-policies-section">
+            {formData.policies.map((policy) => {
+              const { isChecked, name, id } = policy;
+              return (
+                <li className="policy-row" id={`policy-row--${id}`} key={id}>
+                  <Checkbox
+                    value={isChecked}
+                    name={name}
+                    // can't use parseTarget as value needs to be set to !currentValue
+                    onChange={() => {
+                      onPolicyEnabledChange({ name, value: !isChecked });
+                    }}
+                    disabled={!formData.enabled}
+                  >
+                    <TooltipTruncatedText value={name} />
+                  </Checkbox>
+                  <Button
+                    variant="text-icon"
+                    onClick={() => {
+                      setSelectedPolicyToPreview(
+                        policies.find((p) => p.id === id)
+                      );
+                      togglePreviewCalendarEvent();
+                    }}
+                    className="policy-row__preview-button"
+                  >
+                    <Icon name="eye" /> Preview
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="form-field__help-text">
+            A calendar event will be created for end users if one of their hosts
+            fail any of these policies.{" "}
+            <CustomLink
+              url="https://www.fleetdm.com/learn-more-about/calendar-events"
+              text="Learn more"
+              newTab
+              disableKeyboardNavigation={!formData.enabled}
+            />
+          </p>
+        </div>
       </div>
     );
   };
@@ -395,7 +397,8 @@ const CalendarEventsModal = ({
       className={baseClass}
       width="large"
     >
-      {configured ? renderConfiguredModal() : renderPlaceholderModal()}
+      {/* {configured ? renderConfiguredModal() : renderPlaceholderModal()} */}
+      {renderConfiguredModal()}
     </Modal>
   );
 };
