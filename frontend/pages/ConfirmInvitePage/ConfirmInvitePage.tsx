@@ -17,6 +17,7 @@ import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
 import { getErrorReason } from "interfaces/errors";
+import { AxiosError } from "axios";
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
@@ -35,10 +36,13 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     data: validInvite,
     error: validateInviteError,
     isLoading: isVerifyingInvite,
-  } = useQuery<IValidateInviteResp, Error, IInvite>(
+  } = useQuery<IValidateInviteResp, AxiosError, IInvite>(
     "invite",
     () => inviteAPI.verify(invite_token),
-    { select: (resp: IValidateInviteResp) => resp.invite }
+    {
+      select: (resp: IValidateInviteResp) => resp.invite,
+      retry: (failureCount, error) => failureCount < 4 && error.status !== 404,
+    }
   );
 
   const onSubmit = useCallback(
