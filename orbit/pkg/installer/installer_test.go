@@ -480,6 +480,7 @@ func TestInstallerRun(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
 				resetAll()
+				t.Cleanup(func() { retries = 0 })
 				oc.saveInstallerResult = tc.saveInstallerResultFunc
 				err := r.run(context.Background(), &config)
 				if tc.expectedErr != "" {
@@ -488,7 +489,6 @@ func TestInstallerRun(t *testing.T) {
 					require.NoError(t, err)
 				}
 				require.Equal(t, tc.expectedRetries, retries)
-				retries = 0
 			})
 		}
 	})
