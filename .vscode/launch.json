@@ -101,6 +101,31 @@
                     "path": "${workspaceFolder}/frontend"
                 }
             ]
+        },
+        {
+            "name": "Jest Test Current File",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceRoot}/node_modules/.bin/jest",
+            "args": [
+                "--config",
+                "./frontend/test/jest.config.ts",
+                "${relativeFile}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Jest Tests",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceRoot}/node_modules/.bin/jest",
+            "args": [
+                "--config",
+                "./frontend/test/jest.config.ts"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
         }
     ]
 }
