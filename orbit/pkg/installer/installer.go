@@ -143,7 +143,11 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 			}
 		}
 		err = retry.Do(func() error {
-			return r.OrbitClient.SaveInstallerResult(payload)
+			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+				log.Debug().Err(err).Msg("failed to save installer result, attempting retry")
+				return err
+			}
+			return nil
 		}, r.retryOpts...)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
