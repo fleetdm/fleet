@@ -811,6 +811,7 @@ func updateScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader) (*fleet.Script, error) {
 	script, err := svc.ds.Script(ctx, scriptID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "finding original script to update")
 	}
 
@@ -826,6 +827,10 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 	scriptContents := file.Dos2UnixNewlines(string(b))
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{scriptContents}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
