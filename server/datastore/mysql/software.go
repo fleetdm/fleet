@@ -363,8 +363,15 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
+			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
+			// are runnning inside ds.withRetryTxx.
+			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
+			for key, value := range incomingByChecksum {
+				incomingByChecksumCopy[key] = value
+			}
+
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
+				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
 			)
 			if err != nil {
 				return err
@@ -495,44 +502,76 @@ func (ds *Datastore) getExistingSoftware(
 			if !ok {
 				// This should never happen. If it does, we have a bug.
 				return nil, nil, nil, ctxerr.New(
-					ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
 				)
 			}
 			delete(newSoftware, s.Checksum)
 		}
 	}
 
-	// Get software titles for new software, if any
-	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
-	if len(newSoftware) > 0 {
-		totalToProcess := len(newSoftware)
-		const numberOfArgsPerSoftwareTitle = 4 // number of ? in each WHERE clause
+	if len(newSoftware) == 0 {
+		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+	}
+
+	// There's new software, so we try to get the titles already stored in `software_titles` for them.
+	incomingChecksumToTitle, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
+	}
+
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+}
+
+// getIncomingSoftwareChecksumsToExistingTitles loads the existing titles for the new incoming software.
+// It returns a map of software checksums to existing software titles.
+//
+// To make best use of separate indexes, it runs two queries to get the existing titles from the DB:
+//   - One query for software with bundle_identifier.
+//   - One query for software without bundle_identifier.
+func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
+	ctx context.Context,
+	newSoftwareChecksums map[string]struct{},
+	incomingChecksumToSoftware map[string]fleet.Software,
+) (map[string]fleet.SoftwareTitle, error) {
+	var (
+		incomingChecksumToTitle     = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
+		argsWithoutBundleIdentifier []interface{}
+		argsWithBundleIdentifier    []interface{}
+		uniqueTitleStrToChecksum    = make(map[string]string)
+	)
+	for checksum := range newSoftwareChecksums {
+		sw := incomingChecksumToSoftware[checksum]
+		if sw.BundleIdentifier != "" {
+			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
+		} else {
+			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
+		}
+		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
+		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+	}
+
+	// Get titles for software without bundle_identifier.
+	if len(argsWithoutBundleIdentifier) > 0 {
 		whereClause := strings.TrimSuffix(
 			strings.Repeat(`
 			  (
-			    (bundle_identifier = ?) OR
-			    (name = ? AND source = ? AND browser = ? AND bundle_identifier IS NULL)
-			  ) OR`, totalToProcess), " OR",
+			    (name = ? AND source = ? AND browser = ?)
+			  ) OR`, len(argsWithoutBundleIdentifier)/3), " OR",
 		)
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, browser, COALESCE(bundle_identifier, '') as bundle_identifier FROM software_titles WHERE %s",
+			"SELECT id, name, source, browser FROM software_titles WHERE %s",
 			whereClause,
 		)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
-		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
-		for checksum := range newSoftware {
-			sw := incomingChecksumToSoftware[checksum]
-			args = append(args, sw.BundleIdentifier, sw.Name, sw.Source, sw.Browser)
-			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		var existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx,
+			ds.reader(ctx),
+			&existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier,
+			stmt,
+			argsWithoutBundleIdentifier...,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
-		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftware, stmt, args...); err != nil {
-			return nil, nil, nil, ctxerr.Wrap(ctx, err, "get existing titles")
-		}
-
-		// Map software titles to software checksums.
-		for _, title := range existingSoftwareTitlesForNewSoftware {
+		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
 			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
@@ -540,7 +579,28 @@ func (ds *Datastore) getExistingSoftware(
 		}
 	}
 
-	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+	// Get titles for software with bundle_identifier
+	if len(argsWithBundleIdentifier) > 0 {
+		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
+		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
+		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build query to existing titles with bundle_identifier")
+		}
+		var existingSoftwareTitlesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
+		}
+		// Map software titles to software checksums.
+		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			if ok {
+				incomingChecksumToTitle[checksum] = title
+			}
+		}
+	}
+
+	return incomingChecksumToTitle, nil
 }
 
 // UniqueSoftwareTitleStr creates a unique string representation of the software title
@@ -594,9 +654,10 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
-// Also insert any new software titles that are needed.
-// returns the inserted software on the host
+// insertNewInstalledHostSoftwareDB inserts host_software that is in softwareChecksums map,
+// but not in existingSoftware. It also inserts any new software titles that are needed.
+//
+// It returns the inserted software on the host.
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -613,7 +674,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
@@ -751,7 +812,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, ctxerr.New(ctx, fmt.Sprintf("updated existing software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
