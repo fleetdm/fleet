@@ -150,7 +150,7 @@ In a few instances, it is possible for an ECR repository to still have images le
 
 `REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`
 
-### Errors with macOS Docker Desktop
+#### Errors with macOS Docker Desktop
 
 If you are getting the following error when running `terraform apply`:
 ```sh
@@ -165,10 +165,11 @@ Run:
 $ docker context ls
 NAME              DESCRIPTION                               DOCKER ENDPOINT                             ERROR
 default           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock
-desktop-linux *   Docker Desktop                            unix:///Users/luk/.docker/run/docker.sock
+desktop-linux *   Docker Desktop                            unix:///Users/foobar/.docker/run/docker.sock
 ```
-Then I added `host = unix:///Users/luk/.docker/run/docker.sock` to `infrastructure/loadtesting/terraform/init.tf`:
+Then add the entry with `*`, in this case `host = unix:///Users/foobar/.docker/run/docker.sock` to `infrastructure/loadtesting/terraform/init.tf`:
 ```sh
+[...]
 provider "docker" {
   # Configuration options
   registry_auth {
@@ -176,6 +177,7 @@ provider "docker" {
     username = data.aws_ecr_authorization_token.token.user_name
     password = data.aws_ecr_authorization_token.token.password
   }
-  host = "unix:///Users/luk/.docker/run/docker.sock"
+  host = "unix:///Users/foobar/.docker/run/docker.sock"
 }
+[...]
 ```
