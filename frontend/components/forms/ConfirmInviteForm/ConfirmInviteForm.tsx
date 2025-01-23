@@ -86,17 +86,22 @@ const ConfirmInviteForm = ({
     setFormErrors(errsToSet);
   };
 
-  const onSubmit = useCallback(() => {
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    handleSubmit(formData);
-  }, [formData, handleSubmit]);
+  const onSubmit = useCallback(
+    (evt: React.FormEvent<HTMLFormElement>) => {
+      evt.preventDefault();
+
+      const errs = validate(formData);
+      if (Object.keys(errs).length > 0) {
+        setFormErrors(errs);
+        return;
+      }
+      handleSubmit(formData);
+    },
+    [formData, handleSubmit]
+  );
 
   return (
-    <form className={baseClass} autoComplete="off">
+    <form onSubmit={onSubmit} className={baseClass} autoComplete="off">
       {ancestorError && <div className="form__base-error">{ancestorError}</div>}
       <InputField
         label="Full name"
@@ -130,7 +135,7 @@ const ConfirmInviteForm = ({
         parseTarget
       />
       <Button
-        onClick={onSubmit}
+        type="submit"
         disabled={Object.keys(formErrors).length > 0}
         className="confirm-invite-button"
         variant="brand"

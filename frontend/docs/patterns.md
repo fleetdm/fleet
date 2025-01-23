@@ -202,13 +202,16 @@ export default PackComposerPage;
 
 ## Forms
 
-### Form buttons
+### Form submission
 
-When building a React-controlled form, use the `Button` component for its submit button, and do not
-include a `type`, allowing it to default to `type="button"`, which is what we want. Using
-`type="submit"` leads to confusing behavior wherein the native HTML submit functionality
-interferes with our custom submit logic, causing the request to be canceled in a messy and hard to
-recognize way. Alternatively, if using `type="submit"`, ensure the submit handler calls `evt.preventDefault`
+When building a React-controlled form:
+- Use the native HTML `form` element to wrap the form.
+- Use a `Button` component with `type="submit"` for its submit button.
+- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
+React.FormEvent<HTMLFormElement>` argument and, critically, calls `evt.preventDefault()` in its
+body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
+handler's logic.
+- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
 ### Data validation
 
