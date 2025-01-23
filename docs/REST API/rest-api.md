@@ -9553,7 +9553,6 @@ Returns information about the specified Fleet-maintained app.
   "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
-    "filename": "1Password-8.10.44-aarch64.zip",
     "version": "8.10.40",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
