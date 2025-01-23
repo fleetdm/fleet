@@ -503,6 +503,20 @@ for pkgType in "${pkgTypes[@]}"; do
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
+    if [ "$pkgType" == "deb" ] || [ "$pkgType" == "rpm" ]; then
+        ./build/fleetctl-v4.60.0 package --type="$pkgType" \
+            --arch=arm64 \
+            --enable-scripts \
+            --fleet-desktop \
+            --fleet-url="$FLEET_URL" \
+            --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
+            --debug \
+            --update-roots="$ROOT_KEYS1" \
+            --update-url=$OLD_TUF_URL \
+            --disable-open-folder \
+            --disable-keystore \
+            --update-interval=30s
+    fi
 done
 
 echo "Uninstalling fleetd package from macOS..."
@@ -615,6 +629,18 @@ for pkgType in "${pkgTypes[@]}"; do
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
+    if [ "$pkgType" == "deb" ] || [ "$pkgType" == "rpm" ]; then
+        ./build/fleetctl package --type="$pkgType" \
+            --arch=arm64 \
+            --enable-scripts \
+            --fleet-desktop \
+            --fleet-url="$FLEET_URL" \
+            --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
+            --debug \
+            --disable-open-folder \
+            --disable-keystore \
+            --update-interval=30s
+    fi
 done
 
 echo "Uninstalling fleetd package from macOS..."
