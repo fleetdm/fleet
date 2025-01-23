@@ -40,7 +40,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
+> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
 **Emergency (P0) request communications:**
 
@@ -90,7 +90,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
 |:-----|-----------------:|------:|-------:|------:|------:|------:|----------:|
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Owner |✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
+| CTO | ✅ Super admin | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
 | Finance Engineer | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin |✅ Admin | ❌ |
 | Head of Digital Experience | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
 | Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |

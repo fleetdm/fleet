@@ -1,5 +1,4 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 // @ts-ignore
@@ -7,23 +6,7 @@ import InputFieldWithIcon from ".";
 
 import "../../../../index.scss";
 
-interface IInputFieldWithIconProps {
-  autofocus?: boolean;
-  error?: string;
-  helpText?: string | string[];
-  iconName?: string;
-  label?: string;
-  name?: string;
-  placeholder?: string;
-  tabIndex?: number;
-  type?: string;
-  className?: string;
-  disabled?: boolean;
-  iconPosition?: "start" | "end";
-  onChange?: () => void;
-}
-
-export default {
+const meta: Meta<typeof InputFieldWithIcon> = {
   component: InputFieldWithIcon,
   title: "Components/FormFields/InputWithIcon",
   argTypes: {
@@ -132,10 +115,10 @@ export default {
     className: "",
     onChange: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IInputFieldWithIconProps> = (props) => (
-  <InputFieldWithIcon {...props} />
-);
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof InputFieldWithIcon>;
+
+export const Default: Story = {};

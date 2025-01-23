@@ -77,6 +77,9 @@ org_settings:
       destination_url: ""
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
+    activities_webhook:
+      destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
+      enable_activities_webhook: true
 policies:
 queries:
   - path: ./lib/all/queries/collect-fleetd-update-channels.yml

@@ -28,13 +28,17 @@ func logJSON(logger log.Logger, v interface{}, key string) {
 	level.Debug(logger).Log(key, string(jsonV))
 }
 
-// instrumentHostLogger adds host IP information and extras to the context logger.
-func instrumentHostLogger(ctx context.Context, extras ...interface{}) {
+// instrumentHostLogger adds host ID, IP information, and extras to the context logger.
+func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{}) {
 	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
 	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
 	logging.WithExtras(
 		logging.WithNoUser(ctx),
-		append(extras, "ip_addr", remoteAddr, "x_for_ip_addr", xForwardedFor)...,
+		append(extras,
+			"host_id", hostID,
+			"ip_addr", remoteAddr,
+			"x_for_ip_addr", xForwardedFor,
+		)...,
 	)
 }
 
@@ -51,13 +55,13 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host-id", host.ID)
+		hlogger := log.With(logger, "host_id", host.ID)
 		if debug {
 			logJSON(hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		instrumentHostLogger(ctx)
+		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnDeviceToken)
 		}
@@ -98,13 +102,13 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host-id", host.ID)
+		hlogger := log.With(logger, "host_id", host.ID)
 		if debug {
 			logJSON(hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		instrumentHostLogger(ctx)
+		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
 		}
@@ -135,13 +139,13 @@ func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host-id", host.ID)
+		hlogger := log.With(logger, "host_id", host.ID)
 		if debug {
 			logJSON(hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
-		instrumentHostLogger(ctx)
+		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnOrbitToken)
 		}

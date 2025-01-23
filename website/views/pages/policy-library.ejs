@@ -1,0 +1,127 @@
+<div id="policy-library" v-cloak>
+
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="page-headline" class="d-flex flex-column">
+          <h2>Policies</h2>
+          <p>A collection of policies, OS settings, and scripts for macOS, Windows, and Linux.</p>
+          <p>Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">over on GitHub.</a></p>
+        </div>
+<!--         <div purpose="policy-search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex">
+            <div class="input-group d-flex flex-nowrap">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
+              </div>
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search"
+                />
+              </div>
+            </div>
+          </div>
+        </div> -->
+      </div>
+      <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
+          <p class="d-flex align-items-center">
+          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+          <span class="d-none d-sm-inline">Apple</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
+            <span class="d-none d-sm-inline">Linux</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+            <span class="d-none d-sm-inline">Windows</span>
+          </p>
+        </div>
+      </div>
+      <div purpose="selected-queries">
+        <div v-if="selectedPlatform === 'macos'">
+          <% // macOS policies (server-side-rendered)
+            for(let policy of macOsPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/policies/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+              </div>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/policies/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
+          </div>
+          <% } %>
+        </div>
+        <div v-else-if="selectedPlatform === 'linux'">
+          <% // Linux policies (server-side-rendered)
+            for(let policy of linuxPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/policies/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+              </div>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/policies/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
+          </div>
+          <% } %>
+        </div>
+        <div v-else-if="selectedPlatform === 'windows'">
+          <% // Windows policies (server-side-rendered)
+            for(let policy of windowsPolicies) {
+          %>
+          <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
+            <div purpose="policy-name-and-description" class="d-flex flex-column">
+              <div class="d-flex flex-column">
+                <p purpose="policy-name"><a href="/policies/<%- policy.slug%>"><%- policy.name %></a></p>
+                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
+                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+              </div>
+              <div purpose="policy-description"><p><%- policy.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/policies/<%- policy.slug%>">Read more</animated-arrow-button></div>
+            </div>
+            <div class="d-flex flex-column justify-content-center">
+              <div class="d-flex flex-row">
+                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+              </div>
+            </div>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

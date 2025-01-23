@@ -857,6 +857,43 @@ type SyncML struct {
 	Raw []byte `xml:"-"`
 }
 
+type EnrichedSyncML struct {
+	*SyncML
+	CmdRefUUIDToStatus  map[string]SyncMLCmd
+	CmdRefUUIDToResults map[string]SyncMLCmd
+	CmdRefUUIDs         []string
+}
+
+func (e EnrichedSyncML) HasCommands() bool {
+	return len(e.CmdRefUUIDs) > 0
+}
+
+func NewEnrichedSyncML(syncML *SyncML) EnrichedSyncML {
+	result := EnrichedSyncML{
+		SyncML:              syncML,
+		CmdRefUUIDToStatus:  make(map[string]SyncMLCmd),
+		CmdRefUUIDToResults: make(map[string]SyncMLCmd),
+	}
+	for _, protoOp := range result.SyncML.GetOrderedCmds() {
+		// results and status should contain a command they're referencing
+		cmdRef := protoOp.Cmd.CmdRef
+		if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
+			continue
+		}
+
+		switch protoOp.Verb {
+		case CmdStatus:
+			result.CmdRefUUIDToStatus[*cmdRef] = protoOp.Cmd
+		case CmdResults:
+			result.CmdRefUUIDToResults[*cmdRef] = protoOp.Cmd
+		default:
+			continue
+		}
+		result.CmdRefUUIDs = append(result.CmdRefUUIDs, *cmdRef)
+	}
+	return result
+}
+
 type SyncHdr struct {
 	VerDTD    string   `xml:"VerDTD"`
 	VerProto  string   `xml:"VerProto"`

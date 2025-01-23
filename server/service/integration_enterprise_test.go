@@ -13371,7 +13371,19 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 		Filename:      "no_version.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet couldn't read the version from no_version.pkg.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	// title shows up with blank version
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.Equal(t, "NoVersion.app", resp.SoftwareTitles[0].Name)
+	require.Equal(t, "", resp.SoftwareTitles[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
@@ -16178,12 +16190,21 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	var getMAResp getFleetMaintainedAppResponse
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
-	actualApp := listMAResp.FleetMaintainedApps[0]
+	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID)
+	require.NoError(t, err)
+	dbAppResponse := fleet.MaintainedApp{
+		ID:              dbAppRecord.ID,
+		Name:            dbAppRecord.Name,
+		Version:         dbAppRecord.Version,
+		Platform:        dbAppRecord.Platform,
+		InstallerURL:    dbAppRecord.InstallerURL,
+		InstallScript:   dbAppRecord.InstallScript,
+		UninstallScript: dbAppRecord.UninstallScript,
+	}
+	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.UninstallScript)
-	getMAResp.FleetMaintainedApp.InstallScript = ""
-	getMAResp.FleetMaintainedApp.UninstallScript = ""
-	require.Equal(t, actualApp, *getMAResp.FleetMaintainedApp)
+	require.Equal(t, dbAppResponse, *getMAResp.FleetMaintainedApp)
 
 	// Try adding ingested app with invalid secret
 	reqInvalidSecret := &addFleetMaintainedAppRequest{
