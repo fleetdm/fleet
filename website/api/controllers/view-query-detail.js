@@ -42,7 +42,7 @@ module.exports = {
       let policyWithThisSlug = _.find(sails.config.builtStaticContent.policies, {kind: 'policy', slug: slug});
       if(policyWithThisSlug){
         // If we foudn a matchign policy, redirect the user.
-        return {redirect: `/policies/${policyWithThisSlug.slug}`};
+        throw {redirectToPolicy: `/policies/${policyWithThisSlug.slug}`};
       } else {
         throw 'notFound';
       }
