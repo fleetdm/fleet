@@ -92,6 +92,7 @@ $base-class: "button";
       $core-vibrant-blue-down
     );
     display: flex;
+    text-wrap: nowrap;
   }
 
   &--success {
