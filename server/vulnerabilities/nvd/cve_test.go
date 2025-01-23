@@ -375,6 +375,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-37051"},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		},
+		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
+		},
 	}
 
 	cveOSTests := []struct {

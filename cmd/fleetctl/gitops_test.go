@@ -3431,6 +3431,26 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
+func TestGitOpsWebhooksDisable(t *testing.T) {
+	_, appConfig, _ := setupFullGitOpsPremiumServer(t)
+
+	webhook := &(*appConfig).WebhookSettings
+	webhook.ActivitiesWebhook.Enable = true
+	webhook.FailingPoliciesWebhook.Enable = true
+	webhook.HostStatusWebhook.Enable = true
+	webhook.VulnerabilitiesWebhook.Enable = true
+
+	// Run config with no webooks settings
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_windows_migration_true_true.yml"})
+	require.NoError(t, err)
+
+	webhook = &(*appConfig).WebhookSettings
+	require.False(t, webhook.ActivitiesWebhook.Enable)
+	require.False(t, webhook.FailingPoliciesWebhook.Enable)
+	require.False(t, webhook.HostStatusWebhook.Enable)
+	require.False(t, webhook.VulnerabilitiesWebhook.Enable)
+}
+
 type memKeyValueStore struct {
 	m sync.Map
 }

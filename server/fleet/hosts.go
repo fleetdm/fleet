@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 type HostStatus string
@@ -206,6 +206,12 @@ type HostListOptions struct {
 
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
+
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all host responses returned
+	PopulateLabels bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
@@ -1271,7 +1277,7 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(parts[1])
+	version, err := VersionToSemverVersion(parts[1])
 	if err != nil {
 		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
 	}

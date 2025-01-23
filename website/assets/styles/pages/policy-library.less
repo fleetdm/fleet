@@ -1,0 +1,339 @@
+#policy-library {
+  // background-color: #FFF;
+  a {
+    color: #515774;
+    font-family: Inter;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 24px;
+    text-decoration-line: underline;
+  }
+
+  [purpose='policy-search'] {
+
+    // Note: We're using classes here to override the default Docsearch styles;
+    button {
+      width: 100%;
+      cursor: text;
+      margin: 0;
+    }
+    .DocSearch-Button {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border: 1px solid @core-fleet-black-25;
+      background-color: #FFF;
+      padding: 8px 15px;
+      height: 36px;
+      margin: 0;
+      width: 221px;
+    }
+    .DocSearch-Button:hover {
+      box-shadow: none;
+      border: 1px solid @core-fleet-black-25;
+      color: @core-fleet-black-50;
+    }
+    .DocSearch-Search-Icon {
+      margin-left: 0px;
+      margin-right: 8px;
+      height: 16px;
+      width: 16px;
+      color: @core-fleet-black-50;
+      stroke-width: 3px;
+    }
+    .DocSearch-Button-Keys {
+      display: none;
+    }
+    .input-group:focus-within {
+      border: 1px solid @core-vibrant-blue;
+    }
+    .DocSearch-Button-Placeholder {
+      font-size: 16px;
+      line-height: 16px;
+      font-weight: 400;
+      padding-left: 0px;
+    }
+    [purpose='disabled-search'] {
+      input {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        border: none;
+        } &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+          color: #8B8FA2;
+        }
+      .input-group {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: 1px solid @core-fleet-black-25;
+        background: #FFF;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-blue;
+      }
+      .form-control {
+        border-radius: 6px;
+        padding: 6px;
+        height: 36px;
+        margin: 0;
+        width: 212px;
+      }
+      .docsearch-input:focus-visible {
+        outline: none;
+      }
+      .ds-input:focus {
+        outline: rgba(0, 0, 0, 0);
+      }
+      .input-group-text {
+        color: @core-fleet-black-50;
+      }
+      .form-control {
+        height: 36px;
+        padding: 0px;
+        font-size: 16px;
+      } &:focus {
+        border: none;
+      }
+    }
+    img {
+      height: 16px;
+      margin-right: 8px;
+    }
+    background: #FFF;
+    &::placeholder {
+      font-size: 16px;
+      color: @core-fleet-black-50;
+    }
+  }
+  [purpose='page-container'] {
+    padding: 64px;
+  }
+  [purpose='page-content'] {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1072px;
+  }
+  [purpose='search-and-headline'] {
+    margin-bottom: 64px;
+  }
+  [purpose='page-headline'] {
+    max-width: 662px;
+    margin-right: 16px;
+    h2 {
+      color: #192147;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 120%;
+      margin-bottom: 16px;
+    }
+  }
+  [purpose='platform-filters'] {
+    border-bottom: 1px solid #E2E4EA;
+    margin-bottom: 48px;
+    [purpose='platform-filter'] {
+      width: 33%;
+      display: flex;
+      padding: 16px 40px;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      img {
+        height: 20px;
+        margin-right: 10px;
+      }
+      p {
+        color: #192147;
+        text-align: center;
+        margin-bottom: 0px;
+        font-family: Inter;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 24px; /* 150% */
+        white-space: nowrap;
+      }
+      &.selected {
+        border-bottom: 2px solid var(--text-text-brand, #192147);
+        p {
+          font-weight: 700;
+        }
+      }
+    }
+
+
+
+  }
+  [purpose='policy'] {
+    padding: 32px 0px;
+    border-bottom: 1px solid #E2E4EA;
+  }
+  [purpose='read-more-link'] {
+    // margin-bottom: 16px;
+    span {
+      font-size: 14px;
+      color: ;
+      font-weight: 600;
+    }
+  }
+  [purpose='policy-link'] {
+    color: unset;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+  [purpose='policy-name-and-description'] {
+    max-width: 663px;
+  }
+  [purpose='policy-name'] {
+    a {
+      text-decoration: none;
+      color: #192147;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 24px;
+      margin-bottom: 8px;
+    }
+  }
+  [purpose='policy-description'] {
+    margin-top: 16px;
+    p {
+      color: #515774;
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+    }
+    // max-width: 663px;
+  }
+  [purpose='contributor-profile-picture'] {
+    width: 24px;
+    height: 24px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+  [purpose='contributor-profile-name'] {
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  [purpose='requires-mdm-badge'] {
+    // text-transform: uppercase;
+    display: flex;
+    padding: 4px 6px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    color: #192147;
+    font-family: Inter;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 11px;
+    height: min-content;
+    white-space: nowrap;
+    // margin-bottom: 16px;
+    width: fit-content;
+  }
+  [purpose='premium-badge'] {
+    // margin-bottom: 16px;
+    margin-right: 16px;
+    border-radius: 4px;
+    border: 1px solid #0587FF;
+    background: #0587FF;
+    display: flex;
+    padding: 4px 6px;
+    justify-content: center;
+    align-items: center;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 10px;
+    color: #FFF;
+    text-decoration: none;
+    width: fit-content;
+  }
+  [purpose='query-tag'] {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background-color: #E2E4EA;
+    color: #515774;
+  }
+
+  [purpose='query-list-empty-state'] {
+    margin-top: 40px;
+    margin-right: 30px;
+    margin-left: 30px;
+    a {
+      font-size: 16px;
+    }
+  }
+
+  // .input-group {
+  //   &.search {
+  //     width: 221px;
+  //     background: #FFF;
+  //     height: 40px;
+  //   }
+  // }
+
+  // .input-group-text {
+  //   color: #8b8fa2;
+  //   height: 40px;
+  //   border-color: #c5c7d1;
+  //   border-top-left-radius: 8px;
+  //   border-bottom-left-radius: 8px;
+  // }
+
+  // .form-control {
+  //   height: 40px;
+  //   font-size: 16px;
+  //   border-color: #c5c7d1;
+  //   border-top-right-radius: 8px;
+  //   border-bottom-right-radius: 8px;
+  //   &:focus {
+  //     border: 1px solid #c5c7d1;
+  //   }
+  // }
+
+
+  @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
+    [purpose='policy-name-and-description'] {
+      max-width: unset;
+    }
+    [purpose='read-more-link'] {
+      margin-bottom: 16px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    [purpose='policy-search'] {
+      margin-top: 32px;
+      width: 100%;
+      .input-group {
+        width: 100%;
+      }
+    }
+
+  }
+
+  @media (max-width: 575px) {
+
+  }
+}

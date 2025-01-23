@@ -285,9 +285,27 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 			}, nil, timestamp,
 		),
 	)
+
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, nil, fleet.ActivityInstalledAppStoreApp{
+				HostID:          1,
+				HostDisplayName: "A Host",
+				SoftwareTitle:   "Trello",
+				AppStoreID:      "123456",
+				CommandUUID:     "some uuid",
+				Status:          string(fleet.SoftwareInstalled),
+				SelfService:     false,
+				PolicyID:        ptr.Uint(1),
+				PolicyName:      ptr.String("Sample Policy"),
+			}, nil, timestamp,
+		),
+	)
+
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
 func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
@@ -373,13 +391,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	// create three hosts
+	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h3, false)
+	h4 := test.NewHost(t, ds, "h4.local", "10.10.10.4", "4", "4", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h4, false)
 
 	// create a couple of named scripts
 	scr1, err := ds.NewScript(ctx, &fleet.Script{
@@ -563,6 +583,22 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
 	require.NoError(t, err)
 
+	// Setup host 4. We will create upcoming activities, then
+	// delete and "restore" the host, similar to what would happen
+	// if you delete an ABM DEP host.
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	require.NoError(t, err)
+	// h4A := hsr.ExecutionID
+	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
+	require.NoError(t, err)
+	// Delete the host
+	err = ds.DeleteHost(ctx, h4.ID)
+	require.NoError(t, err)
+	// DEP "restore" the host
+	err = ds.RestoreMDMApplePendingDEPHost(ctx, h4)
+	require.NoError(t, err)
+
 	// force-set the order of the created_at timestamps
 	endTime := SetOrderedCreatedAtTimestamps(t, ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
 	endTime = SetOrderedCreatedAtTimestamps(t, ds, endTime, "host_software_installs", "execution_id", h1FooFailed, h1Bar)
@@ -664,6 +700,12 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{},
 			hostID:    h3.ID,
+			wantExecs: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 0},
+		},
+		{
+			opts:      fleet.ListOptions{},
+			hostID:    h4.ID,
 			wantExecs: []string{},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 0},
 		},

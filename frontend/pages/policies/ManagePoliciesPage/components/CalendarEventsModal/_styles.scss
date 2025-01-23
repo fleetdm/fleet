@@ -32,6 +32,10 @@
     box-sizing: border-box;
     margin: 0;
   }
+
+  .form-field__help-text {
+    margin-top: $pad-large;
+  }
 }
 
 .calendar-event-preview {

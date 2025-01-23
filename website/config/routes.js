@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Controls and policies',
-      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Queries',
+      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
@@ -69,7 +69,28 @@ module.exports.routes = {
     action: 'view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
-      // Note: this page's meta title and description are set in the page's view action
+    }
+  },
+
+  'GET /vitals/:slug': {
+    action: 'view-vital-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /policies': {
+    action: 'view-policy-library',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'Policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+    }
+  },
+  'GET /policies/:slug': {
+    action: 'view-policy-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
     }
   },
 
@@ -653,6 +674,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/log-destinations': (req,res)=> { return res.redirect(301, '/guides/log-destinations');},
   'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
   'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
+  'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
 
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
@@ -760,6 +782,7 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
   'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /vitals':                 '/vitals/battery',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet',
@@ -782,6 +805,8 @@ module.exports.routes = {
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+  'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
+  'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
@@ -825,7 +850,7 @@ module.exports.routes = {
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
   'GET /learn-more-about/package-metadata-extraction': '/guides/deploy-software-packages#package-metadata-extraction',
-  'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#add-a-software-package-to-a-team',
+  'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
   'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
   'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
@@ -914,5 +939,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
-  'POST /api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
+  '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
 };

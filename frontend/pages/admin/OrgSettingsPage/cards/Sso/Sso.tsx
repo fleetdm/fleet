@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -51,8 +51,10 @@ const validate = (formData: ISsoFormData) => {
 
     if (!metadata) {
       if (!metadataUrl) {
-        errors.metadata_url = "Metadata or Metadata URL must be present";
-        errors.metadata = "Metadata or Metadata URL must be present";
+        errors.metadata_url =
+          "Metadata URL is required (if metadata is not present)";
+        errors.metadata =
+          "Metadata is required (if metadata URL is not present)";
       } else if (
         !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
       ) {

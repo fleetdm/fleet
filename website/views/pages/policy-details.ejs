@@ -1,0 +1,97 @@
+<div id="policy-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+          <div>
+            <a purpose="breadcrumbs-category" class="text-nowrap" href="/policies">Policies</a>/
+          </div>
+          <div purpose="breadcrumbs-title">
+            <span><%- policy.name %></span>
+          </div>
+        </div>
+<!--         <div purpose="search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex w-100">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent pl-3" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
+              </div>
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search the handbook"
+                />
+              </div>
+            </div>
+          </div>
+        </div> -->
+      </div>
+      <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="policy-details" class="d-flex flex-column">
+          <h2 purpose="policy-name"><%- policy.name %></h2>
+          <div purpose="policy-attribution">
+            <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+            <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+            <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+          </div>
+          <p purpose="policy-description"><%- policy.description %></p>
+          <div purpose="policy-control" v-if="policy.configuration_profile || policy.script">
+            <h3>Control</h3>
+            <div v-if="policy.configuration_profile">
+              <p>Create or edit a configuration profile with the following information:</p>
+              <div  purpose="codeblock">
+                <div purpose="copy-button"></div>
+                <pre><code class="nohighlight"><%= policy.configuration_profile %></code></pre>
+              </div>
+            </div>
+
+            <div v-if="policy.script">
+              <p>Create or edit the following script and configure it to run when the check fails:</p>
+              <div  purpose="codeblock">
+                <div purpose="copy-button"></div>
+                <pre><code class="nohighlight"><%= policy.script %></code></pre>
+              </div>
+            </div>
+          </div>
+          <div purpose="policy-check">
+            <h3>Check</h3>
+            <p>Use the policy below to verify</p>
+            <div purpose="codeblock">
+              <div purpose="copy-button"></div>
+              <pre><code class="hljs sql"><%- policy.query %></code></pre>
+            </div>
+          </div>
+        </div>
+        <div purpose="sidebar-container">
+          <div purpose="right-sidebar" class="d-flex flex-column">
+            <div purpose="policy-platform">
+              <h4>Platform</h4>
+              <div class="d-flex flex-row">
+                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="policy.platform.includes('darwin')"/>
+                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="policy.platform.includes('windows')"/>
+                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="policy.platform.includes('linux')"/>
+                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="policy.platform.includes('chrome')"/>
+              </div>
+            </div>
+            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
+              <p><strong>Share</strong></p>
+              <div class="d-flex flex-row">
+                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/queries/${encodeURIComponent(policy.slug)}&t=${encodeURIComponent(policy.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/queries/'+policy.slug)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/queries/'+policy.slug)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+              </div>
+            </div>
+            <div purpose="docs-links" class="order-3">
+              <a href="/docs">Docs</a>
+              <a href="/docs/rest-api">REST API</a>
+              <a href="/guides">Guides</a>
+              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

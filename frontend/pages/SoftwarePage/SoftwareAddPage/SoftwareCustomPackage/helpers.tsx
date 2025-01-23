@@ -19,18 +19,6 @@ export const getErrorMessage = (err: unknown) => {
 
   if (isTimeout) {
     return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-  } else if (reason.includes("Fleet couldn't read the version from")) {
-    return (
-      <>
-        {reason}{" "}
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-          text="Learn more"
-          iconColor="core-fleet-white"
-        />
-      </>
-    );
   } else if (reason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   } else if (reason.includes("Unable to extract necessary metadata")) {
@@ -41,18 +29,6 @@ export const getErrorMessage = (err: unknown) => {
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/package-metadata-extraction`}
           text="Learn more"
           newTab
-        />
-      </>
-    );
-  } else if (reason.includes("Fleet couldn't read the version from")) {
-    return (
-      <>
-        {reason}{" "}
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-          text="Learn more"
-          iconColor="core-fleet-white"
         />
       </>
     );
