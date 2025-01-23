@@ -55,7 +55,7 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyPolicies: IEmptyTableProps = {
+  const emptyState: IEmptyTableProps = {
     graphicName: "empty-policies",
     header: "You don't have any policies",
     info:
@@ -63,13 +63,13 @@ const PoliciesTable = ({
   };
 
   if (currentTeam?.id === null || currentTeam?.id === -1) {
-    emptyPolicies.header += " that apply to all teams";
+    emptyState.header += " that apply to all teams";
   } else {
-    emptyPolicies.header += " that apply to this team";
+    emptyState.header += " that apply to this team";
   }
 
   if (canAddOrDeletePolicy) {
-    emptyPolicies.primaryButton = (
+    emptyState.primaryButton = (
       <Button
         variant="brand"
         className={`${baseClass}__select-policy-button`}
@@ -79,14 +79,14 @@ const PoliciesTable = ({
       </Button>
     );
   } else {
-    emptyPolicies.info = "";
+    emptyState.info = "";
   }
 
   if (searchQuery) {
-    delete emptyPolicies.graphicName;
-    delete emptyPolicies.primaryButton;
-    emptyPolicies.header = "No matching policies";
-    emptyPolicies.info = "No policies match the current filters.";
+    delete emptyState.graphicName;
+    delete emptyState.primaryButton;
+    emptyState.header = "No matching policies";
+    emptyState.info = "No policies match the current filters.";
   }
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
@@ -126,11 +126,11 @@ const PoliciesTable = ({
         }}
         emptyComponent={() =>
           EmptyTable({
-            graphicName: emptyPolicies.graphicName,
-            header: emptyPolicies.header,
-            info: emptyPolicies.info,
-            additionalInfo: emptyPolicies.additionalInfo,
-            primaryButton: emptyPolicies.primaryButton,
+            graphicName: emptyState.graphicName,
+            header: emptyState.header,
+            info: emptyState.info,
+            additionalInfo: emptyState.additionalInfo,
+            primaryButton: emptyState.primaryButton,
           })
         }
         renderCount={renderPoliciesCount}
