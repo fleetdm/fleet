@@ -70,7 +70,7 @@ describe("Policies table", () => {
       screen.getByText("You don't have any policies that apply to this team")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
-  });  
+  });
 
   it("Renders the empty search state when search query exists for server side search with no results", async () => {
     const render = createCustomRenderer({
