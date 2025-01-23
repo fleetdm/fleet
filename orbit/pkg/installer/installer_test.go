@@ -134,24 +134,6 @@ func TestPreconditionCheck(t *testing.T) {
 	require.Equal(t, "", output)
 }
 
-type mockOrbitClient struct {
-	getInstallerDetails       func(installID string) (*fleet.SoftwareInstallDetails, error)
-	downloadSoftwareInstaller func(installerID uint, downloadDir string) (string, error)
-	saveInstallerResult       func(payload *fleet.HostSoftwareInstallResultPayload) error
-}
-
-func (f *mockOrbitClient) GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error) {
-	return f.getInstallerDetails(installID)
-}
-
-func (f *mockOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
-	return f.downloadSoftwareInstaller(installerID, downloadDir)
-}
-
-func (f *mockOrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
-	return f.saveInstallerResult(payload)
-}
-
 func TestInstallerRun(t *testing.T) {
 	oc := &TestOrbitClient{}
 
@@ -438,15 +420,6 @@ func TestInstallerRun(t *testing.T) {
 		var retries int
 		// set a shorter interval to speed up tests
 		r.retryOpts = []retry.Option{retry.WithInterval(1 * time.Second), retry.WithMaxAttempts(5)}
-		oc := &mockOrbitClient{
-			getInstallerDetails: func(installID string) (*fleet.SoftwareInstallDetails, error) {
-				return &fleet.SoftwareInstallDetails{}, nil
-			},
-			downloadSoftwareInstaller: func(installerID uint, downloadDir string) (string, error) {
-				return tmpDir, nil
-			},
-		}
-		r.OrbitClient = oc
 
 		testCases := []struct {
 			desc                    string
@@ -481,7 +454,7 @@ func TestInstallerRun(t *testing.T) {
 			t.Run(tc.desc, func(t *testing.T) {
 				resetAll()
 				t.Cleanup(func() { retries = 0 })
-				oc.saveInstallerResult = tc.saveInstallerResultFunc
+				oc.saveInstallerResultFn = tc.saveInstallerResultFunc
 				err := r.run(context.Background(), &config)
 				if tc.expectedErr != "" {
 					require.ErrorContains(t, err, tc.expectedErr)
