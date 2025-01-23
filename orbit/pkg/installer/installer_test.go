@@ -435,7 +435,6 @@ func TestInstallerRun(t *testing.T) {
 	})
 
 	t.Run("failed results upload", func(t *testing.T) {
-		resetAll()
 		var retries int
 		// set a shorter interval to speed up tests
 		r.retryOpts = []retry.Option{retry.WithInterval(1 * time.Second), retry.WithMaxAttempts(5)}
@@ -480,6 +479,7 @@ func TestInstallerRun(t *testing.T) {
 		}
 		for _, tc := range testCases {
 			t.Run(tc.desc, func(t *testing.T) {
+				resetAll()
 				oc.saveInstallerResult = tc.saveInstallerResultFunc
 				err := r.run(context.Background(), &config)
 				if tc.expectedErr != "" {
