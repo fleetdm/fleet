@@ -189,6 +189,10 @@ type Datastore interface {
 	// If a host is already not a member of a label then such label will be ignored.
 	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
 
+	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
+	// IDs, applied in batches
+	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error)
+
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
