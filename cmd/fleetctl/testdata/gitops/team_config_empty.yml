@@ -1,9 +1,0 @@
-name: "${TEST_TEAM_NAME}"
-team_settings:
-    secrets:
-    - secret: "SampleSecret123-team"
-    - secret: "ABC-team"
-software:
-queries:
-policies:
-agent_options:

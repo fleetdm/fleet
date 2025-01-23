@@ -3451,30 +3451,35 @@ func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	require.False(t, webhook.VulnerabilitiesWebhook.Enable)
 }
 
-func TestGitOpsTeamWebhooksDisable(t *testing.T) {
-	teamName := "TestTeamWebhooksDisable"
+func TestGitOpsTeamWebhooks(t *testing.T) {
+	teamName := "TestTeamWebhooks"
 
 	ds, _, savedTeams := setupFullGitOpsPremiumServer(t)
 
 	// Create a new team.
 	ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true},
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "http://saybye.by"},
 		HostStatusWebhook:      &fleet.HostStatusWebhookSettings{Enable: true},
 	}}})
 	require.NotNil(t, *savedTeams[teamName])
 
 	// Do a GitOps run with no webhook settings.
 	t.Setenv("TEST_TEAM_NAME", teamName)
-	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_empty.yml"})
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
 	require.NoError(t, err)
 
-	// Check that the team's webhook settings are disabled.
 	team, err := ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.NotNil(t, team)
 	require.NotNil(t, team.Config.WebhookSettings)
+
+	// Check that the team's failing policy webhook settings are disabled and cleared, since the GitOps
+	// config doesn't include them.
 	require.False(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.False(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "", team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	// Check that the team's host status webhook settings are enabled and set to the new values.
+	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
 type memKeyValueStore struct {
