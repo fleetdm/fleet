@@ -936,6 +936,9 @@
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
           max-height: calc(~'100vh - 60px');
+          transition-property: max-height;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+          transition-duration: 500ms;
           a {
             color: @core-fleet-black;
             text-decoration: none;
