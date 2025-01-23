@@ -766,6 +766,16 @@ func (updateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
+	val := r.MultipartForm.Value["id"]
+	if len(val) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no script id"}
+	}
+	scriptID, err := strconv.ParseUint(val[0], 10, 0)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode id in multipart form: %s", err.Error())}
+	}
+	decoded.ScriptID = uint(scriptID)
+
 	fhs, ok := r.MultipartForm.File["script"]
 	if !ok || len(fhs) < 1 {
 		return nil, &fleet.BadRequestError{Message: "no file headers for script"}
