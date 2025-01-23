@@ -201,7 +201,6 @@ const FleetMaintainedAppDetailsPage = ({
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
       if (
         ae.status === 408 ||
-        ae.status === 500 ||
         getErrorMessage(error).includes("json decoder error") // 400 bad request when really slow
       ) {
         renderFlash(
