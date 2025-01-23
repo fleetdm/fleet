@@ -1296,36 +1296,65 @@ WHERE
 }
 
 func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-	// TODO(uniq): I think that if there's none in host_software_installs, must take
-	// latest in upcoming queue (latest attempt might actually be in upcoming).
-	stmt := `
-		SELECT execution_id, hsi.status
-		FROM host_software_installs hsi
-		WHERE hsi.id = (
-			SELECT
-				MAX(id)
-			FROM host_software_installs
-			WHERE
-				software_installer_id = :installer_id AND host_id = :host_id
-			GROUP BY
-				host_id, software_installer_id)
-`
-
-	stmt, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"host_id":      hostID,
-		"installer_id": installerID,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query to get host last install data")
+	hostLastInstall, err := ds.getLatestUpcomingInstall(ctx, hostID, installerID)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		hostLastInstall, err = ds.getLatestPastInstall(ctx, hostID, installerID)
 	}
 
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+
+	return hostLastInstall, err
+}
+
+func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	var hostLastInstall fleet.HostLastInstallData
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, args...); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host last install data")
+	stmt := `
+SELECT 
+	execution_id, 
+	'pending_install' AS status
+FROM 
+	upcoming_activities
+WHERE 
+	id = (
+		SELECT
+			MAX(ua.id)
+		FROM 
+			upcoming_activities ua
+		JOIN 
+			software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		WHERE 
+			ua.activity_type = 'software_install' AND ua.host_id = ? AND siua.software_installer_id = ?)`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get latest upcoming install")
 	}
+
+	return &hostLastInstall, nil
+}
+
+func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+	var hostLastInstall fleet.HostLastInstallData
+	stmt := `
+SELECT 
+	execution_id, 
+	status
+FROM 
+	host_software_installs
+WHERE 
+	id = (
+		SELECT
+			MAX(hsi.id)
+		FROM 
+			host_software_installs hsi
+		WHERE
+			hsi.host_id = ? AND hsi.software_installer_id = ?)`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get lastest past install")
+	}
+
 	return &hostLastInstall, nil
 }
 
