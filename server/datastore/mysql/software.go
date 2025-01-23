@@ -585,7 +585,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "build delete host software query")
+			return nil, ctxerr.Wrap(ctx, err, "build query to existing titles with bundle_identifier")
 		}
 		var existingSoftwareTitlesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitle
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
