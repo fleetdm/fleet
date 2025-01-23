@@ -55,33 +55,39 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState = () => {
-    const emptyPolicies: IEmptyTableProps = {
-      graphicName: "empty-policies",
-      header: "You don't have any policies",
-      info:
-        "Add policies to detect device health issues and trigger automations.",
-    };
-    if (canAddOrDeletePolicy) {
-      emptyPolicies.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${baseClass}__select-policy-button`}
-          onClick={onAddPolicyClick}
-        >
-          Add policy
-        </Button>
-      );
-    }
-    if (searchQuery) {
-      delete emptyPolicies.graphicName;
-      delete emptyPolicies.primaryButton;
-      emptyPolicies.header = "No matching policies";
-      emptyPolicies.info = "No policies match the current filters.";
-    }
-
-    return emptyPolicies;
+  const emptyPolicies: IEmptyTableProps = {
+    graphicName: "empty-policies",
+    header: "You don't have any policies",
+    info:
+      "Add policies to detect device health issues and trigger automations.",
   };
+
+  if (currentTeam?.id === null || currentTeam?.id === -1) {
+    emptyPolicies.header += " that apply to all teams";
+  } else {
+    emptyPolicies.header += " that apply to this team";
+  }
+
+  if (canAddOrDeletePolicy) {
+    emptyPolicies.primaryButton = (
+      <Button
+        variant="brand"
+        className={`${baseClass}__select-policy-button`}
+        onClick={onAddPolicyClick}
+      >
+        Add policy
+      </Button>
+    );
+  } else {
+    emptyPolicies.info = "";
+  }
+
+  if (searchQuery) {
+    delete emptyPolicies.graphicName;
+    delete emptyPolicies.primaryButton;
+    emptyPolicies.header = "No matching policies";
+    emptyPolicies.info = "No policies match the current filters.";
+  }
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
@@ -120,11 +126,11 @@ const PoliciesTable = ({
         }}
         emptyComponent={() =>
           EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
+            graphicName: emptyPolicies.graphicName,
+            header: emptyPolicies.header,
+            info: emptyPolicies.info,
+            additionalInfo: emptyPolicies.additionalInfo,
+            primaryButton: emptyPolicies.primaryButton,
           })
         }
         renderCount={renderPoliciesCount}

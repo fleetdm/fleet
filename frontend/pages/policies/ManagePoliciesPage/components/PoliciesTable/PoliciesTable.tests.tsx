@@ -8,7 +8,7 @@ import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
 
 describe("Policies table", () => {
-  it("Renders the page-wide empty state when no policies are present", async () => {
+  it("Renders the page-wide empty state when no policies are present (all teams)", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -34,9 +34,43 @@ describe("Policies table", () => {
       />
     );
 
-    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(
+      screen.getByText("You don't have any policies that apply to all teams")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
+
+  it("Renders the page-wide empty state when no policies are present (specific team)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        onDeletePolicyClick={() => {}}
+        currentTeam={{ id: 1, name: "Some team" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        resetPageIndex={false}
+      />
+    );
+
+    expect(
+      screen.getByText("You don't have any policies that apply to this team")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+  });  
 
   it("Renders the empty search state when search query exists for server side search with no results", async () => {
     const render = createCustomRenderer({
