@@ -1,51 +1,37 @@
 module.exports = {
 
 
-  friendlyName: 'View query detail',
+  friendlyName: 'View policy detail',
 
 
-  description: 'Display "Query detail" page.',
+  description: 'Display "policy details" page.',
 
 
   inputs: {
-    slug: { type: 'string', required: true, description: 'A slug uniquely identifying this query in the library.', example: 'get-macos-disk-free-space-percentage' },
+    slug: { type: 'string', required: true, description: 'A slug uniquely identifying this policy in the library.', example: 'get-macos-disk-free-space-percentage' },
   },
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/query-detail' },
+    success: { viewTemplatePath: 'pages/policy-details' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
-    redirectToPolicy: {
-      description: 'The requesting user has been redirected to a policy page.',
-      responseType: 'redirect'
-    },
   },
 
 
   fn: async function ({ slug }) {
 
-    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
-      throw {badConfig: 'builtStaticContent.queries'};
-    } else if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.policies)) {
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.policies)) {
       throw {badConfig: 'builtStaticContent.policies'};
-    } else if (!_.isString(sails.config.builtStaticContent.queryLibraryYmlRepoPath)) {
+    } else if (!_.isString(sails.config.builtStaticContent.policyLibraryYmlRepoPath)) {
       throw {badConfig: 'builtStaticContent.queryLibraryYmlRepoPath'};
     }
 
-    // Serve appropriate content for query.
+    // Serve appropriate content for policy.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
-    let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
-    if (!query) {
-      // If we didn't find a query matching this slug, check to see if there is a policy with a matching slug.
-      // Note: We do this because policies used to be on /queries/* pages. This way, all old URLs that policies used to live at will still bring users to the correct page.
-      let policyWithThisSlug = _.find(sails.config.builtStaticContent.policies, {kind: 'policy', slug: slug});
-      if(policyWithThisSlug){
-        // If we foudn a matchign policy, redirect the user.
-        throw {redirect: `/policies/${policyWithThisSlug.slug}`};
-      } else {
-        throw 'notFound';
-      }
+    let policy = _.find(sails.config.builtStaticContent.policies, { slug: slug });
+    if (!policy) {
+      throw 'notFound';
     }
 
     // Find the related osquery table documentation for tables used in this query, and grab the keywordsForSyntaxHighlighting from each table used.
@@ -55,7 +41,7 @@ module.exports = {
     // Get all the osquery table names, we'll use this list to determine which tables are used.
     let allTableNames = _.pluck(allTablesInformation, 'title');
     // Create an array of words in the query.
-    let queryWords = _.words(query.query, /[^ \n;]+/g);
+    let queryWords = _.words(policy.query, /[^ \n;]+/g);
     let columnNamesForSyntaxHighlighting = [];
     let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays
@@ -71,13 +57,13 @@ module.exports = {
     columnNamesForSyntaxHighlighting = _.difference(columnNamesForSyntaxHighlighting, tableNamesForSyntaxHighlighting);
 
 
-    // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
-    let pageTitleForMeta = query.name ? query.name + ' | Query details' : 'Query details';
-    let pageDescriptionForMeta = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
+    // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if policy.name or policy.description are missing.
+    let pageTitleForMeta = policy.name ? policy.name + ' | Policy details' : 'Policy details';
+    let pageDescriptionForMeta = policy.description ? policy.description : 'View more information about a policy in Fleet\'s standard query library';
     // Respond with view.
     return {
-      query,
-      queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
+      policy,
+      queryLibraryYmlRepoPath: sails.config.builtStaticContent.policyLibraryYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
       columnNamesForSyntaxHighlighting,

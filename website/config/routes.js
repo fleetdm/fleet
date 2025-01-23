@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Controls and policies',
-      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Queries',
+      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
@@ -69,7 +69,28 @@ module.exports.routes = {
     action: 'view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
-      // Note: this page's meta title and description are set in the page's view action
+    }
+  },
+
+  'GET /vitals/:slug': {
+    action: 'view-vital-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /policies': {
+    action: 'view-policy-library',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'Policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+    }
+  },
+  'GET /policies/:slug': {
+    action: 'view-policy-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
     }
   },
 
@@ -761,6 +782,7 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
   'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /vitals':                 '/vitals/battery',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet',

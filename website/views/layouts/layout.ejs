@@ -167,10 +167,12 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
-                    <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
-                    <a purpose="mobile-dropdown-link" href="/app-library">App library</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Guides</a>
+                    <a purpose="mobile-dropdown-link" href="/vitals">Vitals</a>
+                    <a purpose="mobile-dropdown-link" href="/queries">Queries</a>
+                    <a purpose="mobile-dropdown-link" href="/policies">Policies</a>
+                    <a purpose="mobile-dropdown-link" href="/app-library">Software</a>
+                    <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
                     <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
                     <span class="mt-2 mb-2">SUPPORT</span>
                     <div purpose="indented-mobile-links">
@@ -231,10 +233,12 @@
                   <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/docs">Get started</a>
-                    <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
-                    <a class="dropdown-item" href="/tables">Raw data</a>
-                    <a class="dropdown-item" href="/app-library">App library</a>
-                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Guides</a>
+                    <a class="dropdown-item" href="/vitals">Vitals</a>
+                    <a class="dropdown-item" href="/queries">Queries</a>
+                    <a class="dropdown-item" href="/policies">Policies</a>
+                    <a class="dropdown-item" href="/app-library">Software</a>
+                    <a class="dropdown-item" href="/tables">Data tables</a>
                     <a class="dropdown-item" href="/docs/rest-api">API</a>
                     <span class="muted dropdown-header">SUPPORT</span>
                     <a class="dropdown-item" href="/support">Chat</a>
@@ -501,6 +505,8 @@
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
+    <script src="/js/pages/policy-details.page.js"></script>
+    <script src="/js/pages/policy-library.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
@@ -515,6 +521,7 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

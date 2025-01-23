@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'View query detail',
+  friendlyName: 'View vital details',
 
 
-  description: 'Display "Query detail" page.',
+  description: 'Display "Vital details" page.',
 
 
   inputs: {
@@ -13,13 +13,9 @@ module.exports = {
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/query-detail' },
+    success: { viewTemplatePath: 'pages/vital-details' },
     notFound: { responseType: 'notFound' },
     badConfig: { responseType: 'badConfig' },
-    redirectToPolicy: {
-      description: 'The requesting user has been redirected to a policy page.',
-      responseType: 'redirect'
-    },
   },
 
 
@@ -27,25 +23,15 @@ module.exports = {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
       throw {badConfig: 'builtStaticContent.queries'};
-    } else if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.policies)) {
-      throw {badConfig: 'builtStaticContent.policies'};
     } else if (!_.isString(sails.config.builtStaticContent.queryLibraryYmlRepoPath)) {
       throw {badConfig: 'builtStaticContent.queryLibraryYmlRepoPath'};
     }
 
-    // Serve appropriate content for query.
+    // Serve appropriate content for vital.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
-    let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
-    if (!query) {
-      // If we didn't find a query matching this slug, check to see if there is a policy with a matching slug.
-      // Note: We do this because policies used to be on /queries/* pages. This way, all old URLs that policies used to live at will still bring users to the correct page.
-      let policyWithThisSlug = _.find(sails.config.builtStaticContent.policies, {kind: 'policy', slug: slug});
-      if(policyWithThisSlug){
-        // If we foudn a matchign policy, redirect the user.
-        throw {redirect: `/policies/${policyWithThisSlug.slug}`};
-      } else {
-        throw 'notFound';
-      }
+    let thisVital = _.find(sails.config.builtStaticContent.queries, { slug: slug });
+    if (!thisVital) {
+      throw 'notFound';
     }
 
     // Find the related osquery table documentation for tables used in this query, and grab the keywordsForSyntaxHighlighting from each table used.
@@ -54,8 +40,8 @@ module.exports = {
     });
     // Get all the osquery table names, we'll use this list to determine which tables are used.
     let allTableNames = _.pluck(allTablesInformation, 'title');
-    // Create an array of words in the query.
-    let queryWords = _.words(query.query, /[^ \n;]+/g);
+    // Create an array of words in the vital.
+    let queryWords = _.words(thisVital.query, /[^ \n;]+/g);
     let columnNamesForSyntaxHighlighting = [];
     let tableNamesForSyntaxHighlighting = [];
     // Get all of the words that appear in both arrays
@@ -70,13 +56,33 @@ module.exports = {
     // Remove the table names from the array of column names to highlight.
     columnNamesForSyntaxHighlighting = _.difference(columnNamesForSyntaxHighlighting, tableNamesForSyntaxHighlighting);
 
-
-    // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
-    let pageTitleForMeta = query.name ? query.name + ' | Query details' : 'Query details';
-    let pageDescriptionForMeta = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
+    // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if vital.name or vital.description are missing.
+    let pageTitleForMeta = thisVital.name ? thisVital.name + ' | Vital details' : 'Vital details';
+    let pageDescriptionForMeta = thisVital.description ? thisVital.description : 'Explore Fleet’s built-in queries for collecting and storing important device information.';
+    let vitals = _.where(sails.config.builtStaticContent.queries, {kind: 'built-in'});
+    let macOsVitals = _.filter(vitals, (vital)=>{
+      let platformsForThisPolicy = vital.platform.split(', ');
+      return _.includes(platformsForThisPolicy, 'darwin');
+    });
+    let windowsVitals = _.filter(vitals, (vital)=>{
+      let platformsForThisPolicy = vital.platform.split(', ');
+      return _.includes(platformsForThisPolicy, 'windows');
+    });
+    let linuxVitals = _.filter(vitals, (vital)=>{
+      let platformsForThisPolicy = vital.platform.split(', ');
+      return _.includes(platformsForThisPolicy, 'linux');
+    });
+    let chromeVitals = _.filter(vitals, (vital)=>{
+      let platformsForThisPolicy = vital.platform.split(', ');
+      return _.includes(platformsForThisPolicy, 'chrome');
+    });
     // Respond with view.
     return {
-      query,
+      thisVital,
+      macOsVitals,
+      windowsVitals,
+      linuxVitals,
+      chromeVitals,
       queryLibraryYmlRepoPath: sails.config.builtStaticContent.queryLibraryYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,

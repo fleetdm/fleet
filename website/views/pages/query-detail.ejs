@@ -4,7 +4,7 @@
       <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
         <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
           <div>
-            <a purpose="breadcrumbs-category" class="text-nowrap" href="/queries">Controls and policies</a>/
+            <a purpose="breadcrumbs-category" class="text-nowrap" href="/queries">Queries</a>/
           </div>
           <div purpose="breadcrumbs-title">
             <span><%- query.name %></span>
@@ -27,36 +27,17 @@
           </div>
         </div>
       </div>
-      <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
-        <div purpose="policy-details" class="d-flex flex-column">
-          <h2 purpose="policy-name"><%- query.name %></h2>
-          <div purpose="policy-attribution">
+      <div purpose="query-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="query-details" class="d-flex flex-column">
+          <h2 purpose="query-name"><%- query.name %></h2>
+          <div purpose="query-attribution">
             <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- query.contributors[0].handle %>.png?size=200">
-            <a purpose="policy-link" href="https://github.com/<%- query.contributors[0].handle %>" class="d-flex align-items-center">
+            <a purpose="query-link" href="https://github.com/<%- query.contributors[0].handle %>" class="d-flex align-items-center">
             <p purpose="contributor-profile-name" class="mb-0"><%= query.contributors[0].name %></p></a>
           </div>
-          <p purpose="policy-description"><%- query.description %></p>
-          <div purpose="policy-control" v-if="query.configuration_profile || query.script">
-            <h3>Control</h3>
-            <div v-if="query.configuration_profile">
-              <p>Create or edit a configuration profile with the following information:</p>
-              <div  purpose="codeblock">
-                <div purpose="copy-button"></div>
-                <pre><code class="nohighlight"><%= query.configuration_profile %></code></pre>
-              </div>
-            </div>
-
-            <div v-if="query.script">
-              <p>Create or edit the following script and configure it to run when the check fails:</p>
-              <div  purpose="codeblock">
-                <div purpose="copy-button"></div>
-                <pre><code class="nohighlight"><%= query.script %></code></pre>
-              </div>
-            </div>
-          </div>
-          <div purpose="policy-check">
-            <h3>Check</h3>
-            <p>Use the policy below to verify</p>
+          <p purpose="query-description"><%- query.description %></p>
+          <div purpose="query-check">
+            <p>To learn more about queries, <a href="/guides/queries">check this guide</a></p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
               <pre><code class="hljs sql"><%- query.query %></code></pre>
@@ -65,7 +46,7 @@
         </div>
         <div purpose="sidebar-container">
           <div purpose="right-sidebar" class="d-flex flex-column">
-            <div purpose="policy-platform">
+            <div purpose="query-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
                 <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
@@ -83,10 +64,8 @@
               </div>
             </div>
             <div purpose="docs-links" class="order-3">
-              <a href="/docs">Docs</a>
-              <a href="/docs/rest-api">REST API</a>
-              <a href="/guides">Guides</a>
-              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+              <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Talk to us</a>
             </div>
           </div>
         </div>

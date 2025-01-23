@@ -1,4 +1,4 @@
-parasails.registerPage('query-detail', {
+parasails.registerPage('policy-details', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -13,20 +13,21 @@ parasails.registerPage('query-detail', {
     //…
   },
   mounted: async function () {
-
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:queries']
-        },
-      });
-    }
+    // Note: Docsearch will be disabled on this page until a search index has been created for it.
+    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+    // if(this.algoliaPublicKey) {
+    //   docsearch({
+    //     appId: 'NZXAYZXDGH',
+    //     apiKey: this.algoliaPublicKey,
+    //     indexName: 'fleetdm',
+    //     container: '#docsearch-query',
+    //     placeholder: 'Search',
+    //     debug: false,
+    //     searchParameters: {
+    //       'facetFilters': ['section:queries']
+    //     },
+    //   });
+    // }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
@@ -46,7 +47,7 @@ parasails.registerPage('query-detail', {
       $('pre code').each((i, block) => {
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(tableName)||[]){
+          for(let match of block.innerHTML.match(tableName)|| []){
             tableNamesToHighlight.push(match);
           }
         }

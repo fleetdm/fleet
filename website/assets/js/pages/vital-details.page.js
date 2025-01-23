@@ -1,9 +1,11 @@
-parasails.registerPage('query-detail', {
+parasails.registerPage('vital-details', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     contributors: [],
+    selectedPlatform: 'macos', // Initially set to 'macos'
+    modal: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -13,20 +15,27 @@ parasails.registerPage('query-detail', {
     //…
   },
   mounted: async function () {
-
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:queries']
-        },
-      });
+    // Set the selected platform from the hash in the user's URL.
+    // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
+    if(['#macos','#linux','#windows','#chrome'].includes(window.location.hash)){
+      this.selectedPlatform = window.location.hash.split('#')[1];
     }
+
+    // Note: Docsearch will be disabled on this page until a search index has been created for it.
+    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
+    // if(this.algoliaPublicKey) {
+    //   docsearch({
+    //     appId: 'NZXAYZXDGH',
+    //     apiKey: this.algoliaPublicKey,
+    //     indexName: 'fleetdm',
+    //     container: '#docsearch-query',
+    //     placeholder: 'Search',
+    //     debug: false,
+    //     searchParameters: {
+    //       'facetFilters': ['section:queries']
+    //     },
+    //   });
+    // }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
@@ -93,6 +102,15 @@ parasails.registerPage('query-detail', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    clickSelectPlatform: function (platform) {
+      this.selectedPlatform = platform;
+    },
+    clickOpenTableOfContents: function () {
+      this.modal = 'table-of-contents';
+    },
+    closeModal: async function() {
+      this.modal = '';
+      await this.forceRender();
+    }
   },
 });
