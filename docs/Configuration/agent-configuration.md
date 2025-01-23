@@ -53,10 +53,10 @@ config:
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```
-osquery > SELECT name, value, description FROM osquery; 
+osquery > SELECT name, default_value, value, description FROM osquery_flags; 
 ```
 
-You can also run this query to verify that the latest settings have been applied to your hosts.
+> Running the interactive osquery shelll loads a standalone instance of osquery, with a default configuration rather than the one set in `Agent options`. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query through Fleet.
 
 > If you revoked an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
