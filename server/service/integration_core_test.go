@@ -4243,6 +4243,25 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
 
+	// add a host with the same name as another host to manual label 2, confirm only one host is added
+	sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		HardwareSerial: "ABCDE",
+		Hostname:       manualHosts[0].Hostname,
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
+	assert.Len(t, modResp.Label.HostIDs, 1)
+	assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 1, modResp.Label.HostCount)
+
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}
 	newName = "modified_manual_label2"
