@@ -355,10 +355,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, err
 	}
 
-	// Software ingestion is the currently most expensive operation on "distributed/write" for hosts.
-	//
-	// We do not use withRetryTxx on purpose for software ingestion to avoid a thundering herd issue during enrollment,
-	// where the retries due to deadlocks/wait-timeouts saturate the DB writer and make all of Fleet unresponsive overall.
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)

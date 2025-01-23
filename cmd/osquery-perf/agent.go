@@ -501,6 +501,7 @@ type agent struct {
 	softwareInstaller softwareInstaller
 
 	linuxUniqueSoftwareVersion bool
+	linuxUniqueSoftwareTitle   bool
 
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
 	installedSoftware sync.Map
@@ -589,6 +590,7 @@ func newAgent(
 	disableFleetDesktop bool,
 	loggerTLSMaxLines int,
 	linuxUniqueSoftwareVersion bool,
+	linuxUniqueSoftwareTitle bool,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -667,6 +669,7 @@ func newAgent(
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
+		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
 		macMDMClient: macMDMClient,
 		winMDMClient: winMDMClient,
@@ -2323,12 +2326,16 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			case "ubuntu":
 				results = make([]map[string]string, 0, len(ubuntuSoftware))
 				for _, s := range ubuntuSoftware {
+					softwareName := s["name"]
+					if a.linuxUniqueSoftwareTitle {
+						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
+					}
 					version := s["version"]
 					if a.linuxUniqueSoftwareVersion {
 						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
 					}
 					m := map[string]string{
-						"name":    s["name"],
+						"name":    softwareName,
 						"source":  s["source"],
 						"version": version,
 					}
@@ -2709,6 +2716,11 @@ func main() {
 		// This flag can be used to load test software ingestion for Linux during enrollment (during enrollment all devices
 		// report software to Fleet, so the initial reads/inserts can be expensive).
 		linuxUniqueSoftwareVersion = flag.Bool("linux_unique_software_version", false, "Make version of software items on linux hosts unique. WARNING: This will generate massive amounts of entries in the software table, because linux devices report many individual software items (compared to Windows/macOS).")
+		// WARNING: This will generate massive amounts of entries in the software and software_titles tables,
+		//
+		// This flag can be used to load test software ingestion for Linux during enrollment (during enrollment all devices
+		// report software to Fleet, so the initial reads/inserts can be expensive).
+		linuxUniqueSoftwareTitle = flag.Bool("linux_unique_software_title", false, "Make name of software items on linux hosts unique. WARNING: This will generate massive amounts of titles which is not realistic but serves to test performance of software ingestion when processing large number of titles.")
 
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
@@ -2910,6 +2922,7 @@ func main() {
 			*disableFleetDesktop,
 			*loggerTLSMaxLines,
 			*linuxUniqueSoftwareVersion,
+			*linuxUniqueSoftwareTitle,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
