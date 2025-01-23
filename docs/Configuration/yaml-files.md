@@ -349,6 +349,7 @@ Use `labels_include_any` to target hosts that have any label in the array or `la
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
 #### Example
@@ -361,6 +362,8 @@ install_script:
   path: ../lib/software/tailscale-install-script.ps1
 uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
+post_install_script:
+  path: ../lib/software/tailscale-config-script.ps1
 self_service: true
 ```
 
@@ -424,7 +427,7 @@ org_settings:
 
 ### org_info
 
-- `name` is the name of your organization (default: `""`)
+- `org_name` is the name of your organization (default: `""`)
 - `logo_url` is a public URL of the logo for your organization (default: Fleet logo).
 - `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
 - `contact_url` is a URL that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
