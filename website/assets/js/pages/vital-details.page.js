@@ -4,7 +4,7 @@ parasails.registerPage('vital-details', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     contributors: [],
-    selectedPlatform: 'macos', // Initially set to 'macos'
+    selectedPlatform: 'apple', // Initially set to 'macos'
     modal: '',
   },
 
@@ -17,7 +17,7 @@ parasails.registerPage('vital-details', {
   mounted: async function () {
     // Set the selected platform from the hash in the user's URL.
     // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
-    if(['#macos','#linux','#windows','#chrome'].includes(window.location.hash)){
+    if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
     }
 
@@ -103,7 +103,27 @@ parasails.registerPage('vital-details', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     clickSelectPlatform: function (platform) {
-      this.selectedPlatform = platform;
+      let platformToLookFor = platform;
+      if(platform === 'apple'){
+        platformToLookFor = 'darwin';
+      }
+      let currentVitalAvailableOnNewPlatform = this.thisVital.platform.includes(platformToLookFor);
+
+      if(!currentVitalAvailableOnNewPlatform){
+        if(platformToLookFor === 'chrome'){
+          this.goto('/vitals/'+this.chromeVitals[0].slug+'#chrome');
+        } else if(platformToLookFor === 'darwin') {
+          this.goto('/vitals/'+this.macOsVitals[0].slug+'#macos');
+        } else if(platformToLookFor === 'linux') {
+          this.goto('/vitals/'+this.linuxVitals[0].slug+'#linux');
+        } else if(platformToLookFor === 'windows') {
+          this.goto('/vitals/'+this.windowsVitals[0].slug+'#windows');
+        }
+      } else {
+        this.selectedPlatform = platform;
+
+      }
+
     },
     clickOpenTableOfContents: function () {
       this.modal = 'table-of-contents';
