@@ -1053,9 +1053,6 @@ func (ds *Datastore) LabelsByName(ctx context.Context, names []string) (map[stri
 	return result, nil
 }
 
-// AsyncBatchUpdateLabelMembership first clears the label_membership table of all label_id + host_id
-// tuples for the label_id, then inserts the batch of label_id + host_id tuples represented by the [2]uint array.
-
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the
 // batch of label_id + host_id tuples represented by the [2]uint array.
 func (ds *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
