@@ -1047,6 +1047,8 @@ type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, 
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
+type UpdateScriptContentsFunc func(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error)
+
 type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
 
 type GetScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
@@ -2746,6 +2748,9 @@ type DataStore struct {
 
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
+
+	UpdateScriptContentsFunc        UpdateScriptContentsFunc
+	UpdateScriptContentsFuncInvoked bool
 
 	ScriptFunc        ScriptFunc
 	ScriptFuncInvoked bool
@@ -6579,6 +6584,13 @@ func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet
 	s.NewScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewScriptFunc(ctx, script)
+}
+
+func (s *DataStore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.UpdateScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateScriptContentsFunc(ctx, scriptID, scriptContents)
 }
 
 func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
