@@ -258,7 +258,7 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
     prompt "Please check for errors in orbit logs that new TUF server is still unavailable (404s errors). Errors should be shown every 10s."
 
     echo "Checking version of orbit (to check device is responding even if TUF server is down)..."
-    for host_hostname in "${hostnames[@]}"; do
+    for host_hostname in "${all_hostnames[@]}"; do
         ORBIT_VERSION=""
         until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
             sleep 1
