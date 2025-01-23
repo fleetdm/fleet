@@ -1906,8 +1906,6 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "enable_gitops_mode": false,
-    "gitops_repo_url": "",
     "additional_queries": null
   }
 }
