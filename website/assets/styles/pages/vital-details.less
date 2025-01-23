@@ -474,12 +474,14 @@
 
     [purpose='modal-dialog'] {
       margin-left: 16px;
+      margin-top: 16px;
+      margin-bottom: 16px;
       [purpose='modal-content'] {
         display: flex;
-        height: calc(~'100vh - 72px');
+        height: calc(~'100vh - 32px');
         margin-top: 0px;
         max-width: 366px;
-        padding: 48px 24px 24px 24px;
+        padding: 48px 19px 24px 24px;
         flex-direction: column;
         align-items: flex-start;
         // gap: 24px;
@@ -492,6 +494,7 @@
           [purpose='vital-link'] {
             color: #515774;
             font-family: Inter;
+            margin-right: 5px;
             font-size: 14px;
             line-height: 150%;
             width: 100%;
@@ -561,6 +564,17 @@
         padding: 16px 24px 24px 24px;
         &.selected {
           padding: 16px 24px 22px 24px;
+        }
+      }
+    }
+    [parasails-component='modal'] {
+
+      [purpose='modal-dialog'] {
+        margin: 16px;
+        width: 100%;
+        max-width: calc(~'100% - 32px');
+        [purpose='modal-content'] {
+          max-width: 100%;
         }
       }
     }

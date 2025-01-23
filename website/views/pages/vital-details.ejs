@@ -24,7 +24,7 @@
         </div> -->
       </div>
       <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
-        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
           <p class="d-flex align-items-center">
           <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
           <span class="d-none d-md-inline">Apple</span>
@@ -51,11 +51,11 @@
       </div>
       <div purpose="vital-details-and-sidebar" class="d-flex flex-md-row flex-column">
         <div purpose="table-of-contents" class="d-md-flex d-none">
-          <div v-if="selectedPlatform === 'macos'">
+          <div v-if="selectedPlatform === 'apple'">
             <% // macOS policies (server-side-rendered)
               for(let vital of macOsVitals) {
             %>
-              <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#macos"><%- vital.name %></a>
+              <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#apple"><%- vital.name %></a>
             <% } %>
           </div>
           <div v-else-if="selectedPlatform === 'linux'">
@@ -112,11 +112,11 @@
   </div>
   <modal purpose="table-of-contents-modal" v-if="modal === 'table-of-contents'" @close="closeModal()">
     <p purpose="mobile-table-of-contents-header"><strong>Vitals</strong></p>
-      <div purpose="table-of-contents" v-if="selectedPlatform === 'macos'">
+      <div purpose="table-of-contents" v-if="selectedPlatform === 'apple'">
         <% // macOS policies (server-side-rendered)
           for(let vital of macOsVitals) {
         %>
-          <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#macos"><%- vital.name %></a>
+          <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#apple"><%- vital.name %></a>
         <% } %>
       </div>
       <div purpose="table-of-contents" v-else-if="selectedPlatform === 'linux'">
