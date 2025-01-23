@@ -1,2 +1,1 @@
-- Added retry logic to orbit's call to `POST /orbit/software_install/result` to avoid incorrectly
-  reporting a failure when the installation actually succeded (e.g. while installing Crowdstrike Falcon)
+- Added retry logic to orbit's call to `POST /orbit/software_install/result` to account for momentarily network failures causing an install to appear failed (e.g. when installing network extensions as part of an EDR)

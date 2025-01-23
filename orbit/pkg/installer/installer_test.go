@@ -419,7 +419,7 @@ func TestInstallerRun(t *testing.T) {
 	t.Run("failed results upload", func(t *testing.T) {
 		var retries int
 		// set a shorter interval to speed up tests
-		r.retryOpts = []retry.Option{retry.WithInterval(1 * time.Second), retry.WithMaxAttempts(5)}
+		r.retryOpts = []retry.Option{retry.WithInterval(250 * time.Millisecond), retry.WithMaxAttempts(5)}
 
 		testCases := []struct {
 			desc                    string

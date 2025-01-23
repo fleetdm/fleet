@@ -142,9 +142,11 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				continue
 			}
 		}
+		attemptNum := 1
 		err = retry.Do(func() error {
 			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				log.Debug().Err(err).Msg("failed to save installer result, attempting retry")
+				log.Debug().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				attemptNum++
 				return err
 			}
 			return nil
