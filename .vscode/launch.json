@@ -103,7 +103,7 @@
             ]
         },
         {
-            "name": "Jest Test Current File",
+            "name": "Jest: test current file",
             "type": "node",
             "request": "launch",
             "program": "${workspaceRoot}/node_modules/.bin/jest",
@@ -116,7 +116,7 @@
             "internalConsoleOptions": "neverOpen"
         },
         {
-            "name": "Jest Tests",
+            "name": "Jest: run all tests",
             "type": "node",
             "request": "launch",
             "program": "${workspaceRoot}/node_modules/.bin/jest",
