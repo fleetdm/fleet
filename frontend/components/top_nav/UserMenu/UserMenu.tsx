@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { keyframes } from "@emotion/react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
-  OptionProps,
   components,
+  DropdownIndicatorProps,
   GroupBase,
+  OptionProps,
+  StylesConfig,
 } from "react-select-5";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
@@ -38,7 +38,9 @@ const bounceDownAnimation = keyframes`
   }
 `;
 
-const getOptionBackgroundColor = (state: any) => {
+const getOptionBackgroundColor = (
+  state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
+) => {
   return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
@@ -225,14 +227,15 @@ const UserMenu = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "15px",
+      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      color: COLORS["tooltip-bg"], // TODO: Why the mismatch in names in colors.scss and colors.ts
+      color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-vibrant-blue-10"],
       },
       "&:active": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
+        backgroundColor: COLORS["ui-vibrant-blue-25"],
       },
       "&:last-child, &:nth-last-of-type(2)": {
         borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,

@@ -46,7 +46,7 @@ parasails.registerPage('query-detail', {
       $('pre code').each((i, block) => {
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(tableName+' ')||[]){
+          for(let match of block.innerHTML.match(tableName)||[]){
             tableNamesToHighlight.push(match);
           }
         }
@@ -54,7 +54,7 @@ parasails.registerPage('query-detail', {
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
-          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span> ');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span>');
         }
         $(block).html(replacementHMTL);
         let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -172,6 +173,13 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 	}
 
 	decoded.File = r.MultipartForm.File["token"][0]
+
+	id, err := uintFromRequest(r, "id")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
+	}
+
+	decoded.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return &decoded, nil
 }

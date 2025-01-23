@@ -33,7 +33,7 @@ parasails.registerPage('query-library', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickSelectPlatform(platform) {
+    clickSelectPlatform: function(platform) {
       this.selectedPlatform = platform;
     },
 

@@ -143,7 +143,16 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	for i, host := range hosts {
 		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
+
+		if req.Opts.PopulateLabels {
+			labels, err := svc.ListLabelsForHost(ctx, h.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID))
+			}
+			hostResponses[i].Labels = labels
+		}
 	}
+
 	return listHostsResponse{
 		Hosts:         hostResponses,
 		Software:      software,
@@ -225,6 +234,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
 			}
 			host.Policies = &hp
+		}
+	}
+
+	if opt.PopulateUsers {
+		for _, host := range hosts {
+			hu, err := svc.ds.ListHostUsers(ctx, host.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID))
+			}
+			host.Users = hu
 		}
 	}
 
@@ -1945,6 +1964,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		hostResps[i] = hr
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
+}
+
+func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	return svc.ds.ListLabelsForHost(ctx, hostID)
 }
 
 type osVersionsRequest struct {

@@ -34,6 +34,8 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.queries'};
     } else if (!_.isArray(sails.config.builtStaticContent.markdownPages)) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
+    } else if (!_.isArray(sails.config.builtStaticContent.policies)) {
+      throw {badConfig: 'builtStaticContent.policies'};
     }
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
@@ -79,8 +81,17 @@ module.exports = {
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╦═╗   ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝║╣ ╠╦╝───║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝╠═╣║ ╦║╣ ╚═╗
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╚═╝╩╚═   ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╩ ╩╚═╝╚═╝╚═╝
-    for (let query of sails.config.builtStaticContent.queries) {
+    let vitals = _.where(sails.config.builtStaticContent.queries, {kind: 'built-in'});
+    let queries = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
+    let policies = _.where(sails.config.builtStaticContent.policies, {kind: 'policy'});
+    for (let query of queries) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let query of vitals) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/vitals/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let query of policies) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/policies/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╦═╗╔═╗╔╦╗  ╔╦╗╔═╗╦═╗╦╔═╔╦╗╔═╗╦ ╦╔╗╔
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║

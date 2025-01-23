@@ -1405,6 +1405,10 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 }
 
 func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint, fieldName, fileName string, data []byte, expectedStatus int, wantErr string, response any) {
+	s.uploadDataViaFormWithVerb(endpoint, "POST", fieldName, fileName, data, expectedStatus, wantErr, response)
+}
+
+func (s *integrationMDMTestSuite) uploadDataViaFormWithVerb(endpoint, verb, fieldName, fileName string, data []byte, expectedStatus int, wantErr string, response any) {
 	t := s.T()
 
 	var b bytes.Buffer
@@ -1424,7 +1428,7 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint, fieldName, fileNam
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", endpoint, b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders(verb, endpoint, b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)
@@ -1763,7 +1767,7 @@ func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// set the status as non-decryptable so a notification should be sent
-	err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "", ptr.Bool(false))
+	err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "", ptr.Bool(false))
 	require.NoError(t, err)
 
 	// notification is false because the escrow buddy capability is not set
@@ -1909,7 +1913,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey, "", nil)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64EncryptedKey, "", nil)
 	require.NoError(t, err)
 
 	// get that host - it has an encryption key with unknown decryptability, so
@@ -2123,7 +2127,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	encryptedKey, err := microsoft_mdm.Encrypt(recoveryKey, cert.Leaf)
 	require.NoError(t, err)
 
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedKey, "", ptr.Bool(true))
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedKey, "", ptr.Bool(true))
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
@@ -2134,7 +2138,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
 
 	// update the key to blank with a client error
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "failed", nil)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
@@ -2310,7 +2314,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 			})
 			require.NoError(t, err)
 			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key", "", nil)
+			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", nil)
 			require.NoError(t, err)
 			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
 			require.NoError(t, err)
@@ -7557,7 +7561,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
 	require.NoError(t, err)
 	checkNotification(true)
 
@@ -7605,7 +7609,7 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	checkNotification(true)
 
 	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost, "test-key", "", nil)
 	require.NoError(t, err)
 	checkNotification(true)
 
@@ -10907,6 +10911,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.", nil)
+	// Attempt to renew an invalid (nonexistent) token, should fail
+	s.uploadDataViaFormWithVerb("/api/latest/fleet/vpp_tokens/999/renew", "PATCH", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte("foobar"))), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.", nil)
 
 	// Simulate a server error from the Apple API
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
@@ -10924,6 +10930,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
 	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
+
+	// Renew valid token
+	expTime = expTime.Add(24 * time.Hour).UTC().Round(time.Second)
+	expDate = expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	s.uploadDataViaFormWithVerb(fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/renew", validToken.Token.ID), "PATCH", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+	// Valid token bytes, but non-existent token ID. Should get not found
+	s.uploadDataViaFormWithVerb("/api/latest/fleet/vpp_tokens/999/renew", "PATCH", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusNotFound, "VPPToken was not found in the datastore", nil)
 
 	// Get the token
 	var resp getVPPTokensResponse

@@ -36,16 +36,147 @@ module.exports = {
     }//ﬁ
 
     await sails.helpers.flow.simultaneously([
-      async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
-        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
+      async()=>{// Parse queries.yml library (Informational queries and host vital queries) from YAML and prepare to bake them into the Sails app's configuration.
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
 
-        let queriesWithProblematicResolutions = [];
+        let queriesWithProblematicDiscovery = [];
         let queriesWithProblematicContributors = [];
         let queriesWithProblematicTags = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
+          query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+          // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
+          query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)|\(Chrome\)|\(macOS\/Linux\)$/, '');
+          if ((query.discovery !== undefined && !_.isString(query.discovery)) || (query.kind !== 'built-in' && _.isString(query.discovery))) {
+            queriesWithProblematicDiscovery.push(query);
+          }
+
+          if (query.tags) {
+            if(!_.isString(query.tags)) {
+              queriesWithProblematicTags.push(query);
+            } else {
+              // Splitting tags into an array to format them.
+              let tagsToFormat = query.tags.split(',');
+              let formattedTags = [];
+              for (let tag of tagsToFormat) {
+                if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                  // Removing any extra whitespace from tags and changing them to be in lower case.
+                  formattedTags.push(_.trim(tag.toLowerCase()));
+                }
+              }
+              // Removing any duplicate tags.
+              query.tags = _.uniq(formattedTags);
+            }
+          } else {
+            query.tags = []; // « if there are no tags, we set query.tags to an empty array so it is always the same data type.
+          }
+
+          // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+          if(query.kind !== 'built-in') {// Note: queries with kind: built-in do not have a contributors value.
+            if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors)) || query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+              queriesWithProblematicContributors.push(query);
+            }
+          }
+
+          return query;
+        });
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicDiscovery.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "discovery" of a query should either be absent (undefined) or a single string (not a list of strings).  And "discovery" should only be present when a query\'s kind is "built-in".  But one or more queries have an invalid "discovery": ' + _.pluck(queriesWithProblematicDiscovery, 'slug').sort());
+        }//•
+        if (queriesWithProblematicTags.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
+        }
+        // Assert uniqueness of slugs.
+        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        }//•
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicContributors.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "contributors" of a query should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+        }//•
+
+        // Get a distinct list of all GitHub usernames from all of our queries.
+        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        const githubUsernames = queries.reduce((list, query) => {
+          if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug) && query.kind !== 'built-in') {
+            list = _.union(list, query.contributors.split(','));
+          }
+          return list;
+        }, []);
+
+        let githubDataByUsername = {};
+
+        // If a GitHub access token was provided, validate all users listed in the standard query library YAML.
+        if(githubAccessToken) {
+          await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+            githubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: baseHeadersForGithubRequests,
+            }).intercept((err)=>{
+              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err.stack}`);
+            });
+          });//∞
+          // Now expand queries with relevant profile data for the contributors.
+          for (let query of queries) {
+            // Skip built-in queries.
+            if(query.kind === 'built-in'){
+              continue;
+            }
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: githubDataByUsername[username].name,
+                handle: githubDataByUsername[username].login,
+                avatarUrl: githubDataByUsername[username].avatar_url,
+                htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
+          for (let query of queries) {
+            // Skip host vital queries.
+            if(query.kind === 'built-in'){
+              continue;
+            }
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        }//ﬁ
+
+        // Attach to what will become configuration for the Sails app.
+        builtStaticContent.queries = queries;
+        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
+      },
+      async()=>{
+        // Parse query library from YAML and prepare to bake the policies into the Sails app's configuration.
+        // Note: we will only be using the policies from the standard query library YAML.
+        let RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
+        // let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let queriesWithProblematicResolutions = [];
+        let queriesWithProblematicContributors = [];
+        let queriesWithProblematicTags = [];
+        let policies = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
+          let query = yamlDocument.toJSON().spec;
+          query.kind = yamlDocument.toJSON().kind;
+          // If this query is not a policy, we will skip it and return undefined.
+          if(query.kind === 'query'){
+            return undefined;
+          }
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
@@ -89,6 +220,9 @@ module.exports = {
           }
 
           return query;
+        }).filter((query)=>{
+          // Remove all queries we previously returned undefined for. Otherwise, they will cause the validation to always fail.
+          return query !== undefined;
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (queriesWithProblematicResolutions.length >= 1) {
@@ -98,8 +232,8 @@ module.exports = {
           throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
         }
         // Assert uniqueness of slugs.
-        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
-          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        if (policies.length !== _.uniq(_.pluck(policies, 'slug')).length) {
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(policies, 'slug').sort());
         }//•
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (queriesWithProblematicContributors.length >= 1) {
@@ -108,7 +242,7 @@ module.exports = {
 
         // Get a distinct list of all GitHub usernames from all of our queries.
         // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
-        const githubUsernames = queries.reduce((list, query) => {
+        const githubUsernames = policies.reduce((list, query) => {
           if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug)) {
             list = _.union(list, query.contributors.split(','));
           }
@@ -128,7 +262,7 @@ module.exports = {
             });
           });//∞
           // Now expand queries with relevant profile data for the contributors.
-          for (let query of queries) {
+          for (let query of policies) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
             for (let username of usernames) {
@@ -142,7 +276,7 @@ module.exports = {
             query.contributors = contributorProfiles;
           }
         } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
-          for (let query of queries) {
+          for (let query of policies) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
             for (let username of usernames) {
@@ -158,8 +292,8 @@ module.exports = {
         }//ﬁ
 
         // Attach to what will become configuration for the Sails app.
-        builtStaticContent.queries = queries;
-        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
+        builtStaticContent.policies = policies;
+        builtStaticContent.policyLibraryYmlRepoPath = RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';

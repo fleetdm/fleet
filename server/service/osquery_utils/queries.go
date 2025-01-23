@@ -2068,7 +2068,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
 	}
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -2127,7 +2127,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(
