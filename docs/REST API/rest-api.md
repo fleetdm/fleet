@@ -834,11 +834,13 @@ None.
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0
   },
+  "gitops_settings": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
+  },
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "enable_gitops_mode": false,
-    "gitops_repo_url": "",
     "additional_queries": null
   },
   "mdm": {
@@ -1053,6 +1055,7 @@ Modifies the Fleet's configuration with the supplied information.
 | sso_settings             | object  | body  | See [sso_settings](#sso-settings).                                                                                                   |
 | host_expiry_settings     | object  | body  | See [host_expiry_settings](#host-expiry-settings).                                                                                   |
 | activity_expiry_settings | object  | body  | See [activity_expiry_settings](#activity-expiry-settings).                                                                           |
+| gitops_settings | object  | body  | See [gitops_settings](#gitops-settings).                                                                           |
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
@@ -1129,11 +1132,13 @@ Modifies the Fleet's configuration with the supplied information.
     "activity_expiry_enabled": false,
     "activity_expiry_window": 0
   },
+  "gitops_settings": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
+  },
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "enable_gitops_mode": false,
-    "gitops_repo_url": "",
     "additional_queries": null
   },
   "license": {
@@ -1458,6 +1463,26 @@ Modifies the Fleet's configuration with the supplied information.
   "activity_expiry_settings": {
     "activity_expiry_enabled": true,
     "activity_expiry_window": 90
+  }
+}
+```
+
+#### gitops_settings
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| gitops_mode_enabled               | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
+| repository_url                     | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "gitops_settings": {
+    "gitops_mode_enabled": true,
+    "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
   }
 }
 ```
@@ -1870,8 +1895,6 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| enable_gitops_mode                | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
-| gitops_repo_url                   | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
 | additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
 
 <br/>
