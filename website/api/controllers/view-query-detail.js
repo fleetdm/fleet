@@ -35,7 +35,7 @@ module.exports = {
 
     // Serve appropriate content for query.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
-    let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
+    let query = _.find(sails.config.builtStaticContent.queries, {kind: 'query', slug: slug });
     if (!query) {
       // If we didn't find a query matching this slug, check to see if there is a policy with a matching slug.
       // Note: We do this because policies used to be on /queries/* pages. This way, all old URLs that policies used to live at will still bring users to the correct page.
