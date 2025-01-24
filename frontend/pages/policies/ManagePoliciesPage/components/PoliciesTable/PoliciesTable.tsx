@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
-import { ITeamSummary } from "interfaces/team";
+import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
@@ -62,7 +62,10 @@ const PoliciesTable = ({
       "Add policies to detect device health issues and trigger automations.",
   };
 
-  if (currentTeam?.id === null || currentTeam?.id === -1) {
+  if (
+    currentTeam?.id === null ||
+    currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+  ) {
     emptyState.header += " that apply to all teams";
   } else {
     emptyState.header += " that apply to this team";

@@ -22,8 +22,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
@@ -54,8 +53,7 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: 1, name: "Some team" }}
         isPremiumTier
         searchQuery=""
