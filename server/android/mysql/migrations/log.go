@@ -1,4 +1,4 @@
-package feature_migrations
+package migrations
 
 import (
 	"log"

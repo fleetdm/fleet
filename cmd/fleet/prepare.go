@@ -86,6 +86,7 @@ To setup Fleet infrastructure, use one of the available commands.
 				}
 			}
 
+			// TODO(victor): Refactor this check to be more DRY
 			featureStatus, err := ds.FeatureMigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving feature migration status")

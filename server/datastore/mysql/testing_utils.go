@@ -370,11 +370,6 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 		t.Error(err)
 		t.FailNow()
 	}
-	featureSchema, err := os.ReadFile(path.Join(base, "..", "..", "feature", "mysql", "schema.sql"))
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
 
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.
@@ -385,8 +380,8 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
 		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s; %s;",
-			dbName, dbName, dbName, schema, featureSchema,
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			dbName, dbName, dbName, schema,
 		)
 
 		cmd := exec.Command(
@@ -406,8 +401,8 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	if opts.RealReplica {
 		// Load schema from dumpfile
 		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s; %s;",
-			testName, testName, testName, schema, featureSchema,
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			testName, testName, testName, schema,
 		)
 
 		cmd := exec.Command(

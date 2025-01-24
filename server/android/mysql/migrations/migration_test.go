@@ -16,7 +16,7 @@
 //
 //		// insert testing data, verify migration.
 //	}
-package feature_migrations
+package migrations
 
 import (
 	"fmt"
