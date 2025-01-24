@@ -11,6 +11,7 @@ describe("FleetAppDetailsModal", () => {
     platform: "macOS",
     version: "1.0.0",
     url: "https://example.com/app",
+    onCancel: noop,
   };
 
   it("renders modal with correct title", () => {
