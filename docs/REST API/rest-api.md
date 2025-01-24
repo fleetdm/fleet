@@ -3468,7 +3468,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -3519,7 +3519,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
