@@ -119,6 +119,14 @@ parasails.registerPage('osquery-table-details', {
       let tablePartialHeight = $('[purpose="table-container"]').height();
       $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
     })();
+    // 5 ms after the page loads, scroll the table of contents to the currently active link.
+    await setTimeout(()=>{
+      let activeTableLink = $('[purpose="table-of-contents-link"].active')[0];
+      if(activeTableLink) {
+        $('[purpose="table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop - 12;
+      }
+      // Note: we're running this code after a 5ms delay to make sure the tables have been filtered, otherwise it will scroll the table of contents to the links posiiton in the full list of tables.
+    }, 5);
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
