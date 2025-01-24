@@ -1468,7 +1468,7 @@ const ManageHostsPage = ({
           className={`${baseClass}__status-filter`}
           options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          tableFilter
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}

@@ -240,7 +240,7 @@ const SoftwareOSTable = ({
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
-        tableFilter
+        variant="table-filter"
       />
     );
   };

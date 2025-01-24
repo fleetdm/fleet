@@ -63,9 +63,10 @@ export interface IDropdownWrapper {
   placeholder?: string;
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
-  /** Table filter dropdowns have filter icon and height: 40px  */
-  tableFilter?: boolean;
-  variant?: "button";
+  /** Table filter dropdowns have filter icon and height: 40px
+   *  Button dropdowns have hover/active state, padding, height like actual buttons
+   */
+  variant?: "table-filter" | "button";
   nowrapMenu?: boolean;
 }
 
@@ -87,12 +88,11 @@ const DropdownWrapper = ({
   iconName,
   placeholder,
   onMenuOpen,
-  tableFilter = false,
   variant,
   nowrapMenu,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
-    [`${baseClass}__table-filter`]: tableFilter,
+    [`${baseClass}__table-filter`]: variant === "table-filter",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
@@ -169,7 +169,8 @@ const DropdownWrapper = ({
     children,
     ...props
   }: ValueContainerProps<CustomOptionType, false>) => {
-    const iconToDisplay = iconName || (tableFilter ? "filter" : null);
+    const iconToDisplay =
+      iconName || (variant === "table-filter" ? "filter" : null);
 
     return (
       components.ValueContainer && (
@@ -238,6 +239,7 @@ const DropdownWrapper = ({
               transition: "transform 0.25s ease",
             },
           }),
+          ...(variant === "button" && { height: "22px" }),
         };
 
       return {
@@ -316,7 +318,7 @@ const DropdownWrapper = ({
         fontWeight: "bold",
         lineHeight: "normal",
         paddingLeft: 0,
-        marginTop: "1px",
+        marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
       };
 
       return {
@@ -345,7 +347,7 @@ const DropdownWrapper = ({
       zIndex: 6,
       overflow: "hidden",
       border: 0,
-      marginTop: variant === "button" ? "7px" : 0,
+      marginTop: variant === "button" ? "3px" : 0,
       left: 0,
       maxHeight: "none",
       position: "absolute",
