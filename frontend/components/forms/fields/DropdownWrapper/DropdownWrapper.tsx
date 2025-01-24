@@ -66,6 +66,7 @@ export interface IDropdownWrapper {
   /** Table filter dropdowns have filter icon and height: 40px  */
   tableFilter?: boolean;
   variant?: "button";
+  nowrapMenu?: boolean;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -88,6 +89,7 @@ const DropdownWrapper = ({
   onMenuOpen,
   tableFilter = false,
   variant,
+  nowrapMenu,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: tableFilter,
@@ -186,8 +188,9 @@ const DropdownWrapper = ({
       const buttonVariantContainer = {
         borderRadius: "6px",
         "&:active": {
-          backgroundColor: "rgba(25, 33, 71, 0.05)", // confirm
+          backgroundColor: "rgba(25, 33, 71, 0.05)",
         },
+        height: "38px",
       };
 
       return {
@@ -206,7 +209,7 @@ const DropdownWrapper = ({
           display: "flex",
           flexDirection: "row",
           width: "max-content",
-          padding: PADDING["pad-small"], // configrm
+          padding: PADDING["pad-small"],
           border: 0,
           borderRadius: "6px",
           boxShadow: "none",
@@ -343,15 +346,21 @@ const DropdownWrapper = ({
       overflow: "hidden",
       border: 0,
       marginTop: 0,
+      left: 0,
       maxHeight: "none",
       position: "absolute",
-      left: "0",
       animation: "fade-in 150ms ease-out",
+      ...(nowrapMenu && {
+        width: "fit-content",
+        left: "auto",
+        right: "0",
+      }),
     }),
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
       maxHeight: "none",
+      ...(nowrapMenu && { width: "fit-content" }),
     }),
     valueContainer: (provided) => ({
       ...provided,
@@ -389,11 +398,15 @@ const DropdownWrapper = ({
         flexDirection: "column",
         gap: "8px",
         width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
       },
       ".dropdown-wrapper__help-text": {
         fontSize: "12px",
-        whiteSpace: "normal",
-        color: COLORS["ui-fleet-black-75"],
+        width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
+        color: state.isDisabled
+          ? COLORS["ui-fleet-black-50"]
+          : COLORS["ui-fleet-black-75"],
         fontStyle: "italic",
         fontWeight: "normal",
       },

@@ -1028,6 +1028,7 @@ const ManagePolicyPage = ({
                     placeholder="Manage automations"
                     options={getAutomationsDropdownOptions(!!automationsConfig)}
                     variant="button"
+                    nowrapMenu
                   />
                 </div>
               )}
