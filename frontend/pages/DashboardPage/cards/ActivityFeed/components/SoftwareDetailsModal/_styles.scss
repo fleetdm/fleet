@@ -3,6 +3,7 @@
     display: flex;
     column-gap: $pad-xxlarge;
     row-gap: $pad-xlarge;
+    flex-wrap: wrap;
   }
 
   .react-tooltip {
