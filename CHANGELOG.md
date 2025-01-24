@@ -1,3 +1,14 @@
+## Fleet 4.62.3 (Jan 24, 2025)
+
+### Bug fixes
+
+* Fixed issue verifying Windows CSP profiles that contain ADMX policies.
+* Archived disk encryption keys when they were created or updated. They were never fully deleted from the database.
+* Fixed issue where some Windows MDM profiles were not sent to hosts when hosts came back online.
+* Removed the resend button for failed Windows disk encryption profiles and added messaging that tells the user that Fleet will automatically retry the profile again.
+* Fixed bug where iOS devices were being removed prematurely by expiration policy.
+* Removed request timeout on bootstrap package uploads for consistency with software package upload endpoints.
+
 ## Fleet 4.62.2 (Jan 17, 2025)
 
 ### Bug fixes
