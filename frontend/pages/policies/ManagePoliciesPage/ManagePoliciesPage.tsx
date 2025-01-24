@@ -157,12 +157,12 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
-  // the purpose of this state is to trigger TableContainer a
-  // couple generations down to reset its internal page state to 0, via an effect there that watches
+  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
   // this prop.
 
   // Therefore, this should always be a) set to true in conjunction with changing all page-related state
-  // at this level, and b) immediately set to `false` after it is set to true.
+  // at this level, and b) set back to `false` AFTER that effect has run. If immediately set back to
+  // false, that effect will not see a change and so won't run.
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
