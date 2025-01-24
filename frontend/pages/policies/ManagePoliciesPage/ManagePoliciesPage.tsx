@@ -411,9 +411,11 @@ const ManagePolicyPage = ({
           pageIndex: 0,
         } as ITableQueryData)
     );
-    // TableContainer effect is triggered by this state change, resetting its local page state to 0
+    // change in state triggers effect in TableContainer (see comment above this state definition)
     setResetPageIndex(true);
-    setResetPageIndex(false);
+    // timeout ensures effect in TableContainer runs before setting it back to false here. Without
+    // timeout, the effect doesn't see a change.
+    setTimeout(() => setResetPageIndex(false), 1);
     // TODO - improve this system for handling page index reset
   };
 
