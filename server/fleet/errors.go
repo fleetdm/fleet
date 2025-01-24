@@ -63,6 +63,14 @@ type ErrWithRetryAfter interface {
 	RetryAfter() int
 }
 
+// ErrWithIsServerError is an interface for errors that explicitly specify
+// whether they are server errors or not. By default, errors are treated as
+// server errors.
+type ErrWithIsServerError interface {
+	error
+	IsServerError() bool
+}
+
 type invalidArgWithStatusError struct {
 	InvalidArgumentError
 	code int
@@ -102,7 +110,7 @@ func (e *ErrorWithUUID) UUID() string {
 }
 
 // InvalidArgumentError is the error returned when invalid data is presented to
-// a service method.
+// a service method. It is a client error.
 type InvalidArgumentError struct {
 	Errors []InvalidArgument
 
@@ -121,6 +129,10 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	var invalid InvalidArgumentError
 	invalid.Append(name, reason)
 	return &invalid
+}
+
+func (e InvalidArgumentError) IsServerError() bool {
+	return false
 }
 
 func (e *InvalidArgumentError) Append(name, reason string) {
