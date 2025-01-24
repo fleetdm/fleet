@@ -47,7 +47,6 @@ interface IFleetAppSummaryProps {
   name: string;
   platform: string;
   version: string;
-  url: string;
   onClickShowAppDetails: (event: MouseEvent) => void;
 }
 
@@ -55,7 +54,6 @@ const FleetAppSummary = ({
   name,
   platform,
   version,
-  url,
   onClickShowAppDetails,
 }: IFleetAppSummaryProps) => {
   return (
@@ -291,7 +289,6 @@ const FleetMaintainedAppDetailsPage = ({
               name={fleetApp.name}
               platform={fleetApp.platform}
               version={fleetApp.version}
-              url={fleetApp.url || "http://www.fakeurl.com"}
               onClickShowAppDetails={onClickShowAppDetails}
             />
             <FleetAppDetailsForm
