@@ -25,12 +25,14 @@ import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Card from "components/Card";
-
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
+
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
+import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
 import {
   getErrorMessage,
@@ -41,34 +43,50 @@ import {
 
 const baseClass = "fleet-maintained-app-details-page";
 
-interface ISoftwareSummaryProps {
+interface IFleetAppSummaryProps {
   name: string;
   platform: string;
   version: string;
+  url: string;
+  onClickShowAppDetails: (event: MouseEvent) => void;
 }
 
 const FleetAppSummary = ({
   name,
   platform,
   version,
-}: ISoftwareSummaryProps) => {
+  url,
+  onClickShowAppDetails,
+}: IFleetAppSummaryProps) => {
   return (
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
+      color="gray"
     >
-      <SoftwareIcon name={name} size="medium" />
-      <div className={`${baseClass}__fleet-app-summary--details`}>
-        <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
-        <div className={`${baseClass}__fleet-app-summary--info`}>
-          <div className={`${baseClass}__fleet-app-summary--details--platform`}>
-            {PLATFORM_DISPLAY_NAMES[platform as Platform]}
-          </div>
-          &bull;
-          <div className={`${baseClass}__fleet-app-summary--details--version`}>
-            {version}
+      <div className={`${baseClass}__fleet-app-summary--left`}>
+        <SoftwareIcon name={name} size="medium" />
+        <div className={`${baseClass}__fleet-app-summary--details`}>
+          <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
+          <div className={`${baseClass}__fleet-app-summary--info`}>
+            <div
+              className={`${baseClass}__fleet-app-summary--details--platform`}
+            >
+              {PLATFORM_DISPLAY_NAMES[platform as Platform]}
+            </div>
+            &bull;
+            <div
+              className={`${baseClass}__fleet-app-summary--details--version`}
+            >
+              {version}
+            </div>
           </div>
         </div>
+      </div>
+      <div className={`${baseClass}__fleet-app-summary--show-details`}>
+        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+          <Icon name="info" /> Show details
+        </Button>
       </div>
     </Card>
   );
@@ -116,6 +134,7 @@ const FleetMaintainedAppDetailsPage = ({
     showAddFleetAppSoftwareModal,
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
+  const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
 
   const {
     data: fleetApp,
@@ -150,6 +169,10 @@ const FleetMaintainedAppDetailsPage = ({
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
+  };
+
+  const onClickShowAppDetails = () => {
+    setShowAppDetailsModal(true);
   };
 
   const backToAddSoftwareUrl = `${
@@ -268,6 +291,8 @@ const FleetMaintainedAppDetailsPage = ({
               name={fleetApp.name}
               platform={fleetApp.platform}
               version={fleetApp.version}
+              url={fleetApp.url || "http://www.fakeurl.com"}
+              onClickShowAppDetails={onClickShowAppDetails}
             />
             <FleetAppDetailsForm
               labels={labels || []}
@@ -304,6 +329,14 @@ const FleetMaintainedAppDetailsPage = ({
         </SidePanelContent>
       )}
       {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
+      {showAppDetailsModal && fleetApp && (
+        <FleetAppDetailsModal
+          name={fleetApp.name}
+          platform={fleetApp.platform}
+          version={fleetApp.version}
+          url={fleetApp.url}
+        />
+      )}
     </>
   );
 };
