@@ -16,6 +16,7 @@ func Up_20250101000000(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to create feature_sample table: %w", err)
 	}
+	logger.Info.Println("Done with sample migration.")
 	return nil
 }
 
