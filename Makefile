@@ -142,6 +142,7 @@ lint: lint-go lint-js
 
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
+	go run ./tools/dbutils/feature ./server/feature/mysql/schema.sql
 
 
 # This is the base command to run Go tests.
