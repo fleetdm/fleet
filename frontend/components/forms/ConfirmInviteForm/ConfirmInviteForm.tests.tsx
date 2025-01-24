@@ -7,12 +7,14 @@ import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 
 describe("ConfirmInviteForm - component", () => {
   const handleSubmitSpy = jest.fn();
-  const inviteToken = "abc123";
-  const formData = { invite_token: inviteToken };
+  const defaultFormData = { name: "Test User" };
 
   it("renders", () => {
     render(
-      <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      <ConfirmInviteForm
+        defaultFormData={defaultFormData}
+        handleSubmit={handleSubmitSpy}
+      />
     );
     expect(
       screen.getByRole("textbox", { name: "Full name" })
@@ -26,7 +28,7 @@ describe("ConfirmInviteForm - component", () => {
     const baseError = "Unable to authenticate the current user";
     render(
       <ConfirmInviteForm
-        serverErrors={{ base: baseError }}
+        ancestorError={baseError}
         handleSubmit={handleSubmitSpy}
       />
     );
@@ -34,22 +36,20 @@ describe("ConfirmInviteForm - component", () => {
     expect(screen.getByText(baseError)).toBeInTheDocument();
   });
 
-  it("calls the handleSubmit prop with the invite_token when valid", async () => {
+  it("calls the handleSubmit prop when valid", async () => {
     const { user } = renderWithSetup(
-      <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      <ConfirmInviteForm
+        defaultFormData={defaultFormData}
+        handleSubmit={handleSubmitSpy}
+      />
     );
 
-    await user.type(
-      screen.getByRole("textbox", { name: "Full name" }),
-      "Gnar Dog"
-    );
     await user.type(screen.getByLabelText("Password"), "p@ssw0rd");
     await user.type(screen.getByLabelText("Confirm password"), "p@ssw0rd");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(handleSubmitSpy).toHaveBeenCalledWith({
-      ...formData,
-      name: "Gnar Dog",
+      ...defaultFormData,
       password: "p@ssw0rd",
       password_confirmation: "p@ssw0rd",
     });
@@ -58,7 +58,10 @@ describe("ConfirmInviteForm - component", () => {
   describe("name input", () => {
     it("validates the field must be present", async () => {
       const { user } = renderWithSetup(
-        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+        <ConfirmInviteForm
+          defaultFormData={{ ...defaultFormData, ...{ name: "" } }}
+          handleSubmit={handleSubmitSpy}
+        />
       );
 
       await user.click(screen.getByRole("button", { name: "Submit" }));
@@ -72,7 +75,10 @@ describe("ConfirmInviteForm - component", () => {
   describe("password input", () => {
     it("validates the field must be present", async () => {
       const { user } = renderWithSetup(
-        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+        <ConfirmInviteForm
+          defaultFormData={defaultFormData}
+          handleSubmit={handleSubmitSpy}
+        />
       );
 
       await user.click(screen.getByRole("button", { name: "Submit" }));
@@ -86,7 +92,10 @@ describe("ConfirmInviteForm - component", () => {
   describe("password_confirmation input", () => {
     it("validates the password_confirmation matches the password", async () => {
       const { user } = renderWithSetup(
-        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+        <ConfirmInviteForm
+          defaultFormData={defaultFormData}
+          handleSubmit={handleSubmitSpy}
+        />
       );
 
       await user.type(screen.getByLabelText("Password"), "p@ssw0rd");
@@ -104,7 +113,10 @@ describe("ConfirmInviteForm - component", () => {
 
     it("validates the field must be present", async () => {
       const { user } = renderWithSetup(
-        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+        <ConfirmInviteForm
+          defaultFormData={defaultFormData}
+          handleSubmit={handleSubmitSpy}
+        />
       );
 
       await user.click(screen.getByRole("button", { name: "Submit" }));

@@ -15,19 +15,19 @@ parasails.registerPage('policy-details', {
   mounted: async function () {
     // Note: Docsearch will be disabled on this page until a search index has been created for it.
     // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-    // if(this.algoliaPublicKey) {
-    //   docsearch({
-    //     appId: 'NZXAYZXDGH',
-    //     apiKey: this.algoliaPublicKey,
-    //     indexName: 'fleetdm',
-    //     container: '#docsearch-query',
-    //     placeholder: 'Search',
-    //     debug: false,
-    //     searchParameters: {
-    //       'facetFilters': ['section:queries']
-    //     },
-    //   });
-    // }
+    if(this.algoliaPublicKey) {
+      docsearch({
+        appId: 'NZXAYZXDGH',
+        apiKey: this.algoliaPublicKey,
+        indexName: 'fleetdm',
+        container: '#docsearch-query',
+        placeholder: 'Search',
+        debug: false,
+        searchParameters: {
+          'facetFilters': ['section:policies']
+        },
+      });
+    }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
