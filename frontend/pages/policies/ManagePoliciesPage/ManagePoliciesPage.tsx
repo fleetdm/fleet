@@ -157,6 +157,12 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  // the purpose of this state is to trigger TableContainer a
+  // couple generations down to reset its internal page state to 0, via an effect there that watches
+  // this prop.
+
+  // Therefore, this should always be a) set to true in conjunction with changing all page-related state
+  // at this level, and b) immediately set to `false` after it is set to true.
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
@@ -396,6 +402,8 @@ const ManagePolicyPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
+    // this function encapsulates setting local page state to 0 and triggering the descendant
+    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
     setTableQueryDataForApi(
       (prevState) =>
         ({
@@ -403,7 +411,10 @@ const ManagePolicyPage = ({
           pageIndex: 0,
         } as ITableQueryData)
     );
+    // TableContainer effect is triggered by this state change, resetting its local page state to 0
     setResetPageIndex(true);
+    setResetPageIndex(false);
+    // TODO - improve this system for handling page index reset
   };
 
   const onTeamChange = useCallback(
