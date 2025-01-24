@@ -299,6 +299,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 	}
 
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels for vpp app")
+	}
+
 	var teamName string
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.Team(ctx, *teamID)
