@@ -7,6 +7,17 @@
 
 [parasails-component='docs-nav-and-search'] {
   margin-bottom: 48px;
+  .edge-shadow {
+    box-shadow: -4px 0 0px 0px rgba(0, 0, 0, 0.07), 4px 0 0px 0px rgba(0, 0, 0, 0.07);
+  }
+
+  .left-edge-shadow {
+    box-shadow: -4px 0px 0px 0px rgba(0, 0, 0, 0.07);
+  }
+
+  .right-edge-shadow {
+    box-shadow: 4px 0 0px 0px rgba(255, 255, 255, 0.07);
+  }
   a {
     height: 29px;
     &[purpose='docs-top-nav-menu-link'] {
@@ -15,6 +26,7 @@
       align-items: center;
       padding: 4px 8px !important;//lesshint-disable-line importantRule
       margin-right: 8px !important;//lesshint-disable-line importantRule
+      white-space: nowrap;
       &:last-of-type {
         margin-right: 0px !important;//lesshint-disable-line importantRule
       }
@@ -27,6 +39,7 @@
       &.active {
         border-radius: 8px;
         background: #F1F3F5;
+        color: #192147 !important;//lesshint-disable-line importantRule
       }
       &:hover {
         border-radius: 8px;
@@ -36,7 +49,8 @@
     }
   }
   width: 100%;
-  [purpose='vitals-search'] {
+  [purpose='nav-bar-search'] {
+    margin-left: 24px;
     // Note: We're using classes here to override the default Docsearch styles;
     button {
       width: 100%;
@@ -53,7 +67,7 @@
       padding: 8px 15px;
       height: 36px;
       margin: 0;
-      width: 221px;
+      width: 190px;
     }
     .DocSearch-Button:hover {
       box-shadow: none;
@@ -136,5 +150,122 @@
       color: @core-fleet-black-50;
     }
   }
+  @media (max-width: 991px) {
+    margin-bottom: 32px;
+    [purpose='nav-bar-search'] {
+      margin-left: 24px;
+      // Note: We're using classes here to override the default Docsearch styles;
+      button {
+        width: 100%;
+        cursor: pointer;
+        margin: 0;
+      }
+      .DocSearch-Button {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: none;
+        background-color: transparent;
+        padding: 0px;
+        height: 36px;
+        margin: 0;
+        width: 16px;
+      }
+      .DocSearch-Button:hover {
+        box-shadow: none;
+        border: none;
+        color: @core-fleet-black-50;
+      }
+      .DocSearch-Search-Icon {
+        margin-left: 0px;
+        margin-right: 8px;
+        // padding: 8px 15px;
+        height: 16px;
+        width: 16px;
+        color: @core-fleet-black-75;
+        stroke-width: 3px;
+      }
+      .DocSearch-Button-Keys {
+        display: none;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-blue;
+      }
+      .DocSearch-Button-Placeholder {
+        font-size: 16px;
+        line-height: 16px;
+        font-weight: 400;
+        padding-left: 0px;
+        display: none;
+      }
+      [purpose='disabled-search'] {
+        input {
+          padding-top: 6px;
+          padding-bottom: 6px;
+          border: none;
+          }
+          &::placeholder {
+            font-size: 16px;
+            line-height: 24px;
+            color: #8B8FA2;
+          }
+        .input-group {
+          border-top-left-radius: 6px;
+          border-bottom-left-radius: 6px;
+          border-top-right-radius: 6px;
+          border-bottom-right-radius: 6px;
+          border: 1px solid @core-fleet-black-25;
+          background: #FFF;
+        }
+        .input-group:focus-within {
+          border: 1px solid @core-vibrant-blue;
+        }
+        .form-control {
+          border-radius: 6px;
+          padding: 6px;
+          height: 36px;
+          margin: 0;
+          width: 212px;
+        }
+        .docsearch-input:focus-visible {
+          outline: none;
+        }
+        .ds-input:focus {
+          outline: rgba(0, 0, 0, 0);
+        }
+        .input-group-text {
+          color: @core-fleet-black-50;
+        }
+        .form-control {
+          height: 36px;
+          padding: 0px;
+          font-size: 16px;
+        } &:focus {
+          border: none;
+        }
+      }
+      img {
+        height: 16px;
+        margin-right: 8px;
+      }
+      background: none;
+      &::placeholder {
+        font-size: 16px;
+        color: @core-fleet-black-50;
+      }
+    }
 
+
+  }
+  @media (max-width: 768px) {
+    [purpose='nav-link-container'] {
+      max-width: calc(~'100% - 48px');
+      overflow-x: scroll;
+    }
+    [purpose='docs-links'] {
+      // max-width: calc();
+    }
+
+  }
 }

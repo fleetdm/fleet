@@ -34,16 +34,18 @@ parasails.registerComponent('docsNavAndSearch', {
   template: `
   <div class="d-block">
     <div class="d-flex flex-row w-100 justify-content-between">
-      <div purpose="docs-links" class="d-flex flex-row">
-        <a :class="[currentSection === 'docs' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/docs" style="text-decoration: none; text-decoration-line: none;">Get started</a>
-        <a :class="[currentSection === 'vitals' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/vitals" style="text-decoration: none; text-decoration-line: none;">Vitals</a>
-        <a :class="[currentSection === 'queries' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/queries" style="text-decoration: none; text-decoration-line: none;">Queries</a>
-        <a :class="[currentSection === 'policies' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/policies" style="text-decoration: none; text-decoration-line: none;">Policies</a>
-        <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/app-library" style="text-decoration: none; text-decoration-line: none;">Software</a>
-        <a :class="[currentSection === 'tables' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/tables" style="text-decoration: none; text-decoration-line: none;">Data tables</a>
+      <div purpose="nav-link-container" class="d-flex align-items-center">
+        <div purpose="docs-links" class="d-flex flex-row">
+          <a :class="[currentSection === 'docs' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/docs" style="text-decoration: none; text-decoration-line: none;">Get started</a>
+          <a :class="[currentSection === 'vitals' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/vitals" style="text-decoration: none; text-decoration-line: none;">Vitals</a>
+          <a :class="[currentSection === 'queries' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/queries" style="text-decoration: none; text-decoration-line: none;">Queries</a>
+          <a :class="[currentSection === 'policies' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/policies" style="text-decoration: none; text-decoration-line: none;">Policies</a>
+          <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/app-library" style="text-decoration: none; text-decoration-line: none;">Software</a>
+          <a :class="[currentSection === 'tables' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/tables" style="text-decoration: none; text-decoration-line: none;">Data tables</a>
+        </div>
       </div>
       <div>
-        <div purpose="vitals-search" id="docsearch-query" class="d-flex">
+        <div purpose="nav-bar-search" id="docsearch-query" class="d-flex">
           <div purpose="disabled-search" class="d-flex">
             <div class="input-group d-flex flex-nowrap">
               <div class="input-group-prepend">
@@ -88,6 +90,7 @@ parasails.registerComponent('docsNavAndSearch', {
         searchParameters: filterForSearch,
       });
     }
+    this.addNavLinksEdgeShadow();
   },
   beforeDestroy: function() {
     //…
@@ -97,8 +100,33 @@ parasails.registerComponent('docsNavAndSearch', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    addNavLinksEdgeShadow: function() {
+      let tableContainer = document.querySelector('[purpose="nav-link-container"]');
+      let linksContainer = document.querySelector('[purpose="nav-link-container"]');
+      if(tableContainer) {
+        let isEdgeOfResultsTableVisible = tableContainer.scrollWidth - tableContainer.scrollLeft === tableContainer.clientWidth;
+        if (!isEdgeOfResultsTableVisible) {
+          tableContainer.classList.add('right-edge-shadow');
+        }
 
+        tableContainer.addEventListener('scroll', (event)=>{
+          let container = event.target;
+          let isScrolledFullyToLeft = container.scrollLeft === 0;
+          let isScrolledFullyToRight = (container.scrollWidth - container.scrollLeft <= container.clientWidth + 1);
+          // Update the class on the table container based on how much the table is scrolled.
+          if (isScrolledFullyToLeft) {
+            container.classList.remove('edge-shadow', 'left-edge-shadow');
+            container.classList.add('right-edge-shadow');
+          } else if (isScrolledFullyToRight) {
+            container.classList.remove('edge-shadow', 'right-edge-shadow');
+            container.classList.add('left-edge-shadow');
+          } else if(!isScrolledFullyToRight && !isScrolledFullyToLeft) {
+            container.classList.remove('left-edge-shadow', 'right-edge-shadow');
+            container.classList.add('edge-shadow');
+          }
+        });
+      }
+    },
 
-
-  }
+  },
 });
