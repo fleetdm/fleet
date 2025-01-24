@@ -64,9 +64,10 @@ export interface IDropdownWrapper {
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
   /** Table filter dropdowns have filter icon and height: 40px
-   *  Button dropdowns have hover/active state, padding, height like actual buttons
-   */
+   *  Button dropdowns have hover/active state, padding, height like actual buttons */
   variant?: "table-filter" | "button";
+  /** This makes the menu fit all text without wrapping,
+   * aligning right to fit text on screen */
   nowrapMenu?: boolean;
 }
 
@@ -228,6 +229,9 @@ const DropdownWrapper = ({
               stroke: COLORS["core-vibrant-blue-over"],
             },
           },
+          "&.react-select__control--is-focused": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+          },
           "&:active .dropdown-wrapper__indicator path": {
             stroke: COLORS["core-vibrant-blue-down"],
           },
@@ -268,7 +272,7 @@ const DropdownWrapper = ({
         },
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
-        "&.dropdown-wrapper__control--is-focused": {
+        "&.react-select__control--is-focused": {
           ".dropdown-wrapper__single-value": {
             color: COLORS["core-vibrant-blue-over"],
           },
