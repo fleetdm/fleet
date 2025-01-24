@@ -640,6 +640,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "foo.bar",
+		Platform:         string(fleet.MacOSPlatform),
 		TeamID:           &team1.ID,
 		UserID:           user1.ID,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
@@ -866,6 +867,19 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.Equal(t, "vpp3", titles[0].Name)
+
+	// Testing with Platform filter
+	titles, count, _, err = ds.ListSoftwareTitles(
+		context.Background(), fleet.SoftwareTitleListOptions{
+			ListOptions:         fleet.ListOptions{},
+			Platform:            string(fleet.MacOSPlatform),
+			AvailableForInstall: true,
+			TeamID:              &team1.ID,
+		}, globalTeamFilter,
+	)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "installer1", titles[0].Name)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitleListResult) {
