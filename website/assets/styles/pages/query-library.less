@@ -1,5 +1,15 @@
 #query-library {
-  // background-color: #FFF;
+
+
+  [purpose='page-container'] {
+    padding: 48px;
+  }
+  [purpose='page-content'] {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1104px;
+  }
+
   a {
     color: #515774;
     font-family: Inter;
@@ -110,14 +120,7 @@
       color: @core-fleet-black-50;
     }
   }
-  [purpose='page-container'] {
-    padding: 64px;
-  }
-  [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1072px;
-  }
+
   [purpose='search-and-headline'] {
     margin-bottom: 64px;
   }
@@ -318,7 +321,7 @@
 
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 64px 32px;
+      padding: 32px;
     }
     [purpose='policy-name-and-description'] {
       max-width: unset;
