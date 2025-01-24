@@ -35,7 +35,9 @@ describe("FleetAppDetailsModal", () => {
     expect(screen.getByText("Version")).toBeInTheDocument();
     expect(screen.getByText("1.0.0")).toBeInTheDocument();
     expect(screen.getByText("URL")).toBeInTheDocument();
-    expect(screen.getByText("https://example.com/app")).toBeInTheDocument();
+    expect(
+      screen.getByText(/https:\/\/example\.com\/app/i)
+    ).toBeInTheDocument();
   });
 
   it("does not render URL field when url prop is not provided", () => {
