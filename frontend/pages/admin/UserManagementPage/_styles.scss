@@ -37,7 +37,6 @@
     td.status__cell,
     td.role__cell {
       white-space: nowrap; // Prevent No access from wrapping
-      max-width: 63px;
     }
 
     td.actions__cell {
@@ -97,6 +96,7 @@
       width: 0;
     }
 
+    // Splits header to 3 lines; user count, wide add user button, wide search
     .table-container__header {
       flex-direction: column;
       align-items: start;
