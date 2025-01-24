@@ -998,7 +998,7 @@ func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}
 
 	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
-	resp := unlockHostResponse{DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
+	resp := unlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
 	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
 	// call triggers the unlocking without further user action.
 	if pin != "" {
