@@ -4,6 +4,7 @@ import { noop } from "lodash";
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "fleet-app-details-modal";
 
@@ -12,6 +13,7 @@ interface IFleetAppDetailsModalProps {
   platform: string;
   version: string;
   url?: string;
+  onCancel: () => void;
 }
 
 const TOOLTIP_MESSAGE =
@@ -22,9 +24,10 @@ const FleetAppDetailsModal = ({
   platform,
   version,
   url,
+  onCancel,
 }: IFleetAppDetailsModalProps) => {
   return (
-    <Modal className={baseClass} title="Software details" onExit={noop}>
+    <Modal className={baseClass} title="Software details" onExit={onCancel}>
       <>
         <div className={`${baseClass}__modal-content`}>
           <DataSet title="Name" value={name} />
@@ -37,7 +40,7 @@ const FleetAppDetailsModal = ({
                   URL
                 </TooltipWrapper>
               }
-              value={url}
+              value={<TooltipTruncatedText value={url} />}
             />
           )}
         </div>

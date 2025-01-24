@@ -332,6 +332,7 @@ const FleetMaintainedAppDetailsPage = ({
           platform={fleetApp.platform}
           version={fleetApp.version}
           url={fleetApp.url}
+          onCancel={() => setShowAppDetailsModal(false)}
         />
       )}
     </>
