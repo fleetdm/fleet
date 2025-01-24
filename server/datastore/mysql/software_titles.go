@@ -337,7 +337,8 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		vppAppsTeamsJoinCond = "FALSE"
 	}
 
-	additionalWhere := ""
+	additionalWhere := "TRUE"
+
 	match := opt.ListOptions.MatchQuery
 	softwareJoin := ""
 	if match != "" || opt.VulnerableOnly {
@@ -413,16 +414,8 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	// if excluding fleet maintained apps, join on the fleet_library_apps table by bundle ID
 	// and filter out any row from software_titles that has a matching row in fleet_library_apps.
 	if opt.ExcludeFleetMaintainedApps {
-		softwareJoin += `LEFT JOIN fleet_library_apps fla ON st.bundle_identifier = fla.bundle_identifier`
-		if additionalWhere != "" {
-			additionalWhere += " AND "
-		}
-		additionalWhere += "fla.id is NULL"
-	}
-
-	// Default additionalWhere to "TRUE"
-	if additionalWhere == "" {
-		additionalWhere = "TRUE"
+		softwareJoin += ` LEFT JOIN fleet_library_apps fla ON st.bundle_identifier = fla.bundle_identifier`
+		additionalWhere += " fla.id is NULL"
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
