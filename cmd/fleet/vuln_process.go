@@ -57,6 +57,8 @@ by an exit code of zero.`,
 				return err
 			}
 
+			// TODO: Add check for feature migrations here
+
 			// we need to ensure this command isn't running with an out-of-date database
 			status, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
