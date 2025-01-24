@@ -282,6 +282,7 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving feature migration status")
 			}
 
+			// TODO(victor): Refactor this check to be more DRY
 			switch featureMigrationStatus.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// OK

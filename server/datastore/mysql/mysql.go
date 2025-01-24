@@ -18,13 +18,13 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	android_migrations "github.com/fleetdm/fleet/v4/server/android/mysql/migrations"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
-	feature_migrations "github.com/fleetdm/fleet/v4/server/feature/mysql/migrations"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -421,7 +421,7 @@ func (ds *Datastore) MigrateTables(ctx context.Context) error {
 }
 
 func (ds *Datastore) MigrateFeatureTables(ctx context.Context) error {
-	return feature_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")
+	return android_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
 func (ds *Datastore) MigrateData(ctx context.Context) error {
@@ -466,13 +466,13 @@ func (ds *Datastore) loadFeatureMigrations(
 	reader fleet.DBReader,
 ) (tableRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	_, err = feature_migrations.MigrationClient.GetDBVersion(writer)
+	_, err = android_migrations.MigrationClient.GetDBVersion(writer)
 	if err != nil {
 		return nil, err
 	}
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
-		"SELECT version_id FROM "+feature_migrations.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
+		"SELECT version_id FROM "+android_migrations.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, err
 	}
@@ -500,15 +500,15 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 }
 
 func (ds *Datastore) FeatureMigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
-	if feature_migrations.MigrationClient.Migrations == nil {
-		return nil, errors.New("unexpected nil feature_migrations list")
+	if android_migrations.MigrationClient.Migrations == nil {
+		return nil, errors.New("unexpected nil android_migrations list")
 	}
 	appliedFeatureTables, err := ds.loadFeatureMigrations(ctx, ds.primary.DB, ds.replica)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load feature migrations: %w", err)
 	}
 	return compareTableMigrations(
-		feature_migrations.MigrationClient.Migrations,
+		android_migrations.MigrationClient.Migrations,
 		appliedFeatureTables,
 	), nil
 }

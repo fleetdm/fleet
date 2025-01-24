@@ -1,4 +1,4 @@
-package feature_migrations
+package migrations
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ func init() {
 }
 
 func Up_20250101000000(tx *sql.Tx) error {
-	_, err := tx.Exec(`CREATE TABLE feature_sample (
+	_, err := tx.Exec(`CREATE TABLE android_sample (
     		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '')`)
 	if err != nil {

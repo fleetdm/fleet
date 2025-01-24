@@ -60,7 +60,7 @@ func main() {
 	fixedDate := time.Date(2020, 01, 01, 01, 01, 01, 01, time.UTC)
 	_, err = db.Exec(`USE schemadb`)
 	panicif(err)
-	_, err = db.Exec(`UPDATE feature_migration_status SET tstamp = ?`, fixedDate)
+	_, err = db.Exec(`UPDATE android_migration_status SET tstamp = ?`, fixedDate)
 	panicif(err)
 
 	// Dump schema to dumpfile
