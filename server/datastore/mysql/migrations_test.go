@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Add test for feature migrations
+
 func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	t.Cleanup(func() {

@@ -537,6 +537,8 @@ type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
+type FeatureMigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
+
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
@@ -1985,6 +1987,9 @@ type DataStore struct {
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
+
+	FeatureMigrationStatusFunc        FeatureMigrationStatusFunc
+	FeatureMigrationStatusFuncInvoked bool
 
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
@@ -4804,6 +4809,13 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	s.MigrationStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.MigrationStatusFunc(ctx)
+}
+
+func (s *DataStore) FeatureMigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
+	s.mu.Lock()
+	s.FeatureMigrationStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.FeatureMigrationStatusFunc(ctx)
 }
 
 func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
