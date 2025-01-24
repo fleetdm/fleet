@@ -52,6 +52,7 @@ module.exports = {
       thisApp,
       // pageDescriptionForMeta,
       pageTitleForMeta,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }
