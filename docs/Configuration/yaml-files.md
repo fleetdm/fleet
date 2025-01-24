@@ -337,7 +337,7 @@ software:
         - Product
         - Marketing
   fleet_maintained_apps:
-    - name: Microsoft Excel
+    - fleet_maintained_app_id: darwin/slack
       labels_include_any:
         - Design
         - Sales
@@ -377,7 +377,7 @@ self_service: true
 
 ### fleet_maintained_apps
 
-- `name` is the name of the app. A full list of Fleet-maintained apps can be found on the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
+- `fleet_maintained_app_id` is the ID of the app. Fleet-maintained app IDs can be copied from the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
 
 ## org_settings and team_settings
 
