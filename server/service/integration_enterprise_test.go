@@ -12527,14 +12527,14 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
 	// simulate a lock/unlock; this creates the host_mdm_actions table, which reproduces #25144
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusNoContent)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
 	var orbitScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.LockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil, http.StatusNoContent)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil, http.StatusOK)
 	status, err = s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
