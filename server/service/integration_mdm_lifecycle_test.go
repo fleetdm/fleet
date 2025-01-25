@@ -60,7 +60,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
@@ -80,7 +80,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
