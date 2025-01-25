@@ -288,7 +288,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
@@ -333,7 +333,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
