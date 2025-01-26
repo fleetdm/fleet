@@ -161,6 +161,16 @@
   },
   {
     "software": {
+      "name": ["/^IntelliJ IDEA Community Edition/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
       "source": ["apps"]
     },

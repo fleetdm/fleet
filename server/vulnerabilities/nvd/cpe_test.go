@@ -1334,6 +1334,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "IntelliJ IDEA.app",
 				Source:           "apps",
 				Version:          "2022.3.3",
