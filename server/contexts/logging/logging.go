@@ -200,8 +200,8 @@ func (l *LoggingContext) setLevelError() bool {
 	}
 
 	if len(l.Errs) == 1 {
-		var ew fleet.ErrWithIsServerError
-		if errors.As(l.Errs[0], &ew) && !ew.IsServerError() {
+		var ew fleet.ErrWithIsClientError
+		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
 			return false
 		}
 	}
