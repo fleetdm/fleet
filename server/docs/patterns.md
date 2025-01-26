@@ -18,7 +18,7 @@ Validate API inputs and return a 4XX status code if invalid. If you did not do a
 
 Inputs corresponding to sortable or indexed DB fields should be preprocessed (trim spaces, normalize Unicode, etc.). Use utility method `fleet.Preprocess(input string) string`. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899).
 
-Invalid inputs should NOT log a server error. Server errors should be reserved for unexpected/serious issues. [`InvalidArgumentError` implements `IsClientError`](https://github.com/fleetdm/fleet/blob/75671e406183de2484c245ba424a4cddaaf8da06/server/fleet/errors.go#L134) method to indicate that it is a client error. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=6515110653090875786&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A340%2C%22to%22%3A1578%7D%5D).
+Invalid inputs should NOT log a server error. Server errors should be reserved for unexpected/serious issues. [`InvalidArgumentError` implements `IsClientError`](https://github.com/fleetdm/fleet/blob/529f4ed725117d99d668318aad23c9e1575fa7ee/server/fleet/errors.go#L134) method to indicate that it is a client error. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=6515110653090875786&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A340%2C%22to%22%3A1578%7D%5D).
 
 ### JSON unmarshaling
 
