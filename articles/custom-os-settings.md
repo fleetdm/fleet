@@ -30,13 +30,13 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
+* **Verified**: hosts that applied all OS settings. Fleet verified with osquery on macOS and Windows hosts (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)).
 
-* Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
+* Verifying: hosts that have acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied with osquery on macOS (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)) and Windows hosts. If the profile wasn't installed, Fleet will redeliver the profile.
 
-* Pending: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
+* Pending: hosts that will receive MDM commands to apply OS settings when the hosts come online.
 
-* Failed: hosts that failed to install configuration profiles. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+* Failed: hosts that failed to apply OS settings. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 
