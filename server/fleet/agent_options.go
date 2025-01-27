@@ -304,6 +304,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	AuditShowPartialFIMEvents     bool   `json:"audit_show_partial_fim_events"`
 	AuditShowUntrackedResWarnings bool   `json:"audit_show_untracked_res_warnings"`
 	AuditFIMShowAccesses          bool   `json:"audit_fim_show_accesses"`
+	VModule                       string `json:"vmodule"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
