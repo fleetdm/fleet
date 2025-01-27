@@ -17,9 +17,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error) {
+func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
+}
+
+func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
+}
+
+func (ds *Datastore) listUpcomingSoftwareInstalls(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]string, error) {
 	extraWhere := ""
-	if onlyActivePending {
+	if onlyReadyToExecute {
 		extraWhere = " AND activated_at IS NOT NULL"
 	}
 
@@ -81,7 +89,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     ua.host_id AS host_id,
     ua.execution_id AS execution_id,
     siua.software_installer_id AS installer_id,
-		JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
+		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     inst.cot could be nulntents AS install_script,
     uninst.contents AS uninstall_script,
@@ -1028,14 +1036,14 @@ SELECT
 	NULL AS post_install_script_output,
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
-	COALESCE(st.name, JSON_EXTRACT(ua.payload, '$.software_title_name')) AS software_title,
+	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
 	siua.software_title_id,
 	'pending_install' AS status,
-	JSON_EXTRACT(ua.payload, '$.installer_filename') AS software_package,
+	ua.payload->>'$.installer_filename' AS software_package,
 	ua.user_id AS user_id,
 	NULL AS post_install_script_exit_code,
 	NULL AS install_script_exit_code,
-	JSON_EXTRACT(ua.payload, '$.self_service') AS self_service,
+	ua.payload->'$.self_service' AS self_service,
 	NULL AS host_deleted_at,
 	siua.policy_id AS policy_id,
 	ua.created_at as created_at,

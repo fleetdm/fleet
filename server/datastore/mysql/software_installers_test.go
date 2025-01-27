@@ -142,13 +142,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID, false)
+	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID, false)
+	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -233,7 +233,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
 	require.NoError(t, err)
 
-	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID, false)
+	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
 }
@@ -2124,6 +2124,7 @@ ON DUPLICATE KEY UPDATE
 		TeamID:        nil,
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 
 	tag = "uniq-host-2"
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -2135,6 +2136,7 @@ ON DUPLICATE KEY UPDATE
 		TeamID:        nil,
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 
 	// TODO(uniq): insert software title without installer to introduce a gap between title id and
 	// installer id

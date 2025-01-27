@@ -1636,7 +1636,11 @@ type Datastore interface {
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*HostScriptResult, error)
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
+	// except that it only returns those that are ready to execute ("activated" in
+	// the upcoming activities queue, available for orbit to process).
+	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -1732,7 +1736,12 @@ type Datastore interface {
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
 	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
-	ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error)
+	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
+	// except that it only returns software installs that are ready to execute
+	// ("activated" in the upcoming activities queue, available for orbit to
+	// process).
+	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)

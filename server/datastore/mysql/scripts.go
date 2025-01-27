@@ -19,17 +19,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// TODO(uniq): does it still make sense to have that sync/async distinction?
-// A pending script is a pending script, no?
-const whereFilterPendingScript = `
-	exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
-`
-
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -73,7 +62,7 @@ VALUES
 		getStmt = `
 SELECT
 	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
-	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
+	payload->'$.sync_request' AS sync_request,
 	sc.contents as script_contents, sua.setup_experience_script_id
 FROM
 	upcoming_activities ua
@@ -276,12 +265,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+}
+
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+}
+
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
 	if onlyShowInternal {
-		extraWhere = " AND JSON_EXTRACT(ua.payload, '$.is_internal') = 1"
+		extraWhere = " AND ua.payload->'$.is_internal' = 1"
 	}
-	if onlyActivePending {
+	if onlyReadyToExecute {
 		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
 	listStmt := fmt.Sprintf(`
@@ -308,7 +305,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 			ua.host_id = ? AND
 			ua.activity_type = 'script' AND
 			(
-				JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
+				ua.payload->'$.sync_request' = 0 OR
 				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 			)
 			%s
@@ -348,40 +345,73 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 }
 
 func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
-	// TODO(uniq): this should probably return if it's pending still in upcoming_activities too
-	const getStmt = `
-  SELECT
-    hsr.id,
-    hsr.host_id,
-    hsr.execution_id,
-    sc.contents as script_contents,
-    hsr.script_id,
-    hsr.policy_id,
-    hsr.output,
-    hsr.runtime,
-    hsr.exit_code,
-    hsr.timeout,
-    hsr.created_at,
-    hsr.user_id,
-    hsr.sync_request,
-    hsr.host_deleted_at,
-	hsr.setup_experience_script_id
+	const getActiveStmt = `
+	SELECT
+		hsr.id,
+		hsr.host_id,
+		hsr.execution_id,
+		sc.contents as script_contents,
+		hsr.script_id,
+		hsr.policy_id,
+		hsr.output,
+		hsr.runtime,
+		hsr.exit_code,
+		hsr.timeout,
+		hsr.created_at,
+		hsr.user_id,
+		hsr.sync_request,
+		hsr.host_deleted_at,
+		hsr.setup_experience_script_id
   FROM
-    host_script_results hsr
-  JOIN
-	script_contents sc
-  WHERE
-    hsr.execution_id = ?
-  AND
-	hsr.script_content_id = sc.id
+		host_script_results hsr
+	JOIN
+		script_contents sc
+	WHERE
+		hsr.execution_id = ? AND
+		hsr.script_content_id = sc.id
+`
+
+	const getUpcomingStmt = `
+	SELECT
+		0 as id,
+		ua.host_id,
+		ua.execution_id,
+		sc.contents as script_contents,
+		sua.script_id,
+		sua.policy_id,
+		'' as output,
+		0 as runtime,
+		NULL as exit_code,
+		NULL as timeout,
+		ua.created_at,
+		ua.user_id,
+		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
+		NULL as host_deleted_at,
+		sua.setup_experience_script_id
+  FROM
+		upcoming_activities ua
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
+		INNER JOIN
+			script_contents sc
+			ON sua.script_content_id = sc.id
+	WHERE
+		ua.execution_id = ? AND
+		ua.activity_type = 'script'
 `
 
 	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, q, &result, getStmt, execID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+	if err := sqlx.GetContext(ctx, q, &result, getActiveStmt, execID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// try with upcoming activities
+			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+			}
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		}
 	}
 	return &result, nil
 }
@@ -578,7 +608,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
 	}
 
-	deleteHSRStmt := fmt.Sprintf(`
+	deleteHSRStmt := `
 		DELETE FROM
 			host_script_results
 		WHERE
@@ -586,11 +616,10 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 			script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
 			) AND
-			%s
-	`, whereFilterPendingScript)
+			exit_code IS NULL
+	`
 
-	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID, seconds); err != nil {
+	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID); err != nil {
 		return err
 	}
 
