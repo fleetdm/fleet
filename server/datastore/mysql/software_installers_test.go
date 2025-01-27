@@ -2124,6 +2124,7 @@ ON DUPLICATE KEY UPDATE
 		TeamID:        nil,
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 
 	tag = "uniq-host-2"
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -2135,6 +2136,7 @@ ON DUPLICATE KEY UPDATE
 		TeamID:        nil,
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 
 	// TODO(uniq): insert software title without installer to introduce a gap between title id and
 	// installer id
