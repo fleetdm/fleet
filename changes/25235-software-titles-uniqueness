@@ -1,0 +1,2 @@
+* Updated software_titles.source & software_titles.bundle_identifier to use ascii
+* Updated software_titles unique index idx_sw_titles to include bundle_identifier. Code modified to handle software named the same but have different bundle identifiers

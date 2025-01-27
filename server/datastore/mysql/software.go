@@ -547,7 +547,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser, sw.BundleIdentifier)] = checksum
 	}
 
 	// Get titles for software without bundle_identifier.
@@ -593,7 +593,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		}
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser, *title.BundleIdentifier)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
 			}

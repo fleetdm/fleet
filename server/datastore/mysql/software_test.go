@@ -34,6 +34,8 @@ func TestSoftware(t *testing.T) {
 		{"SaveHost", testSoftwareSaveHost},
 		{"CPE", testSoftwareCPE},
 		{"HostDuplicates", testSoftwareHostDuplicates},
+		{"DuplicateNameDifferentBundleIdentifier", testSoftwareDuplicateNameDifferentBundleIdentifier},
+		{"DifferentNameSameBundleIdentifier", testSoftwareDifferentNameSameBundleIdentifier},
 		{"LoadVulnerabilities", testSoftwareLoadVulnerabilities},
 		{"ListSoftwareCPEs", testListSoftwareCPEs},
 		{"NothingChanged", testSoftwareNothingChanged},
@@ -219,6 +221,142 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	}
 	assert.Equal(t, len(software1), loops)
 	require.NoError(t, iterator.Close())
+}
+
+func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) {
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	incoming := make(map[string]fleet.Software)
+	sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+	require.NoError(t, err)
+	soft2Key := sw.ToUniqueStr()
+	incoming[soft2Key] = *sw
+
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
+	tx, err := ds.writer(context.Background()).Beginx()
+	require.NoError(t, err)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
+	)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	var software []fleet.Software
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
+	)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	var softwareTitle []fleet.SoftwareTitle
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&softwareTitle, `SELECT id, name FROM software_titles`,
+	)
+	require.NoError(t, err)
+	require.Len(t, softwareTitle, 1)
+
+	incoming = make(map[string]fleet.Software)
+	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 2.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+	require.NoError(t, err)
+	soft3Key := sw.ToUniqueStr()
+	incoming[soft3Key] = *sw
+
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
+	tx, err = ds.writer(context.Background()).Beginx()
+	require.NoError(t, err)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
+	)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
+	)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+	for _, s := range software {
+		require.NotEmpty(t, s.TitleID)
+	}
+
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&softwareTitle, `SELECT id, name FROM software_titles`,
+	)
+	require.NoError(t, err)
+	require.Len(t, softwareTitle, 1)
+}
+
+func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	incoming := make(map[string]fleet.Software)
+	sw, err := fleet.SoftwareFromOsqueryRow("a", "0.0.1", "chrome_extension", "", "", "", "", "bundle_id1", "", "", "")
+	require.NoError(t, err)
+	soft2Key := sw.ToUniqueStr()
+	incoming[soft2Key] = *sw
+
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
+	tx, err := ds.writer(context.Background()).Beginx()
+	require.NoError(t, err)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
+	)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	var software []fleet.Software
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
+	)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	var softwareTitle []fleet.SoftwareTitle
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&softwareTitle, `SELECT id, name FROM software_titles`,
+	)
+	require.NoError(t, err)
+	require.Len(t, softwareTitle, 1)
+
+	incoming = make(map[string]fleet.Software)
+	sw, err = fleet.SoftwareFromOsqueryRow("a", "0.0.1", "chrome_extension", "", "", "", "", "bundle_id2", "", "", "")
+	require.NoError(t, err)
+	soft3Key := sw.ToUniqueStr()
+	incoming[soft3Key] = *sw
+
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
+	tx, err = ds.writer(context.Background()).Beginx()
+	require.NoError(t, err)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
+	)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
+	)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+	for _, s := range software {
+		require.NotEmpty(t, s.TitleID)
+	}
+
+	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
+		&softwareTitle, `SELECT id, name FROM software_titles`,
+	)
+	require.NoError(t, err)
+	require.Len(t, softwareTitle, 2)
 }
 
 func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
