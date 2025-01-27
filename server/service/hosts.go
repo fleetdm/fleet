@@ -1301,27 +1301,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
 
-	// unlocked with no pending action is the default state
-	// TODO(mna): make constants for those values
-	host.MDM.DeviceStatus = ptr.String("unlocked")
-	host.MDM.PendingAction = ptr.String("")
-	// device status
-	switch {
-	case mdmActions.IsWiped():
-		host.MDM.DeviceStatus = ptr.String("wiped")
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
-	}
-
-	// pending action, if any
-	switch {
-	case mdmActions.IsPendingLock():
-		host.MDM.PendingAction = ptr.String("lock")
-	case mdmActions.IsPendingUnlock():
-		host.MDM.PendingAction = ptr.String("unlock")
-	case mdmActions.IsPendingWipe():
-		host.MDM.PendingAction = ptr.String("wipe")
-	}
+	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
+	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 
 	host.Policies = policies
 
