@@ -245,7 +245,7 @@ const SoftwareVulnerabilitiesTable = ({
         onChange={(newValue: SingleValue<CustomOptionType>) =>
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
-        tableFilter
+        variant="table-filter"
       />
     );
   };

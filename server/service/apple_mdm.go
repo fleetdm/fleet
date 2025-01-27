@@ -2378,8 +2378,6 @@ func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, 
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	switch {
 	case fleet.IsNotFound(err):
-		// Don't log this response as error -- it's expected to happen when the bootstrap package is missing, which is a common case.
-		logging.WithNoError(ctx)
 		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("team_id",
 			"bootstrap package for this team does not exist").WithStatus(http.StatusNotFound)}, nil
 	case err != nil:

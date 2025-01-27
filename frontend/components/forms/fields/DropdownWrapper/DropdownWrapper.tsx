@@ -29,6 +29,7 @@ import FormField from "components/forms/FormField";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
@@ -37,9 +38,9 @@ const getOptionBackgroundColor = (
 };
 
 export interface CustomOptionType {
-  label: string;
+  label: React.ReactNode;
   value: string;
-  tooltipContent?: string;
+  tooltipContent?: TooltipContent;
   helpText?: string;
   isDisabled?: boolean;
   iconName?: IconNames;
@@ -62,8 +63,12 @@ export interface IDropdownWrapper {
   placeholder?: string;
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
-  /** Table filter dropdowns have filter icon and height: 40px  */
-  tableFilter?: boolean;
+  /** Table filter dropdowns have filter icon and height: 40px
+   *  Button dropdowns have hover/active state, padding, height like actual buttons */
+  variant?: "table-filter" | "button";
+  /** This makes the menu fit all text without wrapping,
+   * aligning right to fit text on screen */
+  nowrapMenu?: boolean;
 }
 
 const baseClass = "dropdown-wrapper";
@@ -84,10 +89,11 @@ const DropdownWrapper = ({
   iconName,
   placeholder,
   onMenuOpen,
-  tableFilter = false,
+  variant,
+  nowrapMenu,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
-    [`${baseClass}__table-filter`]: tableFilter,
+    [`${baseClass}__table-filter`]: variant === "table-filter",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
@@ -164,7 +170,8 @@ const DropdownWrapper = ({
     children,
     ...props
   }: ValueContainerProps<CustomOptionType, false>) => {
-    const iconToDisplay = iconName || (tableFilter ? "filter" : null);
+    const iconToDisplay =
+      iconName || (variant === "table-filter" ? "filter" : null);
 
     return (
       components.ValueContainer && (
@@ -179,80 +186,150 @@ const DropdownWrapper = ({
   };
 
   const customStyles: StylesConfig<CustomOptionType, false> = {
-    container: (provided) => ({
-      ...provided,
-      width: "100%",
-      height: "40px",
-    }),
-    control: (provided, state) => ({
-      ...provided,
-      display: "flex",
-      flexDirection: "row",
-      width: "100%",
-      backgroundColor: COLORS["ui-off-white"],
-      paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
-      paddingRight: "8px",
-      cursor: "pointer",
-      boxShadow: "none",
-      borderRadius: "4px",
-      borderColor: state.isFocused
-        ? COLORS["core-fleet-blue"]
-        : COLORS["ui-fleet-black-10"],
-      "&:hover": {
+    container: (provided) => {
+      const buttonVariantContainer = {
+        borderRadius: "6px",
+        "&:active": {
+          backgroundColor: "rgba(25, 33, 71, 0.05)",
+        },
+        height: "38px",
+      };
+
+      return {
+        ...provided,
+        width: "100%",
+        height: "40px",
+        ...(variant === "button" && buttonVariantContainer),
+      };
+    },
+
+    control: (provided, state) => {
+      if (variant === "button")
+        return {
+          backgroundColor: "initial",
+          borderColor: "none",
+          display: "flex",
+          flexDirection: "row",
+          width: "max-content",
+          padding: PADDING["pad-small"],
+          border: 0,
+          borderRadius: "6px",
+          boxShadow: "none",
+          cursor: "pointer",
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-fleet-blue"],
+          },
+          "&:hover": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            boxShadow: "none",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["core-vibrant-blue-over"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["core-vibrant-blue-over"],
+            },
+          },
+          "&.react-select__control--is-focused": {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+          },
+          "&:active .dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+          // TODO: Figure out a way to apply separate &:focus-visible styling
+          // Currently only relying on &:focus styling for tabbing through app
+          ...(state.menuIsOpen && {
+            ".dropdown-wrapper__indicator svg": {
+              transform: "rotate(180deg)",
+              transition: "transform 0.25s ease",
+            },
+          }),
+          ...(variant === "button" && { height: "22px" }),
+        };
+
+      return {
+        ...provided,
+        display: "flex",
+        flexDirection: "row",
+        width: "100%",
+        backgroundColor: COLORS["ui-off-white"],
+        paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
+        paddingRight: "8px",
+        cursor: "pointer",
         boxShadow: "none",
-        borderColor: COLORS["core-fleet-blue"],
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+        borderRadius: "4px",
+        borderColor: state.isFocused
+          ? COLORS["core-fleet-blue"]
+          : COLORS["ui-fleet-black-10"],
+        "&:hover": {
+          boxShadow: "none",
+          borderColor: COLORS["core-fleet-blue"],
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-over"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-over"],
+          },
         },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+        // When tabbing
+        // Relies on --is-focused for styling as &:focus-visible cannot be applied
+        "&.react-select__control--is-focused": {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-over"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-over"],
+          },
         },
         ".filter-icon path": {
           fill: COLORS["core-vibrant-blue-over"],
         },
-      },
-      // When tabbing
-      // Relies on --is-focused for styling as &:focus-visible cannot be applied
-      "&.dropdown-wrapper__control--is-focused": {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+        ...(state.isDisabled && {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["ui-fleet-black-50"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["ui-fleet-black-50"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["ui-fleet-black-50"],
+          },
+        }),
+        "&:active": {
+          ".dropdown-wrapper__single-value": {
+            color: COLORS["core-vibrant-blue-down"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["core-vibrant-blue-down"],
+          },
         },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["core-vibrant-blue-over"],
-        },
-      },
-      ...(state.isDisabled && {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["ui-fleet-black-50"],
-        },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["ui-fleet-black-50"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["ui-fleet-black-50"],
-        },
-      }),
-      "&:active": {
-        ".dropdown-wrapper__single-value": {
-          color: COLORS["core-vibrant-blue-down"],
-        },
-        ".dropdown-wrapper__indicator path": {
-          stroke: COLORS["core-vibrant-blue-down"],
-        },
-        ".filter-icon path": {
-          fill: COLORS["core-vibrant-blue-down"],
-        },
-      },
-      ...(state.menuIsOpen && {
-        ".dropdown-wrapper__indicator svg": {
-          transform: "rotate(180deg)",
-          transition: "transform 0.25s ease",
-        },
-      }),
-    }),
+        ...(state.menuIsOpen && {
+          ".dropdown-wrapper__indicator svg": {
+            transform: "rotate(180deg)",
+            transition: "transform 0.25s ease",
+          },
+        }),
+      };
+    },
+    placeholder: (provided, state) => {
+      const buttonVariantPlaceholder = {
+        color: state.isFocused
+          ? COLORS["core-vibrant-blue-over"]
+          : COLORS["core-fleet-blue"],
+        fontSize: "14px",
+        fontWeight: "bold",
+        lineHeight: "normal",
+        paddingLeft: 0,
+        marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
+      };
+
+      return {
+        ...provided,
+        ...(variant === "button" && buttonVariantPlaceholder),
+      };
+    },
     singleValue: (provided) => ({
       ...provided,
       fontSize: "16px",
@@ -274,22 +351,28 @@ const DropdownWrapper = ({
       zIndex: 6,
       overflow: "hidden",
       border: 0,
-      marginTop: 0,
+      marginTop: variant === "button" ? "3px" : 0,
+      left: 0,
       maxHeight: "none",
       position: "absolute",
-      left: "0",
       animation: "fade-in 150ms ease-out",
+      ...(nowrapMenu && {
+        width: "fit-content",
+        left: "auto",
+        right: "0",
+      }),
     }),
     menuList: (provided) => ({
       ...provided,
       padding: PADDING["pad-small"],
       maxHeight: "none",
+      ...(nowrapMenu && { width: "fit-content" }),
     }),
     valueContainer: (provided) => ({
       ...provided,
       padding: 0,
       display: "flex",
-      gap: PADDING["pad-small"],
+      gap: PADDING[variant === "button" ? "pad-xsmall" : "pad-small"],
     }),
     option: (provided, state) => ({
       ...provided,
@@ -303,6 +386,7 @@ const DropdownWrapper = ({
         backgroundColor: state.isDisabled
           ? "transparent"
           : COLORS["ui-vibrant-blue-10"],
+        cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled
@@ -320,11 +404,15 @@ const DropdownWrapper = ({
         flexDirection: "column",
         gap: "8px",
         width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
       },
       ".dropdown-wrapper__help-text": {
         fontSize: "12px",
-        whiteSpace: "normal",
-        color: COLORS["ui-fleet-black-75"],
+        width: "100%",
+        whiteSpace: nowrapMenu ? "nowrap" : "normal",
+        color: state.isDisabled
+          ? COLORS["ui-fleet-black-50"]
+          : COLORS["ui-fleet-black-75"],
         fontStyle: "italic",
         fontWeight: "normal",
       },
