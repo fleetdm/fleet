@@ -18,7 +18,8 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	android_migrations "github.com/fleetdm/fleet/v4/server/android/mysql/migrations"
+	"github.com/fleetdm/fleet/v4/server/android"
+	android_mysql "github.com/fleetdm/fleet/v4/server/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -278,6 +279,11 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	return ds, nil
 }
 
+func NewAndroidDS(ds fleet.Datastore) android.Datastore {
+	mysqlDs := ds.(*Datastore)
+	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
+}
+
 type itemToWrite struct {
 	ctx   context.Context
 	errCh chan error
@@ -420,10 +426,6 @@ func (ds *Datastore) MigrateTables(ctx context.Context) error {
 	return tables.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
-func (ds *Datastore) MigrateFeatureTables(ctx context.Context) error {
-	return android_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")
-}
-
 func (ds *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
@@ -460,25 +462,6 @@ func (ds *Datastore) loadMigrations(
 	return tableRecs, dataRecs, nil
 }
 
-func (ds *Datastore) loadFeatureMigrations(
-	ctx context.Context,
-	writer *sql.DB,
-	reader fleet.DBReader,
-) (tableRecs []int64, err error) {
-	// We need to run the following to trigger the creation of the migration status tables.
-	_, err = android_migrations.MigrationClient.GetDBVersion(writer)
-	if err != nil {
-		return nil, err
-	}
-	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
-	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
-		"SELECT version_id FROM "+android_migrations.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
-	); err != nil {
-		return nil, err
-	}
-	return tableRecs, nil
-}
-
 // MigrationStatus will return the current status of the migrations
 // comparing the known migrations in code and the applied migrations in the database.
 //
@@ -496,20 +479,6 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 		data.MigrationClient.Migrations,
 		appliedTable,
 		appliedData,
-	), nil
-}
-
-func (ds *Datastore) FeatureMigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
-	if android_migrations.MigrationClient.Migrations == nil {
-		return nil, errors.New("unexpected nil android_migrations list")
-	}
-	appliedFeatureTables, err := ds.loadFeatureMigrations(ctx, ds.primary.DB, ds.replica)
-	if err != nil {
-		return nil, fmt.Errorf("cannot load feature migrations: %w", err)
-	}
-	return compareTableMigrations(
-		android_migrations.MigrationClient.Migrations,
-		appliedFeatureTables,
 	), nil
 }
 
@@ -559,41 +528,6 @@ func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, 
 		StatusCode:   fleet.UnknownMigrations,
 		UnknownTable: unknownTable,
 		UnknownData:  unknownData,
-	}
-}
-
-func compareTableMigrations(knownTable goose.Migrations, appliedTable []int64) *fleet.MigrationStatus {
-	if len(appliedTable) == 0 {
-		return &fleet.MigrationStatus{
-			StatusCode: fleet.NoMigrationsCompleted,
-		}
-	}
-
-	missingTable, unknownTable, equalTable := compareVersions(
-		getVersionsFromMigrations(knownTable),
-		appliedTable,
-		knownUnknownTableMigrations,
-	)
-
-	if equalTable {
-		return &fleet.MigrationStatus{
-			StatusCode: fleet.AllMigrationsCompleted,
-		}
-	}
-
-	// Check for missing migrations first, as these are more important
-	// to detect than the unknown migrations.
-	if len(missingTable) > 0 {
-		return &fleet.MigrationStatus{
-			StatusCode:   fleet.SomeMigrationsCompleted,
-			MissingTable: missingTable,
-		}
-	}
-
-	// len(unknownTable) > 0 || len(unknownData) > 0
-	return &fleet.MigrationStatus{
-		StatusCode:   fleet.UnknownMigrations,
-		UnknownTable: unknownTable,
 	}
 }
 
