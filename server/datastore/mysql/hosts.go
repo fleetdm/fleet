@@ -2688,7 +2688,7 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
