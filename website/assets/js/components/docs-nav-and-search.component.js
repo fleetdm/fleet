@@ -45,7 +45,7 @@ parasails.registerComponent('docsNavAndSearch', {
         </div>
       </div>
       <div>
-        <div purpose="nav-bar-search" id="docsearch-query" class="d-flex">
+        <div purpose="nav-bar-search" id="docsearch-query" class="d-flex" v-if="algoliaPublicKey">
           <div purpose="disabled-search" class="d-flex">
             <div class="input-group d-flex flex-nowrap">
               <div class="input-group-prepend">
@@ -90,7 +90,6 @@ parasails.registerComponent('docsNavAndSearch', {
         searchParameters: filterForSearch,
       });
     }
-    this.addNavLinksEdgeShadow();
   },
   beforeDestroy: function() {
     //…
@@ -100,33 +99,6 @@ parasails.registerComponent('docsNavAndSearch', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    addNavLinksEdgeShadow: function() {
-      let tableContainer = document.querySelector('[purpose="nav-link-container"]');
-      let linksContainer = document.querySelector('[purpose="nav-link-container"]');
-      if(tableContainer) {
-        let isEdgeOfResultsTableVisible = tableContainer.scrollWidth - tableContainer.scrollLeft === tableContainer.clientWidth;
-        if (!isEdgeOfResultsTableVisible) {
-          tableContainer.classList.add('right-edge-shadow');
-        }
-
-        tableContainer.addEventListener('scroll', (event)=>{
-          let container = event.target;
-          let isScrolledFullyToLeft = container.scrollLeft === 0;
-          let isScrolledFullyToRight = (container.scrollWidth - container.scrollLeft <= container.clientWidth + 1);
-          // Update the class on the table container based on how much the table is scrolled.
-          if (isScrolledFullyToLeft) {
-            container.classList.remove('edge-shadow', 'left-edge-shadow');
-            container.classList.add('right-edge-shadow');
-          } else if (isScrolledFullyToRight) {
-            container.classList.remove('edge-shadow', 'right-edge-shadow');
-            container.classList.add('left-edge-shadow');
-          } else if(!isScrolledFullyToRight && !isScrolledFullyToLeft) {
-            container.classList.remove('left-edge-shadow', 'right-edge-shadow');
-            container.classList.add('edge-shadow');
-          }
-        });
-      }
-    },
-
+    //…
   },
 });
