@@ -62,7 +62,7 @@ VALUES
 		getStmt = `
 SELECT
 	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
-	JSON_EXTRACT(payload, '$.sync_request') AS sync_request,
+	payload->'$.sync_request' AS sync_request,
 	sc.contents as script_contents, sua.setup_experience_script_id
 FROM
 	upcoming_activities ua
@@ -276,7 +276,7 @@ func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostI
 func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
 	if onlyShowInternal {
-		extraWhere = " AND JSON_EXTRACT(ua.payload, '$.is_internal') = 1"
+		extraWhere = " AND ua.payload->'$.is_internal' = 1"
 	}
 	if onlyReadyToExecute {
 		extraWhere += " AND ua.activated_at IS NOT NULL"
@@ -305,7 +305,7 @@ func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostI
 			ua.host_id = ? AND
 			ua.activity_type = 'script' AND
 			(
-				JSON_EXTRACT(ua.payload, '$.sync_request') = 0 OR
+				ua.payload->'$.sync_request' = 0 OR
 				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 			)
 			%s
@@ -385,7 +385,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		NULL as timeout,
 		ua.created_at,
 		ua.user_id,
-		COALESCE(JSON_EXTRACT(ua.payload, '$.sync_request'), 0) as sync_request,
+		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
 		NULL as host_deleted_at,
 		sua.setup_experience_script_id
   FROM
