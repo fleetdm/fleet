@@ -1192,6 +1192,14 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	script1_1 := hsr.ExecutionID
 
+	// create a second script execution request that will not be activated yet
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         h1.ID,
+		ScriptContents: "echo 'b'",
+	})
+	require.NoError(t, err)
+	script1_2 := hsr.ExecutionID
+
 	// add a couple install requests for vpp1 and vpp2
 	vpp1_1 := uuid.NewString()
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp1.VPPAppID, vpp1_1, "event-id-1", fleet.HostSoftwareInstallOptions{})
@@ -1200,27 +1208,47 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, vppApp2.VPPAppID, vpp1_2, "event-id-2", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	// activating does nothing because the script is still activated
+	// activating does nothing because the first script is still activated
 	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
 	require.NoError(t, err)
 	require.Empty(t, execIDs)
 
-	// pending activities are script1_1, vpp1_1, vpp1_2
+	// pending activities are script1_1, script1_2, vpp1_1, vpp1_2
 	pendingActs, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, pendingActs, 3)
+	require.Len(t, pendingActs, 4)
 	require.Equal(t, script1_1, pendingActs[0].UUID)
 	require.False(t, pendingActs[0].Cancellable)
-	require.Equal(t, vpp1_1, pendingActs[1].UUID)
+	require.Equal(t, script1_2, pendingActs[1].UUID)
 	require.True(t, pendingActs[1].Cancellable)
-	require.Equal(t, vpp1_2, pendingActs[2].UUID)
+	require.Equal(t, vpp1_1, pendingActs[2].UUID)
 	require.True(t, pendingActs[2].Cancellable)
+	require.Equal(t, vpp1_2, pendingActs[3].UUID)
+	require.True(t, pendingActs[3].Cancellable)
 
-	// listing active pending scripts returns script1_1
+	// listing scripts ready to execute returns script1_1
 	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingScripts, 1)
 	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
+
+	// get host script result while there are no results yet returns the current status
+	scriptRes, err := ds.GetHostScriptExecutionResult(ctx, script1_1)
+	require.NoError(t, err)
+	require.Nil(t, scriptRes.ExitCode)
+
+	scriptRes, err = ds.GetHostScriptExecutionResult(ctx, script1_2)
+	require.NoError(t, err)
+	require.Nil(t, scriptRes.ExitCode)
+
+	// delete the script1_2 upcoming activity as if it was cancelled
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			DELETE FROM upcoming_activities
+			WHERE execution_id = ?`,
+			script1_2)
+		return err
+	})
 
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
@@ -1228,7 +1256,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	scriptRes, err := ds.GetHostScriptExecutionResult(ctx, script1_1)
+	// get host script result now returns the result
+	scriptRes, err = ds.GetHostScriptExecutionResult(ctx, script1_1)
 	require.NoError(t, err)
 	require.NotNil(t, scriptRes.ExitCode)
 	require.EqualValues(t, 0, *scriptRes.ExitCode)

@@ -402,16 +402,16 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 
 	var result fleet.HostScriptResult
 	if err := sqlx.GetContext(ctx, q, &result, getActiveStmt, execID); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// try with upcoming activities
-			if err := sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID); err != nil {
-				if err == sql.ErrNoRows {
-					return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
-				}
-				return nil, ctxerr.Wrap(ctx, err, "get host script result")
+			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
 			}
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		}
 	}
 	return &result, nil
 }
@@ -619,8 +619,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 			exit_code IS NULL
 	`
 
-	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID, seconds); err != nil {
+	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID); err != nil {
 		return err
 	}
 
