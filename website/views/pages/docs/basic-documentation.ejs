@@ -1,140 +1,22 @@
 <div id="basic-documentation" v-cloak>
-
-  <div purpose="docs-landing-page" v-if="isDocsLandingPage">
-    <div style="max-width: 948px;" class="container-fluid p-0 px-3 px-sm-4 py-5 mb-5 mx-auto">
-
-      <div class="text-center">
-        <h1 class="pt-5">Fleet documentation</h1>
-        <p class="mb-2">Welcome to the documentation for Fleet, the lightweight management platform for laptops and servers.</p>
-      </div>
-
-      <div purpose="search" id="docsearch-query-landing" class="d-flex p-0 mt-5">
-        <div class="input-group">
-          <div class="input-group-prepend">
-            <span class="input-group-text border-0 bg-transparent pl-3" >
-              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-            </span>
-          </div>
-          <div class="form-control border-0 ">
-          <input class="docsearch-input pr-1"
-            placeholder="Search..." aria-label="Search the docs and guides"
-            />
-          </div>
-        </div>
-      </div>
-      <p purpose="support-link">Can't find what you're looking for? <a href="/support">Support</a></p>
-
-
-      <div purpose="docs-tree">
-        <div class="container-fluid d-flex flex-column flex-sm-row justify-content-sm-between p-0 px-4">
-          <div v-for="page in findPagesByUrl()">
-            <div style="max-width: 300px;" class="container-fluid justify-content-start align-items-center p-0 px-2 pt-4 m-0 mt-3">
-              <h3 class="mb-4">{{page.title}}</h3>
-              <ul style="list-style: none;" class="p-0 m-0">
-                <li class="mb-2" v-for="subpage in findPagesByUrl(page.url)">
-                  <a :href="subpage.url">{{subpage.title}}</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div purpose="page-container">
+    <div purpose="page-content">
+    <docs-nav-and-search search-filter="docs" current-section="docs" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+    <div purpose="mobile-table-of-contents" class="d-flex d-lg-none" @click="clickOpenMobileDocsNav()">
+      <img src="/images/icon-hamburger-menu-16x14@2x.png" alt="click to open the table of contents." >
+      <p class="mb-0"><%= thisPage.title %></p>
     </div>
-  </div>
 
-  <div v-else>
-    <div purpose="docs-template" style="max-width: 1200px;" class="container-fluid px-lg-3  mb-5">
-
-      <div purpose="breadcrumbs-and-search" class="conainer-fluid d-flex flex-column flex-lg-row justify-content-lg-between p-0 pt-4 pb-lg-2 m-0 breadcrumbs-search">
-
-        <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 m-0 align-items-center breadcrumbs">
-          <a :href="'/' + breadcrumbs[0]" class="pr-3" v-if="breadcrumbs.length > 1">
-            {{breadcrumbs[0] === 'docs' ? 'Documentation' : breadcrumbs[0]}}
-          </a>
-          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length === 3">
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
-            <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3">
-              {{getTitleFromUrl(breadcrumbs[1])}}
-            </a>
-          </div>
-          <div class="d-flex p-0 m-0 align-items-center" v-if="breadcrumbs.length > 1">
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-            <p class="px-3 m-0">
-              {{thisPage.title}}
-            </p>
-          </div>
-        </div>
-
-        <div purpose="search" id="docsearch-query" class="d-flex p-0 mb-2 mb-lg-0">
-          <div class="input-group">
-            <div class="input-group-prepend">
-              <span class="input-group-text border-0 bg-transparent pl-3">
-                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-              </span>
-            </div>
-            <div class="form-control border-0 ">
-              <input class="docsearch-input pr-1"
-              placeholder="Search the docs..." aria-label="Search the docs and guides"
-              v-model="inputTextValue"/>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="mobile-docs-nav" class="d-flex-block d-lg-none">
-          <div class="d-flex flex-column d-lg-none p-0 m-0 justify-content-start align-items-center">
-            <button purpose="docs-nav-button" class="btn btn-block d-flex align-items-center docs-nav-button" type="button" @click="toggleDocsNav">
-              <span class="pr-2 m-0">Docs</span>
-              <img class="my-auto" style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/>
-              <span class="font-weight-bold px-2 m-0">{{getTitleFromUrl(breadcrumbs[1])}}</span>
-              <img style="width: 6px; height: 9px;" class="ml-auto my-auto" alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showDocsNav"/>
-              <img style="width: 9px; height: 6px;" class="ml-auto my-auto" alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
-            </button>
-          </div>
-          <div class="border-bottom" v-if="!showDocsNav"></div>
-          <div class="d-flex px-0 border-bottom mobile-docs-nav" v-if="showDocsNav">
-            <div class="container-fluid px-0 pt-4">
-              <ul class="px-0 mb-0 pb-3">
-                <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
-                  <span class="font-weight-bold">
-                    {{page.title}}
-                  </span>
-                  <div purpose="expanded-nav" class="pt-3">
-                    <ul class="p-0 pl-2 mb-3" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                      <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
-                        <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                          {{subpage.title}}
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </li>
-              </ul>
-              <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
-                <li class="px-0 mb-3"><a href="/queries">Built-in checks</a></li>
-                <li class="px-0 mb-3"><a href="/tables">Raw data</a></li>
-                <li class="px-0 mb-3"><a href="/app-library">App library</a></li>
-                <li class="px-0 mb-3"><a href="/releases">Release notes</a></li>
-                <li class="px-0 mb-3"><a href="/docs/contributing" target="_blank">Contributing</a></li>
-                <li class="px-0 mb-3"><a href="/support">Support</a></li>
-                <li class="px-0 mb-3"><a href="/contact">Take a tour</a></li>
-              </ul>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
+    <div purpose="docs-template" class="container-fluid p-0">
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0"><%= thisPage.title %></h1>
-
       <div purpose="edit-button-container">
           <a :purpose="thisPage.title !== 'FAQ' ? 'edit-button' : 'faq-edit-button'" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">
             <i class="fa fa-pencil"></i>Edit page
           </a>
       </div>
 
-      <div class="container-fluid d-flex flex-column flex-lg-row p-0 pt-lg-4 pb-lg-4 m-0">
-        <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
+      <div purpose="content-and-desktop-sidebars" class="d-flex flex-column flex-lg-row">
+        <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left left-sidebar">
           <ul class="p-0 pb-3 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
               <span class="font-weight-bold pb-3">{{page.title}}</span>
@@ -149,9 +31,6 @@
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" href="/queries">Built-in checks</a>
-          <a class="pb-3" href="/tables">Raw data</a>
-          <a class="pb-3" href="/app-library">App library</a>
           <a class="pb-3" target="_blank" href="/releases">Release notes</a>
           <a class="pb-3" href="/docs/contributing" target="_blank">Contributing</a>
           <a class="pb-3" target="_blank" href="/support">Support</a>
@@ -169,27 +48,24 @@
           </div>
         </div>
 
-        <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
-
-          <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
-          <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
-            <ul class="p-0 m-0">
-              <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
-                <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
-              </li> -->
-              <li v-for="(subtopic, index) in subtopics" class="pl-lg-3 pb-3 pb-lg-2 subtopic" :key="index">
-                <a :href="subtopic.url">{{subtopic.title}}</a>
-              </li>
-              <li class="d-lg-none pl-lg-3 subtopic">
-                <a href="/support">Help and feedback</a>
-              </li>
-            </ul>
+        <div purpose="right-sidebar" class="order-first order-lg-last  right-sidebar" v-if="!thisPage.title.includes('FAQ') && !_.isEmpty(subtopics)">
+          <div class="d-none d-lg-block">
+            <p purpose="subtopics-heading" class="font-weight-bold">On this page:</p>
+            <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
+              <a purpose="subtopic-link" v-for="(subtopic, index) in subtopics" :href="subtopic.url">{{subtopic.title}}</a>
+            </div>
+          </div>
+          <div class="d-block d-lg-none" >
+            <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between" @click="clickOpenMobileSubtopicsNav()">
+              <div><p class="mb-0">On this page</p></div>
+              <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+            </div>
           </div>
         </div>
 
-        <div purpose="content" id="body-content" class="d-flex flex-column px-lg-5 content" parasails-has-no-page-script>
 
 
+        <div purpose="content" id="body-content" class="d-flex flex-column content" parasails-has-no-page-script>
           <%- partial(
             path.relative(
               path.dirname(__filename),
@@ -202,7 +78,6 @@
               )
             )
           ) %>
-
           <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
             <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
             <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center text-center">
@@ -225,19 +100,40 @@
               <%}%>
             </div>
           </div>
-
         </div>
 
       </div>
 
     </div>
 
-    <div purpose="back-to-top-button-container">
-      <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
-        <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
-      </div>
+  </div>
+  </div>
+  <div purpose="back-to-top-button-container">
+    <div purpose="back-to-top-button" nohightlight @click="clickScrollToTop">
+      <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
     </div>
   </div>
-
+  <div purpose="table-of-contents-modal">
+  <modal v-if="modal === 'table-of-contents'" @close="closeModal()">
+    <div purpose="modal-links">
+      <div v-for="page in findPagesByUrl()" :key="page.title">
+        <p purpose="section-title">{{page.title}}</p>
+        <div purpose="expanded-nav">
+          <a purpose="modal-nav-link" :href="subpage.url" :class="subpage.title === thisPage.title ? 'active' : ''"   v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+            {{subpage.title}}
+          </a>
+        </div>
+      </div>
+    </div>
+  </modal>
+  </div>
+  <div purpose="subtopics-modal">
+    <modal v-if="modal === 'subtopics'" @close="closeModal()">
+      <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
+      <div purpose="modal-links">
+        <a v-for="subtopic in subtopics" purpose="modal-nav-link"  class="d-block" :href="subtopic.url" @click="closeModal()">{{subtopic.title}}</a>
+      </div>
+    </modal>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
