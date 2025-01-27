@@ -1,5 +1,5 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
 
 // @ts-ignore
@@ -14,7 +14,7 @@ interface IPaginationProps {
   onPaginationChange: () => void;
 }
 
-export default {
+const meta: Meta<IPaginationProps> = {
   component: Pagination,
   title: "Components/Pagination",
   args: {
@@ -23,8 +23,12 @@ export default {
     resultsOnCurrentPage: 10,
     onPaginationChange: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IPaginationProps> = (props) => <Pagination {...props} />;
+export default meta;
+
+const Template: StoryFn<IPaginationProps> = (props) => (
+  <Pagination {...props} />
+);
 
 export const Default = Template.bind({});

@@ -53,6 +53,14 @@ func WithNoUser(ctx context.Context) context.Context {
 	return ctx
 }
 
+// WithNoError returns a context with logging.SkipError set to true so error won't be logged at level=error
+func WithNoError(ctx context.Context) context.Context {
+	if logCtx, ok := FromContext(ctx); ok {
+		logCtx.SetSkipError()
+	}
+	return ctx
+}
+
 // WithExtras returns a context with logging.Extras set as the values provided
 func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
@@ -61,6 +69,8 @@ func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	return ctx
 }
 
+// WithLevel forces a log level for the current request/context.
+// Level may still be upgraded to Error if an error is present.
 func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
 		logCtx.SetForceLevel(level)
@@ -77,6 +87,7 @@ type LoggingContext struct {
 	Extras     []interface{}
 	SkipUser   bool
 	ForceLevel func(kitlog.Logger) kitlog.Logger
+	SkipError  bool
 }
 
 func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) {
@@ -97,6 +108,12 @@ func (l *LoggingContext) SetSkipUser() {
 	l.SkipUser = true
 }
 
+func (l *LoggingContext) SetSkipError() {
+	l.l.Lock()
+	defer l.l.Unlock()
+	l.SkipError = true
+}
+
 func (l *LoggingContext) SetStartTime() {
 	l.l.Lock()
 	defer l.l.Unlock()
@@ -115,7 +132,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	defer l.l.Unlock()
 
 	switch {
-	case len(l.Errs) > 0:
+	case len(l.Errs) > 0 && !l.SkipError:
 		logger = level.Error(logger)
 	case l.ForceLevel != nil:
 		logger = l.ForceLevel(logger)

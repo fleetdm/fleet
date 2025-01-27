@@ -86,7 +86,7 @@ module.exports = {
       profileToReturn = await UndeployedProfile.create(newProfileInfo).fetch();
     } else {
       let newTeams = [];
-      for(let teamApid of teams){
+      await sails.helpers.flow.simultaneouslyForEach(teams, async (teamApid)=>{
         let bodyForThisRequest = {
           team_id: teamApid,// eslint-disable-line camelcase
           labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
@@ -123,7 +123,7 @@ module.exports = {
           fleetApid: teamApid,
           uuid: JSON.parse(newProfileResponse.body).profile_uuid
         });
-      }
+      });
       newProfileInfo.teams = newTeams;
       profileToReturn = newProfileInfo;
     }

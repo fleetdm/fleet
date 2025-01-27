@@ -60,7 +60,7 @@ const EditUserModal = ({
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        userFormErrors={editUserErrors}
+        ancestorErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}

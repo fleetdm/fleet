@@ -138,6 +138,7 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
 	testMFAAttribute(t, ds, users)
+	testSettingsAttribute(t, ds, users)
 }
 
 func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
@@ -157,6 +158,28 @@ func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		verify, err = ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.False(t, verify.MFAEnabled)
+	}
+}
+
+func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.Settings = &fleet.UserSettings{}
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		// settings should only be returned via dedicated method
+		assert.Nil(t, verify.Settings)
+
+		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		// call the settings db method here
+		settings, err := ds.UserSettings(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
 	}
 }
 

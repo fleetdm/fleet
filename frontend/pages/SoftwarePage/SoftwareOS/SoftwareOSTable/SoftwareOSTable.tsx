@@ -8,13 +8,14 @@ import PATHS from "router/paths";
 
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
@@ -214,7 +215,9 @@ const SoftwareOSTable = ({
     );
   };
 
-  const handlePlatformFilterDropdownChange = (platformSelected: string) => {
+  const handlePlatformFilterDropdownChange = (
+    platformSelected: SingleValue<CustomOptionType>
+  ) => {
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_OS,
@@ -223,7 +226,7 @@ const SoftwareOSTable = ({
           order_direction: orderDirection,
           order_key: orderKey,
           page: 0,
-          platform: platformSelected,
+          platform: platformSelected?.value,
         },
       })
     );
@@ -231,13 +234,13 @@ const SoftwareOSTable = ({
 
   const renderPlatformDropdown = () => {
     return (
-      <Dropdown
+      <DropdownWrapper
+        name="os-platform-dropdown"
         value={platform || "all"}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
         onChange={handlePlatformFilterDropdownChange}
-        tableFilterDropdown
+        variant="table-filter"
       />
     );
   };

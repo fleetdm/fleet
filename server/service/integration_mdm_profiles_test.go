@@ -939,7 +939,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		require.NoError(t, err)
 		out, err := xml.Marshal(msg)
 		require.NoError(t, err)
-		require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, out))
+		require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger, s.ds, h, out))
 	}
 
 	verifyCommands := func(wantProfileInstalls int, status string) {
@@ -4920,6 +4920,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	triggerReconcileProfiles := func() {

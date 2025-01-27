@@ -1,5 +1,5 @@
 #query-library {
-
+  // background-color: #FFF;
   a {
     color: #515774;
     font-family: Inter;
@@ -122,8 +122,21 @@
     margin-bottom: 64px;
   }
   [purpose='page-headline'] {
-    max-width: 662px;
+    max-width: 664px;
     margin-right: 16px;
+    h2 {
+      color: #192147;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 120%;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #515774;
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 24px; /* 160% */
+    }
   }
   [purpose='platform-filters'] {
     border-bottom: 1px solid #E2E4EA;
@@ -320,6 +333,9 @@
       margin-top: 32px;
       width: 100%;
       .input-group {
+        width: 100%;
+      }
+      .DocSearch-Button {
         width: 100%;
       }
     }

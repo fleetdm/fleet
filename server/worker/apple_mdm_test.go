@@ -1,7 +1,9 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -12,10 +14,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -600,4 +604,56 @@ func TestAppleMDM(t *testing.T) {
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
 		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
 	})
+}
+
+func TestGetSignedURL(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	meta := &fleet.MDMAppleBootstrapPackage{
+		Sha256: []byte{1, 2, 3},
+	}
+
+	var data []byte
+	buf := bytes.NewBuffer(data)
+	logger := kitlog.NewLogfmtLogger(buf)
+	a := &AppleMDM{Log: logger}
+
+	// S3 not configured
+	assert.Empty(t, a.getSignedURL(ctx, meta))
+	assert.Empty(t, buf.String())
+
+	// Signer not configured
+	mockStore := &mock.MDMBootstrapPackageStore{}
+	a.BootstrapPackageStore = mockStore
+	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+		return "bozo", fleet.ErrNotConfigured
+	}
+	assert.Empty(t, a.getSignedURL(ctx, meta))
+	assert.Empty(t, buf.String())
+
+	// Test happy path
+	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+		return "signed", nil
+	}
+	mockStore.ExistsFunc = func(ctx context.Context, packageID string) (bool, error) {
+		assert.Equal(t, "010203", packageID)
+		return true, nil
+	}
+	assert.Equal(t, "signed", a.getSignedURL(ctx, meta))
+	assert.Empty(t, buf.String())
+	assert.True(t, mockStore.SignFuncInvoked)
+	assert.True(t, mockStore.ExistsFuncInvoked)
+	mockStore.SignFuncInvoked = false
+	mockStore.ExistsFuncInvoked = false
+
+	// Test error -- sign failed
+	mockStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+		return "", errors.New("test error")
+	}
+	assert.Empty(t, a.getSignedURL(ctx, meta))
+	assert.Contains(t, buf.String(), "test error")
+	assert.True(t, mockStore.SignFuncInvoked)
+	assert.False(t, mockStore.ExistsFuncInvoked)
+
 }

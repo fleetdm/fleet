@@ -2190,7 +2190,7 @@ the `software` table.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object.                                              |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. This query is populated by the `additional_queries` in the `features` section of the configuration YAML.                                              |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -2267,41 +2267,41 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "policy_updated_at": "2023-06-26T18:33:15Z",
       "last_enrolled_at": "2023-02-26T22:33:12Z",
       "seen_time": "2020-11-05T06:03:39Z",
-      "hostname": "2ceca32fe484",
+      "hostname": "Annas-MacBook-Pro.local",
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-      "platform": "centos",
-      "osquery_version": "2.7.0",
-      "os_version": "CentOS Linux 7",
-      "build": "",
-      "platform_like": "rhel fedora",
+      "platform": "darwin",
+      "osquery_version": "5.15.0",
+      "os_version": "macOS 15.2",
+      "build": "24C101",
+      "platform_like": "darwin",
       "code_name": "",
       "uptime": 8305000000000,
       "memory": 2084032512,
-      "cpu_type": "6",
-      "cpu_subtype": "142",
-      "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
-      "cpu_physical_cores": 4,
-      "cpu_logical_cores": 4,
-      "hardware_vendor": "",
-      "hardware_model": "",
+      "cpu_type": "arm64e",
+      "cpu_subtype": "ARM64E",
+      "cpu_brand": "Apple M1",
+      "cpu_physical_cores": 8,
+      "cpu_logical_cores": 8,
+      "hardware_vendor": "Apple Inc.",
+      "hardware_model": "MacBookPro17,1",
       "hardware_version": "",
-      "hardware_serial": "",
-      "computer_name": "2ceca32fe484",
-      "display_name": "2ceca32fe484",
-      "public_ip": "",
-      "primary_ip": "",
-      "primary_mac": "",
+      "hardware_serial": "C0124FXASD6G",
+      "computer_name": "Anna's MacBook Pro",
+      "display_name": "Anna's MacBook Pro",
+      "public_ip": "123.45.678.910",
+      "primary_ip": "192.12.345.678",
+      "primary_mac": "36:34:a5:6b:7b:5c",
       "distributed_interval": 10,
       "config_tls_refresh": 10,
       "logger_tls_period": 8,
-      "additional": {},
       "status": "offline",
-      "display_text": "2ceca32fe484",
+      "display_text": "Annas-MacBook-Pro.local",
       "team_id": null,
       "team_name": null,
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
       "gigs_total_disk_space": 246,
+      "additional": {},
       "pack_stats": [
         {
           "pack_id": 0,
@@ -2634,39 +2634,6 @@ Returns the information of the specified host.
   "host": {
     "created_at": "2021-08-19T02:02:22Z",
     "updated_at": "2021-08-19T21:14:58Z",
-    "software": [
-      {
-        "id": 408,
-        "name": "osquery",
-        "version": "4.5.1",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-1"]
-      },
-      {
-        "id": 1146,
-        "name": "tar",
-        "version": "1.30",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 321,
-        "name": "SomeApp.app",
-        "version": "1.0",
-        "source": "apps",
-        "browser": "",
-        "bundle_identifier": "com.some.app",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some-path-2"]
-      }
-    ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "last_restarted_at": "2020-11-01T03:01:45Z",
@@ -2676,31 +2643,31 @@ Returns the information of the specified host.
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "23cfc9caacf0",
+    "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "platform": "rhel",
-    "osquery_version": "5.12.0",
+    "platform": "darwin",
+    "osquery_version": "5.15.0",
     "orbit_version": "1.22.0",
     "fleet_desktop_version": "1.22.0",
     "scripts_enabled": true,
-    "os_version": "CentOS Linux 8.3.2011",
-    "build": "",
-    "platform_like": "rhel",
+    "os_version": "macOS 15.2",
+    "build": "24C101",
+    "platform_like": "darwin",
     "code_name": "",
     "uptime": 210671000000000,
     "memory": 16788398080,
-    "cpu_type": "x86_64",
-    "cpu_subtype": "158",
-    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "cpu_physical_cores": 12,
-    "cpu_logical_cores": 12,
-    "hardware_vendor": "",
-    "hardware_model": "",
+    "cpu_type": "arm64e",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple M1",
+    "cpu_physical_cores": 8,
+    "cpu_logical_cores": 8,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "MacBookPro17,1",
     "hardware_version": "",
-    "hardware_serial": "",
-    "computer_name": "23cfc9caacf0",
-    "display_name": "23cfc9caacf0",
-    "public_ip": "",
+    "hardware_serial": "C0124FXASD6G",
+    "computer_name": "Anna's MacBook Pro",
+    "display_name": "Anna's MacBook Pro",
+    "public_ip": "123.45.678.910",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
     "distributed_interval": 10,
@@ -2709,25 +2676,50 @@ Returns the information of the specified host.
     "team_id": null,
     "pack_stats": null,
     "team_name": null,
-    "additional": {},
-    "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 160,
+    "gigs_disk_space_available": 174.98,
+    "percent_disk_space_available": 71,
+    "gigs_total_disk_space": 246,
     "disk_encryption_enabled": true,
+    "status": "online",
+    "display_text": "Annas-MacBook-Pro.local",
+    "additional": {},
+    "issues": {
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Available in Fleet Premium
+      "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
     "users": [
       {
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root",
-        "shell": "/bin/bash"
+        "shell": "/bin/sh"
       },
       {
         "uid": 1,
-        "username": "bin",
+        "username": "annachao",
         "type": "",
-        "groupname": "bin",
-        "shell": "/sbin/nologin"
+        "groupname": "staff",
+        "shell": "/bin/zsh"
       }
     ],
     "labels": [
@@ -2746,9 +2738,9 @@ Returns the information of the specified host.
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 9,
-        "name": "CentOS Linux",
-        "description": "All CentOS hosts",
-        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "name": "macOS",
+        "description": "All macOS hosts",
+        "query": "select 1 from os_version where platform = 'darwin';",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2757,17 +2749,15 @@ Returns the information of the specified host.
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 12,
-        "name": "All Linux",
-        "description": "All Linux distributions",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "name": "Hosts with Chrome installed",
+        "description": "",
+        "query": "SELECT * FROM apps WHERE name LIKE \"%Chrome%\"",
         "platform": "",
-        "label_type": "builtin",
+        "label_type": "regular",
         "label_membership_type": "dynamic"
       }
     ],
     "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
     "policies": [
       {
         "id": 2,
@@ -2800,29 +2790,20 @@ Returns the information of the specified host.
         "critical": false
       }
     ],
-    "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
-    },
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Normal"
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "browser": "",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some-path-2"]
       }
     ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
-      "timezone": "America/New_York"
-    },
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
@@ -2832,7 +2813,7 @@ Returns the information of the specified host.
       "device_status": "unlocked",
       "pending_action": "",
       "macos_settings": {
-        "disk_encryption": null,
+        "disk_encryption": "verified",
         "action_required": null
       },
       "macos_setup": {
@@ -2842,7 +2823,7 @@ Returns the information of the specified host.
       },
       "os_settings": {
         "disk_encryption": {
-          "status": null,
+          "status": "verified",
           "detail": ""
         }
       },
@@ -2900,18 +2881,6 @@ If `hostname` is specified when there is more than one host with the same hostna
   "host": {
     "created_at": "2022-02-10T02:29:13Z",
     "updated_at": "2022-10-14T17:07:11Z",
-    "software": [
-      {
-        "id": 16923,
-        "name": "Automat",
-        "version": "0.8.0",
-        "source": "python_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/usr/lib/some_path/"]
-      }
-    ],
     "id": 33,
     "detail_updated_at": "2022-10-14T17:07:12Z",
     "label_updated_at": "2022-10-14T17:07:12Z",
@@ -2947,6 +2916,29 @@ If `hostname` is specified when there is more than one host with the same hostna
     "config_tls_refresh": 60,
     "logger_tls_period": 10,
     "team_id": 2,
+    "team_name": null,
+    "gigs_disk_space_available": 19.29,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 192,
+    "issues": {
+      "failing_policies_count": 1,
+      "critical_vulnerabilities_count": 2, // Fleet Premium only
+      "total_issues_count": 3
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Normal"
+      }
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    },
     "pack_stats": [
       {
         "pack_id": 1,
@@ -2972,15 +2964,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         ]
       }
     ],
-    "team_name": null,
-    "gigs_disk_space_available": 19.29,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 192,
-    "issues": {
-        "failing_policies_count": 1,
-        "critical_vulnerabilities_count": 2, // Fleet Premium only
-        "total_issues_count": 3
-    },
     "labels": [
       {
         "created_at": "2021-09-14T05:11:02Z",
@@ -3029,23 +3012,18 @@ If `hostname` is specified when there is more than one host with the same hostna
         "critical": false
       }
     ],
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Normal"
+        "id": 16923,
+        "name": "Automat",
+        "version": "0.8.0",
+        "source": "python_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "status": "online",
-    "display_text": "dogfood-ubuntu-box",
-    "display_name": "dogfood-ubuntu-box",
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
@@ -3112,67 +3090,36 @@ This is the API route used by the **My device** page in Fleet desktop to display
   "host": {
     "created_at": "2021-08-19T02:02:22Z",
     "updated_at": "2021-08-19T21:14:58Z",
-    "software": [
-      {
-        "id": 408,
-        "name": "osquery",
-        "version": "4.5.1",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 1146,
-        "name": "tar",
-        "version": "1.30",
-        "source": "rpm_packages",
-        "browser": "",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      },
-      {
-        "id": 321,
-        "name": "SomeApp.app",
-        "version": "1.0",
-        "source": "apps",
-        "browser": "",
-        "bundle_identifier": "com.some.app",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null
-      }
-    ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
-    "hostname": "23cfc9caacf0",
+    "hostname": "Annas-MacBook-Pro.local",
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "platform": "rhel",
-    "osquery_version": "4.5.1",
-    "os_version": "CentOS Linux 8.3.2011",
-    "build": "",
-    "platform_like": "rhel",
+    "platform": "darwin",
+    "osquery_version": "5.15.0",
+    "os_version": "macOS 15.2",
+    "build": "24C101",
+    "platform_like": "darwin",
     "code_name": "",
     "uptime": 210671000000000,
     "memory": 16788398080,
-    "cpu_type": "x86_64",
-    "cpu_subtype": "158",
-    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "cpu_physical_cores": 12,
-    "cpu_logical_cores": 12,
-    "hardware_vendor": "",
-    "hardware_model": "",
+    "cpu_type": "arm64e",
+    "cpu_subtype": "ARM64E",
+    "cpu_brand": "Apple M1",
+    "cpu_physical_cores": 8,
+    "cpu_logical_cores": 8,
+    "hardware_vendor": "Apple Inc.",
+    "hardware_model": "MacBookPro17,1",
     "hardware_version": "",
     "hardware_serial": "",
-    "computer_name": "23cfc9caacf0",
-    "display_name": "23cfc9caacf0",
-    "public_ip": "",
-    "primary_ip": "172.27.0.6",
-    "primary_mac": "02:42:ac:1b:00:06",
+    "computer_name": "Anna's MacBook Pro",
+    "display_name": "Anna's MacBook Pro",
+    "public_ip": "123.45.678.910",
+    "primary_ip": "192.12.345.678",
+    "primary_mac": "36:34:a5:6b:7b:5c",
     "distributed_interval": 10,
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
@@ -3180,25 +3127,44 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "pack_stats": null,
     "team_name": null,
     "additional": {},
-    "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 74,
-    "gigs_total_disk_space": 160,
+    "gigs_disk_space_available": 174.98,
+    "percent_disk_space_available": 71,
+    "gigs_total_disk_space": 246,
     "disk_encryption_enabled": true,
     "dep_assigned_to_fleet": false,
+    "status": "online",
+    "display_text": "Annas-MacBook-Pro.local",
+    "self_service": true,
+    "org_logo_url": "https://example.com/logo.jpg",
+    "license": {
+      "tier": "free",
+      "expiration": "2031-01-01T00:00:00Z"
+    },
+    "global_config": {
+      "mdm": {
+        "enabled_and_configured": false
+      }
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ],
     "users": [
       {
         "uid": 0,
         "username": "root",
         "type": "",
         "groupname": "root",
-        "shell": "/bin/bash"
+        "shell": "/bin/sh"
       },
       {
         "uid": 1,
-        "username": "bin",
+        "username": "annachao",
         "type": "",
-        "groupname": "bin",
-        "shell": "/sbin/nologin"
+        "groupname": "staff",
+        "shell": "/bin/zsh"
       }
     ],
     "labels": [
@@ -3217,9 +3183,9 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 9,
-        "name": "CentOS Linux",
-        "description": "All CentOS hosts",
-        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "name": "macOS",
+        "description": "All macOS hosts",
+        "query": "select 1 from os_version where platform = 'darwin';",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -3228,23 +3194,28 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "created_at": "2021-08-19T02:02:17Z",
         "updated_at": "2021-08-19T02:02:17Z",
         "id": 12,
-        "name": "All Linux",
-        "description": "All Linux distributions",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "name": "Hosts with Chrome installed",
+        "description": "",
+        "query": "SELECT * FROM apps WHERE name LIKE \"%Chrome%\"",
         "platform": "",
-        "label_type": "builtin",
+        "label_type": "regular",
         "label_membership_type": "dynamic"
       }
     ],
-    "packs": [],
-    "status": "online",
-    "display_text": "23cfc9caacf0",
-    "batteries": [
+    "software": [
       {
-        "cycle_count": 999,
-        "health": "Good"
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "browser": "",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
       }
     ],
+    "packs": [],
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
@@ -3252,7 +3223,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "macos_settings": {
-        "disk_encryption": null,
+        "disk_encryption": "verified",
         "action_required": null
       },
       "macos_setup": {
@@ -3262,7 +3233,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       },
       "os_settings": {
         "disk_encryption": {
-          "status": null,
+          "status": "verified",
           "detail": ""
         }
       },
@@ -3275,17 +3246,6 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "detail": ""
         }
       ]
-    }
-  },
-  "self_service": true,
-  "org_logo_url": "https://example.com/logo.jpg",
-  "license": {
-    "tier": "free",
-    "expiration": "2031-01-01T00:00:00Z"
-  },
-  "global_config": {
-    "mdm": {
-      "enabled_and_configured": false
     }
   }
 }
@@ -3508,7 +3468,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -3559,7 +3519,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -5091,9 +5051,11 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| labels_include_any        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels in the array. |
+| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
+
+Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 #### Example
 
@@ -7133,7 +7095,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
 | platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
-| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails.                                                                     |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 
 Either `query` or `query_id` must be provided.
@@ -7243,8 +7205,8 @@ Either `query` or `query_id` must be provided.
 | platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
-| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `0` to remove the automation.                                   |
-| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `0` to remove the automation.                                               |
+| software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 
 #### Example
 
@@ -7503,9 +7465,10 @@ Returns the query report specified by ID.
 
 #### Parameters
 
-| Name      | Type    | In    | Description                                |
-| --------- | ------- | ----- | ------------------------------------------ |
-| id        | integer | path  | **Required**. The ID of the desired query. |
+| Name      | Type    | In    | Description                                                                               |
+| --------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
+| id        | integer | path  | **Required**. The ID of the desired query.                                                |
+| team_id   | integer | query | Filter the query report to only include hosts that are associated with the team specified |
 
 #### Example
 
@@ -8427,7 +8390,7 @@ By default, script runs time out after 5 minutes. You can modify this default in
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
 | script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. Scripts must be less than 10,000 characters. To run scripts with more than 10k characters, save the script and use `script_id` or `script_name` and `team_id` instead. |
 | script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
 | team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
@@ -8497,6 +8460,9 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
 | team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+
+Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both
+non-Windows shells and PowerShell.
 
 #### Example
 
@@ -9053,6 +9019,12 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
       "self_service": true,
+      "labels_include_any": [
+        {
+          "name": "Engineering",
+          "id": 294
+        }
+      ],
       "automatic_install_policies": [
         {
           "id": 343,
@@ -9277,7 +9249,11 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
 
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9340,8 +9316,13 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+
 #### Example
 
 `PATCH /api/v1/fleet/software/titles/1/package`
@@ -9491,6 +9472,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
+
 ### List Fleet-maintained apps
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9571,7 +9553,6 @@ Returns information about the specified Fleet-maintained app.
   "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
-    "filename": "1Password-8.10.44-aarch64.zip",
     "version": "8.10.40",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
@@ -9599,6 +9580,10 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9716,7 +9701,7 @@ _Available in Fleet Premium._
 
 Get the results of a software package install.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
@@ -11585,9 +11570,9 @@ Verify the specified invite.
 
 #### Parameters
 
-| Name  | Type    | In   | Description                            |
-| ----- | ------- | ---- | -------------------------------------- |
-| token | integer | path | **Required.** The user's invite token. |
+| Name  | Type   | In   | Description                            |
+| ----- | -------| ---- | -------------------------------------- |
+| token | string | path | **Required.** The user's invite token. |
 
 #### Example
 

@@ -1950,6 +1950,61 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", " local0 ")
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+
+	// Add users to hosts
+	users := []fleet.HostUser{
+		{
+			Uid:       1,
+			Username:  "root",
+			Type:      "local",
+			GroupName: "root",
+			Shell:     "/bin/sh",
+		},
+		{
+			Uid:       1001,
+			Username:  "username",
+			Type:      "local",
+			GroupName: "usergroup",
+			Shell:     "/bin/sh",
+		},
+	}
+	err = s.ds.SaveHostUsers(ctx, host0.ID, users)
+	require.NoError(t, err)
+
+	// Add labels to host
+	label1, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "First Label"})
+	require.NoError(t, err)
+	label2, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Second Label"})
+	require.NoError(t, err)
+
+	err = s.ds.AddLabelsToHost(ctx, host0.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	// Without "populate_users" and "populate_labels" query params, no users or labels
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Empty(t, resp.Hosts[0].Users)
+	require.Empty(t, resp.Hosts[0].Labels)
+
+	// With "populate_users" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_users", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Users, 2)
+	require.EqualValues(t, resp.Hosts[0].Users[0], users[0])
+	require.EqualValues(t, resp.Hosts[0].Users[1], users[1])
+
+	// With "populate_labels" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_labels", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Labels, 2)
+	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
+	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -4188,6 +4243,25 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
 
+	// add a host with the same name as another host to manual label 2, confirm only one host is added
+	sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		HardwareSerial: "ABCDE",
+		Hostname:       manualHosts[0].Hostname,
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
+	assert.Len(t, modResp.Label.HostIDs, 1)
+	assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 1, modResp.Label.HostCount)
+
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}
 	newName = "modified_manual_label2"
@@ -4655,6 +4729,93 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, getMeResp.User.Teams, 0)
 	assert.Len(t, getMeResp.AvailableTeams, 0)
 
+	// test user settings from 2 endpoints
+
+	// get session user with ui settings, which should be empty, two endpoints
+	var getResp getUserResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Empty(t, getResp.User.Settings)
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	// session user id 1
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	// settings should only be present in dedicated settings field, not in user object
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Empty(t, getMeResp.Settings)
+
+	// modify session user - add ui setting
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["osquery_version"]}
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be present, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+
+	// modify user ui settings, check they are returned modified
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": ["hostname", "osquery_version"]}
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+
+	// modify user ui settings, empty array, check they are returned correctly
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
+		"settings": {
+			"hidden_host_columns": []}
+	}`), http.StatusOK, &modResp)
+
+	// get session user with ui settings, should now be modified, two endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
+	assert.Equal(t, uint(1), getResp.User.ID)
+	assert.Nil(t, getResp.User.Settings)
+	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
+	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
+	}, "include_ui_settings", "true")
+	err = json.NewDecoder(resp.Body).Decode(&getMeResp)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), getMeResp.User.ID)
+	assert.NotNil(t, getMeResp.User.GlobalRole)
+	assert.Nil(t, getMeResp.User.Settings)
+	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -4712,7 +4873,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
 
 	// turn off MFA
-	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
 	require.False(t, modResp.User.MFAEnabled)
 
@@ -4726,7 +4886,6 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Len(t, loginResp.AvailableTeams, 0)
 
 	// get that user from `/users` endpoint and check that teams info is empty
-	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
 	assert.Len(t, getResp.User.Teams, 0)
@@ -6004,6 +6163,34 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)
 	require.Len(t, config.Integrations.Zendesk, 0)
+
+	// enable webhooks
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"webhook_settings": {
+			"activities_webhook": {
+				"enable_activities_webhook": true,
+				"destination_url": "http://some/url"
+    			},
+	    		"failing_policies_webhook": {
+	     	 		"enable_failing_policies_webhook": true,
+     		 		"destination_url": "http://some/url",
+				"host_batch_size": 1000
+	    		},
+	    		"host_status_webhook": {
+	     	 		"enable_host_status_webhook": true,
+	     	 		"destination_url": "http://some/url",
+					  "host_percentage": 2,
+						"days_count": 1
+	    		}
+		}
+	}`), http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.WebhookSettings.ActivitiesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.ActivitiesWebhook.DestinationURL)
+	require.True(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
 func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
@@ -9028,7 +9215,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// test list
@@ -9135,7 +9322,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))

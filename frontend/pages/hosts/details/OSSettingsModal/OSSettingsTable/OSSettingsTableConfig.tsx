@@ -12,7 +12,6 @@ import {
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -83,14 +82,23 @@ const generateTableConfig = (
       Header: "Error",
       disableSortBy: true,
       accessor: "detail",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <OSSettingsErrorCell
-          canResendProfiles={canResendProfiles}
-          hostId={hostId}
-          profile={cellProps.row.original}
-          onProfileResent={onProfileResent}
-        />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { name, platform, status } = cellProps.row.original;
+        const isFailedWindowsDiskEncryption =
+          platform === "windows" &&
+          name === "Disk Encryption" &&
+          status === "failed";
+        return (
+          <OSSettingsErrorCell
+            canResendProfiles={
+              canResendProfiles && !isFailedWindowsDiskEncryption
+            }
+            hostId={hostId}
+            profile={cellProps.row.original}
+            onProfileResent={onProfileResent}
+          />
+        );
+      },
     },
   ];
 };
@@ -159,7 +167,7 @@ const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
       // it would be better to match on the identifier but it is not
       // currently available in the API response
       if (p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME) {
-        return { ...p, status: "action_required" || p.status };
+        return { ...p, status: "action_required" };
       }
       return p;
     });

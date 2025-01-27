@@ -1,22 +1,6 @@
 .software-table {
-  &__vuln_dropdown {
-    .Select-menu-outer {
-      width: 250px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
-
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-    }
-
-    .dropdown__custom-value-label {
-      width: 155px; // Override 105px for longer text options
-    }
+  &__software-filter {
+    min-width: 213px;
   }
 
   &__filter-controls {
@@ -37,24 +21,9 @@
   }
 
   .table-container {
-    &__header {
-      flex-direction: column-reverse; // Search bar on top
-
-      @media (min-width: $table-controls-break) {
-        flex-direction: row;
-      }
-    }
-
-    &__header-left {
-      flex-direction: row; // Filter dropdown aligned with count
-
-      .controls {
-        .form-field--dropdown {
-          margin: 0;
-        }
-        .form-field {
-          width: initial; // Negate form-field styling on slider
-        }
+    &__results-count {
+      .form-field--slider {
+        align-self: center;
       }
     }
 
@@ -63,7 +32,8 @@
       width: 100%; // Search bar across entire table
 
       .input-icon-field__input {
-        width: 100%;
+        min-width: 213px;
+        height: 40px;
       }
 
       @media (min-width: $table-controls-break) {

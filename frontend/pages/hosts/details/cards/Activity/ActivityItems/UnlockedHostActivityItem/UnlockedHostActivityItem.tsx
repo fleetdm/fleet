@@ -1,7 +1,7 @@
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
-import HostActivityItem from "../../HostActivityItem";
 
 const baseClass = "unlocked-host-activity-item";
 
@@ -13,9 +13,9 @@ const UnlockedHostActivityItem = ({
     desc = "viewed the six-digit unlock PIN for this host.";
   }
   return (
-    <HostActivityItem className={baseClass} activity={activity}>
+    <ActivityItem className={baseClass} activity={activity}>
       <b>{activity.actor_full_name} </b> {desc}
-    </HostActivityItem>
+    </ActivityItem>
   );
 };
 

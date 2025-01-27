@@ -489,12 +489,6 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 	return nil
 }
 
-// TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
-// and scripts/mdm/linux/.. directories where they currently exist, but this is
-// not possible (not a Go package) and I don't know if those script locations
-// are used elsewhere, so for now I just copied the contents under
-// embedded_scripts directory. We'll have to make sure they are kept in sync,
-// or better yet find a way to maintain a single copy.
 var (
 	//go:embed embedded_scripts/windows_lock.ps1
 	windowsLockScript []byte

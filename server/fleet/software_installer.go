@@ -27,6 +27,7 @@ type SoftwareInstallerStore interface {
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
+	Sign(ctx context.Context, fileID string) (string, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
@@ -53,6 +54,10 @@ func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerI
 	return 0, nil
 }
 
+func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
+	return "", errors.New("software installer store not properly configured")
+}
+
 // SoftwareInstallDetails contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
@@ -73,6 +78,15 @@ type SoftwareInstallDetails struct {
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// SelfService indicates the install was initiated by the device user
 	SelfService bool `json:"self_service" db:"self_service"`
+	// SoftwareInstallerURL contains the details to download the software installer from CDN.
+	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+}
+
+type SoftwareInstallerURL struct {
+	// URL is the URL to download the software installer.
+	URL string `json:"url"`
+	// Filename is the name of the software installer file that contents should be downloaded to from the URL.
+	Filename string `json:"filename"`
 }
 
 // SoftwareInstaller represents a software installer package that can be used to install software on
@@ -142,6 +156,19 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+}
+
+// VPPAppResponse is the response type used when applying app store apps by batch.
+type VPPAppResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
+	AppStoreID string `json:"app_store_id" db:"app_store_id"`
+	// Platform is the platform this title ID corresponds to
+	Platform AppleDevicePlatform `json:"platform" db:"platform"`
 }
 
 // AuthzType implements authz.AuthzTyper.

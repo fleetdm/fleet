@@ -587,6 +587,28 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PopulatePolicies = pp
 	}
 
+	populateUsers := r.URL.Query().Get("populate_users")
+	if populateUsers != "" {
+		pu, err := strconv.ParseBool(populateUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_users: %s", populateUsers)),
+			)
+		}
+		hopt.PopulateUsers = pu
+	}
+
+	populateLabels := r.URL.Query().Get("populate_labels")
+	if populateLabels != "" {
+		pl, err := strconv.ParseBool(populateLabels)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_labels: %s", populateLabels)),
+			)
+		}
+		hopt.PopulateLabels = pl
+	}
+
 	// cannot combine software_id, software_version_id, and software_title_id
 	var softwareErrorLabel []string
 	if hopt.SoftwareIDFilter != nil {

@@ -1,0 +1,1 @@
+Fix Windows MDM issue where SessionID of 0 was not allowed.

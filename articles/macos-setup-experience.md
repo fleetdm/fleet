@@ -60,7 +60,7 @@ To add a bootstrap package to Fleet, we will do the following steps:
 3. Upload the package to Fleet
 4. Confirm package is uploaded
 
-### Step 1: download or generate a package
+### Step 1: Download or generate a package
 
 Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
@@ -87,7 +87,7 @@ Apple requires that your package is a distribution package. Verify that the pack
 
   Make sure your package is a `.pkg` file.
 
-### Step 2: sign the package
+### Step 2: Sign the package
 
 To sign the package we need a valid Developer ID Installer certificate:
 
@@ -114,7 +114,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
   In the output you should see that your package has a "signed" status.
 
-### Step 3: upload the package to Fleet
+### Step 3: Upload the package to Fleet
 
 1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
@@ -134,7 +134,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 2. Upload the profile to Fleet
 3. Test the custom macOS Setup Assistant
 
-### Step 1: create an automatic enrollment profile
+### Step 1: Create an automatic enrollment profile
 
 1. Download Fleet's example automatic enrollment profile by navigating to the example [here](https://fleetdm.com/example-dep-profile) and clicking the download icon.
 
@@ -146,7 +146,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
   > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
 
-### Step 2: upload the profile to Fleet
+### Step 2: Upload the profile to Fleet
 
 1. Head to the **Controls > Setup experience > Setup assistant** page.
 
@@ -154,7 +154,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 3. Select **Add profile** and choose your profile package.
 
-### Step 3: test the custom macOS Setup Assistant
+### Step 3: Test the custom macOS Setup Assistant
 
 Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
 

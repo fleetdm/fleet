@@ -720,9 +720,9 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			s3 := S3Config{
-				SoftwareInstallersCloudfrontURL:                   c.url,
-				SoftwareInstallersCloudfrontURLSigningPublicKeyID: c.publicKey,
-				SoftwareInstallersCloudfrontURLSigningPrivateKey:  c.privateKey,
+				SoftwareInstallersCloudFrontURL:                   c.url,
+				SoftwareInstallersCloudFrontURLSigningPublicKeyID: c.publicKey,
+				SoftwareInstallersCloudFrontURLSigningPrivateKey:  c.privateKey,
 			}
 			initFatal := func(err error, msg string) {
 				if c.errMatches != "" {
@@ -732,7 +732,7 @@ func TestValidateCloudfrontURL(t *testing.T) {
 					t.Errorf("unexpected error: %v", err)
 				}
 			}
-			s3.ValidateCloudfrontURL(initFatal)
+			s3.ValidateCloudFrontURL(initFatal)
 		})
 	}
 }

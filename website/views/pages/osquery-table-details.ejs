@@ -62,7 +62,7 @@
           </div>
           <div style="position: relative;">
             <div purpose="table-of-contents">
-              <a class="d-block" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+[selectedPlatform !== 'all' ? '?platformFilter='+encodeURIComponent(selectedPlatform) : '' ]" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
+              <a class="d-block" purpose="table-of-contents-link" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+[selectedPlatform !== 'all' ? '?platformFilter='+encodeURIComponent(selectedPlatform) : '' ]" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
             </div>
             <div purpose="overflow-shadow" class="d-none d-lg-block"></div>
           </div>

@@ -18,17 +18,10 @@
 
         .role__header {
           width: $col-md;
-          border-right: none;
         }
 
         .actions__header {
           width: auto;
-        }
-
-        @media (min-width: $break-lg) {
-          .role__header {
-            border-right: 1px solid $ui-fleet-black-10;
-          }
         }
       }
 
