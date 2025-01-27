@@ -40,6 +40,12 @@ import {
   getFleetAppPolicyQuery,
 } from "./helpers";
 
+const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+const REQUEST_TIMEOUT_ERROR_MESSAGE =
+  "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+const AUTOMATIC_POLICY_ERROR_MESSAGE =
+  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
+
 const baseClass = "fleet-maintained-app-details-page";
 
 interface ISoftwareSummaryProps {
@@ -199,17 +205,20 @@ const FleetMaintainedAppDetailsPage = ({
       // creation.
 
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
+
+      const errorMessage = getErrorMessage(ae);
+
       if (
         ae.status === 408 ||
-        getErrorMessage(error).includes("json decoder error") // 400 bad request when really slow
+        errorMessage.includes("json decoder error") // 400 bad request when really slow
       ) {
-        renderFlash(
-          "error",
-          "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough."
-        );
+        renderFlash("error", REQUEST_TIMEOUT_ERROR_MESSAGE);
+      } else if (errorMessage) {
+        renderFlash("error", errorMessage);
       } else {
-        renderFlash("error", "Couldn't add. Please try again.");
+        renderFlash("error", DEFAULT_ERROR_MESSAGE);
       }
+
       setShowAddFleetAppSoftwareModal(false);
       return;
     }
@@ -234,11 +243,9 @@ const FleetMaintainedAppDetailsPage = ({
           { persistOnPageChange: true }
         );
       } catch (e) {
-        renderFlash(
-          "error",
-          "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.",
-          { persistOnPageChange: true }
-        );
+        renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
+          persistOnPageChange: true,
+        });
       }
 
       // for automatic install we redirect on both a successful and error policy
