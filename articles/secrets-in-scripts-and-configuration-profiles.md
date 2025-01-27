@@ -20,11 +20,13 @@ For macOS and Linux scripts, if a secret doesn't have the `$FLEET_SECRET_` prefi
 
 ```yaml
     env:
+      ###  Variables used by the gitops workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
       FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
       FLEET_GLOBAL_ENROLL_SECRET: ${{ secrets.FLEET_GLOBAL_ENROLL_SECRET }}
       FLEET_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_ENROLL_SECRET }}
       FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET }}
+      ### Secrets uploaded to Fleet for use in profiles and scripts ###
       FLEET_SECRET_CERT_PASSWORD: ${{ secrets.FLEET_SECRET_CERT_PASSWORD }}
       FLEET_SECRET_CERT_BASE64: ${{ secrets.FLEET_SECRET_CERT_BASE64 }}
 ```
