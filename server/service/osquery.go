@@ -2104,7 +2104,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
-		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false, false)
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
 		}

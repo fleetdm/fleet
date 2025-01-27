@@ -129,8 +129,6 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIDs []uint) (err error)
-
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -138,6 +136,8 @@ type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, 
 type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint) (err error)
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
@@ -1043,7 +1043,9 @@ type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.Ho
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
-type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool, onlyActivePending bool) ([]*fleet.HostScriptResult, error)
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
+
+type ListReadyToExecuteScriptsForHostFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1370,9 +1372,6 @@ type DataStore struct {
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
-	UpdateLabelMembershipByHostIDsFunc				UpdateLabelMembershipByHostIDsFunc
-	UpdateLabelMembershipByHostIDsFuncInvoked bool
-
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
 
@@ -1384,6 +1383,9 @@ type DataStore struct {
 
 	RemoveLabelsFromHostFunc        RemoveLabelsFromHostFunc
 	RemoveLabelsFromHostFuncInvoked bool
+
+	UpdateLabelMembershipByHostIDsFunc        UpdateLabelMembershipByHostIDsFunc
+	UpdateLabelMembershipByHostIDsFuncInvoked bool
 
 	NewLabelFunc        NewLabelFunc
 	NewLabelFuncInvoked bool
@@ -2744,6 +2746,9 @@ type DataStore struct {
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
 
+	ListReadyToExecuteScriptsForHostFunc        ListReadyToExecuteScriptsForHostFunc
+	ListReadyToExecuteScriptsForHostFuncInvoked bool
+
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
 
@@ -3368,13 +3373,6 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIDs []uint) (err error) {
-	s.mu.Lock()
-	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIDs)
-}
-
 func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
@@ -3401,6 +3399,13 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	s.RemoveLabelsFromHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
+}
+
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error) {
+	s.mu.Lock()
+	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
@@ -6567,11 +6572,18 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
 }
 
-func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal, onlyActivePending)
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
+}
+
+func (s *DataStore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.ListReadyToExecuteScriptsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListReadyToExecuteScriptsForHostFunc(ctx, hostID, onlyShowInternal)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {

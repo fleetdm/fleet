@@ -1217,7 +1217,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.True(t, pendingActs[2].Cancellable)
 
 	// listing active pending scripts returns script1_1
-	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, h1.ID, false, true)
+	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingScripts, 1)
 	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)

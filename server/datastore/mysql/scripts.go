@@ -276,12 +276,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+}
+
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+}
+
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
 	if onlyShowInternal {
 		extraWhere = " AND JSON_EXTRACT(ua.payload, '$.is_internal') = 1"
 	}
-	if onlyActivePending {
+	if onlyReadyToExecute {
 		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
 	listStmt := fmt.Sprintf(`

@@ -281,7 +281,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false, false)
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
