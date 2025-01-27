@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -371,7 +373,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,
 		LatestVersion:    assetMD.Version,
+		ValidatedLabels:  validatedLabels,
 	}
+	slog.With("filename", "ee/server/service/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking labels ", "validatedLabels", *app.ValidatedLabels)
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
 	if err != nil {
@@ -386,6 +390,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		SoftwareTitleId: addedApp.TitleID,
 		TeamID:          teamID,
 		SelfService:     app.SelfService,
+		// TODO(JVE): add labels to activity
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")

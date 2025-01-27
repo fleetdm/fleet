@@ -47,8 +47,9 @@ type VPPApp struct {
 	TeamID  *uint `db:"-" json:"team_id,omitempty"`
 	TitleID uint  `db:"title_id" json:"-"`
 
-	CreatedAt time.Time `db:"created_at" json:"-"`
-	UpdatedAt time.Time `db:"updated_at" json:"-"`
+	CreatedAt       time.Time `db:"created_at" json:"-"`
+	UpdatedAt       time.Time `db:"updated_at" json:"-"`
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 // AuthzType implements authz.AuthzTyper.

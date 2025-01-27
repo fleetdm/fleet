@@ -196,7 +196,7 @@ INSERT INTO software_installers (
 		id, _ := res.LastInsertId()
 		installerID = uint(id) //nolint:gosec // dismiss G115
 
-		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels); err != nil {
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, "software_installer"); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
@@ -313,9 +313,10 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
+// TODO(JVE): either make this generic for use with installers && VPP, or make a new one just for VPP.
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
 // installer. If no labels are provided, it will remove all label associations with the software installer.
-func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope) error {
+func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope, softwareType string) error {
 	labelIds := make([]uint, 0, len(labels.ByName))
 	for _, label := range labels.ByName {
 		labelIds = append(labelIds, label.LabelID)
@@ -323,18 +324,18 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 
 	// remove existing labels
 	delArgs := []interface{}{installerID}
-	delStmt := `DELETE FROM software_installer_labels WHERE software_installer_id = ?`
+	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_labels WHERE %[1]s_id = ?`, softwareType)
 	if len(labelIds) > 0 {
 		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build delete existing software installer labels query")
+			return ctxerr.Wrap(ctx, err, "build delete existing software labels query")
 		}
 		delArgs = append(delArgs, args...)
 		delStmt += inStmt
 	}
 	_, err := tx.ExecContext(ctx, delStmt, delArgs...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete existing software installer labels")
+		return ctxerr.Wrap(ctx, err, "delete existing software labels")
 	}
 
 	// insert new labels
@@ -350,7 +351,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 			return ctxerr.New(ctx, "invalid label scope")
 		}
 
-		stmt := `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
+		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
 		var placeholders string
 		var insertArgs []interface{}
 		for _, lid := range labelIds {
@@ -359,9 +360,9 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, placeholders), insertArgs...)
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareType, placeholders), insertArgs...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert software installer label")
+			return ctxerr.Wrap(ctx, err, "insert software label")
 		}
 	}
 
@@ -443,7 +444,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		}
 
 		if payload.ValidatedLabels != nil {
-			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels); err != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, "software_installer"); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 			}
 		}
