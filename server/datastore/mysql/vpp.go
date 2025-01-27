@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -53,6 +54,26 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 	}
 
+	labels, err := ds.getVPPAppLabels(ctx, app.VPPAppsTeamsID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range labels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		level.Debug(ds.logger).Log("msg", "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	}
+	app.LabelsExcludeAny = exclAny
+	app.LabelsIncludeAny = inclAny
+
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
@@ -60,6 +81,30 @@ WHERE
 	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
+}
+
+func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
+	query := `
+SELECT
+	label_id,
+	exclude,
+	l.name AS label_name,
+	va.title_id AS title_id
+FROM
+	vpp_app_team_labels vatl
+	JOIN vpp_apps_teams vat ON vat.id = vatl.vpp_app_team_id
+	JOIN vpp_apps va ON va.adam_id = vat.adam_id
+	JOIN labels l ON l.id = vatl.label_id
+WHERE
+	vatl.vpp_app_team_id = ?;
+`
+
+	var labels []fleet.SoftwareScopeLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, vppAppsTeamsID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+
+	return labels, nil
 }
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
