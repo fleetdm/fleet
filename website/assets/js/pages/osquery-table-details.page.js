@@ -104,7 +104,7 @@ parasails.registerPage('osquery-table-details', {
     await setTimeout(()=>{
       let activeTableLink = $('[purpose="table-of-contents-link"].active')[0];
       if(activeTableLink) {
-        $('[purpose="table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop - 12;
+        $('[purpose="table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop;
       }
       // Note: we're running this code after a 5ms delay to make sure the tables have been filtered, otherwise it will scroll the table of contents to the links posiiton in the full list of tables.
     }, 5);
@@ -141,8 +141,14 @@ parasails.registerPage('osquery-table-details', {
     clickToggleTableNav: function() {
       this.showTableNav = !this.showTableNav;
     },
-    clickOpenTablesNav: function() {
+    clickOpenTablesNav: async function() {
       this.modal = 'table-of-contents';
+      await setTimeout(()=>{
+        let activeTableLink = $('[purpose="modal-table-of-contents-link"].active')[0];
+        if(activeTableLink) {
+          $('[purpose="modal-table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop;
+        }
+      }, 250);
     },
     closeModal: async function() {
       this.modal = '';

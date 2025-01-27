@@ -21,7 +21,6 @@
       line-height: 120%;
     }
     p {
-      margin-bottom: 24px;
       color: #515774;
       font-size: 15px;
       line-height: 150%;
@@ -203,26 +202,22 @@
       line-height: 24px;
     }
   }
-  [purpose='table-of-contents'] {
+  [purpose='table-of-contents'], [purpose='modal-table-of-contents'] {
     scrollbar-width: none;
     padding-bottom: 120px;
     position: relative;
+    width: 100%;
     a {
       font-size: 14px;
       line-height: 28px;
       color: @core-fleet-black-75;
       text-decoration: none;
-      &:hover {
-        text-decoration: none;
-        border-radius: 4px;
-        background: #F9FAFC;
-        color: @core-fleet-black-75;
-      }
-      &.active {
-        border-radius: 4px;
-        background: #F9FAFC;
-        color: @core-fleet-black-75;
-      }
+    }
+    a:hover {
+      color: @core-vibrant-blue;
+    }
+    a.active {
+      color: @core-vibrant-blue;
     }
     min-height: calc(~'100vh - 565px');
     overflow-y: scroll;
@@ -514,6 +509,9 @@
     }
   }
   [purpose='table-of-contents-modal'] {
+    [purpose='modal-table-of-contents'] {
+      padding-bottom: 0px;
+    }
     .modal.fade .modal-dialog {
       transition: transform 0.2s ease-out;
       -webkit-transform: translate(-25%, 0%);
