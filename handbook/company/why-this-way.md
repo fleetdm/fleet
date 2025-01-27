@@ -132,7 +132,7 @@ The only exceptions are:
 4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
-5. **Terraform modules:** Since terraform clones the entire repo once per each tagged version of a module, a full `terraform init` using the terraform AWS modules was taking up over 11 GB of space when the modules resided in [fleetdm/fleet](https://github.com/fleetdm/fleet).  This was significantly reduced when migrating the terraform modules to [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) as the entire repo is mostly text.
+5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
