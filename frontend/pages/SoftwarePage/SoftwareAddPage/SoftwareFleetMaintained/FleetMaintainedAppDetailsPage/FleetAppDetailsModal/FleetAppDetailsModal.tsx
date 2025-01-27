@@ -1,10 +1,10 @@
 import React from "react";
-import { noop } from "lodash";
 
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import Button from "components/buttons/Button";
 
 const baseClass = "fleet-app-details-modal";
 
@@ -43,6 +43,11 @@ const FleetAppDetailsModal = ({
               value={<TooltipTruncatedText value={url} />}
             />
           )}
+        </div>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
+            Done
+          </Button>
         </div>
       </>
     </Modal>
