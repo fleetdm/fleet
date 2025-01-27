@@ -2343,4 +2343,60 @@ ON DUPLICATE KEY UPDATE
 
 		// TODO(uniq): test filtering hosts by label plus title once "activation" is implemented
 	})
+
+	t.Run("host last install", func(t *testing.T) {
+		// add another host
+		tag := "uniq-host-3"
+		h3, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      tag,
+			OsqueryHostID: ptr.String("osquery-" + tag),
+			NodeKey:       ptr.String("node-key-" + tag),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+			TeamID:        nil,
+		})
+		require.NoError(t, err)
+
+		got, err := ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
+		require.NoError(t, err)
+		require.Nil(t, got)
+
+		// set failed status for h3 title1
+		exec1 := uuid.NewString()
+		expectStatus = fleet.SoftwareInstallFailed
+		upsertHostSoftwareInstall(t, ds, exec1, h3.ID, meta1.InstallerID, *meta1.TitleID, 1)
+		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, fleet.HostLastInstallData{
+			ExecutionID: exec1,
+			Status:      &expectStatus,
+		}, *got)
+
+		// set installed status for h3 title1
+		exec2 := uuid.NewString()
+		expectStatus = fleet.SoftwareInstalled
+		upsertHostSoftwareInstall(t, ds, exec2, h3.ID, meta1.InstallerID, *meta1.TitleID, 0)
+		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, fleet.HostLastInstallData{
+			ExecutionID: exec2,
+			Status:      &expectStatus,
+		}, *got)
+
+		// add upcoming activity for h3 title1
+		expectStatus = fleet.SoftwareInstallPending
+		exec3, err := ds.InsertSoftwareInstallRequest(ctx, h3.ID, meta1.InstallerID, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, fleet.HostLastInstallData{
+			ExecutionID: exec3,
+			Status:      &expectStatus,
+		}, *got)
+
+		// TODO(uniq): add tests with "activation" mechanism
+	})
 }
