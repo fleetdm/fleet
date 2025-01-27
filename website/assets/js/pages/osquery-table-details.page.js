@@ -4,7 +4,7 @@ parasails.registerPage('osquery-table-details', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     //…
-    selectedPlatform: 'all',
+    selectedPlatform: 'apple',
     search: '',
     showTableNav: false,
     userFriendlyPlatformNames: {
@@ -14,13 +14,15 @@ parasails.registerPage('osquery-table-details', {
       'chrome': 'ChromeOS',
       'all': 'All platforms'
     },
+    modal: undefined,
   },
 
   computed: {
     filteredTables: function () {
+      let platformToFilterBy = this.selectedPlatform !== 'apple' ? this.selectedPlatform : 'darwin';
       return this.allTables.filter(
         (table) =>
-          this._isIncluded(table.platforms, this.selectedPlatform)
+          table.platforms.includes(platformToFilterBy)
       );
     },
     numberOfTablesDisplayed: function() {
@@ -32,35 +34,14 @@ parasails.registerPage('osquery-table-details', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-
+    if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
+      this.selectedPlatform = window.location.hash.split('#')[1];
+    } else {
+      // otherwise, default the filter to be the first supported platform of the currently viewed table.
+      this.selectedPlatform = this.tableToDisplay.platforms[0] === 'darwin' ? 'apple' : this.tableToDisplay.platforms[0];
+    }
   },
   mounted: async function() {
-
-    // Algolia DocSearch
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search tables',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:tables']
-        },
-      });
-    }
-
-    // Check the URL to see if a platformFilter was provided.
-    if(window.location.search) {
-      // https://caniuse.com/mdn-api_urlsearchparams_get
-      let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
-      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platformFilter');
-      // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
-      if(platformToFilterBy && this.userFriendlyPlatformNames[platformToFilterBy]){
-        this.selectedPlatform = platformToFilterBy;
-      }
-    }
 
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
@@ -136,11 +117,37 @@ parasails.registerPage('osquery-table-details', {
     clickFilterByPlatform: async function(platform) {
       this.selectedPlatform = platform;
     },
+    clickSelectPlatform: function (platform) {
+      let platformToLookFor = platform;
+      if(platform === 'apple'){
+        platformToLookFor = 'darwin';
+      }
+      let currentTableAvailableOnNewPlatform = this.tableToDisplay.platforms.includes(platformToLookFor);
+      if(!currentTableAvailableOnNewPlatform){
+        if(platformToLookFor === 'chrome'){
+          this.goto('/tables/chrome_extensions#chrome');
+        } else if(platformToLookFor === 'darwin') {
+          this.goto('/tables/account_policy_data#apple');
+        } else if(platformToLookFor === 'linux') {
+          this.goto('/tables/apparmor_events#linux');
+        } else if(platformToLookFor === 'windows') {
+          this.goto('/tables/appcompat_shims#windows');
+        }
+      } else {
+        this.selectedPlatform = platform;
+      }
 
+    },
     clickToggleTableNav: function() {
       this.showTableNav = !this.showTableNav;
     },
-
+    clickOpenTablesNav: function() {
+      this.modal = 'table-of-contents';
+    },
+    closeModal: async function() {
+      this.modal = '';
+      await this.forceRender();
+    },
     _isIncluded: function (data, selectedOption) {
       if (selectedOption.startsWith('all') || selectedOption === '') {
         return true;

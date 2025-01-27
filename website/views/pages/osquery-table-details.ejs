@@ -1,99 +1,87 @@
 <div id="osquery-table-details" v-cloak>
-  <div class="d-flex flex-column justify-content-center">
-    <div purpose="search-and-filters"  class="d-flex flex-column justify-content-center">
-      <div purpose="filter-row" style="max-width: 1200px;" class="mx-auto py-4 w-100 d-flex flex-sm-row flex-column justify-content-between">
-        <div class="d-flex">
-          <div purpose="platform-selector" class="d-flex flex-row justify-content-between align-items-center"
-            id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            {{userFriendlyPlatformNames[selectedPlatform]}} <img class="d-flex align-self-end" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
-          </div>
-          <div purpose="platform-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-            <div class="dropdown-item d-block"
-              @click="clickFilterByPlatform('all')">All platforms</div>
-              <div class="dropdown-item d-block"
-              @click="clickFilterByPlatform('windows')">Windows</div>
-            <div class="dropdown-item d-block"
-              @click="clickFilterByPlatform('linux')">Linux</div>
-            <div class="dropdown-item d-block"
-              @click="clickFilterByPlatform('darwin')">macOS</div>
-            <div class="dropdown-item d-block"
-              @click="clickFilterByPlatform('chrome')">ChromeOS</div>
-          </div>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <docs-nav-and-search search-filter="tables" current-section="tables" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+        <div purpose="page-headline" class="d-flex flex-column">
+          <h2>Tables</h2>
+          <p>Fleet uses osquery tables to query operating system, hardware, and software data. Each table provides specific data for analysis and filtering.</p>
         </div>
-        <div class="d-flex">
-          <div purpose="search" id="docsearch-query" class="d-flex align-items-center">
-            <div purpose="disabled-search" class="d-flex align-items-center">
-              <img style="height: 16px; width: 16px;" class="d-inline mr-2" alt="search" src="/images/icon-search-16x16@2x.png">
-              <input placeholder="Search tables" class="pl-1" >
-            </div>
+        <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
+          <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
+            <p class="d-flex align-items-center">
+            <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+            <span class="d-none d-md-inline">Apple</span>
+            </p>
           </div>
-        </div>
-      </div>
-      <hr>
-      <div purpose="mobile-nav" class="d-flex d-lg-none flex-column">
-        <div class="d-flex flex-row justify-content-between align-items-center" @click="clickToggleTableNav()">
-          <div purpose="table-of-contents-header" class="d-flex flex-row">
-            <h4 style="font-size: 16px; line-height: 24px; font-weight: 700; margin-bottom: 0px;">
-              <img class="d-inline" style="vertical-align:  middle;margin-right: 12px; height: 14px; width: 16px;" src="/images/icon-hamburger-menu-16x14@2x.png" alt="A menu icon">
-                Tables
-              <span class="ml-2" purpose="number-of-tables">{{numberOfTablesDisplayed}}</span>
-            </h4>
+          <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+            <p class="d-flex align-items-center">
+              <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
+              <span class="d-none d-md-inline">Linux</span>
+            </p>
           </div>
-          <img style="width: 6px; height: 9px;" class="d-flex d-lg-none justify-self-end"  alt="right chevron" src="/images/chevron-right-6x9@2x.png" v-if="!showTableNav"/>
-          <img style="width: 9px; height: 6px;" class="d-flex d-lg-none justify-self-end"  alt="down chevron" src="/images/chevron-down-9x6@2x.png" v-else/>
-        </div>
-        <div class="d-flex d-lg-none pt-3" v-if="showTableNav">
-          <div purpose="mobile-table-of-contents">
-            <a class="d-block" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+[selectedPlatform !== 'all' ? '?platformFilter='+encodeURIComponent(selectedPlatform) : '' ]" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
+          <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+            <p class="d-flex align-items-center">
+              <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+              <span class="d-none d-md-inline">Windows</span>
+            </p>
           </div>
-        </div>
-      </div>
-      <hr class="d-lg-none d-flex">
-    </div>
-    <div purpose="content" class="container" style="max-width: 1200px;">
-      <div class="d-flex flex-lg-row flex-column justify-content-between">
-        <div purpose="left-sidebar" class="d-none d-lg-flex flex-column">
-          <div class="d-flex flex-row justify-content-between">
-            <div purpose="table-of-contents-header" class="d-flex flex-row">
-              <h4 style="font-size: 16px; line-height: 24px; font-weight: 700;">
-                Tables<span class="ml-2" purpose="number-of-tables">{{numberOfTablesDisplayed}}</span>
-              </h4>
-            </div>
-          </div>
-          <div style="position: relative;">
-            <div purpose="table-of-contents">
-              <a class="d-block" purpose="table-of-contents-link" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+[selectedPlatform !== 'all' ? '?platformFilter='+encodeURIComponent(selectedPlatform) : '' ]" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
-            </div>
-            <div purpose="overflow-shadow" class="d-none d-lg-block"></div>
+          <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
+            <p class="d-flex align-items-center">
+              <img src="/images/os-chromeos-dark-24x24@2x.png" alt="Chrome" class="d-inline">
+              <span class="d-none d-md-inline">ChromeOS</span>
+            </p>
           </div>
         </div>
 
-        <div purpose="table-container" class="d-flex flex-column pl-xl-5 pl-lg-3 w-100">
-          <div purpose="schema-table">
-            <div purpose="platform-logos" class="d-flex flex-row align-items-center">
-              <img class="mx-2" style="height: 25px" src="/images/os-macos-dark-24x24@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'darwin')">
-              <img class="mx-2" style="height: 24px" src="/images/os-windows-dark-24x24@2x.png" alt="Windows logo" v-if="_.includes(tableToDisplay.platforms, 'windows')">
-              <img class="mx-2" style="height: 24px" src="/images/os-linux-dark-24x24@2x.png" alt="Linux logo" v-if="_.includes(tableToDisplay.platforms, 'linux')">
-              <img class="mx-2" style="height: 25px" src="/images/os-chromeos-dark-24x24@2x.png" alt="macOS logo" v-if="_.includes(tableToDisplay.platforms, 'chrome')">
-            </div>
-            <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, tableToDisplay.htmlId)))) %>
-          </div>
 
-          <div class="justify-self-end">
-              <a :href="tableToDisplay.githubUrl" purpose="edit-button" target="_blank">Edit page<i class="fa fa-pencil"></i></a>
-            <div class="d-block justify-self-end" purpose="slack-cta">
-              <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
-              <div class="d-sm-flex">
-                <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
-                  <img style="height: 24px;" class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                  Ask the community on Slack
-                </a>
+
+
+
+      <div class="d-flex flex-column justify-content-center">
+        <div purpose="content" class="container p-0" style="max-width: 1200px;">
+          <div class="d-flex flex-lg-row flex-column justify-content-start">
+            <div purpose="left-sidebar" class="d-none d-lg-flex flex-column">
+              <div style="position: relative;">
+                <div purpose="table-of-contents">
+                  <a class="d-block" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+'#'+selectedPlatform" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
+                </div>
+                <div purpose="overflow-shadow" class="d-none d-lg-block"></div>
+              </div>
+            </div>
+            <div purpose="mobile-custom-select" class="d-flex d-lg-none flex-row justify-content-between" @click="clickOpenTablesNav()">
+              <div><p class="mb-0"><%= tableToDisplay.title %></p></div>
+              <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+            </div>
+
+            <div purpose="table-container" class="d-flex flex-column">
+              <div purpose="schema-table">
+                <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, tableToDisplay.htmlId)))) %>
+              </div>
+
+              <div class="justify-self-end">
+                  <a :href="tableToDisplay.githubUrl" purpose="edit-button" target="_blank">Edit page<i class="fa fa-pencil"></i></a>
+                <div class="d-block justify-self-end" purpose="slack-cta">
+                  <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
+                  <div class="d-sm-flex">
+                    <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
+                      <img style="height: 24px;" class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
+                      Ask the community on Slack
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
+  <div purpose="table-of-contents-modal" >
+    <modal v-if="modal === 'table-of-contents'" @close="closeModal()">
+      <div purpose="table-of-contents">
+        <a class="d-block" :class="[tableToDisplay.title === table.title ? 'active' : '']" :href="table.url+'#'+selectedPlatform" v-for="table in filteredTables">{{table.title}} <span purpose="evented-table-icon" v-if="table.evented"><img alt="evented table" src="/images/icon-evented-12x12@2x.png" ></span></a>
+      </div>
+    </modal>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
