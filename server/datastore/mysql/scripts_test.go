@@ -281,7 +281,7 @@ func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host", "10.0.0.1", "1", "uuid1", time.Now())
 
 	// no script saved yet
-	pending, err := ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, host.ID, false, false)
 	require.NoError(t, err)
 	require.Empty(t, pending)
 
@@ -306,7 +306,7 @@ func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
 	require.True(t, createdScript.SyncRequest)
 
 	// the script execution is now listed as pending for this host
-	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 	require.Equal(t, createdScript.ID, pending[0].ID)
@@ -318,7 +318,7 @@ func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the script execution is no longer listed as pending for this host
-	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 0)
 }

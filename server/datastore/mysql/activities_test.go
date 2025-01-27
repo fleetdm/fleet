@@ -580,7 +580,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// h4A := hsr.ExecutionID
 	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	// Delete the host
 	err = ds.DeleteHost(ctx, h4.ID)

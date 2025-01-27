@@ -220,22 +220,22 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		require.Equal(t, installerID3, exec2.InstallerID)
 		require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 		require.True(t, exec2.SelfService)
-
-		// Create install request, don't fulfil it, delete and restore host.
-		// Should not appear in list of pending installs for that host.
-		_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, false, nil)
-		require.NoError(t, err)
-
-		err = ds.DeleteHost(ctx, host3.ID)
-		require.NoError(t, err)
-
-		err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
-		require.NoError(t, err)
-
-		hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
-		require.NoError(t, err)
-		require.Empty(t, hostInstalls4)
 	*/
+
+	// Create install request, don't fulfil it, delete and restore host.
+	// Should not appear in list of pending installs for that host.
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	err = ds.DeleteHost(ctx, host3.ID)
+	require.NoError(t, err)
+
+	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
+	require.NoError(t, err)
+
+	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, hostInstalls4)
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
