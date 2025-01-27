@@ -35,9 +35,9 @@ describe("FleetAppDetailsModal", () => {
     expect(screen.getByText("Version")).toBeInTheDocument();
     expect(screen.getByText("1.0.0")).toBeInTheDocument();
     expect(screen.getByText("URL")).toBeInTheDocument();
-    expect(screen.getByText("URL").nextSibling).toHaveTextContent(
-      "https://example.com/app"
-    );
+    expect(
+      screen.getAllByText("https://example.com/app").length
+    ).toBeGreaterThan(0); // Tooltip renders text twice causing use of toBeInTheDocument to fail
   });
 
   it("does not render URL field when url prop is not provided", () => {
