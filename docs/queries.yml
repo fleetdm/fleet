@@ -1,0 +1,1594 @@
+# Host vital queries (from `server/service/osquery_utils/queries.go`)
+apiVersion: v1
+kind: built-in
+spec:
+  name: Battery
+  platform: windows, darwin
+  description: Determines battery health based on the cycle count, designed capacity, and max capacity of the battery.
+  query: |
+    SELECT 
+      serial_number, cycle_count, designed_capacity, max_capacity 
+    FROM battery
+  purpose: Informational
+  tags: built-in
+  discovery: battery
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: ChromeOS profile user info
+  platform: chrome
+  description: Retrieves information about profiles on ChromeOS devices
+  query: SELECT email FROM users
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (macOS)
+  platform: darwin
+  description: Retrieves the disk encryption status of a macOS device.
+  query: |
+    SELECT 
+      1 
+    FROM disk_encryption 
+    WHERE user_uuid IS NOT "" 
+    AND filevault_status = 'on' LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (Linux)
+  platform: linux
+  description: Retrieves the disk encryption status of a device running Linux.
+  query: |
+    SELECT 
+      de.encrypted, m.path 
+    FROM disk_encryption de 
+    JOIN mounts m ON m.device_alias = de.name
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (Windows)
+  platform: windows
+  description: Retrieves the disk encryption status of a Windows device.
+  query: |
+    WITH encrypted(enabled) AS (
+        SELECT CASE WHEN
+          NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+          OR
+          (SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+        THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+      END)
+      SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk space
+  platform: linux, darwin
+  description: Retrieves total amount of free disk space on a host.
+  query: |
+    SELECT 
+      (blocks_available * 100 / blocks) AS percent_disk_space_available,
+      round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+    FROM mounts
+    WHERE path = '/' LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk space (Windows)
+  platform: windows
+  description: Retrieves total amount of free disk space on a Windows host.
+  query: |
+    SELECT 
+      ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
+      ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+      ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
+    FROM logical_drives
+    WHERE file_system = 'NTFS' LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Google Chrome profiles
+  platform: windows, darwin, linux, chrome
+  description: Retrieves the email address of Google Chrome profile on a host.
+  query: |
+    SELECT 
+      email 
+    FROM google_chrome_profiles 
+    WHERE NOT ephemeral AND email <> ''
+  discovery: google_chrome_profiles
+  purpose: Informational
+  tags: built-in
+# --- # Note: this vital is commented out because it requires the kubequery osquery extension.
+# apiVersion: v1
+# kind: built-in
+# spec:
+#   name: Kubequery info
+#   platform: windows, darwin, linux, chrome
+#   description: Retrieves information about Kubernetes clusters running kubequery.
+#   query: SELECT * FROM kubernetes_info
+#   # discovery: kubernetes_info # Note: this value is commented out because this table is from kubequery and does not exist in the osquery schema.
+#   purpose: Informational
+#   tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM (macOS)
+  platform: darwin
+  description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in.
+  query: |
+    SELECT 
+      enrolled, server_url, installed_from_dep, payload_identifier 
+    FROM mdm
+  discovery: mdm
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM configuration profiles
+  platform: darwin
+  description: Retrieves information about mobile device management (MDM) configuration profiles installed on a macOS device.
+  query: |
+    SELECT 
+      display_name, identifier, install_date 
+    FROM macos_profiles 
+    WHERE type = "Configuration"
+  discovery: macos_profiles
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM Disk encryption key file
+  platform: darwin
+  description: Retrieves the encrypted FileVault recovery key for managed macOS devices.
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv
+  discovery: filevault_prk
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM Disk encryption key file lines
+  platform: darwin
+  description: Retrieves the encrypted FileVault recovery key and checks for related file data on managed macOS devices.
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+      SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
+  discovery: filevault_prk # TODO: this query's discovery query also checks for file_lines.
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM (Windows)
+  platform: windows
+  description: Retrieves information about the mobile device management (MDM) solution a windows device is enrolled in.
+  query: |
+    WITH registry_keys AS (
+                            SELECT *
+                            FROM registry
+                            WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                        ),
+                        enrollment_info AS (
+                            SELECT
+                                MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                                MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                                MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                                MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                                MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                            FROM registry_keys
+                            GROUP BY key
+                        ),
+                        installation_info AS (
+                            SELECT data AS installation_type
+                            FROM registry
+                            WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                            LIMIT 1
+                        )
+                        SELECT
+                            e.aad_resource_id,
+                            e.discovery_service_url,
+                            e.provider_id,
+                            i.installation_type
+                        FROM installation_info i
+                        LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+                        WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+                        LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Munki info
+  platform: darwin
+  description: Retrives information about the last Munki run on a macOS device.
+  query: |
+    SELECT 
+      version, errors, warnings 
+    FROM munki_info
+  discovery: munki_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (Chrome)
+  platform: chrome
+  description: Retrives information about a ChromeOS device's current network.
+  query: |
+    SELECT 
+    ipv4 AS address, mac 
+    FROM network_interfaces LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (macOS/Linux)
+  platform: darwin, linux
+  description: Retrieves information about network interfaces on macOS and Linux devices
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+        JOIN routes r ON r.interface = ia.interface
+    WHERE
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+        AND r.type = 'gateway'
+        AND (
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (Windows)
+  platform: windows
+  description: Retrieves information about network interfaces on devices running windows.
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+        JOIN routes r ON r.interface = ia.address
+    WHERE
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+        AND r.type = 'remote'
+        AND (
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Orbit information
+  platform: darwin, linux, windows
+  description: Retreives configuration information the osquery version and configuration manager running on a device.
+  query: SELECT * FROM orbit_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (Chrome)
+  platform: chrome
+  description: Retrieves information about a ChromeOS device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        os.version AS kernel_version
+      FROM
+        os_version os;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (macOS/Linux)
+  platform: darwin, linux
+  description: Retrieves information about a Unix-based device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.extra,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        k.version AS kernel_version
+      FROM
+        os_version os,
+        kernel_info k
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (Windows)
+  platform: windows
+  description: Retrieves information about a Windows device's operating system.
+  query: |
+    WITH display_version_table AS (
+        SELECT data as display_version
+        FROM registry
+        WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+      ),
+      ubr_table AS (
+      SELECT data AS ubr
+      FROM registry
+      WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+      )
+      SELECT
+        os.name,
+        os.platform,
+        os.arch,
+        k.version as kernel_version,
+        COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+        COALESCE(d.display_version, '') AS display_version
+      FROM
+        os_version os,
+        kernel_info k
+      LEFT JOIN
+        display_version_table d
+      LEFT JOIN
+        ubr_table u
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system version (Windows)
+  platform: windows
+  description: Retrieves operating system version information from a Windows device.
+  query: |
+    WITH display_version_table AS (
+          SELECT data as display_version
+          FROM registry
+          WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+        ),
+        ubr_table AS (
+          SELECT data AS ubr
+          FROM registry
+          WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+        )
+        SELECT
+          os.name,
+          COALESCE(d.display_version, '') AS display_version,
+          COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+        FROM
+          os_version os,
+          kernel_info k
+        LEFT JOIN
+          display_version_table d
+        LEFT JOIN
+          ubr_table u
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery flags
+  platform: darwin, linux, windows
+  description: Retrieves the values of osquery configuration flags related to query scheduling, configuration updates, and logging intervals for active processes.
+  query: |
+    SELECT 
+      name, value
+    FROM osquery_flags
+    WHERE name IN ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery information
+  platform: darwin, windows, linux
+  description: Gathers information about the osquery process running on a device.
+  query: SELECT * FROM osquery_info LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Scheduled osquery statistics
+  platform: darwin, windows, linux
+  description: Retrieves statistics about queries that are scheduled on a device.
+  query: |
+    SELECT *,
+            (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+          FROM osquery_schedule
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Chrome)
+  platform: chrome
+  description: Gathers information about software installed on a ChromeOS device.
+  query: |
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      '' AS installed_path
+    FROM chrome_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (macOS)
+  platform: darwin
+  description: Gathers information about software installed on a device running linux.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Linux)
+  platform: linux
+  description: Gathers information about software installed on a device running linux.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software codesign
+  platform: darwin
+  description: A software override query to append codesign information to macOS software entries. Requires fleetd
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM python_packages
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Firefox
+  platform: darwin
+  description: A software override query to differentiate between Firefox and Firefox ESR on macOS. Requires fleetd
+  query: |
+    WITH app_paths AS (
+            SELECT path
+            FROM apps
+            WHERE bundle_identifier = 'org.mozilla.firefox'
+          ),
+          remoting_name AS (
+            SELECT value, path
+            FROM parse_ini
+            WHERE key = 'RemotingName'
+            AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+          )
+          SELECT
+            CASE
+              WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+              ELSE 'Firefox.app'
+            END AS name,
+            COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+            apps.bundle_identifier AS bundle_identifier,
+            '' AS extension_id,
+            '' AS browser,
+            'apps' AS source,
+            '' AS vendor,
+            apps.last_opened_time AS last_opened_at,
+            apps.path AS installed_path
+          FROM apps
+          LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+          WHERE apps.bundle_identifier = 'org.mozilla.firefox'
+  discovery: parse_ini
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: VScode extensions
+  platform: darwin, windows, linux
+  description: Gathers information about Visual Studio Code extensions installed on a device.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name,
+      version,
+      '' AS bundle_identifier,
+      uuid AS extension_id,
+      '' AS browser,
+      'vscode_extensions' AS source,
+      publisher AS vendor,
+      '' AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN vscode_extensions USING (uid)
+  discovery: vscode_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Windows)
+  platform: windows
+  description: Gathers information about software installed on a device running Windows.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'programs' AS source,
+      publisher AS vendor,
+      install_location AS installed_path
+    FROM programs
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'python_packages' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM python_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'ie_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM ie_extensions
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'chocolatey_packages' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM chocolatey_packages
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: System information
+  platform: windows
+  description: Retrieves information about a device's hardware.
+  query: SELECT * FROM system_info LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Uptime
+  platform: darwin, linux, windows
+  description: Retrieves the amount time passed since a device's last boot.
+  query: SELECT * FROM uptime LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users
+  platform: darwin, linux, windows
+  description: Retrieves information about user accounts.
+  query: |
+    WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users (Chrome)
+  platform: chrome
+  description: Retrieves information about user accounts on a ChromeOS device.
+  query: |
+    SELECT 
+      uid, username, email 
+    FROM users;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Windows update history
+  platform: windows
+  description: Retrieves the history of the update events on a Windows host.
+  query: |
+    SELECT 
+      date, title
+    FROM windows_update_history
+    WHERE result_code = 'Succeeded';
+  discovery: windows_update_history
+  purpose: Informational
+  tags: built-in
+---
+# From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+apiVersion: v1
+kind: query
+spec:
+  name: Get OpenSSL versions
+  platform: linux
+  description: Retrieves the OpenSSL version.
+  query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
+  purpose: Informational
+  tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized SSH keys
+  platform: darwin, linux
+  description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
+  query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
+  purpose: Informational
+  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+  tags: built-in, ssh
+  contributors: mike-j-thomas
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized keys for Domain Joined Accounts
+  platform: darwin, linux
+  description: List authorized_keys for each user on the system.
+  query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
+  purpose: Informational
+  tags: active directory, ssh
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get crashes
+  platform: darwin
+  description: Retrieve application, system, and mobile app crash logs.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  purpose: Informational
+  tags: troubleshooting
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Chrome Extensions
+  platform: darwin, linux, windows
+  description: List installed Chrome Extensions for all users.
+  query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Linux software
+  platform: linux
+  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed macOS software
+  platform: darwin
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Safari extensions
+  platform: darwin
+  description: Retrieves the list of installed Safari Extensions for all users in the target system.
+  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Windows software
+  platform: windows
+  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get laptops with failing batteries
+  platform: darwin
+  description: Lists all laptops with under-performing or failing batteries.
+  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  purpose: Informational
+  tags: troubleshooting, hardware, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get current users with active shell/console on the system
+  platform: darwin, linux, windows
+  description: Get current users with active shell/console on the system and associated process
+  query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get unencrypted SSH keys for local accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
+  purpose: Informational
+  tags: inventory, compliance, ssh, built-in
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get unencrypted SSH keys for domain-joined accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  purpose: Informational
+  tags: inventory, compliance, ssh, active directory
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
+  platform: linux
+  description: Detect any processes that run with LD_PRELOAD environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
+  platform: darwin
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get etc hosts entries
+  platform: darwin, linux
+  description: Line-parsed /etc/hosts
+  query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get network interfaces
+  platform: darwin, linux, windows
+  description: Network interfaces MAC address
+  query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local user accounts
+  platform: darwin, linux, windows
+  description: Local user accounts (including domain accounts that have logged on locally (Windows)).
+  query: SELECT uid, gid, username, description, directory, shell FROM users;
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get active user accounts on servers
+  platform: linux
+  description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
+  query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
+  purpose: informational
+  tags: hunting, inventory, Active Directory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Nmap scanner
+  platform: darwin, linux, windows
+  description: Get Nmap scanner process, as well as its user, parent, and process details.
+  query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
+    (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
+    (SELECT username FROM users WHERE uid=p.uid) AS username
+    FROM processes as p WHERE cmdline like 'nmap%';
+  purpose: Informational
+  tags: hunting, ATTACK, t1046
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Docker contained processes on a system
+  platform: darwin, linux
+  description: Docker containers Processes, can be used on normal systems or a kubenode.
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  purpose: Informational
+  tags: built-in, containers, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Windows print spooler remote code execution vulnerability
+  platform: windows
+  description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
+  query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
+  purpose: Informational
+  tags: vulnerability
+  contributors: maravedi
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local users and their privileges
+  platform: darwin, linux, windows
+  description: Collects the local user accounts and their respective user group.
+  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: informational
+  tags: inventory
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get processes that no longer exist on disk
+  platform: linux, darwin, windows
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  purpose: Incident response
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get user files matching a specific hash
+  platform: darwin, linux
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local administrator accounts on macOS
+  platform: darwin
+  description: The query allows you to check macOS systems for local administrator accounts.
+  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get all listening ports, by process
+  platform: linux, darwin, windows
+  description: List ports that are listening on all interfaces, along with the process to which they are attached.
+  query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
+  purpose: Informational
+  tags: hunting, network
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get whether TeamViewer is installed/running
+  platform: windows
+  description: Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
+  query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get malicious Python backdoors
+  platform: darwin, linux, windows
+  description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  purpose: Informational
+  tags: hunting, inventory, malware
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Check for artifacts of the Floxif trojan
+  platform: windows
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  purpose: Informational
+  tags: hunting, malware
+  contributors: micheal-o
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Shimcache table
+  platform: windows
+  description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
+  query: select * from Shimcache
+  purpose: Informational
+  tags: hunting
+  contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get running docker containers
+  platform: darwin, linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  purpose: Informational
+  tags: containers, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications hogging memory
+  platform: darwin, linux, windows
+  description: Returns top 10 applications or processes hogging memory the most.
+  query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  purpose: Informational
+  tags: troubleshooting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get servers with root login in the last 24 hours
+  platform: darwin, linux, windows
+  description: Returns servers with root login in the last 24 hours and the time the users were logged in.
+  query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
+  purpose: Informational
+  tags: hunting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active processes with Log4j running
+  platform: darwin, linux
+  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
+  query: |
+    WITH target_jars AS (
+      SELECT DISTINCT path
+      FROM (
+          WITH split(word, str) AS(
+            SELECT '', cmdline || ' '
+            FROM processes
+            UNION ALL
+            SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)
+            FROM split
+            WHERE str != '')
+          SELECT word AS path
+          FROM split
+          WHERE word LIKE '%.jar'
+        UNION ALL
+          SELECT path
+          FROM process_open_files
+          WHERE path LIKE '%.jar'
+      )
+    )
+    SELECT path, matches
+    FROM yara
+    WHERE path IN (SELECT path FROM target_jars)
+      AND count > 0
+      AND sigrule IN (
+        'rule log4jJndiLookup {
+          strings:
+            $jndilookup = "JndiLookup"
+          condition:
+            $jndilookup
+        }',
+        'rule log4jJavaClass {
+          strings:
+            $javaclass = "org/apache/logging/log4j"
+          condition:
+            $javaclass
+        }'
+      );
+  purpose: Detection
+  tags: vulnerability
+  contributors: zwass,tgauda
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that were opened within the last 24 hours
+  platform: darwin
+  description: Returns applications that were opened within the last 24 hours starting with the last opened application.
+  query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that are not in the Applications directory
+  platform: darwin
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get subscription-based applications that have not been opened for the last 30 days
+  platform: darwin
+  description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
+  query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get operating system information
+  platform: darwin, windows, linux
+  description: Returns the operating system name and version on the device.
+  query: SELECT name, version FROM os_version;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get built-in antivirus status on macOS
+  platform: darwin
+  query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus status from the Windows Security Center
+  platform: windows
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';
+  description: Selects the antivirus and signatures status from Windows Security Center.
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
+  platform: linux
+  query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
+  description: Selects the clamd and freshclam processes to ensure AV and its updater are running
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover TLS certificates
+  platform: linux, windows, darwin
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
+  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  purpose: Informational
+  tags: network, tls
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover Python Packages from Running Python Interpreters
+  platform: linux, darwin
+  description: Attempt to discover Python environments (in cwd, path to the python binary, and process command line) from running python interpreters and collect Python packages from those environments.
+  query: SELECT * FROM python_packages WHERE directory IN (SELECT DISTINCT directory FROM (SELECT SUBSTR(path,0,INSTR(path,'/bin/'))||'/lib' AS directory FROM processes WHERE path LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT SUBSTR(cmdline,0,INSTR(cmdline,'/bin/'))||'/lib' AS directory FROM processes WHERE cmdline LIKE '%python%' AND cmdline LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT cwd||'/lib' AS directory FROM processes WHERE path LIKE '%python%'));
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify the default mail, http and ftp applications
+  platforms: macOS
+  platform: darwin
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: brunerd
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify Apple development secrets (macOS)
+  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
+  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
+  tags: compliance, inventory, built-in
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Geolocate via ipapi.co
+  platform: darwin, linux, windows
+  description: Geolocate a host using the [ipapi.co](https://ipapi.co) in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  query: >-
+    SELECT JSON_EXTRACT(result, '$.ip') AS ip,
+    JSON_EXTRACT(result, '$.city') AS city,
+    JSON_EXTRACT(result, '$.region') AS region,
+    JSON_EXTRACT(result, '$.country') AS country,
+    JSON_EXTRACT(result, '$.latitude') AS latitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
+    FROM curl
+    WHERE url = 'http://ipapi.co/json';
+  purpose: inventory
+  tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Crowdstrike Falcon network content filter status
+  platform: darwin
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  purpose: Informational
+  tags: crowdstrike, plist, network, content filter
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get a list of Visual Studio Code extensions
+  platform: darwin, linux, windows
+  description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
+  query: |
+    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  purpose: Informational
+  tags: inventory
+  contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: List osquery table names
+  platform: darwin, linux, windows
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual

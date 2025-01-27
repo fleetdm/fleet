@@ -906,10 +906,6 @@
 
       .header-hidden { // For scrolling the sidebars with the sticky header
         transform: translateY(-80px);
-        max-height: calc(~'100vh - 60px');
-      }
-      .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
-        max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
         height: fit-content;
@@ -939,6 +935,10 @@
           padding-top: 4px;
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
+          max-height: calc(~'100vh - 60px');
+          transition-property: max-height;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+          transition-duration: 500ms;
           a {
             color: @core-fleet-black;
             text-decoration: none;
@@ -947,9 +947,9 @@
             }
           }
         }
-        &:not(.scrolled) {
+        &:not(.header-hidden) {
           [purpose='subtopics'] {
-            max-height: calc(~'100vh - 225px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+            max-height: calc(~'100vh - 140px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
           }
         }
       }

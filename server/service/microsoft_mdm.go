@@ -1507,8 +1507,11 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, reqMsg); err != nil {
-		return nil, fmt.Errorf("store incoming msgs: %w", err)
+	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+	if enrichedSyncML.HasCommands() {
+		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML); err != nil {
+			return nil, fmt.Errorf("store incoming msgs: %w", err)
+		}
 	}
 
 	// Iterate over the operations and process them

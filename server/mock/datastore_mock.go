@@ -129,6 +129,8 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIDs []uint) (err error)
+
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -184,6 +186,8 @@ type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
 type ListHostsLiteByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.Host, error)
+
+type ListHostUsersFunc func(ctx context.Context, hostID uint) ([]fleet.HostUser, error)
 
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
@@ -651,9 +655,9 @@ type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
 
-type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
+type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
 
-type SaveLUKSDataFunc func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -981,7 +985,7 @@ type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []s
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
 
-type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error
+type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -1366,6 +1370,9 @@ type DataStore struct {
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
+	UpdateLabelMembershipByHostIDsFunc				UpdateLabelMembershipByHostIDsFunc
+	UpdateLabelMembershipByHostIDsFuncInvoked bool
+
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
 
@@ -1449,6 +1456,9 @@ type DataStore struct {
 
 	ListHostsLiteByIDsFunc        ListHostsLiteByIDsFunc
 	ListHostsLiteByIDsFuncInvoked bool
+
+	ListHostUsersFunc        ListHostUsersFunc
+	ListHostUsersFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -3358,6 +3368,13 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIDs []uint) (err error) {
+	s.mu.Lock()
+	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIDs)
+}
+
 func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
@@ -3552,6 +3569,13 @@ func (s *DataStore) ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*flee
 	s.ListHostsLiteByIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsLiteByIDsFunc(ctx, ids)
+}
+
+func (s *DataStore) ListHostUsers(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
+	s.mu.Lock()
+	s.ListHostUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostUsersFunc(ctx, hostID)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
@@ -5185,18 +5209,18 @@ func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID u
 	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
 }
 
-func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error {
+func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
+	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, host, encryptedBase64Key, clientError, decryptable)
 }
 
-func (s *DataStore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
+func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
 	s.mu.Lock()
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLUKSDataFunc(ctx, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+	return s.SaveLUKSDataFunc(ctx, host, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
@@ -6340,11 +6364,11 @@ func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID s
 	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
 }
 
-func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error {
 	s.mu.Lock()
 	s.MDMWindowsSaveResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, fullResponse)
+	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, enrichedSyncML)
 }
 
 func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {

@@ -6,11 +6,110 @@
     padding-bottom: $pad-medium;
   }
 
-  &__sandbox-demo-message {
-    margin-top: 3.5rem;
-  }
-
   &__api-only-user {
     @include grey-badge;
+  }
+
+  thead {
+    // need specificity to override datatable css
+    th {
+      &.actions__header {
+        padding-left: 0;
+      }
+      &.status__header,
+      &.role__header {
+        width: 86px; // set to prevent expanding
+      }
+    }
+  }
+
+  tbody {
+    // need specificity to override datatable css
+    td.name__cell,
+    td.role__cell,
+    td.teams__cell,
+    td.status__cell,
+    td.email__cell {
+      max-width: $col-sm;
+      white-space: nowrap;
+    }
+
+    td.status__cell,
+    td.role__cell {
+      white-space: nowrap; // Prevent No access from wrapping
+    }
+
+    td.actions__cell {
+      padding-left: 0;
+    }
+  }
+
+  @media (min-width: ($break-lg)) {
+    .name__header,
+    .name__cell {
+      max-width: $col-md;
+    }
+  }
+
+  @media (max-width: ($break-sm - 1)) {
+    .email__header,
+    .email__cell {
+      display: none;
+      width: 0;
+    }
+  }
+
+  @media (max-width: ($break-xs - 1)) {
+    .status__header,
+    .status__cell {
+      display: none;
+      width: 0;
+    }
+  }
+
+  @media (max-width: ($break-mobile-md - 1)) {
+    .teams__header,
+    .teams__cell {
+      display: none;
+      width: 0;
+    }
+
+    // Splits header to 2 lines with user count on the first line
+    .table-container__header {
+      align-items: end;
+      &-left {
+        flex-direction: column;
+        width: initial;
+        align-items: start;
+      }
+
+      .table-container__search {
+        width: 100%;
+      }
+    }
+  }
+
+  @media (max-width: ($break-mobile-sm - 1)) {
+    .role__header,
+    .role__cell {
+      display: none;
+      width: 0;
+    }
+
+    // Splits header to 3 lines; user count, wide add user button, wide search
+    .table-container__header {
+      flex-direction: column;
+      align-items: start;
+      width: 100%;
+
+      &-left {
+        width: 100%;
+
+        .controls,
+        .button {
+          width: 100%;
+        }
+      }
+    }
   }
 }
