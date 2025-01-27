@@ -577,6 +577,21 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
+			USING upcoming_activities
+				INNER JOIN script_upcoming_activities sua
+					ON upcoming_activities.id = sua.upcoming_activity_id
+			WHERE sua.script_id = ? AND
+				upcoming_activities.activity_type = 'script' AND
+				(upcoming_activities.payload->'$.sync_request' = 0 OR
+					upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			`,
+			id, int(constants.MaxServerWaitTime.Seconds()),
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "cancel upcoming pending script executions")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
 		if err != nil {
 			if isMySQLForeignKey(err) {
