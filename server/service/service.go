@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/android"
+	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -62,6 +64,12 @@ type Service struct {
 	cronSchedulesService fleet.CronSchedulesService
 
 	wstepCertManager microsoft_mdm.CertManager
+
+	androidService android.Service
+}
+
+func (svc *Service) Android() android.Service {
+	return svc.androidService
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -113,6 +121,11 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
+	androidService, err := android_service.NewService(ctx, logger, authorizer)
+	if err != nil {
+		return nil, fmt.Errorf("new android service: %w", err)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -141,6 +154,7 @@ func NewService(
 		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 		cronSchedulesService: cronSchedulesService,
 		wstepCertManager:     wstepCertManager,
+		androidService:       androidService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
