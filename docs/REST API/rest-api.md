@@ -3468,7 +3468,7 @@ Note that IdP email is only supported on macOS hosts. It's collected once, durin
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -3519,7 +3519,7 @@ Updates the email for the `custom` data source in the human-device mapping. This
   "device_mapping": [
     {
       "email": "user@example.com",
-      "source": "identity_provider"
+      "source": "mdm_idp_accounts"
     },
     {
       "email": "user@example.com",
@@ -9553,7 +9553,6 @@ Returns information about the specified Fleet-maintained app.
   "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
-    "filename": "1Password-8.10.44-aarch64.zip",
     "version": "8.10.40",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
@@ -9702,7 +9701,7 @@ _Available in Fleet Premium._
 
 Get the results of a software package install.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API enpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |

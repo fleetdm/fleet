@@ -4,9 +4,8 @@
     <div purpose="page-content">
       <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
         <div purpose="page-headline" class="d-flex flex-column">
-          <h2>Built-in checks</h2>
-          <p>Fleet's controls and policies library includes a growing collection of policies, OS settings, and scripts for macOS, Windows, and Linux.</p>
-          <p>Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/blob/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">over on GitHub.</a></p>
+          <h2>Queries</h2>
+          <p>A collection of optional queries you can run anytime. Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/queries.yml">over on GitHub.</a></p>
         </div>
         <div purpose="policy-search" id="docsearch-query" class="d-flex">
           <div purpose="disabled-search" class="d-flex">
@@ -48,72 +47,45 @@
       <div purpose="selected-queries">
         <div v-if="selectedPlatform === 'macos'">
           <% // macOS policies (server-side-rendered)
-            for(let policy of macOsPolicies) {
+            for(let query of macOsQueries) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
-                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
-                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- policy.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
-            </div>
-            <div class="d-flex flex-column justify-content-center">
-              <div class="d-flex flex-row">
-                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
-                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
-                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
-              </div>
+              <div purpose="policy-description"><p><%- query.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>
         </div>
         <div v-else-if="selectedPlatform === 'linux'">
           <% // Linux policies (server-side-rendered)
-            for(let policy of linuxPolicies) {
+            for(let query of linuxQueries) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
-                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
-                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- policy.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
-            </div>
-            <div class="d-flex flex-column justify-content-center">
-              <div class="d-flex flex-row">
-                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
-                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
-                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
-              </div>
+              <div purpose="policy-description"><p><%- query.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>
         </div>
         <div v-else-if="selectedPlatform === 'windows'">
           <% // Windows policies (server-side-rendered)
-            for(let policy of windowsPolicies) {
+            for(let query of windowsQueries) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- policy.slug%>"><%- policy.name %></a></p>
-                <% if(policy.tags.includes('premium')) {%><div purpose="premium-badge">PREMIUM</div><% } %>
-                <% if(policy.requiresMdm) {%><div purpose="requires-mdm-badge">mdm-required</div><% } %>
+                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- policy.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- policy.slug%>">Read more</animated-arrow-button></div>
-            </div>
-            <div class="d-flex flex-column justify-content-center">
-              <div class="d-flex flex-row">
-                <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
-                  <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
-                  <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
-              </div>
+              <div purpose="policy-description"><p><%- query.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>

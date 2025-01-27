@@ -1950,6 +1950,61 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", " local0 ")
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+
+	// Add users to hosts
+	users := []fleet.HostUser{
+		{
+			Uid:       1,
+			Username:  "root",
+			Type:      "local",
+			GroupName: "root",
+			Shell:     "/bin/sh",
+		},
+		{
+			Uid:       1001,
+			Username:  "username",
+			Type:      "local",
+			GroupName: "usergroup",
+			Shell:     "/bin/sh",
+		},
+	}
+	err = s.ds.SaveHostUsers(ctx, host0.ID, users)
+	require.NoError(t, err)
+
+	// Add labels to host
+	label1, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "First Label"})
+	require.NoError(t, err)
+	label2, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Second Label"})
+	require.NoError(t, err)
+
+	err = s.ds.AddLabelsToHost(ctx, host0.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	// Without "populate_users" and "populate_labels" query params, no users or labels
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Empty(t, resp.Hosts[0].Users)
+	require.Empty(t, resp.Hosts[0].Labels)
+
+	// With "populate_users" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_users", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Users, 2)
+	require.EqualValues(t, resp.Hosts[0].Users[0], users[0])
+	require.EqualValues(t, resp.Hosts[0].Users[1], users[1])
+
+	// With "populate_labels" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_labels", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Labels, 2)
+	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
+	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -4187,6 +4242,25 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
+
+	// add a host with the same name as another host to manual label 2, confirm only one host is added
+	sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		HardwareSerial: "ABCDE",
+		Hostname:       manualHosts[0].Hostname,
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
+	assert.Len(t, modResp.Label.HostIDs, 1)
+	assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 1, modResp.Label.HostCount)
 
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}

@@ -14,6 +14,7 @@ import (
 	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -193,6 +194,11 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
+			level.Debug(ds.logger).Log("msg", "duplicate script execution result sent, will be ignored (original result is preserved)",
+				"host_id", result.HostID,
+				"execution_id", result.ExecutionID,
+			)
+
 			// still do the activate next activity to ensure progress as there was
 			// an unexpected flow if we get here.
 			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
@@ -270,10 +276,13 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	internalWhere := ""
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
+	extraWhere := ""
 	if onlyShowInternal {
-		internalWhere = " AND JSON_EXTRACT(payload, '$.is_internal') = 1"
+		extraWhere = " AND JSON_EXTRACT(ua.payload, '$.is_internal') = 1"
+	}
+	if onlyActivePending {
+		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
 	listStmt := fmt.Sprintf(`
   SELECT
@@ -303,7 +312,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 			)
 			%s
-		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, internalWhere)
+		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, extraWhere)
 
 	var results []*fleet.HostScriptResult
 	seconds := int(constants.MaxServerWaitTime.Seconds())

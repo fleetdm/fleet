@@ -3,6 +3,7 @@
     .form-field__help-text {
       font-size: 14px;
       line-height: 21px;
+      margin-top: $pad-large;
     }
 
     .form-field--dropdown {
@@ -33,7 +34,7 @@
       gap: $pad-small;
       justify-content: center;
       font-size: $small;
-      
+
       div  {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
@@ -47,4 +48,3 @@
     }
   }
 }
-

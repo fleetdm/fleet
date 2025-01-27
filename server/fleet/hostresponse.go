@@ -13,7 +13,7 @@ type HostResponse struct {
 	Status           HostStatus   `json:"status" csv:"status"`
 	DisplayText      string       `json:"display_text" csv:"display_text"`
 	DisplayName      string       `json:"display_name" csv:"display_name"`
-	Labels           []Label      `json:"labels,omitempty" csv:"-"`
+	Labels           []*Label     `json:"labels,omitempty" csv:"-"`
 	Geolocation      *GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping string       `json:"-" db:"-" csv:"device_mapping"`
 }

@@ -40,7 +40,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
+> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
 **Emergency (P0) request communications:**
 
@@ -90,7 +90,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
 |:-----|-----------------:|------:|-------:|------:|------:|------:|----------:|
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Owner |✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
+| CTO | ✅ Super admin | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
 | Finance Engineer | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin |✅ Admin | ❌ |
 | Head of Digital Experience | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
 | Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
@@ -199,6 +199,13 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+- **Confidentiality reminder.** Fleet meetings are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+
+> 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
+
+Videos are transcribed, and this makes it easier to find required redactions during the editing process before [upload](https://fleetdm.com/handbook/demand#upload-to-youtube).
+  - **When sharing your screen** during a public meeting, refrain from displaying sensitive information such as customer names, private messages, or other confidential information.
+  - **[OpenBlur]([OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1))** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor).
 - **Take notes.** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
   - The agenda creation and/or prep beforehand. 
   - There is a designated notetaker during the meeting. 

@@ -395,13 +395,15 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	// create three hosts
+	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
 	nanoEnrollAndSetHostMDMData(t, ds, h3, false)
+	h4 := test.NewHost(t, ds, "h4.local", "10.10.10.4", "4", "4", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, h4, false)
 
 	// create a couple of named scripts
 	scr1, err := ds.NewScript(ctx, &fleet.Script{
@@ -571,6 +573,22 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, sw3Meta.InstallerID)
 	require.NoError(t, err)
 
+	// Setup host 4. We will create upcoming activities, then
+	// delete and "restore" the host, similar to what would happen
+	// if you delete an ABM DEP host.
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	require.NoError(t, err)
+	// h4A := hsr.ExecutionID
+	// h4Bar, err := ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, h4.ID, sw2Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	// Delete the host
+	err = ds.DeleteHost(ctx, h4.ID)
+	require.NoError(t, err)
+	// DEP "restore" the host
+	err = ds.RestoreMDMApplePendingDEPHost(ctx, h4)
+	require.NoError(t, err)
+
 	// force-set the order of the created_at timestamps
 	// even if vppCommand1 and 2 are later, since they are already activated
 	// (because they were enqueued first) they will show up first.
@@ -683,6 +701,12 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		{
 			opts:      fleet.ListOptions{},
 			hostID:    h3.ID,
+			wantExecs: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 0},
+		},
+		{
+			opts:      fleet.ListOptions{},
+			hostID:    h4.ID,
 			wantExecs: []string{},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 0},
 		},
@@ -1192,6 +1216,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[2].UUID)
 	require.True(t, pendingActs[2].Cancellable)
 
+	// listing active pending scripts returns script1_1
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, h1.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, pendingScripts, 1)
+	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
+
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
@@ -1262,6 +1292,17 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// create a pending software install request
 	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
+
+	// the software install request is not active yet, so with only active, returns nothing
+	pendingSw, err := ds.ListPendingSoftwareInstalls(ctx, h1.ID, true)
+	require.NoError(t, err)
+	require.Len(t, pendingSw, 0)
+
+	// without only active, returns it
+	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pendingSw, 1)
+	require.Equal(t, sw1_1, pendingSw[0])
 
 	// activating does nothing because the VPP app 2 is still activated
 	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")
