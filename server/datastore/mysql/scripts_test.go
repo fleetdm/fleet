@@ -565,28 +565,45 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	require.Len(t, scripts, 6)
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
-		stmt := `
-INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
-VALUES
-	(%s ?,?,?,?,?)`
-
-		args := []interface{}{}
-		if script.ID == 0 {
-			stmt = fmt.Sprintf(stmt, "", "")
-		} else {
-			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
-			args = append(args, script.ID)
+		var scriptID *uint
+		if script.ID != 0 {
+			scriptID = &script.ID
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, "")
-
+		hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+			HostID:   hostID,
+			ScriptID: scriptID,
+		})
+		require.NoError(t, err)
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, stmt, args...)
+			_, err := tx.ExecContext(ctx, `UPDATE upcoming_activities SET execution_id = ?, created_at = ? WHERE execution_id = ?`,
+				execID, createdAt, hsr.ExecutionID)
 			return err
 		})
+		if exitCode != nil {
+			ds.testActivateSpecificNextActivities = []string{execID}
+			act, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, "")
+			require.NoError(t, err)
+			require.ElementsMatch(t, act, ds.testActivateSpecificNextActivities)
+			ds.testActivateSpecificNextActivities = nil
+
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:   hostID,
+				ExitCode: int(*exitCode),
+			})
+			require.NoError(t, err)
+		}
 	}
 
 	now := time.Now().UTC().Truncate(time.Second)
+
+	// add some results for an ad-hoc, non-saved script, should not be included in results
+	// create it first so that this one gets activated, and the other ones are never
+	// activated automatically.
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         42,
+		ScriptContents: "echo script-6",
+	})
+	require.NoError(t, err)
 
 	// add some results for script-1
 	insertResults(t, 42, scripts[0], now.Add(-3*time.Minute), "execution-1-1", nil)
@@ -604,9 +621,6 @@ VALUES
 
 	// add some results for script-4
 	insertResults(t, 42, scripts[3], now.Add(-1*time.Minute), "execution-4-1", ptr.Int64(-2)) // last execution for script-4, status "error"
-
-	// add some results for an ad-hoc, non-saved script, should not be included in results
-	insertResults(t, 42, &fleet.Script{Name: "script-6", ScriptContents: "echo script-6"}, now.Add(-1*time.Minute), "execution-6-1", ptr.Int64(0))
 
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
 		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "")
