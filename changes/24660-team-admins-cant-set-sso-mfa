@@ -1,2 +1,0 @@
-- Fix missing capabilities in the UI for team admins creating or editing a user by exposing
-  more information from the API for team admins.
