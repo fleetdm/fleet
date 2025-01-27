@@ -762,36 +762,75 @@ SELECT
 FROM
 	scripts s
 	LEFT JOIN (
+		-- latest is in host_script_results
 		SELECT
-			id,
-			host_id,
-			script_id,
-			execution_id,
-			created_at,
-			exit_code
+			r.id,
+			r.host_id,
+			r.script_id,
+			r.execution_id,
+			r.created_at,
+			r.exit_code
 		FROM
 			host_script_results r
+			LEFT OUTER JOIN host_script_results r2
+				ON r.host_id = r2.host_id AND 
+					r.script_id = r2.script_id AND 
+					(r.created_at < r2.created_at OR (r.created_at = r2.created_at AND r.id < r2.id))
 		WHERE
-			host_id = ?
-			AND NOT EXISTS (
-				SELECT
-					1
-				FROM
-					host_script_results
-				WHERE
-					host_id = ?
-					AND id != r.id
-					AND script_id = r.script_id
-					AND(created_at > r.created_at
-						OR(created_at = r.created_at
-							AND id > r.id)))) hsr
+			r.host_id = ? AND 
+			r2.id IS NULL -- no other row at a later time
+
+	) hsr
 	ON s.id = hsr.script_id
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
 	AND s.global_or_team_id = ?
-	`
+`
 
-	args := []any{hostID, hostID, hostID, globalOrTeamID}
+	// UNION
+	//
+	// -- latest is in upcoming_activities
+	// SELECT
+	// 	NULL as id,
+	// 	ua.host_id,
+	// 	sua.script_id,
+	// 	ua.execution_id,
+	// 	ua.created_at,
+	// 	NULL as exit_code
+	// FROM
+	// 	upcoming_activities ua
+	// 	INNER JOIN script_upcoming_activities sua
+	// 		ON ua.id = sua.upcoming_activity_id
+	// WHERE
+	// 	ua.host_id = ? AND
+	// 	ua.activity_type = 'script' AND
+	// 	NOT EXISTS (
+	// 		-- no later entry in upcoming activities, not sure how
+	// 		-- or if it can be done with the LEFT OUTER JOIN approach
+	// 		-- because it involves 2 tables.
+	// 		SELECT
+	// 			1
+	// 		FROM
+	// 			upcoming_activities ua2
+	// 			INNER JOIN script_upcoming_activities sua2
+	// 				ON ua2.id = sua2.upcoming_activity_id
+	// 		WHERE
+	// 			ua.host_id = ua2.host_id AND
+	// 			ua2.activity_type = 'script' AND
+	// 			sua.script_id = sua2.script_id AND
+	// 			(ua.created_at < ua2.created_at OR (ua.created_at = ua2.created_at AND ua.id < ua2.id))
+	// 		) AND
+	// 	NOT EXISTS (
+	// 		-- no entry in host_script_results regardless of timestamp
+	// 		SELECT
+	// 			1
+	// 		FROM
+	// 			host_script_results hsr
+	// 		WHERE
+	// 			ua.host_id = hsr.host_id AND
+	// 			sua.script_id = hsr.script_id)
+
+	args := []any{hostID, hostID /*hostID, */, globalOrTeamID}
 	if len(extension) > 0 {
 		args = append(args, extension)
 		sql += `
