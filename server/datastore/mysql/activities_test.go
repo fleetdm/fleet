@@ -1294,12 +1294,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// the software install request is not active yet, so with only active, returns nothing
-	pendingSw, err := ds.ListPendingSoftwareInstalls(ctx, h1.ID, true)
+	pendingSw, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 0)
 
 	// without only active, returns it
-	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID, false)
+	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 1)
 	require.Equal(t, sw1_1, pendingSw[0])

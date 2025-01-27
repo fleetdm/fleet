@@ -17,9 +17,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error) {
+func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
+}
+
+func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
+}
+
+func (ds *Datastore) listUpcomingSoftwareInstalls(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]string, error) {
 	extraWhere := ""
-	if onlyActivePending {
+	if onlyReadyToExecute {
 		extraWhere = " AND activated_at IS NOT NULL"
 	}
 
