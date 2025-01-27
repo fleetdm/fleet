@@ -141,13 +141,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -2068,9 +2068,9 @@ func TestUnifiedQueueFiltersAndSummaries(t *testing.T) {
 	upsertHostSoftwareInstall := func(t *testing.T, ds *Datastore, execID string, hostID uint, installerID uint, titleID uint, installScriptExitCode int) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `
-INSERT INTO 
+INSERT INTO
 	host_software_installs (host_id, execution_id, software_installer_id, software_title_id, install_script_exit_code) VALUES (?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE 
+ON DUPLICATE KEY UPDATE
 	install_script_exit_code = VALUES(install_script_exit_code)
 `, hostID, execID, installerID, titleID, installScriptExitCode)
 			return err

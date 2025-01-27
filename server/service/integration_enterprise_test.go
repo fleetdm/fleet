@@ -6391,7 +6391,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
 	go func() {
 		for range time.Tick(300 * time.Millisecond) {
-			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false, false)
 			if err != nil {
 				t.Log(err)
 				return
@@ -15917,7 +15917,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	host3PendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host3Team2.ID, false)
+	host3PendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host3Team2.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host3PendingScripts, 1)
 	host3executionID := host3PendingScripts[0].ExecutionID
@@ -15948,7 +15948,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 			policy1Team1.ID: ptr.Bool(false),
 		},
 	), http.StatusOK, &distributedResp)
-	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID, false)
+	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, hostPendingScripts, 0)
 

@@ -1192,6 +1192,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[2].UUID)
 	require.True(t, pendingActs[2].Cancellable)
 
+	// listing active pending scripts returns script1_1
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, h1.ID, false, true)
+	require.NoError(t, err)
+	require.Len(t, pendingScripts, 1)
+	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
+
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
@@ -1262,6 +1268,17 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// create a pending software install request
 	sw1_1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, sw1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
+
+	// the software install request is not active yet, so with only active, returns nothing
+	pendingSw, err := ds.ListPendingSoftwareInstalls(ctx, h1.ID, true)
+	require.NoError(t, err)
+	require.Len(t, pendingSw, 0)
+
+	// without only active, returns it
+	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pendingSw, 1)
+	require.Equal(t, sw1_1, pendingSw[0])
 
 	// activating does nothing because the VPP app 2 is still activated
 	execIDs, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), h1.ID, "")

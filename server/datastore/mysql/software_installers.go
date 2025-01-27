@@ -17,8 +17,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	const stmt = `
+func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error) {
+	extraWhere := ""
+	if onlyActivePending {
+		extraWhere = " AND activated_at IS NOT NULL"
+	}
+
+	stmt := fmt.Sprintf(`
 	SELECT
 		execution_id
 	FROM (
@@ -32,8 +37,9 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
 		WHERE
 			host_id = ? AND
 			activity_type = 'software_install'
+			%s
 		ORDER BY topmost DESC, priority ASC, created_at ASC) as t
-`
+`, extraWhere)
 	var results []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")

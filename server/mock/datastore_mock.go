@@ -1039,7 +1039,7 @@ type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.Ho
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
-type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool, onlyActivePending bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1087,7 +1087,7 @@ type ClearAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installe
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
-type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
+type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
@@ -6543,11 +6543,11 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
 }
 
-func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool, onlyActivePending bool) ([]*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal, onlyActivePending)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -6711,11 +6711,11 @@ func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId s
 	return s.GetSoftwareInstallDetailsFunc(ctx, executionId)
 }
 
-func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint, onlyActivePending bool) ([]string, error) {
 	s.mu.Lock()
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
+	return s.ListPendingSoftwareInstallsFunc(ctx, hostID, onlyActivePending)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
