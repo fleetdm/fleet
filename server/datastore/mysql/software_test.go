@@ -5339,7 +5339,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
 		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
-	}, "software_installer")
+	}, false)
 	require.NoError(t, err)
 
 	// should be empty as the installer label is "exclude any"
@@ -5360,7 +5360,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeIncludeAny,
 		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
-	}, "software_installer")
+	}, false)
 	require.NoError(t, err)
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
@@ -5416,7 +5416,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			label2.Name: {LabelName: label2.Name, LabelID: label2.ID},
 			label3.Name: {LabelName: label3.Name, LabelID: label3.ID},
 		},
-	}, "software_installer")
+	}, false)
 	require.NoError(t, err)
 
 	// Now host has label1, label2
@@ -5475,7 +5475,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
 		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
-	}, "software_installer")
+	}, false)
 	require.NoError(t, err)
 
 	// We should have [installerID1, installerID3], but the exclude any label has
@@ -5519,7 +5519,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeIncludeAny,
 		ByName:     map[string]fleet.LabelIdent{label4.Name: {LabelName: label4.Name, LabelID: label4.ID}},
-	}, "software_installer")
+	}, false)
 	require.NoError(t, err)
 
 	// We should have [installerID1]
