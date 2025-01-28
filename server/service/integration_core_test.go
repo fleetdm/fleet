@@ -8431,7 +8431,6 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.Equal(t, u.ID, loginResp.User.ID)
 
 	// as an admin, create a new user with SSO authentication enabled
-	userRawPwd = test.GoodPassword
 	params = fleet.UserPayload{
 		Name:                     ptr.String("moduser1"),
 		Email:                    ptr.String("moduser1@example.com"),
