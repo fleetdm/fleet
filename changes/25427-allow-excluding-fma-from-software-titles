@@ -1,0 +1,1 @@
+- Add "exclude_fleet_maintained_apps" option to `GET /api/v1/fleet/software/titles`
