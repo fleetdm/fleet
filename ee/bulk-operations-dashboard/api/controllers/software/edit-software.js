@@ -38,6 +38,13 @@ module.exports = {
       type: 'string',
     },
 
+    isDeployedToAllTeams: {
+      type: 'boolean',
+      description: 'Whether or not this software will be deployed to all teams.',
+      extendedDescription: 'This determines whether or not the software will have a AllTeamsSoftware record created for it in the database and has no impact on the teams the software is transfered to in this action.',
+      defaultsTo: false,
+    }
+
   },
 
 
@@ -66,7 +73,7 @@ module.exports = {
   },
 
 
-  fn: async function ({newSoftware, newTeamIds, software, preInstallQuery, installScript, postInstallScript, uninstallScript}) {
+  fn: async function ({newSoftware, newTeamIds, software, preInstallQuery, installScript, postInstallScript, uninstallScript, isDeployedToAllTeams}) {
     if(newSoftware.isNoop) {
       newSoftware.noMoreFiles();
       newSoftware = undefined;
@@ -76,6 +83,18 @@ module.exports = {
     let axios = require('axios');
     // Cast the strings in the newTeamIds array to numbers.
     if(newTeamIds){
+      if(isDeployedToAllTeams && !software.isDeployedToAllTeams){
+        // If this software was not previously marked as being for all teams
+        // Create an AllTeamsSoftware record for this software.
+        // This will mean that this software will be automaticaly transfered to all new teams via a scheduled run of the detect-new-teams-and-transfer-software script.
+        await AllTeamsSoftware.create({ fleetApid: software.fleetApid, teamApids: newTeamIds});
+      } else if(isDeployedToAllTeams) {
+        // Otherwise if this software was previosuly deployed to all teams, we'll update the database record to include the new lsit of team IDs.
+        await AllTeamsSoftware.updateOne({ fleetApid: software.fleetApid}).set({teamApids: newTeamIds});
+      } else if(software.isDeployedToAllTeams) {
+        // Destory an AllTeamsSoftware record (if it exists)
+        await AllTeamsSoftware.destroyOne({fleetApid: software.fleetApid});
+      }
       newTeamIds = newTeamIds.map(Number);
     } else {
       newTeamIds = [];
