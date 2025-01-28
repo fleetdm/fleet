@@ -3872,18 +3872,18 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// create an installation request for vpp1 and vpp2, leaving vpp3 as
 	// available only
-	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user.ID)
-	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
+	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
-	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	require.NotEmpty(t, vpp2bCmdUUID)
 	// add an install request for the team host on vpp1, should not impact
 	// main host
-	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
+	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
@@ -4375,14 +4375,14 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 
 	// create an installation request for vpp1 and vpp2, leaving vpp3 and vpp4 as
 	// available only
-	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user.ID)
-	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
+	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
-	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	require.NotEmpty(t, vpp2bCmdUUID)
 
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
@@ -4648,7 +4648,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// fail to install it on the host
-	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user.ID)
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusError)
 
 	// add the successful installer to the reported installed software
@@ -4761,7 +4761,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// install it on the host
-	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user.ID)
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 
 	// add the successful VPP app to the reported installed software
