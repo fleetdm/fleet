@@ -118,7 +118,11 @@ func main() {
 	} else {
 		log.Debug().Msg("lockfile secured")
 	}
-	defer lockFile.Unlock()
+	defer func() {
+		if err := lockFile.Unlock(); err != nil {
+			log.Error().Err(err).Msg("unlocking lockfile")
+		}
+	}()
 
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
