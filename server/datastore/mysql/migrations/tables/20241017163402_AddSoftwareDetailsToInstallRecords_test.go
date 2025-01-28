@@ -119,7 +119,7 @@ func TestUp_20241017163402(t *testing.T) {
 	require.Equal(t, "2024-10-01T00:00:00Z", result.UpdatedAt)
 
 	// test activity hydration manual query
-	execNoErr(t, db, `INSERT INTO activities (activity_type, details) VALUES 
+	execNoErr(t, db, `INSERT INTO activities (activity_type, details) VALUES
 		("installed_software", '{"install_uuid": "execution-id1", "software_title": "Foo", "software_package": "foo.pkg"}'),
 		("installed_software", '{"install_uuid": "execution-id2", "software_title": "A Real Title"}'),
 		("uninstalled_software", '{"execution_id": "execution-id3", "software_title": "Ignore Me"}')`)

@@ -2270,12 +2270,19 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR `, onlyVulnerableJoin)
+
+	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
 		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,
 			softwareIsInstalledOnHostClause)
 	}
+
+	// TODO(uniq): this query is super complex, not even sure where upcoming activities fit in, but I think it does.
+	// Looks like it might impact upcoming software installs, scripts and VPP apps. May need to review the whole query
+	// to take a different approach, this is becoming unmaintainable.
 
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
@@ -2440,6 +2447,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
 
+	// TODO(uniq): I think this should exclude software and VPP apps that is pending in upcoming activities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2883,25 +2891,34 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return output
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		truncateOutput(result.PreInstallConditionOutput),
-		result.InstallScriptExitCode,
-		truncateOutput(result.InstallScriptOutput),
-		result.PostInstallScriptExitCode,
-		truncateOutput(result.PostInstallScriptOutput),
-		result.InstallUUID,
-		result.HostID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update host software installation result")
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
-	}
-	return nil
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt,
+			truncateOutput(result.PreInstallConditionOutput),
+			result.InstallScriptExitCode,
+			truncateOutput(result.InstallScriptOutput),
+			result.PostInstallScriptExitCode,
+			truncateOutput(result.PostInstallScriptOutput),
+			result.InstallUUID,
+			result.HostID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update host software installation result")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.InstallUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+		return nil
+	})
+	return err
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
+	// TODO(uniq): this only returns installed software, so no impact on upcoming queue
+
 	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
 SELECT
@@ -2948,6 +2965,7 @@ WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
 }
 
 func markHostSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_software_installs hsi
 INNER JOIN software_installers si ON hsi.software_installer_id = si.id
@@ -2966,6 +2984,7 @@ WHERE hsi.host_id = ? AND st.id IN (?)
 }
 
 func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
+	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_vpp_software_installs hvsi
 INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform

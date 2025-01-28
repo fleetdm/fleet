@@ -22,7 +22,6 @@ type MDMAppleCommandIssuer interface {
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
-	InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 }
 

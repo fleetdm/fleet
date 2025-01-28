@@ -305,6 +305,9 @@ func questionMarks(number int) string {
 }
 
 func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	// TODO(mna): this references the host software installs execution id, see if/how it
+	// impacts the upcoming queue (might be no impact if there's no FK, as the execution
+	// id is constant in the upcoming -> exec flow).
 	const stmt = `
 SELECT
 	sesr.id,
@@ -337,6 +340,7 @@ WHERE host_uuid = ?
 }
 
 func (ds *Datastore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
+	// TODO(mna): consider if this impacts upcoming queue
 	const stmt = `
 UPDATE setup_experience_status_results
 SET
@@ -564,6 +568,7 @@ func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, ho
 }
 
 func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+	// TODO(mna): consider if this impacts upcoming queue
 	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_execution_id = ?"
 	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
 
