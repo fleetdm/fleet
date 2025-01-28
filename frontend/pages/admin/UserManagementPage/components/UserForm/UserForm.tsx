@@ -217,7 +217,7 @@ const UserForm = ({
     const errsToSet: Record<string, string> = {};
     Object.keys(formErrors).forEach((k) => {
       // @ts-ignore
-      if (formErrors[k] && newErrs[k]) {
+      if (newErrs[k]) {
         // @ts-ignore
         errsToSet[k] = newErrs[k];
       }
@@ -725,6 +725,7 @@ const UserForm = ({
             className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
+            disabled={Object.keys(formErrors).length > 0}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>
