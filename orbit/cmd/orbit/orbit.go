@@ -63,6 +63,8 @@ const (
 	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
 	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
 	logErrorMissingExecMsg       logError = "bad desktop executable"
+	logErrorMissingDomainSubstr  logError = "Domain=OSLaunchdErrorDomain Code=112"
+	logErrorMissingDomainMsg     logError = "missing specified domain"
 )
 
 func main() {
@@ -1724,7 +1726,10 @@ func (d *desktopRunner) processLog(log string) {
 		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
 		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
 		msg = string(logErrorMissingExecMsg)
+	case strings.Contains(log, string(logErrorMissingDomainSubstr)):
+		msg = string(logErrorMissingDomainMsg)
 	}
+
 	if msg == "" {
 		return
 	}

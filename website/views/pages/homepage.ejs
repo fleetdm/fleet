@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source endpoint orchestration for every platform' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
+            <p><%= /* Replace cross-platform hacks with */ primaryBuyingSituation === 'vm'? 'Secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'Open-source telemetry that works the way you want' : 'Lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>

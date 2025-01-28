@@ -1,3 +1,7 @@
+## Orbit 1.38.0 (Jan 24, 2025)
+
+* Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+
 ## Orbit 1.37.0 (Dec 13, 2024)
 
 * Added support for key escrow on Ubuntu 20.04.

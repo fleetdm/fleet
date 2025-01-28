@@ -232,7 +232,7 @@ const QueriesTable = ({
         name="platform-dropdown"
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
-        tableFilter
+        variant="table-filter"
       />
     );
   }, [curTargetedPlatformFilter, queryParams, router]);
