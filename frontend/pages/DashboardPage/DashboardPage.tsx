@@ -59,6 +59,7 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
 import {
   LOW_DISK_SPACE_GB,
@@ -880,9 +881,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__host-sections`}>
           <>
             {isHostSummaryFetching && (
-              <div className="spinner">
-                <Spinner />
-              </div>
+              <Card paddingSize="medium">
+                <Spinner includeContainer={false} />
+              </Card>
             )}
             {HostCountCards}
           </>
