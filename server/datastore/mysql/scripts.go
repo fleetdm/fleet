@@ -749,8 +749,6 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		ExitCode    *int64     `db:"exit_code"`
 	}
 
-	// TODO(uniq): must also look in upcoming queue, looks like this returns the latest
-	// execution/pending state for each script for a host?
 	sql := `
 SELECT
 	s.id AS script_id,
@@ -762,7 +760,7 @@ SELECT
 FROM
 	scripts s
 	LEFT JOIN (
-		-- latest is in host_script_results
+		-- latest is in host_script_results only if none in upcoming_activities
 		SELECT
 			r.id,
 			r.host_id,
@@ -773,13 +771,56 @@ FROM
 		FROM
 			host_script_results r
 			LEFT OUTER JOIN host_script_results r2
-				ON r.host_id = r2.host_id AND 
-					r.script_id = r2.script_id AND 
-					(r.created_at < r2.created_at OR (r.created_at = r2.created_at AND r.id < r2.id))
+				ON r.host_id = r2.host_id AND
+					r.script_id = r2.script_id AND
+					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
 		WHERE
-			r.host_id = ? AND 
-			r2.id IS NULL -- no other row at a later time
+			r.host_id = ? AND
+			r2.id IS NULL AND -- no other row at a later time
+			NOT EXISTS (
+				SELECT 1 
+				FROM upcoming_activities ua
+				INNER JOIN script_upcoming_activities sua
+					ON ua.id = sua.upcoming_activity_id
+				WHERE
+					ua.host_id = r.host_id AND
+					ua.activity_type = 'script' AND
+					sua.script_id = r.script_id
+			)
 
+	UNION
+
+	-- latest is in upcoming_activities
+	SELECT
+		NULL as id,
+		ua.host_id,
+		sua.script_id,
+		ua.execution_id,
+		ua.created_at,
+		NULL as exit_code
+	FROM
+		upcoming_activities ua
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
+	WHERE
+		ua.host_id = ? AND
+		ua.activity_type = 'script' AND
+		NOT EXISTS (
+			-- no later entry in upcoming activities, not sure how
+			-- or if it can be done with the LEFT OUTER JOIN approach
+			-- because it involves 2 tables.
+			SELECT
+				1
+			FROM
+				upcoming_activities ua2
+				INNER JOIN script_upcoming_activities sua2
+					ON ua2.id = sua2.upcoming_activity_id
+			WHERE
+				ua.host_id = ua2.host_id AND
+				ua2.activity_type = 'script' AND
+				sua.script_id = sua2.script_id AND
+				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
+			) 
 	) hsr
 	ON s.id = hsr.script_id
 WHERE
@@ -787,50 +828,7 @@ WHERE
 	AND s.global_or_team_id = ?
 `
 
-	// UNION
-	//
-	// -- latest is in upcoming_activities
-	// SELECT
-	// 	NULL as id,
-	// 	ua.host_id,
-	// 	sua.script_id,
-	// 	ua.execution_id,
-	// 	ua.created_at,
-	// 	NULL as exit_code
-	// FROM
-	// 	upcoming_activities ua
-	// 	INNER JOIN script_upcoming_activities sua
-	// 		ON ua.id = sua.upcoming_activity_id
-	// WHERE
-	// 	ua.host_id = ? AND
-	// 	ua.activity_type = 'script' AND
-	// 	NOT EXISTS (
-	// 		-- no later entry in upcoming activities, not sure how
-	// 		-- or if it can be done with the LEFT OUTER JOIN approach
-	// 		-- because it involves 2 tables.
-	// 		SELECT
-	// 			1
-	// 		FROM
-	// 			upcoming_activities ua2
-	// 			INNER JOIN script_upcoming_activities sua2
-	// 				ON ua2.id = sua2.upcoming_activity_id
-	// 		WHERE
-	// 			ua.host_id = ua2.host_id AND
-	// 			ua2.activity_type = 'script' AND
-	// 			sua.script_id = sua2.script_id AND
-	// 			(ua.created_at < ua2.created_at OR (ua.created_at = ua2.created_at AND ua.id < ua2.id))
-	// 		) AND
-	// 	NOT EXISTS (
-	// 		-- no entry in host_script_results regardless of timestamp
-	// 		SELECT
-	// 			1
-	// 		FROM
-	// 			host_script_results hsr
-	// 		WHERE
-	// 			ua.host_id = hsr.host_id AND
-	// 			sua.script_id = hsr.script_id)
-
-	args := []any{hostID, hostID /*hostID, */, globalOrTeamID}
+	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	if len(extension) > 0 {
 		args = append(args, extension)
 		sql += `
@@ -855,6 +853,9 @@ WHERE
 
 	results := make([]*fleet.HostScriptDetail, 0, len(rows))
 	for _, r := range rows {
+		if r.ExecutionID != nil && strings.HasPrefix(*r.ExecutionID, "execution-1") {
+			fmt.Println(">>> ", r)
+		}
 		results = append(results, fleet.NewHostScriptDetail(hostID, r.ScriptID, r.Name, r.ExecutionID, r.ExecutedAt, r.ExitCode, r.HSRID))
 	}
 

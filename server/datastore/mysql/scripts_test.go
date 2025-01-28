@@ -543,6 +543,7 @@ func testListScripts(t *testing.T, ds *Datastore) {
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
 	names := []string{"script-1.sh", "script-2.sh", "script-3.sh", "script-4.sh", "script-5.sh"}
 	for _, r := range append(names[1:], names[0]) {
@@ -587,10 +588,18 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 			ds.testActivateSpecificNextActivities = nil
 
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-				HostID:   hostID,
-				ExitCode: int(*exitCode),
+				HostID:      hostID,
+				ExecutionID: execID,
+				ExitCode:    int(*exitCode),
 			})
 			require.NoError(t, err)
+
+			// force the test timestamp
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, `UPDATE host_script_results SET created_at = ? WHERE execution_id = ?`,
+					createdAt, execID)
+				return err
+			})
 		}
 	}
 
@@ -622,6 +631,10 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	// add some results for script-4
 	insertResults(t, 42, scripts[3], now.Add(-1*time.Minute), "execution-4-1", ptr.Int64(-2)) // last execution for script-4, status "error"
 
+	// add a pending and a completed script execution for script-5
+	insertResults(t, 42, scripts[4], now.Add(-2*time.Minute), "execution-5-1", ptr.Int64(0))
+	insertResults(t, 42, scripts[4], now.Add(-3*time.Minute), "execution-5-2", nil) // upcoming is always latest, regardless of timestamp
+
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
 		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "")
 		require.NoError(t, err)
@@ -629,15 +642,15 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		for _, r := range res {
 			switch r.ScriptID {
 			case scripts[0].ID:
-				// require.Equal(t, scripts[0].Name, r.Name)
-				// require.NotNil(t, r.LastExecution)
-				// require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
-				// require.Equal(t, "execution-1-2", r.LastExecution.ExecutionID)
-				// require.Equal(t, "pending", r.LastExecution.Status)
+				require.Equal(t, scripts[0].Name, r.Name)
+				require.NotNil(t, r.LastExecution)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-1-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "pending", r.LastExecution.Status)
 			case scripts[1].ID:
 				require.Equal(t, scripts[1].Name, r.Name)
 				require.NotNil(t, r.LastExecution)
-				//require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, now.Add(-1*time.Minute), r.LastExecution.ExecutedAt)
 				require.Equal(t, "execution-2-2", r.LastExecution.ExecutionID)
 				require.Equal(t, "error", r.LastExecution.Status)
 			case scripts[2].ID:
@@ -654,7 +667,10 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 				require.Equal(t, "error", r.LastExecution.Status)
 			case scripts[4].ID:
 				require.Equal(t, scripts[4].Name, r.Name)
-				require.Nil(t, r.LastExecution)
+				require.NotNil(t, r.LastExecution)
+				// require.Equal(t, now.Add(-3*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-5-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "pending", r.LastExecution.Status)
 			case scripts[5].ID:
 				require.Equal(t, scripts[5].Name, r.Name)
 				require.Nil(t, r.LastExecution)
