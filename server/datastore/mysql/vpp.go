@@ -30,7 +30,8 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
-	NULLIF(vap.icon_url, '') AS icon_url
+	NULLIF(vap.icon_url, '') AS icon_url,
+	vap.bundle_identifier AS bundle_identifier
 FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
