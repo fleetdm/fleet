@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
+		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
 	}
 
 	for _, c := range cases {
@@ -2408,4 +2410,100 @@ ON DUPLICATE KEY UPDATE
 
 		// TODO(uniq): add tests with "activation" mechanism
 	})
+}
+
+func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// create a couple software titles
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "foobar0",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "foobar0",
+		Title:            "foobar",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "foobar1",
+		Extension:        "pkg",
+		StorageID:        "storage1",
+		Filename:         "foobar1",
+		Title:            "barfoo",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// get software title for unknown exec id
+	title, err := ds.GetSoftwareTitleNameFromExecutionID(ctx, "unknown")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Empty(t, title)
+
+	// create a couple pending software install request, the first will be
+	// immediately present in host_software_installs too (activated)
+	req1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
+	require.NoError(t, err)
+	require.Equal(t, "barfoo", title)
+
+	// record a result for req1, will be deleted from upcoming_activities
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           req1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
+	require.NoError(t, err)
+	require.Equal(t, "barfoo", title)
+
+	// create an uninstall request for installer1
+	req3 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1)
+	require.NoError(t, err)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
+
+	// record a result for req2, will activate req3 so it is now in host_software_installs too
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           req2,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
 }

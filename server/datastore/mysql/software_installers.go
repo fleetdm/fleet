@@ -1025,7 +1025,7 @@ FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
-	hsi.execution_id = :execution_id AND 
+	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0
 
 UNION
@@ -1936,16 +1936,28 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 }
 
 func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
-	// TODO(uniq): must also look in upcoming queue
 	stmt := `
-	SELECT name
+	SELECT st.name
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
 	WHERE hsi.execution_id = ?
+
+	UNION
+
+	SELECT st.name
+	FROM 
+		software_titles st
+		INNER JOIN software_installers si ON si.title_id = st.id
+		INNER JOIN software_install_upcoming_activities siua 
+			ON siua.software_installer_id = si.id
+		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+	WHERE 
+		ua.execution_id = ? AND
+		ua.activity_type IN ('software_install', 'software_uninstall')
 	`
 	var name string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID, executionID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get software title name from execution ID")
 	}
