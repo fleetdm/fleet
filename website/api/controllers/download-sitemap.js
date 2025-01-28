@@ -36,6 +36,8 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     } else if (!_.isArray(sails.config.builtStaticContent.policies)) {
       throw {badConfig: 'builtStaticContent.policies'};
+    } else if (!_.isArray(sails.config.builtStaticContent.appLibrary)) {
+      throw {badConfig: 'builtStaticContent.appLibrary'};
     }
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
@@ -63,7 +65,7 @@ module.exports = {
       // Product category pages:
       '/orchestration',
       '/device-management',
-      '/vulnerability-management',
+      '/software-management',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
@@ -71,6 +73,7 @@ module.exports = {
       '/queries',// « overview page (all subpages are dynamic)
       '/tables',// « overview page (all subpages are dynamic)
       '/reports/state-of-device-management',// « 2021 research
+      '/meetups'
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
@@ -99,6 +102,12 @@ module.exports = {
     // (includes data table documentation pages; i.e. `/tables/*`)
     for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
+    }//∞
+    //  ╔═╗╔╦╗╦ ╦╔═╗╦═╗  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
+    //  ║ ║ ║ ╠═╣║╣ ╠╦╝   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗
+    //  ╚═╝ ╩ ╩ ╩╚═╝╩╚═  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
+    for (let appPage of sails.config.builtStaticContent.appLibrary) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/app-library/${appPage.identifier}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';
