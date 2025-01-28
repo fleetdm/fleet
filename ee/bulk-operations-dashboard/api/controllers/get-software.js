@@ -48,7 +48,7 @@ module.exports = {
     // Get all of the software packages on the Fleet instance.
     for(let teamApid of teamApids){
       let configurationProfilesResponseData = await sails.helpers.http.get.with({
-        url: `/api/latest/fleet/software/titles?team_id=${teamApid}`,
+        url: `/api/latest/fleet/software/titles?team_id=${teamApid}&exclude_fleet_maintained_apps=true`,
         baseUrl: sails.config.custom.fleetBaseUrl,
         headers: {
           Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
@@ -63,7 +63,7 @@ module.exports = {
       });
       for(let softwareWithInstaller of softwareWithSoftwarePackages) {
         let softwareWithInstallerResponse = await sails.helpers.http.get.with({
-          url: `/api/latest/fleet/software/titles/${softwareWithInstaller.id}?team_id=${teamApid}&available_for_install=true`,
+          url: `/api/latest/fleet/software/titles/${softwareWithInstaller.id}?team_id=${teamApid}&available_for_install=true&exclude_fleet_maintained_apps=true`,
           baseUrl: sails.config.custom.fleetBaseUrl,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`
