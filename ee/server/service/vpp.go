@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -303,7 +301,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating software labels for vpp app")
+		return ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
 	var teamName string
@@ -453,7 +451,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, teamID *uint) error {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) error {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -471,7 +469,44 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, teamID *uint) error {
 		teamName = tm.Name
 	}
 
-	slog.With("filename", "ee/server/service/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hmm ", "teamName", teamName)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+	}
+
+	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
+	}
+
+	appToWrite := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID: meta.AdamID, Platform: meta.Platform,
+			},
+			SelfService: selfService,
+		},
+		TeamID:           teamID,
+		TitleID:          titleID,
+		ValidatedLabels:  validatedLabels,
+		BundleIdentifier: meta.BundleIdentifier,
+		Name:             meta.Name,
+		IconURL:          *meta.IconURL,
+		LatestVersion:    meta.LatestVersion,
+	}
+	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+	}
+
+	act := fleet.ActivityUpdatedAppStoreApp{
+		TeamName:    &teamName,
+		TeamID:      teamID,
+		SelfService: selfService,
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for update app store app")
+	}
 
 	return nil
 }
