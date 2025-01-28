@@ -3457,15 +3457,16 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	ds, _, savedTeams := setupFullGitOpsPremiumServer(t)
 
 	// Create a new team.
-	ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "http://saybye.by"},
 		HostStatusWebhook:      &fleet.HostStatusWebhookSettings{Enable: true},
 	}}})
+	require.NoError(t, err)
 	require.NotNil(t, *savedTeams[teamName])
 
 	// Do a GitOps run with no webhook settings.
 	t.Setenv("TEST_TEAM_NAME", teamName)
-	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
 	require.NoError(t, err)
 
 	team, err := ds.TeamByName(context.Background(), teamName)
