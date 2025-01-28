@@ -20,20 +20,6 @@ parasails.registerPage('vital-details', {
     if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
     }
-    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-    if(this.algoliaPublicKey) {
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:vitals']
-        },
-      });
-    }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){

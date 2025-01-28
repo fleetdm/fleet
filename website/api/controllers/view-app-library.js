@@ -25,7 +25,10 @@ module.exports = {
     let allApps = sails.config.builtStaticContent.appLibrary;
     allApps = _.sortBy(allApps, 'name');
     // Respond with view.
-    return {allApps};
+    return {
+      allApps,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
+    };
 
   }
 
