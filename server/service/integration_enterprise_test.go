@@ -7200,6 +7200,33 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotEqual(t, tmScriptID, newScriptResp.ScriptID)
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script2.sh", tm.Name, tm.ID), 0)
 
+	// Update a script
+	updateScriptRep := updateScriptResponse{}
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "updated script"`), s.token, map[string][]string{"id": {fmt.Sprintf("%d", tmScriptID)}})
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	require.Equal(t, tmScriptID, updateScriptRep.ScriptID)
+	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+
+	// Download the updated script
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
+	b, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "updated script"`, string(b))
+	require.Equal(t, int64(len(`echo "updated script"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
+
+	// Try updating a non-existant script
+	updateScriptRep = updateScriptResponse{}
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "updated script"`), s.token, map[string][]string{"id": {fmt.Sprintf("%d", 99999999999)}})
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusNotFound, headers)
+	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
+	require.NoError(t, err)
+
 	// delete the no-team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNoContent)
 	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null}`, "script1.sh"), 0)

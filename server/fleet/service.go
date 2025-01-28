@@ -1123,6 +1123,9 @@ type Service interface {
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
 
+	// UpdateScript updates a saved script with the contents of io.Reader r
+	UpdateScript(ctx context.Context, scriptID uint, r io.Reader) (*Script, error)
+
 	// DeleteScript deletes an existing (saved) script.
 	DeleteScript(ctx context.Context, scriptID uint) error
 

@@ -40,6 +40,7 @@ func TestScripts(t *testing.T) {
 		{"TestGetAnyScriptContents", testGetAnyScriptContents},
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
+		{"UpdateScriptContents", testUpdateScriptContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1585,4 +1586,43 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		scriptExecution.ID,
 	)
 	require.Equal(t, 1, count)
+}
+
+func testUpdateScriptContents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	originalScript, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1",
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+
+	originalContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, "hello world", string(originalContents))
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE scripts SET updated_at = ? WHERE id = ?", time.Now().Add(-2*time.Minute), originalScript.ID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// Make sure updated_at was changed correctly, but the script is the same
+	oldScript, err := ds.Script(ctx, originalScript.ID)
+	require.Equal(t, originalScript.ScriptContentID, oldScript.ScriptContentID)
+	require.NoError(t, err)
+	require.NotEqual(t, originalScript.UpdatedAt, oldScript.UpdatedAt)
+
+	// Modify the script
+	updatedScript, err := ds.UpdateScriptContents(ctx, originalScript.ID, "updated script")
+	require.NoError(t, err)
+	require.Equal(t, originalScript.ID, updatedScript.ID)
+	require.Equal(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
+
+	updatedContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, "updated script", string(updatedContents))
+	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
 }
