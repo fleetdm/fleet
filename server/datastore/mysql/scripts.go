@@ -852,9 +852,6 @@ WHERE
 
 	results := make([]*fleet.HostScriptDetail, 0, len(rows))
 	for _, r := range rows {
-		if r.ExecutionID != nil && strings.HasPrefix(*r.ExecutionID, "execution-1") {
-			fmt.Println(">>> ", r)
-		}
 		results = append(results, fleet.NewHostScriptDetail(hostID, r.ScriptID, r.Name, r.ExecutionID, r.ExecutedAt, r.ExitCode, r.HSRID))
 	}
 
