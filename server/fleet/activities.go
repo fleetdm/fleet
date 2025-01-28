@@ -2058,6 +2058,45 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }`
 }
 
+type ActivityUpdatedAppStoreApp struct {
+	TeamName    *string `json:"team_name"`
+	TeamID      *uint   `json:"team_id"`
+	SelfService bool    `json:"self_service"`
+	// TODO(JVE): add missing fields
+}
+
+func (a ActivityUpdatedAppStoreApp) ActivityName() string {
+	return "updated_app_store_app"
+}
+
+func (a ActivityUpdatedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	// TODO(JVE): validate that this is correct
+	return "Generated when an App Store app is updated.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array`, `{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
+}`
+}
+
 type ActivityAddedNDESSCEPProxy struct{}
 
 func (a ActivityAddedNDESSCEPProxy) ActivityName() string {

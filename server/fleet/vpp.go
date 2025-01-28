@@ -75,6 +75,8 @@ type VPPAppStoreApp struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this app store app (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// BundleIdentifier is the bundle identifier for this app.
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
