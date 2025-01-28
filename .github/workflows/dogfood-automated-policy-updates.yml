@@ -1,0 +1,28 @@
+name: "Automated policy updates"
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
+  workflow_dispatch:     # Allow manual trigger
+
+jobs:
+  update-macos-versions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+      - name: Run macOS version update script
+        run: |
+          chmod +x ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+          ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+        env:
+          DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
+          DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
+          DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
