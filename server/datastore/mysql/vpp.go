@@ -429,7 +429,7 @@ ON DUPLICATE KEY UPDATE
 	if insertOnDuplicateDidInsertOrUpdate(res) {
 		id, _ = res.LastInsertId()
 	} else {
-		stmt := `SELECT id FROM vpp_app_teams WHERE adam_id = ? AND platform = ?`
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ?`
 		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
 		}
