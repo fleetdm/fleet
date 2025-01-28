@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/android"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -267,6 +268,58 @@ the way that the Fleet server works.
 					os.Exit(1)
 				}
 			case fleet.NoMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to initialize the database.\n"+
+					"################################################################################\n",
+					os.Args[0])
+				os.Exit(1)
+			}
+
+			androidDs := mysql.NewAndroidDS(ds)
+			androidMigrationStatus, err := androidDs.MigrationStatus(cmd.Context())
+			if err != nil {
+				initFatal(err, "retrieving feature migration status")
+			}
+
+			// TODO(victor): Refactor this check to be more DRY
+			switch androidMigrationStatus.StatusCode {
+			case android.AllMigrationsCompleted:
+				// OK
+			case android.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database has unrecognized feature migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v.\n"+
+					"################################################################################\n",
+					androidMigrationStatus.UnknownTable)
+				if dev {
+					os.Exit(1)
+				}
+			case android.SomeMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database is missing required feature migrations. This is likely to cause\n"+
+					"#   errors in Fleet.\n"+
+					"#\n"+
+					"#   Missing migrations: tables=%v.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to perform migrations.\n"+
+					"#\n"+
+					"#   To run the server without performing migrations:\n"+
+					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+					"################################################################################\n",
+					androidMigrationStatus.MissingTable, os.Args[0])
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case android.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
