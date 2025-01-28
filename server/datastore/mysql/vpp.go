@@ -308,7 +308,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		}
 
 		if app.ValidatedLabels != nil {
-			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, true); err != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, softwareTypeVPP); err != nil {
 				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerLabelsDB transaction")
 			}
 		}
@@ -425,9 +425,17 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	id, _ := res.LastInsertId()
-	vatID := uint(id) //nolint:gosec // dismiss G115
+	var id int64
+	if insertOnDuplicateDidInsertOrUpdate(res) {
+		id, _ = res.LastInsertId()
+	} else {
+		stmt := `SELECT id FROM vpp_app_teams WHERE adam_id = ? AND platform = ?`
+		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
+		}
+	}
 
+	vatID := uint(id) //nolint:gosec // dismiss G115
 	return vatID, ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
