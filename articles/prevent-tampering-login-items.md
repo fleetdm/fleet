@@ -1,16 +1,16 @@
-# Prevent Tampering of Fleet Agent and other Login Items
+# Prevent tampering of Fleet agent and other login items
 
 ## Introduction
 
 macOS Ventura saw a whole new suite of security tools and provided more visibility about what is actually running on your machine. The Login Items section in System Settings shows all programs that start on boot (including LaunchAgents and LaunchDaemons for both the user and the system). In previous versions of macOS, the Login Items list in the "Users & Groups" pane only showed programs that registered themselves to be displayed. This provided a security blindspot because most malware would not have exposed itself.
 
-Since the release of Ventura, users can now manage Login Items, LaunchAgents and LaunchDaemons all from a single place in System Settings. Before this change, the only visibility into items that execute when the device starts up or the user logs in required finding hidden directories in the Finder, using the Terminal, or relying on 3rd party software. This has always been problematic, particularly with LaunchAgents, since any process can add a persistence item without authorization from or notification to the user.
+Since the release of Ventura, users can now manage Login Items, LaunchAgents and LaunchDaemons all from a single place in System Settings. Before this change, the only visibility into items that execute when the device starts up or the user logs in required finding hidden directories in the Finder, using the Terminal, or relying on 3rd party software. This has always been problematic, particularly with LaunchAgents, since any process can add a persistent item without authorization from or notification to the user.
 
-Now in macOS, not only can users see which apps are set up for persistence, they can also control them from a single place in System Settings. Importantly, when apps add a LaunchAgent, LaunchDaemon or Login Item, the system now displays a banner. 
+Now in macOS, not only can users see which apps are set up for persistence, they can also control them from a single place in System Settings. Importantly, when apps add a LaunchAgent, LaunchDaemon, or Login Item, the system now displays a banner. 
 
 ![Login Item Banner](../website/assets/images/articles/login-item-banner.png)
 
-## Login Items in the Enterprise
+## Login items in the enterprise
 
 While transparency and openness to see what is running on your machine is a [key tenant of Fleet](https://fleetdm.com/handbook/company#openness), there is a valid use case to be able to manage these as an admin and prevent your users from being able to tamper with or disable certain applications and LaunchAgents. You don’t want your users to be able to disable security or other management tools deployed to your endpoints.
 
@@ -18,7 +18,7 @@ To properly manage these “Login Items”, admins need to use an MDM to deploy 
 
 ![Profile Error](../website/assets/images/articles/user-profile-error.png)
 
-## The Anatomy of the Payload
+## The anatomy of the payload
 
 The payload is fairly easy to craft. It’s comprised of the object `ServiceManagementManagedLoginItems.Rule` which has 4 parts: 
 
@@ -28,7 +28,7 @@ The payload is fairly easy to craft. It’s comprised of the object `ServiceMana
 - **RuleValue** - *string* - The value to compare with each login item’s value, to determine if this rule is a match (Required) 
 - **TeamIdentifier** - *string* - An additional constraint to limit the scope of the rule that the system tests after matching the RuleType and RuleValue (Optional)
 
-Together, these values gives you a plist file that looks something like this:
+Together, these values give you a plist file that looks something like this:
 
 ```
 <key>Rules</key>
@@ -44,12 +44,12 @@ Together, these values gives you a plist file that looks something like this:
         </array>
 ```
 
-Apple provides some extensive documentation in their [Platform Deployment guides](https://support.apple.com/en-euro/guide/deployment/depdca572563/web) about this topic. As well as a good primer on the [management of these](https://support.apple.com/en-euro/guide/deployment/dep07b92494/1/web/1.0) through MDM.
+Apple provides some extensive documentation in their [platform deployment guides](https://support.apple.com/en-euro/guide/deployment/depdca572563/web) about this topic. They also have a good primer on the [management of these](https://support.apple.com/en-euro/guide/deployment/dep07b92494/1/web/1.0) through MDM.
 
 
-## Building for Fleet Login Item
+## Building for Fleet Login Items
 
-To get started we need to grab some information from a device about what we are looking to lock down. This is where `sudo sfltool dumpbtm` will come in handy. This tool prints the current status of login and background items, including loaded servicemanagement payload UUIDs.
+To get started, we need to grab some information from a device about what we are looking to lock down. This is where `sudo sfltool dumpbtm` will come in handy. This tool prints the current status of login and background items, including loaded servicemanagement payload UUIDs.
 
 On my device that is running Fleet, this is the example output:
 
@@ -67,13 +67,13 @@ Embedded Item Identifiers:
     #1: 16.com.fleetdm.orbit
 ```
 
-For this payload we are going to use the RuleType of LabelPrefix with the RuleValue of `com.fleetdm.orbit` and that’s all you need!
+For this payload, we will use the RuleType of LabelPrefix with the RuleValue of `com.fleetdm.orbit`—that’s all you need!
 
 ```
 <array>
 	<dict>
 	<key>Comment</key>
-	<string>Profile to Prevent Fleet agent from being disabled</string>
+	<string>Profile to prevent Fleet agent from being disabled</string>
 	<key>RuleType</key>
 	<string>LabelPrefix</string>
 	<key>RuleValue</key>
@@ -98,9 +98,9 @@ And that’s it!
 
 macOS Ventura has introduced significant improvements in system security and transparency, giving users and administrators more visibility and control over Login Items, LaunchAgents, and LaunchDaemons. By leveraging the new Service Management payload through MDM, admins can now effectively prevent users from disabling critical management and security tools.
 
-The ability to use specific rule types like LabelPrefix provides administrators with a granular approach to protecting essential system components. By deploying a carefully crafted .mobileconfig profile, admins can ensure that key applications like the Fleet Device Management agent remain active and cannot be tampered with by end-users. Other items that we recommend including in your payload are applications such as SentinelOne or other EDR tools, Nudge, Data Loss Prevention (DLP) agents or remote management tools.
+The ability to use specific rule types like LabelPrefix provides administrators with a granular approach to protecting essential system components. By deploying a carefully crafted .mobileconfig profile, admins can ensure that key applications like the Fleet Device Management agent remain active and cannot be tampered with by end-users. Other items that we recommend including in your payload are applications such as SentinelOne or other EDR tools, Nudge, Data Loss Prevention (DLP) agents, or remote management tools.
 
-Want to know more about Fleets comprehensive MDM platform? Visit fleetdm.com and use the 'Talk to an engineer' [link.](https://fleetdm.com/contact)
+Want to know more about Fleet's comprehensive MDM platform? Visit fleetdm.com and use the 'Talk to an engineer' [link.](https://fleetdm.com/contact)
 
 <meta name="articleTitle" value="Prevent Tampering of Fleet Agent and other Login Items">
 <meta name="authorFullName" value="Harrison Ravazzolo">
