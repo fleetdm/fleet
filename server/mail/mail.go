@@ -198,6 +198,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 	defer client.Close()
 
+	if e.SMTPSettings.SMTPDomain != "" {
+		if err = client.Hello(e.SMTPSettings.SMTPDomain); err != nil {
+			return fmt.Errorf("client hello error: %w", err)
+		}
+	}
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			if err = client.StartTLS(tlsConfig); err != nil {
