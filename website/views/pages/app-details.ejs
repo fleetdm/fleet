@@ -2,6 +2,14 @@
   <div purpose="page-container">
     <div purpose="page-content" class="container p-0">
       <docs-nav-and-search current-section="software"></docs-nav-and-search>
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" class="text-nowrap" href="/app-library">App library</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span><%- thisApp.name %></span>
+        </div>
+      </div>
       <div purpose="app-details-and-sidebar" class="d-flex flex-nowrap flex-lg-row flex-column">
         <div purpose="app-details" class="d-inline-flex flex-column flex-shrink w-0">
           <div purpose="icon-and-name" class="d-flex">

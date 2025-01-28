@@ -25,116 +25,24 @@
       max-width: 1072px;
     }
 
-    [purpose='breadcrumbs-and-search'] {
-      margin-bottom: 64px;
-      max-width: 1072px;
+    [purpose='breadcrumbs'] {
       font-size: 14px;
-      [purpose='breadcrumbs'] {
-        margin-right: 24px;
-      }
-      [purpose='search'] {
-        // Note: We're using classes here to override the default Docsearch styles;
-        button {
-          width: 100%;
-          cursor: text;
-          margin: 0;
-        }
-        .DocSearch-Button {
-          border-top-left-radius: 6px;
-          border-bottom-left-radius: 6px;
-          border-top-right-radius: 6px;
-          border-bottom-right-radius: 6px;
-          border: 1px solid @core-fleet-black-25;
-          background-color: #FFF;
-          padding: 6px;
-          height: 36px;
-          margin: 0;
-          width: 256px;
-        }
-        .DocSearch-Button:hover {
-          box-shadow: none;
-          border: 1px solid @core-fleet-black-25;
-          color: @core-fleet-black-50;
-        }
-        .DocSearch-Search-Icon {
-          margin-left: 10px;
-          height: 16px;
-          width: 16px;
-          color: @core-fleet-black-50;
-          stroke-width: 3px;
-        }
-        .DocSearch-Button-Keys {
-          display: none;
-        }
-        .input-group:focus-within {
-          border: 1px solid @core-vibrant-blue;
-        }
-        .DocSearch-Button-Placeholder {
-          font-size: 16px;
-          font-weight: 400;
-          padding-left: 12px;
-        }
-        [purpose='disabled-search'] {
-          input {
-            padding-top: 6px;
-            padding-bottom: 6px;
-            border: none;
-            } &::placeholder {
-              font-size: 16px;
-              line-height: 24px;
-              color: #8B8FA2;
-            }
-          .input-group {
-            border-top-left-radius: 6px;
-            border-bottom-left-radius: 6px;
-            border-top-right-radius: 6px;
-            border-bottom-right-radius: 6px;
-            border: 1px solid @core-fleet-black-25;
-            background: #FFF;
-          }
-          .input-group:focus-within {
-            border: 1px solid @core-vibrant-blue;
-          }
-          .form-control {
-            border-radius: 6px;
-            padding: 6px;
-            height: 36px;
-            margin: 0;
-            width: 212px;
-          }
-          .docsearch-input:focus-visible {
-            outline: none;
-          }
-          .ds-input:focus {
-            outline: rgba(0, 0, 0, 0);
-          }
-          .input-group-text {
-            color: @core-fleet-black-50;
-          }
-          .form-control {
-            height: 36px;
-            padding: 0px;
-            font-size: 16px;
-          } &:focus {
-            border: none;
-          }
-        }
-      }
+      margin-bottom: 48px;
+    }
 
-      [purpose='breadcrumbs-category'] {
-        color: #8B8FA2;
-        margin-right: 8px;
-        font-size: 14px;
-        font-weight: 400;
-        line-height: 150%; /*  */
-        &:hover {
-          color: #192147;
-          text-decoration: none;
-        }
+    [purpose='breadcrumbs-category'] {
+      color: #8B8FA2;
+      margin-right: 8px;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 150%; /*  */
+      &:hover {
+        color: #192147;
+        text-decoration: none;
       }
-      [purpose='breadcrumbs-title'] {
-        margin-left: 8px;
-      }
+    }
+    [purpose='breadcrumbs-title'] {
+      margin-left: 8px;
     }
     [purpose='icon-and-name'] {
       flex-direction: row;
@@ -373,24 +281,14 @@
         width: 100%;
         margin-left: 0px;
       }
-      [purpose='breadcrumbs-and-search'] {
+      [purpose='breadcrumbs'] {
         margin-bottom: 32px;
       }
     }
 
     @media (max-width: 768px) {
-      [purpose='breadcrumbs-and-search'] {
-        max-width: 1072px;
-        font-size: 14px;
-        [purpose='breadcrumbs'] {
-          margin-bottom: 24px;
-        }
-        [purpose='search'] {
-          width: 100%;
-          .DocSearch-Button {
-            width: 100%;
-          }
-        }
+      [purpose='breadcrumbs'] {
+        margin-bottom: 24px;
       }
     }
 

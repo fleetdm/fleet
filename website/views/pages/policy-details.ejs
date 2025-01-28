@@ -2,6 +2,14 @@
   <div purpose="page-container">
     <div purpose="page-content">
       <docs-nav-and-search search-filter="policies" current-section="policies" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" class="text-nowrap" href="/policies">Policies</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span><%- policy.name %></span>
+        </div>
+      </div>
       <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
         <div purpose="policy-details" class="d-flex flex-column">
           <h2 purpose="policy-name"><%- policy.name %></h2>
