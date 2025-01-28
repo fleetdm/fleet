@@ -307,8 +307,10 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
-		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, "vpp_app_team"); err != nil {
-			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerLabelsDB transaction")
+		if app.ValidatedLabels != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, "vpp_app_team"); err != nil {
+				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerLabelsDB transaction")
+			}
 		}
 
 		return nil

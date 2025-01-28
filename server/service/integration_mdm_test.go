@@ -10948,6 +10948,110 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, location, resp.Tokens[0].Location)
 	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
 
+	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
+		var titleID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			ctx := context.Background()
+			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?;`, app.AdamID, app.Platform)
+		})
+
+		return titleID
+	}
+
+	t.Run("vpp apps with labels", func(t *testing.T) {
+		// Create a team
+		var newTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team Labels" + t.Name())}}, http.StatusOK, &newTeamResp)
+		team := newTeamResp.Team
+
+		// Associate team to the VPP token.
+		var resPatchVPP patchVPPTokensTeamsResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+		var createLabelResp createLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label1" + t.Name()}, http.StatusOK, &createLabelResp)
+		l1 := createLabelResp.Label
+		require.NotNil(t, l1)
+
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label2" + t.Name()}, http.StatusOK, &createLabelResp)
+		l2 := createLabelResp.Label
+		require.NotNil(t, l2)
+
+		includeAnyApp := fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   "1",
+					Platform: fleet.MacOSPlatform,
+				},
+			},
+			Name:             "App 1",
+			BundleIdentifier: "a-1",
+			IconURL:          "https://example.com/images/1",
+			LatestVersion:    "1.0.0",
+		}
+
+		// Attempt to add an app with both types of labels. Should fail
+		var addAppResp addAppStoreAppResponse
+		addAppReq := &addAppStoreAppRequest{
+			TeamID:           &team.ID,
+			AppStoreID:       includeAnyApp.AdamID,
+			SelfService:      true,
+			LabelsIncludeAny: []string{l1.Name},
+			LabelsExcludeAny: []string{l2.Name},
+		}
+		res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included`)
+
+		// Now add it for real
+		addAppReq.LabelsExcludeAny = []string{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+		titleID := getSoftwareTitleIDFromApp(&includeAnyApp)
+		activityData := `{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`
+		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(activityData, team.Name,
+				includeAnyApp.Name, titleID, includeAnyApp.AdamID, team.ID, includeAnyApp.Platform, l1.ID, l1.Name), 0)
+
+		var getSWTitle getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, includeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}})
+
+		// Add an app with exclude_any labels
+		excludeAnyApp := fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   "2",
+					Platform: fleet.MacOSPlatform,
+				},
+			},
+			Name:             "App 2",
+			BundleIdentifier: "b2",
+			IconURL:          "https://example.com/images/1",
+			LatestVersion:    "1.0.0",
+		}
+
+		addAppReq = &addAppStoreAppRequest{
+			TeamID:           &team.ID,
+			AppStoreID:       excludeAnyApp.AdamID,
+			SelfService:      true,
+			LabelsExcludeAny: []string{l2.Name},
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
+		titleID = getSoftwareTitleIDFromApp(&excludeAnyApp)
+		activityData = `{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`
+		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(activityData, team.Name,
+				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+	})
+
 	// Create a team
 	var newTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
@@ -11094,16 +11198,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		},
 	}
 	assert.ElementsMatch(t, expectedApps, appResp.AppStoreApps)
-
-	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
-		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			ctx := context.Background()
-			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?;`, app.AdamID, app.Platform)
-		})
-
-		return titleID
-	}
 
 	// Insert/deletion flow for macOS app
 	// Add an app store app to team 1

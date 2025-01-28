@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -375,22 +373,24 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LatestVersion:    assetMD.Version,
 		ValidatedLabels:  validatedLabels,
 	}
-	slog.With("filename", "ee/server/service/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking labels ", "validatedLabels", *app.ValidatedLabels)
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
+
 	act := fleet.ActivityAddedAppStoreApp{
-		AppStoreID:      app.AdamID,
-		Platform:        app.Platform,
-		TeamName:        &teamName,
-		SoftwareTitle:   app.Name,
-		SoftwareTitleId: addedApp.TitleID,
-		TeamID:          teamID,
-		SelfService:     app.SelfService,
-		// TODO(JVE): add labels to activity
+		AppStoreID:       app.AdamID,
+		Platform:         app.Platform,
+		TeamName:         &teamName,
+		SoftwareTitle:    app.Name,
+		SoftwareTitleId:  addedApp.TitleID,
+		TeamID:           teamID,
+		SelfService:      app.SelfService,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")
