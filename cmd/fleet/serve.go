@@ -1021,6 +1021,18 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAndroidManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					androidDS,
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, fmt.Sprintf("failed to register %s schedule", fleet.CronMDMAndroidManager))
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,

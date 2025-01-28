@@ -532,6 +532,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Android management
 	ue.GET("/api/_version_/fleet/android/enterprise/signup", androidEnterpriseSignupEndpoint, nil)
+	ue.PATCH("/api/_version_/fleet/android/enterprise/{id:[0-9]+}/policies/default", androidPoliciesEndpoint, androidPoliciesRequest{})
+	ue.GET("/api/_version_/fleet/android/enterprise/{id:[0-9]+}/enrollment_token", androidEnrollmentTokenEndpoint,
+		androidEnrollmentTokenRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update

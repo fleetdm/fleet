@@ -10,3 +10,11 @@ type Enterprise struct {
 	SignupName   string `db:"signup_name"`
 	EnterpriseID string `db:"enterprise_id"`
 }
+
+func (e Enterprise) Name() string {
+	return "enterprises/" + e.EnterpriseID
+}
+
+type EnrollmentToken struct {
+	Value string `json:"value"`
+}

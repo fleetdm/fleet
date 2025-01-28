@@ -51,3 +51,13 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
 	}
 	return nil
 }
+
+func (ds *Datastore) ListEnterprises(ctx context.Context) ([]*android.Enterprise, error) {
+	stmt := `SELECT id, signup_name, enterprise_id FROM android_enterprises`
+	var enterprises []*android.Enterprise
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &enterprises, stmt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting enterprises")
+	}
+	return enterprises, nil
+}

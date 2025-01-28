@@ -38,9 +38,7 @@ func testCreateGetEnterprise(t *testing.T, ds *Datastore) {
 
 	result, err := ds.GetEnterpriseByID(testCtx(), id)
 	require.NoError(t, err)
-	assert.Equal(t, id, result.ID)
-	assert.Empty(t, result.SignupName)
-	assert.Empty(t, result.EnterpriseID)
+	assert.Equal(t, &android.Enterprise{ID: id}, result)
 }
 
 func testUpdateEnterprise(t *testing.T, ds *Datastore) {
@@ -62,7 +60,10 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 
 	result, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	require.NoError(t, err)
-	assert.Equal(t, enterprise.ID, result.ID)
-	assert.Equal(t, enterprise.SignupName, result.SignupName)
-	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
+	assert.Equal(t, enterprise, result)
+
+	enterprises, err := ds.ListEnterprises(testCtx())
+	require.NoError(t, err)
+	assert.Len(t, enterprises, 1)
+	assert.Equal(t, enterprise, enterprises[0])
 }

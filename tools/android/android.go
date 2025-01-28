@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -36,6 +37,10 @@ func main() {
 		enterprisesDelete(mgmt, *enterpriseID)
 	case "enterprises.list":
 		enterprisesList(mgmt)
+	case "policies.list":
+		policiesList(mgmt, *enterpriseID)
+	case "devices.list":
+		devicesList(mgmt, *enterpriseID)
 	default:
 		log.Fatalf("Unknown command: %s", *command)
 	}
@@ -63,5 +68,43 @@ func enterprisesList(mgmt *androidmanagement.Service) {
 	}
 	for _, enterprise := range enterprises.Enterprises {
 		log.Printf("Enterprise: %+v", *enterprise)
+	}
+}
+
+func policiesList(mgmt *androidmanagement.Service, enterpriseID string) {
+	if enterpriseID == "" {
+		log.Fatalf("enterprise_id must be set")
+	}
+	result, err := mgmt.Enterprises.Policies.List("enterprises/" + enterpriseID).Do()
+	if err != nil {
+		log.Fatalf("Error listing policies: %v", err)
+	}
+	if len(result.Policies) == 0 {
+		log.Printf("No policies found")
+		return
+	}
+	for _, policy := range result.Policies {
+		log.Printf("Policy: %+v", *policy)
+	}
+}
+
+func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
+	if enterpriseID == "" {
+		log.Fatalf("enterprise_id must be set")
+	}
+	result, err := mgmt.Enterprises.Devices.List("enterprises/" + enterpriseID).Do()
+	if err != nil {
+		log.Fatalf("Error listing devices: %v", err)
+	}
+	if len(result.Devices) == 0 {
+		log.Printf("No policies found")
+		return
+	}
+	for _, device := range result.Devices {
+		data, err := json.MarshalIndent(device, "", "  ")
+		if err != nil {
+			log.Fatalf("Error marshalling device: %v", err)
+		}
+		log.Println(string(data))
 	}
 }

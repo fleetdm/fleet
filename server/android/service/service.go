@@ -14,6 +14,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
 
@@ -25,11 +26,13 @@ type Service struct {
 	fleetDS fleet.Datastore
 }
 
-// Required env vars:
 var (
+	// Required env vars
 	androidServiceCredentials = os.Getenv("FLEET_ANDROID_SERVICE_CREDENTIALS")
 	androidProjectID          = os.Getenv("FLEET_ANDROID_PROJECT_ID")
-	androidPubSubTopic        = os.Getenv("FLEET_ANDROID_PUBSUB_TOPIC")
+
+	// Optional env vars
+	androidPubSubTopic = os.Getenv("FLEET_ANDROID_PUBSUB_TOPIC")
 )
 
 func NewService(
@@ -40,7 +43,7 @@ func NewService(
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	// TODO: Android management service should only be created when needed.
-	if androidServiceCredentials == "" || androidProjectID == "" || androidPubSubTopic == "" {
+	if androidServiceCredentials == "" || androidProjectID == "" {
 		level.Error(logger).Log("msg",
 			"FLEET_ANDROID_SERVICE_CREDENTIALS, FLEET_ANDROID_PROJECT_ID, and FLEET_ANDROID_PUBSUB_TOPIC environment variables must be set to use Android management")
 		return nil, nil
@@ -111,10 +114,13 @@ func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpri
 
 	gEnterprise := &androidmanagement.Enterprise{
 		EnabledNotificationTypes: []string{"ENROLLMENT", "STATUS_REPORT", "COMMAND", "USAGE_LOGS"},
-		PubsubTopic:              androidPubSubTopic,
+		PubsubTopic:              androidPubSubTopic, // will be ignored if empty
 	}
 	gEnterprise, err = s.mgmt.Enterprises.Create(gEnterprise).ProjectId(androidProjectID).EnterpriseToken(enterpriseToken).SignupUrlName(enterprise.SignupName).Do()
-	if err != nil {
+	switch {
+	case googleapi.IsNotModified(err):
+		s.logger.Log("msg", "Android enterprise was already created", "enterprise_id", enterprise.EnterpriseID)
+	case err != nil:
 		return ctxerr.Wrap(ctx, err, "creating enterprise via Google API")
 	}
 
@@ -128,4 +134,69 @@ func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpri
 	level.Info(s.logger).Log("msg", "Enterprise created", "enterprise_id", enterpriseID)
 
 	return nil
+}
+
+func (s Service) CreateOrUpdatePolicy(ctx context.Context, fleetEnterpriseID uint) error {
+	s.authz.SkipAuthorization(ctx)
+
+	enterprise, err := s.ds.GetEnterpriseByID(ctx, fleetEnterpriseID)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewInvalidArgumentError("id",
+			fmt.Sprintf("Enterprise with ID %d not found", fleetEnterpriseID)).WithStatus(http.StatusNotFound)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+
+	policyName := fmt.Sprintf("enterprises/%s/policies/default", enterprise.EnterpriseID)
+	_, err = s.mgmt.Enterprises.Policies.Patch(policyName, &androidmanagement.Policy{
+		CameraAccess: "CAMERA_ACCESS_DISABLED",
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			ApplicationReportsEnabled:    true,
+			DeviceSettingsEnabled:        true,
+			SoftwareInfoEnabled:          true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			ApplicationReportingSettings: &androidmanagement.ApplicationReportingSettings{
+				IncludeRemovedApps: true,
+			},
+			CommonCriteriaModeEnabled: true,
+		},
+	}).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		s.logger.Log("msg", "Android policy not modified", "enterprise_id", enterprise.EnterpriseID)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "creating or updating policy via Google API")
+	}
+
+	return nil
+}
+
+func (s Service) CreateEnrollmentToken(ctx context.Context, fleetEnterpriseID uint) (*android.EnrollmentToken, error) {
+	s.authz.SkipAuthorization(ctx)
+	enterprise, err := s.ds.GetEnterpriseByID(ctx, fleetEnterpriseID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewInvalidArgumentError("id",
+			fmt.Sprintf("Enterprise with ID %d not found", fleetEnterpriseID)).WithStatus(http.StatusNotFound)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+
+	token, err := s.mgmt.Enterprises.EnrollmentTokens.Create(enterprise.Name(), &androidmanagement.EnrollmentToken{
+		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
+		PolicyName:         enterprise.Name() + "/policies/default",
+	}).Do()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating enrollment token via Google API")
+	}
+
+	return &android.EnrollmentToken{
+		Value: token.Value,
+	}, nil
 }
