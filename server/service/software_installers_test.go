@@ -158,7 +158,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 	}
 }
 
-func TestValidateSoftwareInstallerLabels(t *testing.T) {
+// TestValidateSoftwareLabels tests logic for validating labels associated with software (VPP apps,
+// FMAs, and custom packages)
+func TestValidateSoftwareLabels(t *testing.T) {
 	ds := new(mock.Store)
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
