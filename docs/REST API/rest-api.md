@@ -995,6 +995,10 @@ None.
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
     },
+    "change_management": {
+      "gitops_mode_enabled": false,
+      "repository_url": "",
+    },
     "zendesk": []
   },
   "logging": {
@@ -1266,6 +1270,10 @@ Modifies the Fleet's configuration with the supplied information.
       }
     ],
     "ndes_scep_proxy": null,
+    "change_management": {
+      "gitops_mode_enabled": false,
+      "repository_url": "",
+    },
     "zendesk": []
   },
   "logging": {
@@ -1590,6 +1598,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| change_management | object | See [`integrations.change_management`](#integrations-change-management). |
 
 <br/>
 
@@ -1653,6 +1662,14 @@ _Available in Fleet Premium._
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
 
+##### integrations.change_management
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| gitops_mode_enabled               | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
+| repository_url                    | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
+
+
 
 ##### Example request body
 
@@ -1681,6 +1698,10 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
       "password": "abc123",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
+    },
+    "change_management": {
+      "gitops_mode_enabled": true,
+      "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
     }
   }
 }
