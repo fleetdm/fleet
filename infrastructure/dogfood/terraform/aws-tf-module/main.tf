@@ -61,7 +61,6 @@ locals {
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
-    FLEET_DEV_DOWNLOAD_FLEETDM_URL             = "https://qa.pezhub.ngrok.app"
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
