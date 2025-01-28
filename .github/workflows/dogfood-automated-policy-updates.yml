@@ -1,4 +1,4 @@
-name: "Automated policy updates"
+name: "Automated policy updates for dogfood"
 
 on:
   schedule:
@@ -26,3 +26,4 @@ jobs:
           DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
           DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
           DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
+          
