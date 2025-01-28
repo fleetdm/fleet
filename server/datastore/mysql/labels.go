@@ -123,8 +123,8 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
-func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error) {
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// delete all label membership
 		sql := `
 	DELETE FROM label_membership WHERE label_id = ?
@@ -165,8 +165,11 @@ VALUES ` + strings.Join(placeholders, ", ")
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
+	}
 
-	return ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
+	return ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
 }
 
 func batchHostIds(hostIds []uint) [][]uint {
