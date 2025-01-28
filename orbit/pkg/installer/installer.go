@@ -34,6 +34,7 @@ type (
 type Client interface {
 	GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error)
 	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
+	DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
 
@@ -220,10 +221,24 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
 
-	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
-	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-	if err != nil {
-		return payload, err
+	var installerPath string
+	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
+		log.Debug().Str("install_id", installID).Msgf("about to download software installer from URL")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
+			installer.SoftwareInstallerURL.Filename, tmpDir)
+		if err != nil {
+			log.Err(err).Msg("downloading software installer from URL")
+			// If download fails, we will fall back to downloading the installer directly from Fleet server
+			installerPath = ""
+		}
+	}
+
+	if installerPath == "" {
+		log.Debug().Str("install_id", installID).Msgf("about to download software installer")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
+		if err != nil {
+			return payload, err
+		}
 	}
 
 	// remove tmp directory and installer

@@ -196,18 +196,25 @@ type bodyHandler interface {
 }
 
 type FileResponse struct {
-	DestPath     string
-	DestFile     string
-	destFilePath string
+	DestPath      string
+	DestFile      string
+	destFilePath  string
+	SkipMediaType bool
 }
 
 func (f *FileResponse) Handle(resp *http.Response) error {
-	_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
-	if err != nil {
-		return fmt.Errorf("parsing media type from response header: %w", err)
+	var filename string
+	if !f.SkipMediaType {
+		_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+		if err != nil {
+			return fmt.Errorf("parsing media type from response header: %w", err)
+		}
+		filename = params["filename"]
 	}
 
-	filename := params["filename"]
+	if filename == "" {
+		filename = f.DestFile
+	}
 	if filename == "" {
 		filename = uuid.NewString()
 	}
