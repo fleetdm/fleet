@@ -1598,7 +1598,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| change_management | object | See [`integrations.change_management`](#integrations-change_management). |
+| change_management | object | See [`integrations.change_management`](#integrations-change-management). |
 
 <br/>
 
