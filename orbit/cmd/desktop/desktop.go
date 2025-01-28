@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/gofrs/flock"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -109,6 +110,14 @@ func main() {
 	if tufUpdateRoot != "" {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
+
+	lockFile, err := secureLock()
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not secure lock file")
+	} else {
+		log.Debug().Msg("lockfile secured")
+	}
+	defer lockFile.Unlock()
 
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
@@ -541,6 +550,64 @@ func (m *mdmMigrationHandler) ShowInstructions() error {
 		return err
 	}
 	return nil
+}
+
+// secureLock checks for the fleet desktop lock file, and returns an error if it can't secure it.
+func secureLock() (*flock.Flock, error) {
+	dir, err := logDir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get logdir for lock: %w", err)
+	}
+	// Same as the log dir in seupLogs()
+	dir = filepath.Join(dir, "Fleet")
+
+	lockFilePath := filepath.Join(dir, "fleet-desktop.lock")
+	log.Debug().Msgf("fleet desktop lockfile: %s", lockFilePath)
+
+	// lockFile, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_WRONLY, os.FileMode(0o600))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to open lockfile at %s: %w", lockFilePath, err)
+	// }
+	// log.Debug().Msgf("opened lockfile (write-only) %s", lockFilePath)
+
+	log.Debug().Msg("locking using flock package")
+	lock := flock.New(lockFilePath)
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("error getting lock on %s: %w", lockFilePath, err)
+	}
+	if !locked {
+		return nil, errors.New("another instance of fleet desktop has the lock")
+	}
+
+	// flock := syscall.Flock_t{
+	// 	Start:  0,
+	// 	Len:    0,
+	// 	Type:   syscall.F_WRLCK,
+	// 	Whence: io.SeekStart,
+	// }
+
+	// log.Debug().Msg("Locking file with FcntlFlock")
+	// if err := syscall.FcntlFlock(lockFile.Fd(), syscall.F_SETLK, &flock); err != nil {
+	// 	return nil, fmt.Errorf("lock file is owned by another process %s: %w", lockFilePath, err)
+	// }
+
+	// if err := unix.Flock(int(lockFile.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	// 	return fmt.Errorf("failed to secure lock on %s: %w", lockFilePath, err)
+	// }
+
+	log.Debug().Msgf("got lock on %s", lockFilePath)
+	// lockFile := flock.New(lockFilePath)
+	// gotLock, err := lockFile.TryLock()
+	// log.Debug().Err(err).Msgf("get lock: %v", gotLock)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to secure file lock on %s: %w", lockFilePath, err)
+	// }
+	// if !gotLock {
+	// 	return errors.New("fleet desktop is already running, exiting")
+	// }
+
+	return lock, nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files, if for some
