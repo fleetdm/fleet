@@ -5,7 +5,6 @@
  *
  * @type {Component}
  *
- * @event click   [emitted when clicked]
  * -----------------------------------------------------------------------------
  */
 
@@ -72,9 +71,13 @@ parasails.registerComponent('docsNavAndSearch', {
   beforeMount: function() {
     //…
   },
-  mounted: async function(){
+  mounted: async function() {
     let filterForSearch = {};
     if(this.searchFilter){
+      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'software'];
+      if(!searchIndexesThatExist.includes(this.searchFilter)){
+        throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
+      }
       filterForSearch = {
         'facetFilters': [`section:${this.searchFilter}`]
       };
