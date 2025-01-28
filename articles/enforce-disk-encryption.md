@@ -74,6 +74,28 @@ How to view the disk encryption key:
 
 > The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
 
+## Use disk encryption key to login
+
+### macOS
+
+1. With the macOS host in front of you, restart the host and select the end user's account.
+
+2. Select the question mark icon **(?)** next to the password field and select TODO. If you don't see the question makr icon, try entering any incorrect password several times.
+
+3. Follow the instructions on the Mac to enter the disk encryption (FileVault recovery) key.
+
+### Windows
+
+1. In Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. If it had an **On (automatic)** status continue to step 2. If it has an **On (manual)** status continue to step TODO
+
+2. TODO
+
+### Linux 
+
+TODO
+
+#### 
+
 ## Migrate macOS hosts
 
 When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their Mac.
