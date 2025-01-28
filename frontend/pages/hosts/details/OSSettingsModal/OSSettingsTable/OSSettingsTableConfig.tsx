@@ -86,7 +86,7 @@ const generateTableConfig = (
         const { name, platform, status } = cellProps.row.original;
         const isFailedWindowsDiskEncryption =
           platform === "windows" &&
-          name === "Disk Encryption" &&
+          name === "Disk encryption" &&
           status === "failed";
         return (
           <OSSettingsErrorCell
