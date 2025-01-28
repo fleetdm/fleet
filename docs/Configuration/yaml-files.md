@@ -368,12 +368,6 @@ setup_experience: true
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 - `setup_experience` specifies whether the app will be installed when the host is first step up.
 
-```yaml
-app_store_apps:
-  – app_store_id: '1091189122'
-    setup_experience: true
-```
-
 ## org_settings and team_settings
 
 ### features
