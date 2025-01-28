@@ -141,7 +141,7 @@ type SoftwareInstaller struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
-	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	// LabelsIncludeAny is the list of "include any" labels for this software installer (if not nil).
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`

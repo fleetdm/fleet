@@ -299,6 +299,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 	}
 
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, appID.LabelsIncludeAny, appID.LabelsExcludeAny)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating software labels for vpp app")
+	}
+
 	var teamName string
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.Team(ctx, *teamID)
@@ -366,6 +371,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,
 		LatestVersion:    assetMD.Version,
+		ValidatedLabels:  validatedLabels,
 	}
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
@@ -373,14 +379,18 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
+
 	act := fleet.ActivityAddedAppStoreApp{
-		AppStoreID:      app.AdamID,
-		Platform:        app.Platform,
-		TeamName:        &teamName,
-		SoftwareTitle:   app.Name,
-		SoftwareTitleId: addedApp.TitleID,
-		TeamID:          teamID,
-		SelfService:     app.SelfService,
+		AppStoreID:       app.AdamID,
+		Platform:         app.Platform,
+		TeamName:         &teamName,
+		SoftwareTitle:    app.Name,
+		SoftwareTitleId:  addedApp.TitleID,
+		TeamID:           teamID,
+		SelfService:      app.SelfService,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")
