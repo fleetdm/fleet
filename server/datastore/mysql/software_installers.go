@@ -753,7 +753,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 			INNER JOIN software_install_upcoming_activities siua
 				ON upcoming_activities.id = siua.upcoming_activity_id
 		WHERE
-			ua.activity_type = 'software_install' AND
+			upcoming_activities.activity_type = 'software_install' AND
 			siua.policy_id = ? AND
 			siua.software_installer_id IN (
 				SELECT id FROM software_installers WHERE global_or_team_id = ?
@@ -1325,20 +1325,20 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	var hostLastInstall fleet.HostLastInstallData
 	stmt := `
-SELECT 
-	execution_id, 
+SELECT
+	execution_id,
 	'pending_install' AS status
-FROM 
+FROM
 	upcoming_activities
-WHERE 
+WHERE
 	id = (
 		SELECT
 			MAX(ua.id)
-		FROM 
+		FROM
 			upcoming_activities ua
-		JOIN 
+		JOIN
 			software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		WHERE 
+		WHERE
 			ua.activity_type = 'software_install' AND ua.host_id = ? AND siua.software_installer_id = ?)`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
@@ -1351,16 +1351,16 @@ WHERE
 func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	var hostLastInstall fleet.HostLastInstallData
 	stmt := `
-SELECT 
-	execution_id, 
+SELECT
+	execution_id,
 	status
-FROM 
+FROM
 	host_software_installs
-WHERE 
+WHERE
 	id = (
 		SELECT
 			MAX(hsi.id)
-		FROM 
+		FROM
 			host_software_installs hsi
 		WHERE
 			hsi.host_id = ? AND hsi.software_installer_id = ?)`

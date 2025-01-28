@@ -568,13 +568,27 @@ var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn'
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO(uniq): delete pending execution from upcoming_activities
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
+		}
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
+			USING upcoming_activities
+				INNER JOIN script_upcoming_activities sua
+					ON upcoming_activities.id = sua.upcoming_activity_id
+			WHERE sua.script_id = ? AND
+				upcoming_activities.activity_type = 'script' AND
+				(upcoming_activities.payload->'$.sync_request' = 0 OR
+					upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			`,
+			id, int(constants.MaxServerWaitTime.Seconds()),
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "cancel upcoming pending script executions")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
@@ -734,8 +748,6 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		ExitCode    *int64     `db:"exit_code"`
 	}
 
-	// TODO(uniq): must also look in upcoming queue, looks like this returns the latest
-	// execution/pending state for each script for a host?
 	sql := `
 SELECT
 	s.id AS script_id,
@@ -747,34 +759,73 @@ SELECT
 FROM
 	scripts s
 	LEFT JOIN (
+		-- latest is in host_script_results only if none in upcoming_activities
 		SELECT
-			id,
-			host_id,
-			script_id,
-			execution_id,
-			created_at,
-			exit_code
+			r.id,
+			r.host_id,
+			r.script_id,
+			r.execution_id,
+			r.created_at,
+			r.exit_code
 		FROM
 			host_script_results r
+			LEFT OUTER JOIN host_script_results r2
+				ON r.host_id = r2.host_id AND
+					r.script_id = r2.script_id AND
+					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
 		WHERE
-			host_id = ?
-			AND NOT EXISTS (
-				SELECT
-					1
-				FROM
-					host_script_results
+			r.host_id = ? AND
+			r2.id IS NULL AND -- no other row at a later time
+			NOT EXISTS (
+				SELECT 1
+				FROM upcoming_activities ua
+				INNER JOIN script_upcoming_activities sua
+					ON ua.id = sua.upcoming_activity_id
 				WHERE
-					host_id = ?
-					AND id != r.id
-					AND script_id = r.script_id
-					AND(created_at > r.created_at
-						OR(created_at = r.created_at
-							AND id > r.id)))) hsr
+					ua.host_id = r.host_id AND
+					ua.activity_type = 'script' AND
+					sua.script_id = r.script_id
+			)
+
+	UNION
+
+	-- latest is in upcoming_activities
+	SELECT
+		NULL as id,
+		ua.host_id,
+		sua.script_id,
+		ua.execution_id,
+		ua.created_at,
+		NULL as exit_code
+	FROM
+		upcoming_activities ua
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
+	WHERE
+		ua.host_id = ? AND
+		ua.activity_type = 'script' AND
+		NOT EXISTS (
+			-- no later entry in upcoming activities, not sure how
+			-- or if it can be done with the LEFT OUTER JOIN approach
+			-- because it involves 2 tables.
+			SELECT
+				1
+			FROM
+				upcoming_activities ua2
+				INNER JOIN script_upcoming_activities sua2
+					ON ua2.id = sua2.upcoming_activity_id
+			WHERE
+				ua.host_id = ua2.host_id AND
+				ua2.activity_type = 'script' AND
+				sua.script_id = sua2.script_id AND
+				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
+			)
+	) hsr
 	ON s.id = hsr.script_id
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
 	AND s.global_or_team_id = ?
-	`
+`
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	if len(extension) > 0 {

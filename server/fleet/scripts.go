@@ -97,15 +97,17 @@ type HostScriptExecution struct {
 // SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
 // are more recent than the current LastExecution. It returns true if the LastExecution was updated.
 func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
-	if hsrID == nil || executionID == nil || executedAt == nil {
+	if executionID == nil || executedAt == nil {
 		// no new execution, nothing to do
 		return false
 	}
 
 	newHSE := &HostScriptExecution{
-		HSRID:       *hsrID,
 		ExecutionID: *executionID,
 		ExecutedAt:  *executedAt,
+	}
+	if hsrID != nil {
+		newHSE.HSRID = *hsrID
 	}
 	switch {
 	case exitCode == nil:

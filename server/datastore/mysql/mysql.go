@@ -99,6 +99,12 @@ type Datastore struct {
 	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 	testBatchSetMDMWindowsProfilesErr string
 
+	// set this to the execution ids of activities that should be activated in
+	// the next call to activateNextUpcomingActivity, instead of picking the next
+	// available activity based on normal prioritization and creation date
+	// ordering.
+	testActivateSpecificNextActivities []string
+
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
