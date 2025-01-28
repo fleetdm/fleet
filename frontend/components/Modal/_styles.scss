@@ -78,15 +78,16 @@
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
+    width: 100%;
 
     &__medium {
-      width: 650px;
+      max-width: 650px;
     }
     &__large {
-      width: 800px;
+      max-width: 800px;
     }
     &__xlarge {
-      width: 850px;
+      max-width: 850px;
     }
     &__auto {
       width: auto;
