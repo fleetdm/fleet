@@ -96,7 +96,7 @@ FROM
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id
 	JOIN labels l ON l.id = vatl.label_id
 WHERE
-	vatl.vpp_app_team_id = ?;
+	vatl.vpp_app_team_id = ? AND va.platform = vat.platform
 `
 
 	var labels []fleet.SoftwareScopeLabel
@@ -426,8 +426,9 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	id, _ := res.LastInsertId()
+	vatID := uint(id) //nolint:gosec // dismiss G115
 
-	return uint(id), ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
+	return vatID, ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
 func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {

@@ -11027,7 +11027,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				},
 			},
 			Name:             "App 2",
-			BundleIdentifier: "b2",
+			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/1",
 			LatestVersion:    "1.0.0",
 		}
