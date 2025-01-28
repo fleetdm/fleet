@@ -1,12 +1,12 @@
 .manage-hosts {
-  .header-wrap {
+  &__header-wrap {
     @include normalize-team-header;
     margin-bottom: $pad-medium;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      white-space: nowrap;
     }
   }
 
@@ -17,7 +17,6 @@
   &__header {
     display: flex;
     align-items: center;
-    min-width: 125px;
 
     .form-field {
       margin-bottom: 0;
