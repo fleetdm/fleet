@@ -878,6 +878,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		}, globalTeamFilter,
 	)
 	require.NoError(t, err)
+	require.Equal(t, 1, count)
 	require.Len(t, titles, 1)
 	require.Equal(t, "installer1", titles[0].Name)
 }
