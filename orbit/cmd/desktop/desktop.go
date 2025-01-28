@@ -111,7 +111,7 @@ func main() {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
 
-	lockFile, err := secureLock()
+	lockFile, err := getLockfile()
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not secure lock file")
 	} else {
@@ -552,8 +552,8 @@ func (m *mdmMigrationHandler) ShowInstructions() error {
 	return nil
 }
 
-// secureLock checks for the fleet desktop lock file, and returns an error if it can't secure it.
-func secureLock() (*flock.Flock, error) {
+// getLockfile checks for the fleet desktop lock file, and returns an error if it can't secure it.
+func getLockfile() (*flock.Flock, error) {
 	dir, err := logDir()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get logdir for lock: %w", err)
