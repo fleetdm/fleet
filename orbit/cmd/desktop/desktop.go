@@ -115,8 +115,6 @@ func main() {
 	lockFile, err := getLockfile()
 	if err != nil {
 		log.Fatal().Err(err).Msg("could not secure lock file")
-	} else {
-		log.Debug().Msg("lockfile secured")
 	}
 	defer func() {
 		if err := lockFile.Unlock(); err != nil {
