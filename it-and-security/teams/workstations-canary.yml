@@ -11,7 +11,7 @@ team_settings:
   integrations:
     google_calendar:
       enable_calendar_events: true
-      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
+      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
