@@ -125,12 +125,12 @@
     align-items: center;
     align-self: stretch;
     border-radius: 6px;
-    border: 1px solid var(--border-border-primary, #E2E4EA);
-    background: var(--surface-surface-primary, #FFF);
+    border: 1px solid #E2E4EA;
+    background: #FFF;
     width: 100%;
     margin-bottom: 8px;
     p {
-      color: var(--text-text-brand, #192147);
+      color: #192147;
 
       /* Body MD (FKA p) */
       font-family: Inter;
@@ -145,8 +145,8 @@
     }
     &:hover {
       border-radius: 6px;
-      border: 1px solid var(--border-border-primary, #E2E4EA);
-      background: var(--surface-surface-primary, #FFF);
+      border: 1px solid #E2E4EA;
+      background: #FFF;
       box-shadow: 0px 0px 0px 2px rgba(25, 33, 71, 0.05);
     }
   }
@@ -934,13 +934,13 @@
         padding: 48px 19px 24px 24px;
         flex-direction: column;
         align-items: flex-start;
-        // gap: 24px;
+        scrollbar-width: none;
         flex-shrink: 0;
         [purpose='modal-links'] {
-          max-height: 100%;
+          height: 100%;
           width: 100%;
-          overflow-y: scroll;
           scrollbar-width: none;
+          overflow: auto;
           [purpose='section-title'] {
             color: #192147;
             font-family: Inter;
@@ -952,6 +952,7 @@
           [purpose='expanded-nav'] {
             padding-top: 8px;
             padding-bottom: 16px;
+
           }
 
           [purpose='modal-nav-link'] {
