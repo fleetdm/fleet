@@ -30,7 +30,7 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* **Verified**: hosts that applied all OS settings. Fleet verified with osquery on macOS and Windows hosts (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)).
+* **Verified**: hosts that applied all OS settings. Fleet verified by running an osquery query on macOS and Windows hosts (declarations profiles are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)).
 
 * Verifying: hosts that have acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied with osquery on macOS (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)) and Windows hosts. If the profile wasn't installed, Fleet will redeliver the profile.
 
