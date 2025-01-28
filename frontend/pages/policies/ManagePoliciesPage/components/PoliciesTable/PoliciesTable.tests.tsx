@@ -84,7 +84,6 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
@@ -116,7 +115,6 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testCriticalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
@@ -155,7 +153,6 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testInheritedPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onDeletePolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
@@ -194,7 +191,6 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testGlobalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
@@ -234,7 +230,6 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         onDeletePolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
