@@ -1,7 +1,10 @@
 import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
+import { buildQueryStringFromParams } from "utilities/url";
 import classnames from "classnames";
 
 import PATHS from "router/paths";
+import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
 import { NotificationContext } from "context/notification";
@@ -10,12 +13,16 @@ import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
-
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import TargetLabelSelector from "components/TargetLabelSelector";
 import Checkbox from "components/forms/fields/Checkbox";
-import { InjectedRouter } from "react-router";
-import { buildQueryStringFromParams } from "utilities/url";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
+import {
+  generateFormValidation,
+  getErrorMessage,
+  getUniqueAppId,
+} from "./helpers";
+import { CUSTOM_TARGET_OPTIONS } from "../../SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/helpers";
 
 const baseClass = "add-software-vpp-form";
 
@@ -138,7 +145,13 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
   );
 };
 
+export interface IFormValidation {
+  isValid: boolean;
+  customTarget?: { isValid: boolean };
+}
+
 interface IAddSoftwareVppFormProps {
+  labels: ILabelSummary[] | null;
   teamId: number;
   noVppTokenUploaded: boolean;
   hasVppToken: boolean;
@@ -146,7 +159,15 @@ interface IAddSoftwareVppFormProps {
   vppApps?: IVppApp[];
 }
 
+export interface IVPPAppFormData {
+  selfService: boolean;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
+}
+
 const AddSoftwareVppForm = ({
+  labels,
   teamId,
   noVppTokenUploaded,
   hasVppToken,
@@ -157,7 +178,15 @@ const AddSoftwareVppForm = ({
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isSelfService, setIsSelfService] = useState(false);
+  const [formData, setFormData] = useState<IVPPAppFormData>({
+    selfService: false,
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
+  });
+  const [formValidation, setFormValidation] = useState<IFormValidation>({
+    isValid: true,
+  });
 
   const goBackToSoftwareTitles = (availableInstall?: boolean) => {
     router.push(
@@ -172,7 +201,7 @@ const AddSoftwareVppForm = ({
     setIsSubmitDisabled(false);
     setSelectedApp(app);
     if (app.platform === "ios" || app.platform === "ipados") {
-      setIsSelfService(false);
+      setFormData({ ...formData, selfService: false });
     }
   };
 
@@ -189,7 +218,7 @@ const AddSoftwareVppForm = ({
         teamId,
         selectedApp.app_store_id,
         selectedApp.platform,
-        isSelfService
+        formData
       );
       renderFlash(
         "success",
@@ -206,12 +235,34 @@ const AddSoftwareVppForm = ({
     setIsUploading(false);
   };
 
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const renderSelfServiceContent = (platform: string) => {
     if (platform !== "ios" && platform !== "ipados") {
       return (
         <Checkbox
-          value={isSelfService}
-          onChange={(newVal: boolean) => setIsSelfService(newVal)}
+          value={formData.selfService}
+          onChange={(newVal: boolean) =>
+            setFormData({ ...formData, selfService: newVal })
+          }
           className={`${baseClass}__self-service-checkbox`}
           tooltipContent={
             <>
@@ -253,6 +304,17 @@ const AddSoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
+          <TargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            className={`${baseClass}__target`}
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTargetOption}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+          />
           {renderSelfServiceContent(
             (selectedApp && selectedApp.platform) || ""
           )}

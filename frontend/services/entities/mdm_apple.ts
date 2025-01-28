@@ -1,7 +1,9 @@
 import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
+import { IVPPAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/AddSoftwareVppForm/AddSoftwareVppForm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 
 export interface IGetVppInfoResponse {
   org_name: string;
@@ -24,6 +26,8 @@ interface IAddVppAppPostBody {
   team_id: number;
   platform: ApplePlatform;
   self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 export interface IGetVppAppsResponse {
@@ -79,20 +83,27 @@ export default {
     teamId: number,
     appStoreId: string,
     platform: ApplePlatform,
-    isSelfService: boolean
+    formData: IVPPAppFormData
   ) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    const postBody: IAddVppAppPostBody = {
+
+    const body: IAddVppAppPostBody = {
       app_store_id: appStoreId,
       team_id: teamId,
       platform,
+      self_service: formData.selfService,
     };
 
-    if (isSelfService) {
-      postBody.self_service = isSelfService;
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
     }
 
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, body);
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {

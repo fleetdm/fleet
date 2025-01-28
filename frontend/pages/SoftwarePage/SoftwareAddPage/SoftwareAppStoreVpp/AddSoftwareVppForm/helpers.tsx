@@ -1,9 +1,42 @@
 import React from "react";
 import { getErrorReason } from "interfaces/errors";
 import { IVppApp } from "services/entities/mdm_apple";
+import { IVPPAppFormData, IFormValidation } from "./AddSoftwareVppForm";
 
 const ADD_SOFTWARE_ERROR_PREFIX = "Couldn’t add software.";
 const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
+
+interface IValidation {
+  name: string;
+  isValid: (formData: IVPPAppFormData) => boolean;
+  message?: IValidationMessage;
+}
+
+type IMessageFunc = (formData: IVPPAppFormData) => string;
+type IValidationMessage = string | IMessageFunc;
+type IFormValidationKey = keyof Omit<IFormValidation, "isValid">;
+
+const FORM_VALIDATION_CONFIG: Record<
+  IFormValidationKey,
+  { validations: IValidation[] }
+> = {
+  customTarget: {
+    validations: [
+      {
+        name: "requiredLabelTargets",
+        isValid: (formData) => {
+          if (formData.targetType === "All hosts") return true;
+          // there must be at least one label target selected
+          return (
+            Object.keys(formData.labelTargets).find(
+              (key) => formData.labelTargets[key]
+            ) !== undefined
+          );
+        },
+      },
+    ],
+  },
+};
 
 const generateAlreadyAvailableMessage = (msg: string) => {
   // This regex matches the API message where the title already has a software package (non-VPP) available for install.
@@ -46,3 +79,30 @@ export const getErrorMessage = (e: unknown) => {
 
 export const getUniqueAppId = (app: IVppApp) =>
   `${app.app_store_id}_${app.platform}`;
+
+// eslint-disable-next-line import/prefer-default-export
+export const generateFormValidation = (formData: IVPPAppFormData) => {
+  const formValidation: IFormValidation = {
+    isValid: true,
+  };
+
+  Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
+    const objKey = key as IFormValidationKey;
+    const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
+      (validation) => !validation.isValid(formData)
+    );
+
+    if (!failedValidation) {
+      formValidation[objKey] = {
+        isValid: true,
+      };
+    } else {
+      formValidation.isValid = false;
+      formValidation[objKey] = {
+        isValid: false,
+      };
+    }
+  });
+
+  return formValidation;
+};

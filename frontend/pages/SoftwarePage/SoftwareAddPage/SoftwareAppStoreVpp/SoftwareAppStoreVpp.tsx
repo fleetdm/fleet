@@ -6,8 +6,10 @@ import { AxiosError } from "axios";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { AppContext } from "context/app";
+import { ILabelSummary } from "interfaces/label";
 
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -43,6 +45,21 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+    }
+  );
+
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
   const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
 
@@ -68,17 +85,18 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (isLoadingVppInfo || isLoadingVppApps) {
+    if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (errorVppInfo || errorVppApps) {
+    if (errorVppInfo || errorVppApps || isErrorLabels) {
       return <DataError className={`${baseClass}__error`} />;
     }
 
     return (
       <div className={`${baseClass}__content`}>
         <AddSoftwareVppForm
+          labels={labels || []}
           router={router}
           teamId={currentTeamId}
           hasVppToken={hasVppToken}
