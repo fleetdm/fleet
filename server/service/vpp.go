@@ -86,6 +86,37 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 	return fleet.ErrMissingLicense
 }
 
+type updateAppStoreAppRequest struct {
+	TeamID           *uint    `json:"team_id"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+}
+
+type updateAppStoreAppResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateAppStoreAppResponse) error() error { return r.Err }
+
+func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateAppStoreAppRequest)
+
+	if err := svc.UpdateAppStoreApp(ctx, req.TeamID); err != nil {
+		return updateAppStoreAppResponse{Err: err}, nil
+	}
+
+	return updateAppStoreAppResponse{}, nil
+}
+
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, teamID *uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // POST /api/_version_/vpp_tokens
 ////////////////////////////////////////////////////////////////////////////////

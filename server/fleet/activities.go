@@ -1972,11 +1972,13 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle string              `json:"software_title"`
-	AppStoreID    string              `json:"app_store_id"`
-	TeamName      *string             `json:"team_name"`
-	TeamID        *uint               `json:"team_id"`
-	Platform      AppleDevicePlatform `json:"platform"`
+	SoftwareTitle    string                  `json:"software_title"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1989,12 +1991,24 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
-- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.`, `{
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 

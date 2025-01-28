@@ -517,6 +517,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			// ipados app
 			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
 				"supportedDevices": ["iPadAir-iPadAir"] }`,
+
+			"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
 		}
 
 		adamIDString := r.URL.Query().Get("id")
@@ -11070,6 +11072,19 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+
+		// TODO: attempt to update non-vpp software (should fail)
+
+		// Update App2
+		updateAppReq := &updateAppStoreAppRequest{}
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK)
+
+		// delete the VPP app
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
+		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "platform": "%s", "labels_exclude_any": [{"id": %d, "name": %q}]}`
+		s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(activityData, team.Name,
+				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 	})
 
 	// Create a team

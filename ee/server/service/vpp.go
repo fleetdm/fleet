@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -449,6 +451,29 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	}
 
 	return apps, nil
+}
+
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	var teamName string
+	if teamID != nil && *teamID != 0 {
+		tm, err := svc.ds.Team(ctx, *teamID)
+		if fleet.IsNotFound(err) {
+			return fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		} else if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if team exists")
+		}
+
+		teamName = tm.Name
+	}
+
+	slog.With("filename", "ee/server/service/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: hmm ", "teamName", teamName)
+
+	return nil
 }
 
 func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
