@@ -88,8 +88,9 @@ interface IUserFormProps {
 const validate = (
   formData: IUserFormData,
   canUseSso: boolean,
-  isNewUser?: boolean,
-  isSsoEnabled?: boolean
+  isNewUser: boolean,
+  isSsoEnabled: boolean,
+  initiallyPasswordAuth: boolean
 ) => {
   const newErrors: IUserFormErrors = {};
 
@@ -110,8 +111,13 @@ const validate = (
   // force to password auth if SSO is disabled globally but was enabled on the form
   const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
 
-  // password required when creating a user with SSO disabled, though not when inviting a user
-  if (isNewAdminCreatedUserWithoutSSO || isExistingUserForcedToPasswordAuth) {
+  // password required when creating a user with SSO disabled and when changing a user from SSO to
+  // password authentication, though not when inviting a user
+  if (
+    isNewAdminCreatedUserWithoutSSO ||
+    isExistingUserForcedToPasswordAuth ||
+    (!initiallyPasswordAuth && !sso_enabled)
+  ) {
     if (password !== null && !validPassword(password)) {
       newErrors.password = "Password must meet the criteria below";
     }
@@ -199,7 +205,13 @@ const UserForm = ({
   const onInputChange = ({ name, value }: IFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
-    const newErrs = validate(newFormData, canUseSso, isNewUser, isSsoEnabled);
+    const newErrs = validate(
+      newFormData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
     // only set errors that are updates of existing errors
     // new errors are only set onBlur or submit
     const errsToSet: Record<string, string> = {};
@@ -214,7 +226,15 @@ const UserForm = ({
   };
 
   const onInputBlur = () => {
-    setFormErrors(validate(formData, canUseSso, isNewUser, isSsoEnabled));
+    setFormErrors(
+      validate(
+        formData,
+        canUseSso,
+        isNewUser,
+        !!isSsoEnabled,
+        initiallyPasswordAuth
+      )
+    );
   };
 
   // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
@@ -318,7 +338,13 @@ const UserForm = ({
       renderFlash("error", `Please select at least one team for this user.`);
       return;
     }
-    const errs = validate(formData, canUseSso, isNewUser, isSsoEnabled);
+    const errs = validate(
+      formData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
       return;
