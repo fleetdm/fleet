@@ -49,10 +49,12 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID      *uint                     `json:"team_id"`
-	AppStoreID  string                    `json:"app_store_id"`
-	Platform    fleet.AppleDevicePlatform `json:"platform"`
-	SelfService bool                      `json:"self_service"`
+	TeamID           *uint                     `json:"team_id"`
+	AppStoreID       string                    `json:"app_store_id"`
+	Platform         fleet.AppleDevicePlatform `json:"platform"`
+	SelfService      bool                      `json:"self_service"`
+	LabelsIncludeAny []string                  `json:"labels_include_any"`
+	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
 }
 
 type addAppStoreAppResponse struct {
@@ -63,7 +65,12 @@ func (r addAppStoreAppResponse) error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addAppStoreAppRequest)
-	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform}, SelfService: req.SelfService})
+	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
+		VPPAppID:         fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
+		SelfService:      req.SelfService,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
 	}

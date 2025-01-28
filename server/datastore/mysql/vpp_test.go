@@ -446,11 +446,71 @@ func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cm
 func testVPPApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// Create a team
+	// Create a couple of teams
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
+
+	t.Run("vpp apps with labels", func(t *testing.T) {
+		teamWithLabels, err := ds.NewTeam(ctx, &fleet.Team{Name: "labels" + t.Name()})
+		require.NoError(t, err)
+
+		// Create some labels
+		label1, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:        "label1" + t.Name(),
+			Description: "a label",
+			Query:       "select 1 from processes;",
+			Platform:    "darwin",
+		})
+		require.NoError(t, err)
+
+		label2, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:        "label2" + t.Name(),
+			Description: "a label",
+			Query:       "select 2 from processes;",
+			Platform:    "darwin",
+		})
+		require.NoError(t, err)
+
+		// insert a VPP app with include_any labels
+		labeledApp := &fleet.VPPApp{
+			Name:             "vpp_app_labels_1" + t.Name(),
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "5", Platform: fleet.MacOSPlatform}},
+			BundleIdentifier: "b5",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelID: label1.ID, LabelName: label1.Name}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+			},
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
+		require.NoError(t, err)
+
+		meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamWithLabels.ID, labeledApp.TitleID)
+		require.NoError(t, err)
+
+		require.Len(t, meta.LabelsIncludeAny, 2)
+		require.Len(t, meta.LabelsExcludeAny, 0)
+
+		// insert a VPP app with exclude_any labels
+		labeledApp = &fleet.VPPApp{
+			Name:             "vpp_app_labels_2" + t.Name(),
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "6", Platform: fleet.MacOSPlatform}},
+			BundleIdentifier: "b6",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeExcludeAny,
+				ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelID: label1.ID, LabelName: label1.Name}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+			},
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
+		require.NoError(t, err)
+
+		meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamWithLabels.ID, labeledApp.TitleID)
+		require.NoError(t, err)
+
+		require.Len(t, meta.LabelsIncludeAny, 0)
+		require.Len(t, meta.LabelsExcludeAny, 2)
+	})
 
 	// create a host with some non-VPP software
 	h1, err := ds.NewHost(ctx, &fleet.Host{

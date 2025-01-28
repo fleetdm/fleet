@@ -22,7 +22,9 @@ type VPPAppTeam struct {
 	// or the value to set to that VPP app when batch-setting it. When used to
 	// set the value, if nil it will keep the currently saved value (or default
 	// to false), while if not nil, it will update the flag's value in the DB.
-	InstallDuringSetup *bool `db:"install_during_setup" json:"-"`
+	InstallDuringSetup *bool    `db:"install_during_setup" json:"-"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -45,8 +47,9 @@ type VPPApp struct {
 	TeamID  *uint `db:"-" json:"team_id,omitempty"`
 	TitleID uint  `db:"title_id" json:"-"`
 
-	CreatedAt time.Time `db:"created_at" json:"-"`
-	UpdatedAt time.Time `db:"updated_at" json:"-"`
+	CreatedAt       time.Time `db:"created_at" json:"-"`
+	UpdatedAt       time.Time `db:"updated_at" json:"-"`
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -68,6 +71,10 @@ type VPPAppStoreApp struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
+	// LabelsIncludeAny is the list of "include any" labels for this app store app (if not nil).
+	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
+	// LabelsExcludeAny is the list of "exclude any" labels for this app store app (if not nil).
+	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
