@@ -82,8 +82,24 @@
     }
   }
 
-  .host-sections {
-    position: relative;
+  &__host-sections {
+    display: flex;
+    flex-direction: column;
+    margin-top: $pad-medium;
+  }
+
+  // >= 320px 12 pt gap
+  @media (min-width: $break-mobile-xs) {
+    .dashboard-page__host-sections {
+      gap: $pad-smedium;
+    }
+  }
+
+  // >= 880px 16pt gap
+  @media (min-width: $break-sm) {
+    .dashboard-page__host-sections {
+      gap: $pad-medium;
+    }
   }
 
   .spinner {

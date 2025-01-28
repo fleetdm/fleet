@@ -1,0 +1,43 @@
+.platform-host-counts {
+  display: grid;
+  gap: $pad-smedium;
+
+  // >= 320px and < 480px
+  @media (min-width: $break-mobile-xs) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  // >= 480px and < 880px
+  @media (min-width: $break-mobile-sm) {
+    grid-template-columns: 1fr;
+    grid-template-rows: initial; // undo multi row
+
+    &:has(> :nth-child(2)) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    &:has(> :nth-child(3)) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    &:has(> :nth-child(4)) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    &:has(> :nth-child(5)),
+    :has(> :nth-child(6)) {
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto auto;
+    }
+  }
+
+  // >= 880px
+  @media (min-width: $break-sm) {
+    &#{&} {
+      // Intentionally repeat classname to override break-xs selector specificity
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      grid-template-rows: none;
+      gap: $pad-medium;
+    }
+  }
+}

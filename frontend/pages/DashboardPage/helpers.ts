@@ -31,3 +31,6 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   ios: "iOS",
   ipados: "iPadOS",
 };
+
+/** Premium feature, Gb must be set between 1-100 */
+export const LOW_DISK_SPACE_GB = 32;
