@@ -281,10 +281,20 @@ const UserForm = ({
   };
 
   const onSsoChange = (value: boolean): void => {
-    setFormData({
-      ...formData,
-      sso_enabled: value,
-    });
+    const newFormData = { ...formData, sso_enabled: value };
+    setFormData(newFormData);
+    if (value) {
+      // clears password error when enabling sso, allowing submission even if password is invalid
+      setFormErrors(
+        validate(
+          newFormData,
+          canUseSso,
+          isNewUser,
+          !!isSsoEnabled,
+          initiallyPasswordAuth
+        )
+      );
+    }
   };
 
   const onSelectedTeamChange = (teams: ITeam[]): void => {
