@@ -132,6 +132,24 @@ func TestPreconditionCheck(t *testing.T) {
 	require.Equal(t, "", output)
 }
 
+type mockOrbitClient struct {
+	getInstallerDetails       func(installID string) (*fleet.SoftwareInstallDetails, error)
+	downloadSoftwareInstaller func(installerID uint, downloadDir string) (string, error)
+	saveInstallerResult       func(payload *fleet.HostSoftwareInstallResultPayload) error
+}
+
+func (f *mockOrbitClient) GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error) {
+	return f.getInstallerDetails(installID)
+}
+
+func (f *mockOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
+	return f.downloadSoftwareInstaller(installerID, downloadDir)
+}
+
+func (f *mockOrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
+	return f.saveInstallerResult(payload)
+}
+
 func TestInstallerRun(t *testing.T) {
 	oc := &TestOrbitClient{}
 
@@ -413,6 +431,28 @@ func TestInstallerRun(t *testing.T) {
 		numPostInstallMatches := strings.Count(*savedInstallerResult.PostInstallScriptOutput, string(execOutput))
 		assert.Equal(t, 2, numPostInstallMatches)
 	})
+
+	t.Run("failed installer download", func(t *testing.T) {
+		resetAll()
+
+		oc := &mockOrbitClient{
+			getInstallerDetails: func(installID string) (*fleet.SoftwareInstallDetails, error) {
+				return &fleet.SoftwareInstallDetails{}, nil
+			},
+			downloadSoftwareInstaller: func(installerID uint, downloadDir string) (string, error) {
+				return "", errors.New("failed to download installer")
+			},
+			saveInstallerResult: func(payload *fleet.HostSoftwareInstallResultPayload) error { return nil },
+		}
+		r.OrbitClient = oc
+
+		err := r.run(context.Background(), &config)
+		require.Error(t, err)
+
+		require.True(t, removeAllFnCalled)
+		require.True(t, tmpDirFnCalled)
+		require.Equal(t, tmpDir, removedDir)
+	})
 }
 
 func TestScriptsDisabled(t *testing.T) {
@@ -425,7 +465,6 @@ func TestScriptsDisabled(t *testing.T) {
 	}
 
 	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
-
 		queryFnResMap := make(map[string]string, 0)
 		queryFnResMap["col"] = "true"
 		queryFnResArr := []map[string]string{queryFnResMap}

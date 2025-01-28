@@ -1,0 +1,2 @@
+- Fixed a bug where fleetd was not properly cleaning up temporary directories during software
+  installation.
