@@ -96,6 +96,7 @@ type OsqueryLogger struct {
 func NewService(
 	ctx context.Context,
 	ds fleet.Datastore,
+	androidDS android.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
 	logger kitlog.Logger,
@@ -121,7 +122,7 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	androidService, err := android_service.NewService(ctx, logger, authorizer)
+	androidService, err := android_service.NewService(ctx, logger, authorizer, androidDS, ds)
 	if err != nil {
 		return nil, fmt.Errorf("new android service: %w", err)
 	}

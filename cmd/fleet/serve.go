@@ -278,8 +278,8 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
-			androidDs := mysql.NewAndroidDS(ds)
-			androidMigrationStatus, err := androidDs.MigrationStatus(cmd.Context())
+			androidDS := mysql.NewAndroidDS(ds)
+			androidMigrationStatus, err := androidDS.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving feature migration status")
 			}
@@ -785,6 +785,7 @@ the way that the Fleet server works.
 			svc, err := service.NewService(
 				ctx,
 				ds,
+				androidDS,
 				task,
 				resultStore,
 				logger,

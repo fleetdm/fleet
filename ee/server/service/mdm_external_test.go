@@ -78,6 +78,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		ds,
 		nil,
 		nil,
+		nil,
 		logger,
 		nil,
 		fleetConfig,

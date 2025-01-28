@@ -9,6 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/android"
 	android_migrations "github.com/fleetdm/fleet/v4/server/android/mysql/migrations"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/go-kit/log"
@@ -34,12 +36,12 @@ func New(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Da
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via
 // ctxdb.RequirePrimary.
-// func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
-// 	if ctxdb.IsPrimaryRequired(ctx) {
-// 		return ds.primary
-// 	}
-// 	return ds.replica
-// }
+func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
+	if ctxdb.IsPrimaryRequired(ctx) {
+		return ds.primary
+	}
+	return ds.replica
+}
 
 // writer returns the DB instance to use for write statements, which is always
 // the primary.
@@ -47,9 +49,9 @@ func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-// func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-// 	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
-// }
+func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+}
 
 func (ds *Datastore) MigrateTables(ctx context.Context) error {
 	return android_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")

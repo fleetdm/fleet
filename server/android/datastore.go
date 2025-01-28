@@ -9,6 +9,10 @@ type Datastore interface {
 	MigrateTables(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
+
+	CreateEnterprise(ctx context.Context) (uint, error)
+	GetEnterpriseByID(ctx context.Context, ID uint) (*Enterprise, error)
+	UpdateEnterprise(ctx context.Context, enterprise *Enterprise) error
 }
 
 type MigrationStatus struct {

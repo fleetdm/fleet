@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -15,9 +18,11 @@ import (
 )
 
 type Service struct {
-	logger kitlog.Logger
-	authz  *authz.Authorizer
-	mgmt   *androidmanagement.Service
+	logger  kitlog.Logger
+	authz   *authz.Authorizer
+	mgmt    *androidmanagement.Service
+	ds      android.Datastore
+	fleetDS fleet.Datastore
 }
 
 // Required env vars:
@@ -31,6 +36,8 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	authz *authz.Authorizer,
+	ds android.Datastore,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	// TODO: Android management service should only be created when needed.
 	if androidServiceCredentials == "" || androidProjectID == "" || androidPubSubTopic == "" {
@@ -43,31 +50,43 @@ func NewService(
 		return nil, ctxerr.Wrap(ctx, err, "creating android management service")
 	}
 	return Service{
-		logger: logger,
-		authz:  authz,
-		mgmt:   mgmt,
+		logger:  logger,
+		authz:   authz,
+		mgmt:    mgmt,
+		ds:      ds,
+		fleetDS: fleetDS,
 	}, nil
 }
 
-// ID from DB
-const callbackURL = "https://example.com/api/v1/fleet/android/enterprise/1/callback"
-
-const androidSignupName = "signupUrls/XXX"
-
-// From ENV vars
-// const pubSubTopic = "projects/android-api-448119/topics/android"
-
 func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
 	s.authz.SkipAuthorization(ctx)
+
+	// TODO: remove me
 	level.Warn(s.logger).Log("msg", "EnterpriseSignup called")
 
-	// TODO: We should cache it (use a single struct) so we don't have to create a new client every time -- singleton pattern?
+	appConfig, err := s.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	id, err := s.ds.CreateEnterprise(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
+	}
+
+	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android/enterprise/%d/callback", appConfig.ServerSettings.ServerURL, id)
 	signupURL, err := s.mgmt.SignupUrls.Create().ProjectId(androidProjectID).CallbackUrl(callbackURL).Do()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
 	}
 
-	// TODO: Save the name in the DB so we can reference it later.
+	err = s.ds.UpdateEnterprise(ctx, &android.Enterprise{
+		ID:         id,
+		SignupName: signupURL.Name,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating enterprise")
+	}
 
 	return &android.SignupDetails{
 		Url:  signupURL.Url,
@@ -75,23 +94,38 @@ func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, 
 	}, nil
 }
 
-func (s Service) EnterpriseSignupCallback(ctx context.Context, enterpriseID uint, enterpriseToken string) error {
+func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
 	s.authz.SkipAuthorization(ctx)
-	level.Warn(s.logger).Log("msg", "EnterpriseSignupCallback called", "enterpriseID", enterpriseID, "enterpriseToken", enterpriseToken)
 
-	// TODO: Get the name from the DB so we can reference it here.
+	// TODO: remove me
+	level.Warn(s.logger).Log("msg", "EnterpriseSignupCallback called", "id", id, "enterpriseToken", enterpriseToken)
 
-	enterprise := &androidmanagement.Enterprise{
+	enterprise, err := s.ds.GetEnterpriseByID(ctx, id)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewInvalidArgumentError("id",
+			fmt.Sprintf("Enterprise with ID %d not found", id)).WithStatus(http.StatusNotFound)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+
+	gEnterprise := &androidmanagement.Enterprise{
 		EnabledNotificationTypes: []string{"ENROLLMENT", "STATUS_REPORT", "COMMAND", "USAGE_LOGS"},
 		PubsubTopic:              androidPubSubTopic,
 	}
-	enterprise, err := s.mgmt.Enterprises.Create(enterprise).ProjectId(androidProjectID).EnterpriseToken(enterpriseToken).SignupUrlName(androidSignupName).Do()
+	gEnterprise, err = s.mgmt.Enterprises.Create(gEnterprise).ProjectId(androidProjectID).EnterpriseToken(enterpriseToken).SignupUrlName(enterprise.SignupName).Do()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating enterprise")
+		return ctxerr.Wrap(ctx, err, "creating enterprise via Google API")
 	}
-	level.Warn(s.logger).Log("msg", "Enterprise created", "enterprise", fmt.Sprintf("%+v", *enterprise))
 
-	// Name is enterprises/LC01ojfdkn, where the last part is the enterprise ID.
+	enterpriseID := strings.TrimPrefix(gEnterprise.Name, "enterprises/")
+	enterprise.EnterpriseID = enterpriseID
+	err = s.ds.UpdateEnterprise(ctx, enterprise)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating enterprise")
+	}
+
+	level.Info(s.logger).Log("msg", "Enterprise created", "enterprise_id", enterpriseID)
 
 	return nil
 }
