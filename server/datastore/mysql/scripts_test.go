@@ -772,29 +772,6 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 func testBatchSetScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	now := time.Now().UTC().Truncate(time.Second)
-	insertResults := func(t *testing.T, hostID uint, scriptID uint, createdAt time.Time, execID string, exitCode *int64) {
-		stmt := `
-INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
-VALUES
-	(%s ?,?,?,?,?)`
-
-		args := []interface{}{}
-		if scriptID == 0 {
-			stmt = fmt.Sprintf(stmt, "", "")
-		} else {
-			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
-			args = append(args, scriptID)
-		}
-		args = append(args, hostID, createdAt, execID, exitCode, "")
-
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, stmt, args...)
-			return err
-		})
-	}
-
 	applyAndExpect := func(newSet []*fleet.Script, tmID *uint, want []*fleet.Script) map[string]uint {
 		responseFromSet, err := ds.BatchSetScripts(ctx, tmID, newSet)
 		require.NoError(t, err)
@@ -918,8 +895,17 @@ VALUES
 	require.Equal(t, n1WithTeamID, *teamPolicy.ScriptID)
 
 	// add pending scripts on team and no-team and confirm they're shown as pending
-	insertResults(t, 44, n1WithTeamID, now.Add(-2*time.Minute), "execution-n1t1-1", nil)
-	insertResults(t, 45, n1WithNoTeamId, now.Add(-2*time.Minute), "execution-n1nt1-1", nil)
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   44,
+		ScriptID: &n1WithTeamID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   45,
+		ScriptID: &n1WithNoTeamId,
+	})
+	require.NoError(t, err)
+
 	pending, err := ds.ListPendingHostScriptExecutions(ctx, 44, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
