@@ -69,7 +69,7 @@ WHERE
 
 	if len(inclAny) > 0 && len(exclAny) > 0 {
 		// there's a bug somewhere
-		level.Debug(ds.logger).Log("msg", "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+		level.Warn(ds.logger).Log("msg", "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny

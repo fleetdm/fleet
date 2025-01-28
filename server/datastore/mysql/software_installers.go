@@ -588,7 +588,7 @@ WHERE
 
 	if len(inclAny) > 0 && len(exclAny) > 0 {
 		// there's a bug somewhere
-		level.Debug(ds.logger).Log("msg", "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+		level.Warn(ds.logger).Log("msg", "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
