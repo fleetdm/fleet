@@ -568,7 +568,6 @@ var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn'
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO(uniq): delete pending execution from upcoming_activities
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
@@ -778,7 +777,7 @@ FROM
 			r.host_id = ? AND
 			r2.id IS NULL AND -- no other row at a later time
 			NOT EXISTS (
-				SELECT 1 
+				SELECT 1
 				FROM upcoming_activities ua
 				INNER JOIN script_upcoming_activities sua
 					ON ua.id = sua.upcoming_activity_id
@@ -820,7 +819,7 @@ FROM
 				ua2.activity_type = 'script' AND
 				sua.script_id = sua2.script_id AND
 				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
-			) 
+			)
 	) hsr
 	ON s.id = hsr.script_id
 WHERE
