@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -40,14 +41,11 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 		t.Run(c.desc, func(t *testing.T) {
 			logBuf.Reset()
 
-			fetcher := &dummyConfigFetcher{
-				cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: c.renewFlag}},
-			}
+			testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: c.renewFlag}}
 
 			var cmdGotCalled bool
 			var depAssignedCheckGotCalled bool
-			renewFetcher := &renewEnrollmentProfileConfigFetcher{
-				Fetcher:   fetcher,
+			renewReceiver := &renewEnrollmentProfileConfigReceiver{
 				Frequency: time.Hour, // doesn't matter for this test
 				runCmdFn: func() error {
 					cmdGotCalled = true
@@ -62,9 +60,8 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 				},
 			}
 
-			cfg, err := renewFetcher.GetConfig()
-			require.NoError(t, err)            // the dummy fetcher never returns an error
-			require.Equal(t, fetcher.cfg, cfg) // the renew enrollment wrapper properly returns the expected config
+			err := renewReceiver.Run(testConfig)
+			require.NoError(t, err) // the dummy receiver never returns an error
 
 			require.Equal(t, c.wantCmdCalled, cmdGotCalled)
 			require.Equal(t, c.wantCmdCalled, depAssignedCheckGotCalled)
@@ -80,19 +77,16 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	log.Logger = log.Output(&logBuf)
 	t.Cleanup(func() { log.Logger = oldLog })
 
-	fetcher := &dummyConfigFetcher{
-		cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: true}},
-	}
+	testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: true}}
 
 	var cmdCallCount int
 	isEnrolled := false
 	isAssigned := true
 	chProceed := make(chan struct{})
-	renewFetcher := &renewEnrollmentProfileConfigFetcher{
-		Fetcher:   fetcher,
+	renewReceiver := &renewEnrollmentProfileConfigReceiver{
 		Frequency: 2 * time.Second, // just to be safe with slow environments (CI)
 		runCmdFn: func() error {
-			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
+			cmdCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the receiver's mutex
 			return nil
 		},
 		checkEnrollmentFn: func() (bool, string, error) {
@@ -108,72 +102,76 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		},
 	}
 
-	assertResult := func(cfg *fleet.OrbitConfig, err error) {
-		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
-	}
-
 	started := make(chan struct{})
+	frequencyMu := sync.Mutex{}
 	go func() {
+		frequencyMu.Lock()
+		defer frequencyMu.Unlock()
 		close(started)
 
 		// the first call will block in runCmdFn
-		cfg, err := renewFetcher.GetConfig()
-		assertResult(cfg, err)
+		err := renewReceiver.Run(testConfig)
+		require.NoError(t, err)
 	}()
 
 	<-started
-	// this call will happen while the first call is blocked in runCmdFn, so it
-	// won't call the command (won't be able to lock the mutex). However it will
+	t.Logf("%v started", time.Now())
+	// this call will happen while the first call is blocked in checkEnrollmentFn, so it
+	// won't call the command (won't be able to lock the mutex). However, it will
 	// still complete successfully without being blocked by the other call in
 	// progress.
-	cfg, err := renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err := renewReceiver.Run(testConfig)
+	require.NoError(t, err)
 
 	// unblock the first call
 	close(chProceed)
+	t.Logf("%v unblock the first call", time.Now())
 
 	// this next call won't execute the command because of the frequency
 	// restriction (it got called less than N seconds ago)
-	cfg, err = renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err = renewReceiver.Run(testConfig)
+	require.NoError(t, err)
+	t.Logf("%v frequency restriction check done", time.Now())
 
-	// wait for the fetcher's frequency to pass
-	time.Sleep(renewFetcher.Frequency)
+	frequencyMu.Lock()
+	renewReceiver.Frequency = 200 * time.Millisecond
+	frequencyMu.Unlock()
+	// wait for the receiver's frequency to pass
+	time.Sleep(renewReceiver.Frequency)
 
 	// this call executes the command
-	cfg, err = renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err = renewReceiver.Run(testConfig)
+	require.NoError(t, err)
 
-	// wait for the fetcher's frequency to pass
-	time.Sleep(renewFetcher.Frequency)
+	// wait for the receiver's frequency to pass
+	time.Sleep(renewReceiver.Frequency)
 
 	// this call doesn't execute the command since the host is already
 	// enrolled
 	isEnrolled = true
-	cfg, err = renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err = renewReceiver.Run(testConfig)
+	require.NoError(t, err)
 
 	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
 
-	// wait for the fetcher's frequency to pass
-	time.Sleep(renewFetcher.Frequency)
+	// wait for the receiver's frequency to pass
+	time.Sleep(renewReceiver.Frequency)
 
 	// this call doesn't execute the command since the assigned profile check fails
 	isAssigned = false
 	isEnrolled = false
-	cfg, err = renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err = renewReceiver.Run(testConfig)
+	require.NoError(t, err)
 
 	require.Equal(t, 2, cmdCallCount) // the initial call and the one after sleep
 
-	// wait for the fetcher's frequency to pass
-	time.Sleep(renewFetcher.Frequency)
+	// wait for the receiver's frequency to pass
+	time.Sleep(renewReceiver.Frequency)
 
 	// this next call won't execute the command because the backoff
 	// for a failed assigned check is always 2 minutes
-	cfg, err = renewFetcher.GetConfig()
-	assertResult(cfg, err)
+	err = renewReceiver.Run(testConfig)
+	require.NoError(t, err)
 }
 
 type mockNodeKeyGetter struct{}
@@ -193,21 +191,27 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 		desc          string
 		enrollFlag    *bool
 		unenrollFlag  *bool
+		migrateFlag   *bool
 		discoveryURL  string
 		apiErr        error
 		wantAPICalled bool
 		wantLog       string
 	}{
-		{"enroll=false", ptr.Bool(false), nil, "", nil, false, ""},
-		{"enroll=true,discovery=''", ptr.Bool(true), nil, "", nil, false, "discovery endpoint is empty"},
-		{"enroll=true,discovery!='',success", ptr.Bool(true), nil, "http://example.com", nil, true, "successfully called RegisterDeviceWithManagement"},
-		{"enroll=true,discovery!='',fail", ptr.Bool(true), nil, "http://example.com", io.ErrUnexpectedEOF, true, "enroll Windows device failed"},
-		{"enroll=true,discovery!='',server", ptr.Bool(true), nil, "http://example.com", errIsWindowsServer, true, "device is a Windows Server, skipping enrollment"},
+		{"enroll=false", ptr.Bool(false), nil, nil, "", nil, false, ""},
+		{"enroll=true,discovery=''", ptr.Bool(true), nil, nil, "", nil, false, "discovery endpoint is empty"},
+		{"enroll=true,discovery!='',success", ptr.Bool(true), nil, nil, "http://example.com", nil, true, "successfully called RegisterDeviceWithManagement"},
+		{"enroll=true,discovery!='',fail", ptr.Bool(true), nil, nil, "http://example.com", io.ErrUnexpectedEOF, true, "enroll Windows device failed"},
+		{"enroll=true,discovery!='',server", ptr.Bool(true), nil, nil, "http://example.com", errIsWindowsServer, true, "device is a Windows Server, skipping enrollment"},
 
-		{"unenroll=false", nil, ptr.Bool(false), "", nil, false, ""},
-		{"unenroll=true,success", nil, ptr.Bool(true), "", nil, true, "successfully called UnregisterDeviceWithManagement"},
-		{"unenroll=true,fail", nil, ptr.Bool(true), "", io.ErrUnexpectedEOF, true, "unenroll Windows device failed"},
-		{"unenroll=true,server", nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping unenrollment"},
+		{"unenroll=false", nil, ptr.Bool(false), nil, "", nil, false, ""},
+		{"unenroll=true,success", nil, ptr.Bool(true), nil, "", nil, true, "successfully called UnregisterDeviceWithManagement to unenroll"},
+		{"unenroll=true,fail", nil, ptr.Bool(true), nil, "", io.ErrUnexpectedEOF, true, "unenroll Windows device failed"},
+		{"unenroll=true,server", nil, ptr.Bool(true), nil, "", errIsWindowsServer, true, "device is a Windows Server, skipping unenroll"},
+
+		{"migrate=false", nil, nil, ptr.Bool(false), "", nil, false, ""},
+		{"migrate=true,success", nil, nil, ptr.Bool(true), "", nil, true, "successfully called UnregisterDeviceWithManagement to migrate"},
+		{"migrate=true,fail", nil, nil, ptr.Bool(true), "", io.ErrUnexpectedEOF, true, "migrate Windows device failed"},
+		{"migrate=true,server", nil, nil, ptr.Bool(true), "", errIsWindowsServer, true, "device is a Windows Server, skipping migrate"},
 	}
 
 	for _, c := range cases {
@@ -217,19 +221,19 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 			var (
 				enroll     = c.enrollFlag != nil && *c.enrollFlag
 				unenroll   = c.unenrollFlag != nil && *c.unenrollFlag
+				migrate    = c.migrateFlag != nil && *c.migrateFlag
 				isUnenroll = c.unenrollFlag != nil
 			)
-			fetcher := &dummyConfigFetcher{
-				cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-					NeedsProgrammaticWindowsMDMEnrollment:   enroll,
-					NeedsProgrammaticWindowsMDMUnenrollment: unenroll,
-					WindowsMDMDiscoveryEndpoint:             c.discoveryURL,
-				}},
-			}
+
+			testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+				NeedsProgrammaticWindowsMDMEnrollment:   enroll,
+				NeedsProgrammaticWindowsMDMUnenrollment: unenroll,
+				NeedsMDMMigration:                       migrate,
+				WindowsMDMDiscoveryEndpoint:             c.discoveryURL,
+			}}
 
 			var enrollGotCalled, unenrollGotCalled bool
-			enrollFetcher := &windowsMDMEnrollmentConfigFetcher{
-				Fetcher:   fetcher,
+			enrollReceiver := &windowsMDMEnrollmentConfigReceiver{
 				Frequency: time.Hour, // doesn't matter for this test
 				execEnrollFn: func(args WindowsMDMEnrollmentArgs) error {
 					enrollGotCalled = true
@@ -242,11 +246,10 @@ func TestWindowsMDMEnrollment(t *testing.T) {
 				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 
-			cfg, err := enrollFetcher.GetConfig()
-			require.NoError(t, err)            // the dummy fetcher never returns an error
-			require.Equal(t, fetcher.cfg, cfg) // the enrollment wrapper properly returns the expected config
+			err := enrollReceiver.Run(testConfig)
+			require.NoError(t, err) // the dummy receiver never returns an error
 
-			if isUnenroll {
+			if isUnenroll || migrate {
 				require.Equal(t, c.wantAPICalled, unenrollGotCalled)
 				require.False(t, enrollGotCalled)
 			} else {
@@ -276,60 +279,52 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 	}
 	for _, cfg := range cfgs {
 		t.Run(fmt.Sprintf("%+v", cfg), func(t *testing.T) {
-			baseFetcher := &dummyConfigFetcher{
-				cfg: &fleet.OrbitConfig{Notifications: cfg},
-			}
+			testConfig := &fleet.OrbitConfig{Notifications: cfg}
 
 			var (
 				apiCallCount int
 				apiErr       error
 			)
 			chProceed := make(chan struct{})
-			fetcher := &windowsMDMEnrollmentConfigFetcher{
-				Fetcher:       baseFetcher,
+			receiver := &windowsMDMEnrollmentConfigReceiver{
 				Frequency:     2 * time.Second, // just to be safe with slow environments (CI)
 				nodeKeyGetter: mockNodeKeyGetter{},
 			}
 			if cfg.NeedsProgrammaticWindowsMDMEnrollment {
-				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
+				receiver.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					<-chProceed    // will be unblocked only when allowed
-					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
+					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the receiver's mutex
 					return apiErr
 				}
-				fetcher.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
+				receiver.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					panic("should not be called")
 				}
 			} else {
-				fetcher.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
+				receiver.execUnenrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					<-chProceed    // will be unblocked only when allowed
-					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the fetcher's mutex
+					apiCallCount++ // no need for sync, single-threaded call of this func is guaranteed by the receiver's mutex
 					return apiErr
 				}
-				fetcher.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
+				receiver.execEnrollFn = func(args WindowsMDMEnrollmentArgs) error {
 					panic("should not be called")
 				}
-			}
-
-			assertResult := func(cfg *fleet.OrbitConfig, err error) {
-				require.NoError(t, err)
-				require.Equal(t, baseFetcher.cfg, cfg)
 			}
 
 			go func() {
 				// the first call will block in enroll/unenroll func
-				cfg, err := fetcher.GetConfig()
-				assertResult(cfg, err)
+				err := receiver.Run(testConfig)
+				require.NoError(t, err)
 			}()
 
-			// wait a little bit to ensure the first `fetcher.GetConfig` call runs first.
+			// wait a little bit to ensure the first `receiver.Run` call runs first.
 			time.Sleep(100 * time.Millisecond)
 
 			// this call will happen while the first call is blocked in
 			// enroll/unenrollfn, so it won't call the API (won't be able to lock the
 			// mutex). However it will still complete successfully without being
 			// blocked by the other call in progress.
-			cfg, err := fetcher.GetConfig()
-			assertResult(cfg, err)
+			err := receiver.Run(testConfig)
+			require.NoError(t, err)
 
 			// unblock the first call and wait for it to complete
 			close(chProceed)
@@ -337,29 +332,29 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 
 			// this next call won't execute the command because of the frequency
 			// restriction (it got called less than N seconds ago)
-			cfg, err = fetcher.GetConfig()
-			assertResult(cfg, err)
+			err = receiver.Run(testConfig)
+			require.NoError(t, err)
 
-			// wait for the fetcher's frequency to pass
-			time.Sleep(fetcher.Frequency)
+			// wait for the receiver's frequency to pass
+			time.Sleep(receiver.Frequency)
 
 			// this call executes the command, and it returns the Is Windows Server error
 			apiErr = errIsWindowsServer
-			cfg, err = fetcher.GetConfig()
-			assertResult(cfg, err)
+			err = receiver.Run(testConfig)
+			require.NoError(t, err)
 
 			// this next call won't execute the command (both due to frequency and the
 			// detection of windows server)
-			cfg, err = fetcher.GetConfig()
-			assertResult(cfg, err)
+			err = receiver.Run(testConfig)
+			require.NoError(t, err)
 
-			// wait for the fetcher's frequency to pass
-			time.Sleep(fetcher.Frequency)
+			// wait for the receiver's frequency to pass
+			time.Sleep(receiver.Frequency)
 
 			// this next call still won't execute the command (due to the detection of
 			// windows server)
-			cfg, err = fetcher.GetConfig()
-			assertResult(cfg, err)
+			err = receiver.Run(testConfig)
+			require.NoError(t, err)
 
 			require.Equal(t, 2, apiCallCount) // the initial call and the one that returned errIsWindowsServer after first sleep
 		})
@@ -387,7 +382,7 @@ func TestRunScripts(t *testing.T) {
 		return runFailure
 	}
 
-	waitForRun := func(t *testing.T, r *runScriptsConfigFetcher) {
+	waitForRun := func(t *testing.T, r *runScriptsConfigReceiver) {
 		var ok bool
 		for start := time.Now(); !ok && time.Since(start) < time.Second; {
 			ok = r.mu.TryLock()
@@ -399,18 +394,15 @@ func TestRunScripts(t *testing.T) {
 	t.Run("no pending scripts", func(t *testing.T) {
 		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
 
-		fetcher := &dummyConfigFetcher{
-			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-				PendingScriptExecutionIDs: nil,
-			}},
-		}
-		runner := &runScriptsConfigFetcher{
-			Fetcher:      fetcher,
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: nil,
+		}}
+
+		runner := &runScriptsConfigReceiver{
 			runScriptsFn: mockRun,
 		}
-		cfg, err := runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err := runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 
 		// the lock should be available because no goroutine was started
 		require.True(t, runner.mu.TryLock())
@@ -421,18 +413,15 @@ func TestRunScripts(t *testing.T) {
 	t.Run("pending scripts succeed", func(t *testing.T) {
 		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset() })
 
-		fetcher := &dummyConfigFetcher{
-			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-				PendingScriptExecutionIDs: []string{"a", "b", "c"},
-			}},
-		}
-		runner := &runScriptsConfigFetcher{
-			Fetcher:      fetcher,
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: []string{"a", "b", "c"},
+		}}
+
+		runner := &runScriptsConfigReceiver{
 			runScriptsFn: mockRun,
 		}
-		cfg, err := runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err := runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
@@ -443,21 +432,17 @@ func TestRunScripts(t *testing.T) {
 	t.Run("pending scripts failed", func(t *testing.T) {
 		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); runFailure = nil })
 
-		fetcher := &dummyConfigFetcher{
-			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-				PendingScriptExecutionIDs: []string{"a", "b", "c"},
-			}},
-		}
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: []string{"a", "b", "c"},
+		}}
 
 		runFailure = io.ErrUnexpectedEOF
-		runner := &runScriptsConfigFetcher{
-			Fetcher:      fetcher,
+		runner := &runScriptsConfigReceiver{
 			runScriptsFn: mockRun,
 		}
 
-		cfg, err := runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err := runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
@@ -469,26 +454,21 @@ func TestRunScripts(t *testing.T) {
 	t.Run("concurrent run prevented", func(t *testing.T) {
 		t.Cleanup(func() { callsCount.Store(0); logBuf.Reset(); blockRun = nil })
 
-		fetcher := &dummyConfigFetcher{
-			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-				PendingScriptExecutionIDs: []string{"a", "b", "c"},
-			}},
-		}
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: []string{"a", "b", "c"},
+		}}
 
 		blockRun = make(chan struct{})
-		runner := &runScriptsConfigFetcher{
-			Fetcher:      fetcher,
+		runner := &runScriptsConfigReceiver{
 			runScriptsFn: mockRun,
 		}
 
-		cfg, err := runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err := runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 
 		// call it again, while the previous run is still running
-		cfg, err = runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err = runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 
 		// unblock the initial run
 		close(blockRun)
@@ -502,11 +482,9 @@ func TestRunScripts(t *testing.T) {
 	t.Run("dynamic enabling of scripts", func(t *testing.T) {
 		t.Cleanup(logBuf.Reset)
 
-		fetcher := &dummyConfigFetcher{
-			cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
-				PendingScriptExecutionIDs: []string{"a"},
-			}},
-		}
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: []string{"a"},
+		}}
 
 		var (
 			scriptsEnabledCalls []bool
@@ -515,8 +493,7 @@ func TestRunScripts(t *testing.T) {
 			dynamicInterval = 300 * time.Millisecond
 		)
 
-		runner := &runScriptsConfigFetcher{
-			Fetcher:                 fetcher,
+		runner := &runScriptsConfigReceiver{
 			ScriptsExecutionEnabled: false,
 			runScriptsFn: func(r *scripts.Runner, s []string) error {
 				scriptsEnabledCalls = append(scriptsEnabledCalls, r.ScriptExecutionEnabled)
@@ -534,9 +511,8 @@ func TestRunScripts(t *testing.T) {
 		runner.runDynamicScriptsEnabledCheck()
 
 		// first call, scripts are disabled
-		cfg, err := runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		err := runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 		waitForRun(t, runner)
 
 		// swap scripts execution to true and wait to ensure the dynamic check
@@ -545,10 +521,9 @@ func TestRunScripts(t *testing.T) {
 		time.Sleep(dynamicInterval + 100*time.Millisecond)
 
 		// second call, scripts are enabled (change exec ID to "b")
-		cfg.Notifications.PendingScriptExecutionIDs[0] = "b"
-		cfg, err = runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		testConfig.Notifications.PendingScriptExecutionIDs[0] = "b"
+		err = runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 		waitForRun(t, runner)
 
 		// swap scripts execution back to false and wait to ensure the dynamic
@@ -557,10 +532,9 @@ func TestRunScripts(t *testing.T) {
 		time.Sleep(dynamicInterval + 100*time.Millisecond)
 
 		// third call, scripts are disabled (change exec ID to "c")
-		cfg.Notifications.PendingScriptExecutionIDs[0] = "c"
-		cfg, err = runner.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the wrapper properly returns the expected config
+		testConfig.Notifications.PendingScriptExecutionIDs[0] = "c"
+		err = runner.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 		waitForRun(t, runner)
 
 		// validate the Scripts Enabled flags that were passed to the runScriptsFn
@@ -600,11 +574,9 @@ func TestBitlockerOperations(t *testing.T) {
 		decryptFnCalled        = false
 	)
 
-	fetcher := &dummyConfigFetcher{
-		cfg: &fleet.OrbitConfig{
-			Notifications: fleet.OrbitConfigNotifications{
-				EnforceBitLockerEncryption: shouldEncrypt,
-			},
+	testConfig := &fleet.OrbitConfig{
+		Notifications: fleet.OrbitConfigNotifications{
+			EnforceBitLockerEncryption: shouldEncrypt,
 		},
 	}
 
@@ -616,10 +588,9 @@ func TestBitlockerOperations(t *testing.T) {
 		return nil
 	}
 
-	var enrollFetcher *windowsMDMBitlockerConfigFetcher
+	var enrollReceiver *windowsMDMBitlockerConfigReceiver
 	setupTest := func() {
-		enrollFetcher = &windowsMDMBitlockerConfigFetcher{
-			Fetcher:          fetcher,
+		enrollReceiver = &windowsMDMBitlockerConfigReceiver{
 			Frequency:        time.Hour, // doesn't matter for this test
 			lastRun:          time.Now().Add(-2 * time.Hour),
 			EncryptionResult: clientMock,
@@ -658,18 +629,16 @@ func TestBitlockerOperations(t *testing.T) {
 		shouldEncrypt = true
 		shouldFailEncryption = false
 		shouldFailDecryption = false
-		cfg, err := enrollFetcher.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		err := enrollReceiver.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 	})
 
 	t.Run("bitlocker encryption is not performed", func(t *testing.T) {
 		setupTest()
 		shouldEncrypt = false
 		shouldFailEncryption = false
-		cfg, err := enrollFetcher.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		err := enrollReceiver.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
 		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
@@ -678,9 +647,8 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldEncrypt = true
 		shouldFailEncryption = true
-		cfg, err := enrollFetcher.GetConfig()
-		require.NoError(t, err)            // the dummy fetcher never returns an error
-		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		err := enrollReceiver.Run(testConfig)
+		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
 		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
@@ -697,13 +665,12 @@ func TestBitlockerOperations(t *testing.T) {
 		for _, status := range statusesToTest {
 			t.Run(fmt.Sprintf("status %d", status), func(t *testing.T) {
 				mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: status}
-				enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+				enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 					return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 				}
 
-				cfg, err := enrollFetcher.GetConfig()
+				err := enrollReceiver.Run(testConfig)
 				require.NoError(t, err)
-				require.Equal(t, fetcher.cfg, cfg)
 				require.Contains(t, logBuf.String(), "skipping encryption as the disk is not available")
 				require.False(t, encryptFnCalled, "encryption function should not be called")
 				require.False(t, decryptFnCalled, "decryption function should not be called")
@@ -715,16 +682,15 @@ func TestBitlockerOperations(t *testing.T) {
 	t.Run("handle misreported decryption error", func(t *testing.T) {
 		setupTest()
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
-		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
-		enrollFetcher.execEncryptVolumeFn = func(string) (string, error) {
+		enrollReceiver.execEncryptVolumeFn = func(string) (string, error) {
 			return "", bitlocker.NewEncryptionError("", bitlocker.ErrorCodeNotDecrypted)
 		}
 
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt, user action required")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
 		require.False(t, decryptFnCalled, "decryption function should not be called")
@@ -733,12 +699,11 @@ func TestBitlockerOperations(t *testing.T) {
 	t.Run("decrypts the disk if previously encrypted", func(t *testing.T) {
 		setupTest()
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
-		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
 		require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.False(t, encryptFnCalled, "encryption function should not have been called")
@@ -749,13 +714,12 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldFailDecryption = true
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
-		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
 		require.Contains(t, logBuf.String(), "decryption failed")
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
@@ -765,12 +729,11 @@ func TestBitlockerOperations(t *testing.T) {
 
 	t.Run("encryption skipped if last run too recent", func(t *testing.T) {
 		setupTest()
-		enrollFetcher.lastRun = time.Now().Add(-30 * time.Minute)
-		enrollFetcher.Frequency = 1 * time.Hour
+		enrollReceiver.lastRun = time.Now().Add(-30 * time.Minute)
+		enrollReceiver.Frequency = 1 * time.Hour
 
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "skipped encryption process, last run was too recent")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
 		require.False(t, decryptFnCalled, "decryption function should not be called")
@@ -780,13 +743,12 @@ func TestBitlockerOperations(t *testing.T) {
 		setupTest()
 		shouldFailEncryption = false
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
-		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
 		require.False(t, decryptFnCalled, "decryption function should not be called")
@@ -797,13 +759,12 @@ func TestBitlockerOperations(t *testing.T) {
 		shouldFailEncryption = false
 		shouldFailServerUpdate = true
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
-		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 
-		cfg, err := enrollFetcher.GetConfig()
+		err := enrollReceiver.Run(testConfig)
 		require.NoError(t, err)
-		require.Equal(t, fetcher.cfg, cfg)
 		require.Contains(t, logBuf.String(), "failed to send encryption result to Fleet Server")
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")

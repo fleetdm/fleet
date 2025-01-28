@@ -1,9 +1,27 @@
 name: sip_config
-examples: >-
-  View the status of System Integrity Protection.
+description: macOS System Integrity Protection (SIP) protects the Mac by preventing the execution of unauthorized code. The `sip_config` osquery table collects the current SIP status of a Mac.
+examples: |-
+  Basic query:
   
   ```
-  
-  SELECT config_flag, enabled FROM sip_config WHERE config_flag='sip';
-  
+  SELECT * FROM sip_config;
   ```
+
+  This query displays the current SIP status (SIP is enabled if the value=1):
+
+  ```
+  SELECT enabled FROM sip_config WHERE config_flag='sip';
+  ```
+notes: |-
+  SIP:
+  - automatically authorizes apps users download from the App Store
+  - authorizes apps developers notarize and distribute directly to users
+  - prevents launching of other apps unless users or administrators modify "Gatekeeper" settings
+
+  Organizations that develop software for Apple operating systems on the Mac may allow users to disable SIP. Because SIP is a basic and critical macOS security protection it is important to monitor SIP status on Hosts.
+
+  Links:
+  
+  - [About System Integrity Protection](https://support.apple.com/en-us/102149)
+  - [Disabling and Enabling System Integrity Protection](https://developer.apple.com/documentation/security/disabling_and_enabling_system_integrity_protection/)
+  - [Gatekeeper and runtime protection in macOS](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web)

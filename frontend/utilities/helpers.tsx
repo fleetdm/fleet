@@ -4,12 +4,12 @@ import {
   flatMap,
   omit,
   pick,
-  size,
   memoize,
   reduce,
   trim,
   trimEnd,
   union,
+  uniqueId,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -18,10 +18,10 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
+  addDays,
 } from "date-fns";
-import yaml from "js-yaml";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -37,6 +37,7 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
+import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
@@ -47,36 +48,14 @@ import {
   DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
+  isPlatformLabelNameFromAPI,
+  PolicyResponse,
 } from "utilities/constants";
-import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
-
-/**
- *
- * @param count The number of items.
- * @param root The root of the word, omitting any suffixs.
- * @param pluralSuffix The suffix to add to the root if the count is not 1.
- * @param singularSuffix The suffix to add to the root if the count is 1.
- * @returns A string with the root and the appropriate suffix.
- *
- * @example
- * pluralize(1, "hero", "es", "") // "hero"
- * pluralize(0, "hero", "es", "") // "heroes"
- * pluralize(1, "fair", "ies", "y") // "fairy"
- * pluralize(2, "fair", "ies", "y") // "fairies"
- * pluralize(1, "dragon") // "dragon"
- * pluralize(2, "dragon") // "dragons"
- */
-export const pluralize = (
-  count: number,
-  root: string,
-  pluralSuffix: string,
-  singularSuffix: string
-) => {
-  return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
-};
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
@@ -105,6 +84,49 @@ export const addGravatarUrlToResource = (resource: any): any => {
     gravatar_url,
     gravatar_url_dark,
   };
+};
+
+export const createHostsByPolicyPath = (
+  policyId: number,
+  policyResponse: PolicyResponse,
+  teamId?: number | null
+) => {
+  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    policy_id: policyId,
+    policy_response: policyResponse,
+    team_id: teamId,
+  })}`;
+};
+
+/** Removes Apple OS Prefix from host.os_version. */
+export const removeOSPrefix = (version: string): string => {
+  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
+};
+
+/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
+export const compareVersions = (version1: string, version2: string) => {
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
+
+  const maxLength = Math.max(v1Parts.length, v2Parts.length);
+
+  // Create a new array with a length of maxLength, mapping each index to a comparison result
+  return (
+    Array.from({ length: maxLength }, (_, index) => {
+      // Retrieve the corresponding parts from v1Parts and v2Parts, defaulting to 0
+      const v1Part = v1Parts[index] || 0;
+      const v2Part = v2Parts[index] || 0;
+
+      // Compare the current parts and return -1, 1, or 0 based on the result
+      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) return 1;
+      return 0;
+    })
+      // Use Array.find to return the first non-equal version number in the comparison array
+      .find((result) => result !== 0) ||
+    // If no difference is found, return 0 to indicate equal versions
+    0
+  );
 };
 
 const labelSlug = (label: ILabel): string => {
@@ -144,88 +166,11 @@ const filterTarget = (targetType: string) => {
   };
 };
 
-export const formatConfigDataForServer = (config: any): any => {
-  const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
-  const serverSettingsAttrs = pick(config, [
-    "server_url",
-    "osquery_enroll_secret",
-    "live_query_disabled",
-    "enable_analytics",
-  ]);
-  const smtpSettingsAttrs = pick(config, [
-    "authentication_method",
-    "authentication_type",
-    "domain",
-    "enable_ssl_tls",
-    "enable_start_tls",
-    "password",
-    "port",
-    "sender_address",
-    "server",
-    "user_name",
-    "verify_ssl_certs",
-    "enable_smtp",
-  ]);
-  const ssoSettingsAttrs = pick(config, [
-    "entity_id",
-    "idp_image_url",
-    "metadata",
-    "metadata_url",
-    "idp_name",
-    "enable_sso",
-    "enable_sso_idp_login",
-  ]);
-  const hostExpirySettingsAttrs = pick(config, [
-    "host_expiry_enabled",
-    "host_expiry_window",
-  ]);
-  const webhookSettingsAttrs = pick(config, [
-    "enable_host_status_webhook",
-    "destination_url",
-    "host_percentage",
-    "days_count",
-  ]);
-  // because agent_options is already an object
-  const agentOptionsSettingsAttrs = config.agent_options;
-
-  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
-  const serverSettings = size(serverSettingsAttrs) && {
-    server_settings: serverSettingsAttrs,
-  };
-  const smtpSettings = size(smtpSettingsAttrs) && {
-    smtp_settings: smtpSettingsAttrs,
-  };
-  const ssoSettings = size(ssoSettingsAttrs) && {
-    sso_settings: ssoSettingsAttrs,
-  };
-  const hostExpirySettings = size(hostExpirySettingsAttrs) && {
-    host_expiry_settings: hostExpirySettingsAttrs,
-  };
-  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options: yaml.load(agentOptionsSettingsAttrs),
-  };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
-  };
-
-  if (hostExpirySettings) {
-    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
-      hostExpirySettings.host_expiry_settings.host_expiry_window
-    );
+export const formatFloatAsPercentage = (float?: number): string => {
+  if (float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...agentOptionsSettings,
-    ...webhookSettings,
-  };
-};
-
-export const formatFloatAsPercentage = (float: number): string => {
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
     style: "percent",
@@ -236,10 +181,14 @@ export const formatFloatAsPercentage = (float: number): string => {
 
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
+    let labelType = "custom";
+    if (isPlatformLabelNameFromAPI(label.display_text)) {
+      labelType = PLATFORM_LABEL_DISPLAY_TYPES[label.display_text];
+    }
     return {
       ...label,
       slug: labelSlug(label),
-      type: PLATFORM_LABEL_DISPLAY_TYPES[label.display_text] || "custom",
+      type: labelType,
       target_type: "labels",
     };
   });
@@ -480,6 +429,25 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
+export const formatSeverity = (float?: number | null): string => {
+  if (float === null || float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
+  let severity = "";
+  if (float < 4.0) {
+    severity = "Low";
+  } else if (float < 7.0) {
+    severity = "Medium";
+  } else if (float < 9.0) {
+    severity = "High";
+  } else if (float <= 10.0) {
+    severity = "Critical";
+  }
+
+  return `${severity} (${float.toFixed(1)})`;
+};
+
 export const formatScriptNameForActivityItem = (name: string | undefined) => {
   return name ? (
     <>
@@ -663,8 +631,21 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 };
 
-export const licenseExpirationWarning = (expiration: string): boolean => {
+export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+/**
+ * determines if a date will expire within "x" number of days. If the date has
+ * has already expired, this function will return false.
+ */
+export const willExpireWithinXDays = (expiration: string, x: number) => {
+  const xDaysFromNow = addDays(new Date(), x);
+
+  return (
+    !hasLicenseExpired(expiration) &&
+    isAfter(xDaysFromNow, new Date(expiration))
+  );
 };
 
 export const readableDate = (date: string) => {
@@ -678,7 +659,7 @@ export const readableDate = (date: string) => {
 };
 
 export const getPerformanceImpactDescription = (
-  scheduledQueryStats: IScheduledQueryStats
+  scheduledQueryStats: ISchedulableQueryStats
 ) => {
   if (
     !scheduledQueryStats.total_executions ||
@@ -757,6 +738,17 @@ export const syntaxHighlight = (json: any): string => {
   /* eslint-enable no-useless-escape */
 };
 
+export const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={uniqueId()}>
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
+
 export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
   teams
     .map((team) => {
@@ -779,7 +771,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
@@ -789,6 +785,9 @@ export const normalizeEmptyValues = (
     {}
   );
 };
+
+export const wait = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
@@ -801,7 +800,7 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number | undefined };
+  queryParams?: QueryParams;
 }
 
 type RouteParams = Record<string, string>;
@@ -846,8 +845,13 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
 );
 
 export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId: number | undefined | null) => {
-    return `${hostId ? `?host_ids=${hostId}` : ""}`;
+  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
+    const queryString = buildQueryStringFromParams({
+      host_id: hostId || undefined,
+      team_id: teamId,
+    });
+
+    return queryString && `?${queryString}`;
   },
 };
 
@@ -855,35 +859,64 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) => (
+): JSX.Element => (
   <>
     {original.slice(0, prefixLength)}...
     {original.slice(original.length - suffixLength)} <em>(truncated)</em>
   </>
 );
 
-export const getUniqueColumnNamesFromRows = (rows: any[]) =>
-  // rows of type {col:val, col:val, ...}[]
-  // cannot type more narrowly due to loose typing of websocket API and use of this function
-  // by QueryResultsTableConfig, where results come from that API
-  // TODO – narrow this entire chain down to the websocket API level
-  Array.from(
-    rows.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set()
-    )
-  );
+/** Generates a mapping of unique column names present in the data to
+ * whether or not each of those columns contains exclusively number values. This allows the calling
+ * config generator to determine both which unique columns are present, and whether to sort each of them as
+ * alphanumeric (number type columns) or case-insensitive (everything else) */
+export const getUniqueColsAreNumTypeFromRows = <
+  T extends Record<keyof T, unknown>
+>(
+  rows: T[]
+) => {
+  const m = new Map<keyof T, boolean>();
+  rows.forEach((row) => {
+    Object.entries(row).forEach(([name, val]) => {
+      const isNum = !isNaN(Number(val));
+      // keyof T will always actually be a string. This generic is helpful for upstream typing,
+      // but we can safely consider them interchangeagle.
+      const castName = name as keyof T;
+      if (!m.has(castName)) {
+        m.set(castName, isNum);
+      } else if (!isNum) {
+        // column name has already been seen and current val isn't a number
+        m.set(castName, false);
+      }
+    });
+  });
+  return m;
+};
+
+// can allow additional dropdown value types in the future
+type DropdownOptionValue = IDropdownOption["value"];
+
+export function getCustomDropdownOptions(
+  defaultOptions: IDropdownOption[],
+  customValue: DropdownOptionValue,
+  labelFormatter: (value: DropdownOptionValue) => string
+): IDropdownOption[] {
+  return defaultOptions.some((option) => option.value === customValue)
+    ? defaultOptions
+    : [
+        { label: labelFormatter(customValue), value: customValue },
+        ...defaultOptions,
+      ];
+}
 
 export default {
-  pluralize,
   addGravatarUrlToResource,
-  formatConfigDataForServer,
+  removeOSPrefix,
+  compareVersions,
+  createHostsByPolicyPath,
   formatLabelResponse,
   formatFloatAsPercentage,
+  formatSeverity,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatScriptNameForActivityItem,
@@ -895,7 +928,8 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
-  getUniqueColumnNamesFromRows,
+  getUniqueColsAreNumTypeFromRows,
+  getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,
@@ -907,7 +941,8 @@ export default {
   hostTeamName,
   humanQueryLastRun,
   inMilliseconds,
-  licenseExpirationWarning,
+  hasLicenseExpired,
+  willExpireWithinXDays,
   readableDate,
   secondsToHms,
   secondsToDhms,
@@ -915,6 +950,7 @@ export default {
   setupData,
   syntaxHighlight,
   normalizeEmptyValues,
+  wait,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 };

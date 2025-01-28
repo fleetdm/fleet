@@ -1,0 +1,61 @@
+name: Update documentation of current versions of TUF fleetd components
+
+on:
+  workflow_dispatch: # Manual
+  schedule:
+  - cron: '0 3 * * *' # Nightly 3AM UTC
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  update-fleetd-tuf:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    runs-on: ubuntu-latest
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+      with:
+        fetch-depth: 0
+
+    - name: Install Go
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Update orbit/TUF.md
+      run: |
+        make fleetd-tuf
+    
+    - name: PR changes
+      uses: peter-evans/create-pull-request@f22a7da129c901513876a2380e2dae9f8e145330 # v3.12.1
+      with:
+        base: main
+        branch: update-versions-of-fleetd-components-tuf
+        delete-branch: true
+        title: Update versions of fleetd components in Fleet's TUF [automated]
+        reviewers: lukeheath,georgekarrv,sharon-fdm
+        commit-message: |
+          Update versions of fleetd components in Fleet's TUF [automated]
+
+          Generated automatically with tools/tuf/status.
+        body: Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/fleetd-tuf.yml).
+
+

@@ -14,9 +14,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type ExecTableOpt func(*Table)
@@ -35,11 +34,11 @@ func WithBinDirs(binDirs ...string) ExecTableOpt {
 	}
 }
 
-func TablePluginExec(logger log.Logger, tableName string, dataSourceType DataSourceType, execArgs []string, opts ...ExecTableOpt) *table.Plugin {
+func TablePluginExec(logger zerolog.Logger, tableName string, dataSourceType DataSourceType, execArgs []string, opts ...ExecTableOpt) *table.Plugin {
 	columns := Columns()
 
 	t := &Table{
-		logger:            level.NewFilter(logger, level.AllowInfo()),
+		logger:            logger.With().Str("table", tableName).Logger(),
 		tableName:         tableName,
 		execArgs:          execArgs,
 		keyValueSeparator: ":",
@@ -77,7 +76,7 @@ func (t *Table) generateExec(ctx context.Context, queryContext table.QueryContex
 
 		// If the exec failed for some reason, it's probably better to return no results, and log the,
 		// error. Returning an error here will cause a table failure, and thus break joins
-		level.Info(t.logger).Log("msg", "failed to exec", "err", err)
+		t.logger.Info().Err(err).Msg("failed to exec")
 		return nil, nil
 	}
 
@@ -89,7 +88,7 @@ func (t *Table) generateExec(ctx context.Context, queryContext table.QueryContex
 
 		flattened, err := t.flattenBytesFunc(execBytes, flattenOpts...)
 		if err != nil {
-			level.Info(t.logger).Log("msg", "failure flattening output", "err", err)
+			t.logger.Info().Err(err).Msg("failure flattening output")
 			continue
 		}
 
@@ -105,7 +104,7 @@ func (t *Table) exec(ctx context.Context) ([]byte, error) {
 
 	possibleBinaries := []string{}
 
-	if t.binDirs == nil || len(t.binDirs) == 0 {
+	if len(t.binDirs) == 0 {
 		possibleBinaries = []string{t.execArgs[0]}
 	} else {
 		for _, possiblePath := range t.binDirs {
@@ -121,13 +120,13 @@ func (t *Table) exec(ctx context.Context) ([]byte, error) {
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 
-		level.Debug(t.logger).Log("msg", "calling %s", "args", cmd.String())
+		t.logger.Debug().Str("args", strings.Join(t.execArgs[1:], " ")).Msgf("calling %s", cmd.String())
 
 		if err := cmd.Run(); os.IsNotExist(err) {
 			// try the next binary
 			continue
 		} else if err != nil {
-			return nil, fmt.Errorf("calling %s. Got: %s: %w", t.execArgs[0], string(stderr.Bytes()), err)
+			return nil, fmt.Errorf("calling %s. Got: %s: %w", t.execArgs[0], stderr.String(), err)
 		}
 
 		// success!

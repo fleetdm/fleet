@@ -1,0 +1,2 @@
+- Improved software installation for failed policies: Added platform-specific filtering in the software dropdown, ensuring only compatible software are displayed based on each policy's targeted platforms
+- Add VPP app to automatic installation dropdown for failed policies and auto install information on VPP app details page

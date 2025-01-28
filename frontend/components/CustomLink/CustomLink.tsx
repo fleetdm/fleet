@@ -12,6 +12,9 @@ interface ICustomLinkProps {
   /** Icon wraps on new line with last word */
   multiline?: boolean;
   iconColor?: Colors;
+  color?: "core-fleet-blue" | "core-fleet-black" | "core-fleet-white";
+  /** Restricts access via keyboard when CustomLink is part of disabled UI */
+  disableKeyboardNavigation?: boolean;
 }
 
 const baseClass = "custom-link";
@@ -23,8 +26,13 @@ const CustomLink = ({
   newTab = false,
   multiline = false,
   iconColor = "core-fleet-blue",
+  color = "core-fleet-blue",
+  disableKeyboardNavigation = false,
 }: ICustomLinkProps): JSX.Element => {
-  const customLinkClass = classnames(baseClass, className);
+  const customLinkClass = classnames(baseClass, className, {
+    [`${baseClass}--black`]: color === "core-fleet-black",
+    [`${baseClass}--white`]: color === "core-fleet-white",
+  });
 
   const target = newTab ? "_blank" : "";
 
@@ -64,6 +72,7 @@ const CustomLink = ({
       target={target}
       rel="noopener noreferrer"
       className={customLinkClass}
+      tabIndex={disableKeyboardNavigation ? -1 : 0}
     >
       {content}
     </a>

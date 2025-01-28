@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 )
 
-var _ storage.AllStorage = (*Storage)(nil)
+var _ storage.AllDEPStorage = (*Storage)(nil)
 
 type RetrieveAuthTokensFunc func(ctx context.Context, name string) (*client.OAuth1Tokens, error)
 

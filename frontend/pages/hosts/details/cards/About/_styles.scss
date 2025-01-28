@@ -1,0 +1,55 @@
+.about-card {
+  // Adjusts for edge cases of extra long MDM server URL and used by email
+  .info-flex {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: $pad-medium $pad-xxlarge;
+    max-height: 350px;
+    align-content: flex-start;
+
+    .data-set {
+      min-width: none;
+    }
+
+    dd,
+    .component__tooltip-wrapper__element {
+      max-width: 350px;
+      white-space: initial;
+      word-break: break-word;
+    }
+
+    &__data {
+      .device-mapping {
+        &__source {
+          color: $ui-fleet-black-75;
+        }
+        &__more {
+          color: $ui-fleet-black-50;
+        }
+      }
+    }
+
+    @media (min-width: $break-md) {
+      max-height: 250px;
+
+      dd,
+      .component__tooltip-wrapper__element {
+        max-width: 340px;
+      }
+    }
+
+    @media (min-width: $break-lg) {
+      max-height: 200px;
+
+      dd,
+      .component__tooltip-wrapper__element {
+        max-width: 500px;
+      }
+    }
+  }
+
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
+}

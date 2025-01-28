@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/osquery/osquery-go/plugin/logger"
@@ -82,7 +82,7 @@ func (svc *launcherWrapper) RequestQueries(ctx context.Context, nodeKey string) 
 	result := &distributed.GetQueriesResult{
 		Queries:           queryMap,
 		Discovery:         discoveryMap,
-		AccelerateSeconds: int(accelerate),
+		AccelerateSeconds: int(accelerate), //nolint:gosec // dismiss G115
 	}
 
 	return result, false, nil
@@ -131,10 +131,10 @@ func (svc *launcherWrapper) PublishResults(ctx context.Context, nodeKey string, 
 		osqueryResults[result.QueryName] = result.Rows
 		if result.QueryStats != nil {
 			stats[result.QueryName] = &fleet.Stats{
-				WallTimeMs: uint64(result.QueryStats.WallTimeMs),
-				UserTime:   uint64(result.QueryStats.UserTime),
-				SystemTime: uint64(result.QueryStats.SystemTime),
-				Memory:     uint64(result.QueryStats.Memory),
+				WallTimeMs: uint64(result.QueryStats.WallTimeMs), //nolint:gosec // dismiss G115
+				UserTime:   uint64(result.QueryStats.UserTime),   //nolint:gosec // dismiss G115
+				SystemTime: uint64(result.QueryStats.SystemTime), //nolint:gosec // dismiss G115
+				Memory:     uint64(result.QueryStats.Memory),     //nolint:gosec // dismiss G115
 			}
 		}
 	}

@@ -102,11 +102,21 @@
   }
 
   [purpose='breadcrumbs'] {
+    [purpose='page-breadcrumbs'] {
+      max-width: 100%;
+      overflow: hidden;
+    }
+
     padding-bottom: 16px;
     padding-top: 16px;
     p, a, strong {
       font-size: 12px;
       line-height: 18px;
+    }
+    [purpose='current-page-breadcrumb'] {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     a {
       text-decoration: none;
@@ -170,6 +180,37 @@
         margin-left: -2px;
       }
     }
+    [purpose='sidebar-cta'] {
+      margin-top: 24px;
+      display: flex;
+      width: 200px;
+      padding: 16px;
+      align-items: center;
+      border-radius: 8px;
+      border: 1px solid #E2E4EA;
+      background: #FFF;
+      font-size: 14px;
+      line-height: 150%;
+      color: @core-fleet-black;
+      p {
+        line-height: 120%;
+        margin-bottom: 0px;
+        font-weight: 800;
+      }
+      [parasails-component='animated-arrow-button'] {
+        line-height: 150%;
+      }
+      img {
+        width: 20px;
+        height: 18.947px;
+        margin-right: 10px;
+      }
+      &:hover {
+        box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+        text-decoration: none;
+      }
+    }
+
   }
   [purpose='🫧 Marketing'] {
     h2 {
@@ -323,6 +364,7 @@
       font-family: @code-font;
       display: inline-block;
       svg {
+        max-width: 100%;
         max-height: 600px;
       }
     }
@@ -538,6 +580,7 @@
       position: sticky;
       bottom: 107px;
       overflow-x: hidden;
+      pointer-events: none;
     }
     [purpose='back-to-top-button'] {
       display: inline-block;
@@ -551,6 +594,7 @@
       cursor: pointer;
       border: 1px solid #E2E4EA;
       border-radius: 16px 0px 0px 16px;
+      pointer-events: auto;
       p {
         color: #515774;
         font-size: 11px;
@@ -624,6 +668,12 @@
   @media (max-width: 576px) {
     [purpose='handbook-template'] {
       padding: 0px 24px;
+    }
+    [purpose='content'] {
+      h1 {
+        font-size: 28px;
+        line-height: 120%;
+      }
     }
   }
 

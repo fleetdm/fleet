@@ -1,3 +1,161 @@
+## Orbit 1.38.0 (Jan 24, 2025)
+
+* Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+
+## Orbit 1.37.0 (Dec 13, 2024)
+
+* Added support for key escrow on Ubuntu 20.04.
+
+* Added support for kdialog Linux key escrow prompts for compatibility with Kubuntu systems. Currently supported browser on Kubuntu for Fleet desktop is Chrome.
+
+* Fixed issue where the Linux encryption progress window in zenity was not displaying properly.
+
+* Added support to migrate the MDM provider of Windows devices to Fleet.
+
+* Added `nftables` table to show configuration for Linux `nftables` network filters.
+
+* Updated Go version to 1.23.4.
+
+## Orbit 1.36.0 (Nov 25, 2024)
+
+* Upgraded macadmins osquery-extension to v1.2.3.
+
+* Added `computer_name` and `hardware_model` for fleetd enrollment.
+
+* Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
+
+* Added `codesign` table to provide the "Team identifier" of macOS applications.
+
+* Fixed stale Fleet Desktop token UUID after a macOS host completes Migration Assistant.
+
+* Added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
+
+* Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.
+
+* Fixed cases where self-service menu item temporarily disappeared from Fleet Desktop menu when it should have stayed visible.
+
+## Orbit 1.35.0 (Nov 01, 2024)
+
+* Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.
+
+* Added a UI for the Fleet setup experience to show users the status of software installs and script executions during macOS Setup Assistant.
+
+* Fixed Fleet Desktop to gracefully shutdown when receiving interrupt and terminate signals.
+
+* Added capability for fleetd to report vital errors to Fleet server, such as when Fleet Desktop is unable to start.
+
+## Orbit 1.34.0 (Oct 02, 2024)
+
+* Added a timeout to all script executions during software installs to prevent having install requests stuck in pending state forever.
+
+## Orbit 1.33.0 (Sep 20, 2024)
+
+* Added support to run the configured uninstall script when installer's post-install script fails.
+
+* Updated Go to go1.23.1
+
+## Orbit 1.32.0 (Aug 29, 2024)
+
+* Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
+
+* Fixed Fleet Desktop to refresh host status when the user clicks on "My Device" or "Self-service" dropdown option.
+
+* Updated go to go1.22.6
+
+* Added ability for MDM migrations if the host is manually enrolled to a 3rd party MDM.
+
+* Fixed a formatting error when an unrecognized error happens during BitLocker encryption.
+
+## Orbit 1.31.0 (Aug 19, 2024)
+
+* Fixed an issue that would display a disk encryption modal with MDM configured and FileVault enabled if the user hadn't escrowed the key in the past.
+
+## Orbit 1.30.0 (Aug 05, 2024)
+
+* Use Escrow Buddy to rotate FileVault keys on macOS
+
+## Orbit 1.29.0 (Jul 24, 2024)
+
+* Fixed a startup bug by performing an early restart of orbit if an agent options setting has changed.
+* Implemented a small refactor of orbit subsystems.
+
+## Orbit 1.28.0 (Jul 18, 2024)
+
+* Hid "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+
+* Fixed a bug that caused log Orbit's osquery table log output to be inconsistent.
+
+* Added support for new agent option `script_execution_timeout` to configure seconds until a script is killed due to timeout.
+
+* Updated Go version to go1.22.4.
+
+* Fixed boot loop caused by Linux hosts with no hardware UUID.
+
+* Added support for Linux ARM64.
+
+* Fixed bug where UTC timezone could cause error in `fleetd_logs` table time parsing.
+
+## Orbit 1.27.0 (Jun 21, 2024)
+
+* Disabled `mdm_bridge` table on Windows Server.
+
+* Fixes an issue related to hardware UUIDs being cached in osquery's database. When an orbit install
+  is transferred from one machine to another (e.g. via MacOS Migration Assistant), the new machine
+  now shows up in Fleet as a separate host from the old one.
+
+* Added support for `--end-user-email` option when building fleetd Linux packages.
+
+* Fixed bug where MDM migration fails when attempting to renew enrollment profiles on macOS Sonoma devices.
+
+
+## Orbit 1.26.0 (Jun 11, 2024)
+
+* Added `tcc_access` table to `fleetd` for macOS.
+
+* Fixed fleetd agent to identify HTTP calls from the SOFA macOS tables.
+
+* Fixed Orbit to ignore-and-log osquery errors when it gets valid host info from osquery at startup.
+
+* Added `fleetd_logs` table
+
+* Fixed scripts that were blocking execution of other scripts after timing out on Windows.
+
+* Added the `Self-service` menu item to Fleet Desktop.
+
+* Updated Go version to go1.22.3
+
+## Orbit 1.25.0 (May 22, 2024)
+
+* Added code to detect value of `DISPLAY` variable of user instead of defaulting to `:0` (to support Ubuntu 24.04 with Xorg).
+
+* Close idle connections every 55 minutes to prevent load balancers (like AWS ELB) from forcefully terminating long lived connections.
+
+* Add support for executing zsh scripts on macOS and Linux hosts
+
+* Windows orbit.exe and fleet-desktop.exe are now signed.
+
+* Added ability to install software when requested by the Fleet server. Note that this is disabled unless the package was built with the `--enable-scripts` flag.
+
+## Orbit 1.24.0 (Apr 17, 2024)
+
+* Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
+
+* In `orbit_info` table, added `desktop_version` and `scripts_enabled` fields.
+
+## Orbit 1.23.0 (Apr 08, 2024)
+
+* Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
+
+* Add exponential backoff to orbit enroll retries.
+
+## Orbit 1.22.0 (Feb 26, 2024)
+
+* Reduce error logs when orbit cannot connect to Fleet.
+
+* Allow configuring a custom osquery database directory (`ORBIT_OSQUERY_DB` environment variable or `--osquery-db` flag).
+
+* Upgrade go version to 1.21.7.
+
 ## Orbit 1.21.0 (Jan 30, 2024)
 
 * For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.

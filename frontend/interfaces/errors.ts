@@ -1,16 +1,4 @@
-import PropTypes from "prop-types";
 import { AxiosError, isAxiosError } from "axios";
-
-export default PropTypes.shape({
-  http_status: PropTypes.number,
-  base: PropTypes.string,
-});
-
-// Response created by utilities/format_error_response
-export interface IOldApiError {
-  http_status: number;
-  base: string;
-}
 
 /**
  * IFleetApiError is the shape of a Fleet API error. It represents an element of the `errors`
@@ -147,6 +135,7 @@ const getReasonFromErrors = (errors: unknown[], filter?: IFilterFleetError) => {
   } else {
     fleetError = isFleetApiError(errors[0]) ? errors[0] : undefined;
   }
+
   return fleetError?.reason || "";
 };
 
@@ -202,4 +191,32 @@ export const getErrorReason = (
   }
 
   return "";
+};
+
+export const ignoreAxiosError = (err: AxiosError, ignoreStatuses: number[]) => {
+  // TODO - isAxiosError currently not recognizing axios error, fix
+  // if (!isAxiosError(err)) {
+  //   return false;
+  // }
+  // return !!err.response && ignoreStatuses.includes(err.response.status);
+  return !!err.status && ignoreStatuses.includes(err.status);
+};
+
+/**
+ * expandErrorReasonRequired attempts to expand the error reason for a required
+ * field error. It looks for a Fleet API error with a `reason` of `"required"`
+ * in the `errors` array of the payload. If found, it returns the `name` of the
+ * error with the string `"required"` appended. Otherwise, it returns the
+ * error reason as is.
+ */
+export const expandErrorReasonRequired = (err: unknown) => {
+  if (isRecordWithDataErrors(err)) {
+    const found = err.data.errors.find(
+      (e) => isFleetApiError(e) && e.reason === "required"
+    );
+    if (found) {
+      return `${(found as IFleetApiError).name} required`;
+    }
+  }
+  return getErrorReason(err);
 };

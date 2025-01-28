@@ -3,36 +3,23 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import {
-  CellProps,
-  Column,
-  ColumnInstance,
-  ColumnInterface,
-  HeaderProps,
-  TableInstance,
-} from "react-table";
+import { CellProps, Column } from "react-table";
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import {
-  getUniqueColumnNamesFromRows,
+  getUniqueColsAreNumTypeFromRows,
   humanHostLastSeen,
   internallyTruncateText,
 } from "utilities/helpers";
+import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 
-type IHeaderProps = HeaderProps<TableInstance> & {
-  column: ColumnInstance & IDataColumn;
-};
+type IQueryReportTableColumnConfig = Column<IWebSocketData>;
+type ITableHeaderProps = IHeaderProps<IWebSocketData>;
+type ITableCellProps = CellProps<IWebSocketData, string | unknown>;
 
-type ICellProps = CellProps<TableInstance>;
-
-interface IDataColumn extends ColumnInterface {
-  title?: string;
-  accessor: string;
-}
-
-const _unshiftHostname = (headers: IDataColumn[]) => {
+const _unshiftHostname = (headers: IQueryReportTableColumnConfig[]) => {
   const newHeaders = [...headers];
   const displayNameIndex = headers.findIndex(
     (h) => h.id === "host_display_name"
@@ -41,7 +28,7 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
     // remove hostname header from headers
     const [displayNameHeader] = newHeaders.splice(displayNameIndex, 1);
     // reformat title and insert at start of headers array
-    newHeaders.unshift({ ...displayNameHeader, title: "Host" });
+    newHeaders.unshift({ ...displayNameHeader, id: "Host" });
   }
   // TODO: Remove after v5 when host_hostname is removed rom API response.
   const hostNameIndex = headers.findIndex((h) => h.id === "host_hostname");
@@ -52,43 +39,50 @@ const _unshiftHostname = (headers: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
-  /* Results include an array of objects, each representing a table row
-  Each key value pair in an object represents a column name and value
-  To create headers, use JS set to create an array of all unique column names */
-  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
-
-  const columnConfigs = uniqueColumnNames.map((key) => {
+const generateReportColumnConfigsFromResults = (
+  results: IWebSocketData[]
+): IQueryReportTableColumnConfig[] => {
+  const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(results) as Map<
+    string,
+    boolean
+  >;
+  const columnConfigs = Array.from(colsAreNumTypes.keys()).map<
+    Column<IWebSocketData>
+  >((colName) => {
     return {
-      id: key as string,
-      title: key as string,
-      Header: (headerProps: IHeaderProps) => (
+      id: colName,
+      Header: (headerProps: ITableHeaderProps) => (
         <HeaderCell
           value={
-            // Sentence case last fetched
-            headerProps.column.title === "last_fetched"
+            headerProps.column.id === "last_fetched"
               ? "Last fetched"
-              : headerProps.column.title || headerProps.column.id
+              : headerProps.column.id
           }
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: key as string,
-      Cell: (cellProps: ICellProps) => {
+      accessor: (data) => data[colName],
+      Cell: (cellProps: ITableCellProps) => {
+        if (typeof cellProps.cell.value !== "string") return null;
+
         // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {
-          return humanHostLastSeen(cellProps?.cell?.value);
+          return <>{humanHostLastSeen(cellProps?.cell?.value)}</>;
         }
         // truncate columns longer than 300 characters
         const val = cellProps?.cell?.value;
-        return !!val?.length && val.length > 300
-          ? internallyTruncateText(val)
-          : val ?? null;
+        return !!val?.length && val.length > 300 ? (
+          internallyTruncateText(val)
+        ) : (
+          <>{val}</>
+        );
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
       disableSortBy: false,
-      sortType: "caseInsensitive",
+      sortType: colsAreNumTypes.get(colName)
+        ? "alphanumeric"
+        : "caseInsensitive",
     };
   });
   return _unshiftHostname(columnConfigs);

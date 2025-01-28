@@ -71,7 +71,10 @@ const config = {
           filename: "[name]@[hash][ext]",
         },
       },
-
+      {
+        test: /\.(sh|ps1)$/,
+        type: "asset/source",
+      },
       {
         test: /(\.tsx?|\.jsx?)$/,
         exclude: /node_modules/,
@@ -128,6 +131,7 @@ const config = {
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
+    fallback: { path: require.resolve("path-browserify") },
   },
 };
 

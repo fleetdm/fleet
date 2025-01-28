@@ -1,7 +1,11 @@
 import PropTypes from "prop-types";
-import { IConfigFeatures, IWebhookSettings } from "./config";
+import {
+  IAppleDeviceUpdates,
+  IConfigFeatures,
+  IWebhookSettings,
+} from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
-import { IIntegrations } from "./integration";
+import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -45,10 +49,9 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
-    macos_updates: {
-      minimum_version: string | null;
-      deadline: string | null;
-    };
+    macos_updates: IAppleDeviceUpdates;
+    ios_updates: IAppleDeviceUpdates;
+    ipados_updates: IAppleDeviceUpdates;
     macos_settings: {
       custom_settings: null; // TODO: types?
       enable_disk_encryption: boolean;
@@ -56,7 +59,8 @@ export interface ITeam extends ITeamSummary {
     macos_setup: {
       bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null; // TODO: types?
+      macos_setup_assistant: string | null;
+      enable_release_device_manually: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;
@@ -74,7 +78,7 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook"
+  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
 >;
 
 /**
@@ -82,7 +86,7 @@ export type ITeamWebhookSettings = Pick<
  */
 export interface ITeamAutomationsConfig {
   webhook_settings: ITeamWebhookSettings;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
 }
 
 /**
@@ -128,7 +132,7 @@ export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
-export const APP_CONTEX_NO_TEAM_SUMMARY: ITeamSummary = {
+export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
   name: "No team",
 } as const;

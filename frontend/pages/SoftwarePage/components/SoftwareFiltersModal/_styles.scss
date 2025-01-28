@@ -1,0 +1,15 @@
+.software-filters-modal {
+  .select-menu-outer {
+    min-height: 500px;
+  }
+
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  .Select-menu {
+    padding-bottom: $pad-medium;
+  }
+}

@@ -1,3 +1,10 @@
+locals {
+  spf_domains = [
+    aws_ses_domain_identity.default.domain,
+    "_amazonses.${aws_ses_domain_identity.default.domain}"
+  ]
+}
+
 resource "aws_ses_domain_identity" "default" {
   domain = var.domain
 }
@@ -19,11 +26,12 @@ resource "aws_route53_record" "amazonses_dkim_record" {
 
 
 resource "aws_route53_record" "spf_domain" {
-  zone_id = var.zone_id
-  name    = "_amazonses.${aws_ses_domain_identity.default.domain}"
-  type    = "TXT"
-  ttl     = "600"
-  records = ["v=spf1 include:amazonses.com -all"]
+  for_each = toset(local.spf_domains)
+  zone_id  = var.zone_id
+  name     = each.key
+  type     = "TXT"
+  ttl      = "600"
+  records  = each.key == aws_ses_domain_identity.default.domain ? flatten([["v=spf1 include:amazonses.com -all"], var.extra_txt_records]) : ["v=spf1 include:amazonses.com -all"]
 }
 
 resource "aws_iam_policy" "main" {

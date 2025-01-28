@@ -25,7 +25,7 @@ const RemovePackQueryModal = ({
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (
     <Modal
-      title={"Remove queries"}
+      title="Remove queries"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

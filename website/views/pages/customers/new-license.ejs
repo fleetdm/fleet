@@ -3,74 +3,52 @@
   <div style="max-width: 560px;" class="container-fluid pb-5 px-lg-0 px-3" v-if="!showSuccessMessage">
     <div purpose="page-heading">
       <h1>Welcome to Fleet Premium</h1>
-      <p class="pb-2">We just need a few details in order to get you a self-hosted Fleet Premium license key.</p>
+      <p class="pb-2">We just need a few details in order to get started.</p>
     </div>
     <div purpose="customer-portal-form" class="card card-body">
       <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
         <div class="d-flex flex-column flex-sm-row">
           <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
-            <label for="numberOfHosts">Total number of devices</label>
+            <label for="numberOfHosts">Total number of hosts</label>
             <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!numberOfHostsQuoted">
             <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
-            <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
+            <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 14px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
           </div>
 
-          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
+          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 300">
             <p class="small">
-              <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/month/device<br>(Billed annually at $84/device)
+              <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
             </p>
           </div>
 
         </div>
         <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
-        <div class="mt-2 pt-3 pb-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
+        <div class="mt-2 pt-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
           <div class="pb-2">
-            <strong>Order total</strong>
+            <strong>Order summary</strong>
           </div>
           <div class="d-flex flex-row justify-content-between">
-            <p class="mb-0">Fleet Premium <br purpose="order-form-line-break"><span purpose="over-1000-linebreak"><br :class="[numberOfHostsQuoted >= 1000 ? 'd-block' : 'd-none']"></span>(self-hosted<span v-if="numberOfHostsQuoted >= 1000" > or managed cloud</span>)</p>
-          <div class="ml-auto text-right">
+            <p class="mb-0">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 299" > or managed cloud</span>)</p>
+          <div class="ml-auto text-right" v-if="numberOfHostsQuoted < 300">
             <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
           </div>
           </div>
         </div>
         <div :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if="showQuotedPrice && numberOfHostsQuoted >= 1000">Show me</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted <= 999">Continue</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if="showQuotedPrice && numberOfHostsQuoted > 299">Talk to us</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted < 300">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
     <div class="card card-body mt-3" v-if="showBillingForm">
       <h3 class="pb-3">Billing information</h3>
-      <ajax-form action="saveBillingInfoAndSubscribe" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="billingFormRules" @submitted="submittedPaymentForm()" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo' || cloudError === 'cardVerificationRequired'">
-        <div class="form-group">
-          <label for="card">Billing Card</label>
-          <stripe-card-element class="mb-3" id="card" busy.sync="syncing" :is-errored.sync="formErrors.paymentSource" :stripe-publishable-key="stripePublishableKey"
-          v-model="formData.paymentSource" key="billing-card" ref="paymentcardref"></stripe-card-element>
-        </div>
-        <div v-if="showAdditionalBillingFormInputs">
-          <div class="form-group">
-            <label for="organization">Organization</label>
-            <input class="form-control" id="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : formErrors.organization === '' ]" v-model.trim="formData.organization">
-            <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
-          </div>
-          <div class="row">
-            <div class="col-12 col-sm-6 pr-sm-2">
-              <div class="form-group">
-                <label for="first-name">First name</label>
-                <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
-                <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
-              </div>
-            </div>
-            <div class="col-12 col-sm-6 pl-sm-2">
-              <div class="form-group">
-                <label for="last-name">Last name</label>
-                <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
-                <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
-              </div>
-            </div>
-          </div>
+      <ajax-form :handle-submitting="handleSubmittingCheckoutForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="checkoutFormRules" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo' || cloudError === 'cardVerificationRequired'">
+        <div class="form-group" purpose="self-hosted-checkbox">
+          <input type="checkbox" id="self-hosted-acknowledgment"  v-model.trim="formData.selfHostedAcknowledgment" @input="clickClearOneFormError('selfHostedAcknowledgment')">
+          <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 300 hosts. I will host Fleet myself.</label>
+          <div class="invalid-feedback" v-if="formErrors.selfHostedAcknowledgment"><p>Please confirm that you will be hosting Fleet yourself.</p></div>
+
         </div>
         <cloud-error purpose="cloud-error" v-if="cloudError === 'couldNotSaveBillingInfo'">
           <p>The billing card provided could not be used. Please use another card or <a href="/contact" target="_blank">contact support</a>.</p>
@@ -78,12 +56,12 @@
         <cloud-error purpose="cloud-error" v-else-if="cloudError === 'cardVerificationRequired'">
           <p>The billing card provided could not be used without additional verification. Please use another card or <a href="/contact" target="_blank">contact support</a> to complete your order.</p>
         </cloud-error>
-        <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4">Get license key</ajax-button>
+        <ajax-button purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4">Checkout</ajax-button>
       </ajax-form>
       <cloud-error purpose="cloud-error" v-else-if="cloudError">
         <p class="mb-3 text-bold text-strong">An error has occurred while processing your request.</p>
         <p class="mb-2">We're sorry that this happened. A human has been informed of this error and is looking into it.</p>
-        <p>Feel free to <a href="/customers/new-license">reload the page</a> and try again. A team member at Fleet will investigate and correct duplicate charges, if any occurred.</p>
+        <p>Feel free to <a href="/customers/new-license">reload the page</a> and try again.</p>
       </cloud-error>
     </div>
   </div>

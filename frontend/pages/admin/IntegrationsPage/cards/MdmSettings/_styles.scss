@@ -1,25 +1,5 @@
 .mdm-settings {
   display: flex;
   flex-direction: column;
-  gap: 80px;
-
-  &__section {
-    .mdm-settings-team-btn {
-      margin-left: 12px;
-
-      .children-wrapper {
-        gap: $pad-small;
-      }
-    }
-
-    .component__tooltip-wrapper__tip-text {
-      max-width: initial;
-    }
-  }
-
-  &__mdm-section {
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
-  }
+  gap: $pad-xxxlarge;
 }

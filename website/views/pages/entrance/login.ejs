@@ -1,34 +1,106 @@
 <div id="login" v-cloak>
-  <div :purpose="[showCustomerLogin ? 'customer-login-container' : 'login-container']" class="container-fluid pb-5 px-lg-0 px-3">
-    <div purpose="page-heading" v-if="showCustomerLogin">
-      <h1>Welcome to Premium</h1>
-      <p class="pb-2">Sign in to manage your Fleet Premium subscription.</p>
-    </div>
-    <div purpose="page-heading" v-else>
+  <div purpose="page-container" class="container">
+    <div purpose="page-heading">
       <h1>Welcome to Fleet</h1>
-      <p class="pb-2">Sign in to your Fleet account.</p>
+      <p class="mb-0">We just need a few details in order to get started.</p>
     </div>
-    <div purpose="customer-portal-form"  class="card card-body">
-      <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <span style="float: right" class="text-right small" v-if="showCustomerLogin"><a href="/customers/register">Create an account</a></span>
-          <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
-          <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
+    <div purpose="form-container" class="d-flex flex-lg-row flex-column justify-content-between align-items-start">
+      <div purpose="login-form" class="mx-auto mx-lg-0">
+        <div purpose="customer-portal-form"  class="card card-body mb-5">
+          <div purpose="register-link" v-if="showCustomerLogin">
+            <a :href="registerSlug">Create an account</a>
+          </div>
+          <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
+              <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
+              <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
+            </div>
+            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
+            <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
+            <cloud-error v-else-if="cloudError"></cloud-error>
+            <div class="pb-3">
+              <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
+            </div>
+          </ajax-form>
+          <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
         </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
-          <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
+      </div>
+      <div purpose="quote-and-logos" class="mx-auto mx-lg-0">
+        <% if(typeof primaryBuyingSituation === 'undefined' || ['mdm'].includes(primaryBuyingSituation)) { %>
+        <div purpose="quote">
+          <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+          <p purpose="quote-text">
+            We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+          </p>
+          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+            <div purpose="profile-picture">
+              <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
+            </div>
+            <div class="d-flex flex-column align-self-top">
+              <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
+              <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
+            </div>
+          </div>
         </div>
-        <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
-        <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
-        <cloud-error v-else-if="cloudError"></cloud-error>
-        <div class="pb-3">
-          <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
+        <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p purpose="quote-text">
+              Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
+            </p>
+            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+              <div purpose="profile-picture">
+                <img alt="Wes Whetstone" src="/images/testimonial-author-wes-whetstone-48x48@2x.png">
+              </div>
+              <div class="d-flex flex-column align-self-top">
+                <p purpose="name" class="font-weight-bold m-0">Wes Whetstone</p>
+                <p purpose="job-title" class="m-0">Staff CPE</p>
+              </div>
+            </div>
+          </div>
+        <% } else if (['eo-security'].includes(primaryBuyingSituation)) { %>
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p purpose="quote-text">
+              Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+            </p>
+            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+              <div purpose="profile-picture">
+                <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
+              </div>
+              <div class="d-flex flex-column align-self-top">
+                <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
+                <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
+              </div>
+            </div>
+          </div>
+        <% } else if (['vm'].includes(primaryBuyingSituation)) { %>
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p purpose="quote-text">
+              The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+            </p>
+            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+              <div purpose="profile-picture">
+                <img alt="Andre Shields" src="/images/testimonial-author-andre-shields-48x48@2x.png">
+              </div>
+              <div class="d-flex flex-column align-self-top">
+                <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
+                <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
+              </div>
+            </div>
+          </div>
+        <% } %>
+        <div purpose="logos" class="flex-column flex-wrap align-items-center w-100">
+          <logo-carousel></logo-carousel>
         </div>
-      </ajax-form>
-      <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
+      </div>
     </div>
   </div>
 </div>

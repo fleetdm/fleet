@@ -127,6 +127,37 @@ func IsEnrolledInMDM() (bool, string, error) {
 	return true, enrollmentURL, nil
 }
 
+func IsManuallyEnrolledInMDM() (bool, error) {
+	out, err := getMDMInfoFromProfilesCmd()
+	if err != nil {
+		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
+	}
+
+	// The output of the command is in the form:
+	//
+	// ```
+	// Enrolled via DEP: No
+	// MDM enrollment: Yes (User Approved)
+	// MDM server: https://test.example.com/mdm/apple/mdm
+	// ```
+	//
+	// If the host is not enrolled into an MDM, the last line is ommitted,
+	// so we need to check that:
+	//
+	// 1. We've got three rows
+	// 2. Whether the first line contains "Yes" or "No"
+	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
+	if len(lines) < 3 {
+		return false, nil
+	}
+
+	if strings.Contains(string(lines[0]), "Yes") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.
 var getMDMInfoFromProfilesCmd = func() ([]byte, error) {
 	cmd := exec.Command("/usr/bin/profiles", "status", "-type", "enrollment")
@@ -247,6 +278,6 @@ func parseEnrollmentProfileValue(line []byte, key string) (string, bool) {
 
 // showEnrollmentProfileCmd is declared as a variable so it can be overwritten by tests.
 var showEnrollmentProfileCmd = func() ([]byte, error) {
-	cmd := exec.Command("/usr/bin/profiles", "show", "-type", "enrollment")
+	cmd := exec.Command("sh", "-c", `launchctl asuser $(id -u $(stat -f "%u" /dev/console)) profiles show -type enrollment`)
 	return cmd.Output()
 }

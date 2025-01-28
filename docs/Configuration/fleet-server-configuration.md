@@ -10,67 +10,16 @@ You can specify configuration options in the following formats:
 2. Environment variables
 3. Command-line flags
 
-All duration-based settings accept valid time units of `s`, `m`, `h`.
+- All duration-based settings accept valid time units of `s`, `m`, `h`.
+- Command-line flags can also be piped in via stdin.
 
-## YAML file
-
-```sh
-echo '
-
-mysql:
-  address: 127.0.0.1:3306
-  database: fleet
-  username: root
-  password: toor
-redis:
-  address: 127.0.0.1:6379
-server:
-  cert: /tmp/server.cert
-  key: /tmp/server.key
-logging:
-  json: true
-' > /tmp/fleet.yml
-fleet serve --config /tmp/fleet.yml
-```
-
-## Environment variables
-
-```sh
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-## Command-line flags
-
-```sh
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-
-## Configuration options
-
-#### MySQL
+## MySQL
 
 This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
-##### mysql_address
+### mysql_address
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
@@ -82,7 +31,7 @@ For the address of the MySQL server that Fleet should connect to, include the ho
     address: localhost:3306
   ```
 
-##### mysql_database
+### mysql_database
 
 This is the name of the MySQL database which Fleet will use.
 
@@ -94,7 +43,7 @@ This is the name of the MySQL database which Fleet will use.
     database: fleet
   ```
 
-##### mysql_username
+### mysql_username
 
 The username to use when connecting to the MySQL instance.
 
@@ -106,7 +55,7 @@ The username to use when connecting to the MySQL instance.
     username: fleet
   ```
 
-##### mysql_password
+### mysql_password
 
 The password to use when connecting to the MySQL instance.
 
@@ -118,7 +67,7 @@ The password to use when connecting to the MySQL instance.
     password: fleet
   ```
 
-##### mysql_password_path
+### mysql_password_path
 
 File path to a file that contains the password to use when connecting to the MySQL instance.
 
@@ -130,7 +79,7 @@ File path to a file that contains the password to use when connecting to the MyS
     password_path: '/run/secrets/fleetdm-mysql-password'
   ```
 
-##### mysql_tls_ca
+### mysql_tls_ca
 
 The path to a PEM encoded certificate of MYSQL's CA for client certificate authentication.
 
@@ -142,7 +91,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
     tls_ca: /path/to/server-ca.pem
   ```
 
-##### mysql_tls_cert
+### mysql_tls_cert
 
 The path to a PEM encoded certificate is used for TLS authentication.
 
@@ -154,7 +103,7 @@ The path to a PEM encoded certificate is used for TLS authentication.
     tls_cert: /path/to/certificate.pem
   ```
 
-##### mysql_tls_key
+### mysql_tls_key
 
 The path to a PEM encoded private key used for TLS authentication.
 
@@ -166,7 +115,7 @@ The path to a PEM encoded private key used for TLS authentication.
     tls_key: /path/to/key.pem
   ```
 
-##### mysql_tls_config
+### mysql_tls_config
 
 The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
 
@@ -178,7 +127,7 @@ The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN va
     tls_config: true
   ```
 
-##### mysql_tls_server_name
+### mysql_tls_server_name
 
 This is the server name or IP address used by the client certificate.
 
@@ -190,7 +139,7 @@ This is the server name or IP address used by the client certificate.
     server_name: 127.0.0.1
   ```
 
-##### mysql_max_open_conns
+### mysql_max_open_conns
 
 The maximum open connections to the database.
 
@@ -203,14 +152,14 @@ The maximum open connections to the database.
   ```
 
 - Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
-may need to be adjusted for large deployments. This setting should be greater than or equal to:
+  may need to be adjusted for large deployments. This setting should be greater than or equal to:
 ```
 FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
 ```
 
 > Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
 
-##### mysql_max_idle_conns
+### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
 
@@ -222,7 +171,7 @@ The maximum idle connections to the database. This value should be equal to or l
     max_idle_conns: 50
   ```
 
-##### mysql_conn_max_lifetime
+### mysql_conn_max_lifetime
 
 The maximum amount of time, in seconds, a connection may be reused.
 
@@ -234,9 +183,9 @@ The maximum amount of time, in seconds, a connection may be reused.
     conn_max_lifetime: 50
   ```
 
-##### mysql_sql_mode
+### mysql_sql_mode
 
-Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html) for more details.
 This setting should not usually be used.
 
 - Default value: `""`
@@ -247,19 +196,7 @@ This setting should not usually be used.
     sql_mode: ANSI
   ```
 
-##### Example YAML
-
-```yaml
-mysql:
-  address: localhost:3306
-  database: fleet
-  password: fleet
-  max_open_conns: 50
-  max_idle_conns: 50
-  conn_max_lifetime: 50
-```
-
-#### Redis
+## Redis
 
 Note that to test a TLS connection to a Redis instance, run the
 `tlsconnect` Go program in `tools/redis-tests`, e.g., from the root of the repository:
@@ -272,7 +209,7 @@ $ go run ./tools/redis-tests/tlsconnect.go -addr <redis_address> -cacert <redis_
 By default, this will set up a Redis pool for that configuration and execute a
 `PING` command with a TLS connection, printing any error it encounters.
 
-##### redis_address
+### redis_address
 
 For the address of the Redis server that Fleet should connect to, include the hostname and port.
 
@@ -284,7 +221,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
     address: 127.0.0.1:7369
   ```
 
-##### redis_username
+### redis_username
 
 The username to use when connecting to the Redis instance.
 
@@ -296,7 +233,7 @@ The username to use when connecting to the Redis instance.
     username: foobar
   ```
 
-##### redis_password
+### redis_password
 
 The password to use when connecting to the Redis instance.
 
@@ -308,7 +245,7 @@ The password to use when connecting to the Redis instance.
     password: foobar
   ```
 
-##### redis_database
+### redis_database
 
 The database to use when connecting to the Redis instance.
 
@@ -320,7 +257,7 @@ The database to use when connecting to the Redis instance.
     database: 14
   ```
 
-##### redis_use_tls
+### redis_use_tls
 
 Use a TLS connection to the Redis server.
 
@@ -332,7 +269,7 @@ Use a TLS connection to the Redis server.
     use_tls: true
   ```
 
-##### redis_duplicate_results
+### redis_duplicate_results
 
 Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
 
@@ -344,7 +281,7 @@ Whether or not to duplicate Live Query results to another Redis channel named `L
     duplicate_results: true
   ```
 
-##### redis_connect_timeout
+### redis_connect_timeout
 
 Timeout for redis connection.
 
@@ -356,7 +293,7 @@ Timeout for redis connection.
     connect_timeout: 10s
   ```
 
-##### redis_keep_alive
+### redis_keep_alive
 
 The interval between keep-alive probes.
 
@@ -368,7 +305,7 @@ The interval between keep-alive probes.
     keep_alive: 30s
   ```
 
-##### redis_connect_retry_attempts
+### redis_connect_retry_attempts
 
 The maximum number of attempts to retry a failed connection to a Redis node. Only
 certain types of errors are retried, such as connection timeouts.
@@ -381,7 +318,7 @@ certain types of errors are retried, such as connection timeouts.
     connect_retry_attempts: 2
   ```
 
-##### redis_cluster_follow_redirections
+### redis_cluster_follow_redirections
 
 Whether or not to automatically follow redirection errors received from the
 Redis server. Applies only to Redis Cluster setups, ignored in standalone
@@ -398,7 +335,7 @@ handled transparently instead of ending in an error.
     cluster_follow_redirections: true
   ```
 
-##### redis_cluster_read_from_replica
+### redis_cluster_read_from_replica
 
 Whether or not to prefer reading from a replica when possible. Applies only
 to Redis Cluster setups, ignored in standalone Redis.
@@ -411,7 +348,7 @@ to Redis Cluster setups, ignored in standalone Redis.
     cluster_read_from_replica: true
   ```
 
-##### redis_tls_cert
+### redis_tls_cert
 
 This is the path to a PEM-encoded certificate used for TLS authentication.
 
@@ -423,7 +360,7 @@ This is the path to a PEM-encoded certificate used for TLS authentication.
     tls_cert: /path/to/certificate.pem
   ```
 
-##### redis_tls_key
+### redis_tls_key
 
 This is the path to a PEM-encoded private key used for TLS authentication.
 
@@ -435,7 +372,7 @@ This is the path to a PEM-encoded private key used for TLS authentication.
     tls_key: /path/to/key.pem
   ```
 
-##### redis_tls_ca
+### redis_tls_ca
 
 This is the path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
 
@@ -447,7 +384,7 @@ This is the path to a PEM-encoded certificate of Redis' CA for client certificat
     tls_ca: /path/to/server-ca.pem
   ```
 
-##### redis_tls_server_name
+### redis_tls_server_name
 
 The server name or IP address used by the client certificate.
 
@@ -459,7 +396,7 @@ The server name or IP address used by the client certificate.
     tls_server_name: 127.0.0.1
   ```
 
-##### redis_tls_handshake_timeout
+### redis_tls_handshake_timeout
 
 The timeout for the Redis TLS handshake part of the connection. A value of 0 means no timeout.
 
@@ -471,7 +408,7 @@ The timeout for the Redis TLS handshake part of the connection. A value of 0 mea
     tls_handshake_timeout: 10s
   ```
 
-##### redis_max_idle_conns
+### redis_max_idle_conns
 
 The maximum idle connections to Redis. This value should be equal to or less than `redis_max_open_conns`.
 
@@ -483,7 +420,7 @@ The maximum idle connections to Redis. This value should be equal to or less tha
     max_idle_conns: 50
   ```
 
-##### redis_max_open_conns
+### redis_max_open_conns
 
 The maximum open connections to Redis. A value of 0 means no limit.
 
@@ -495,7 +432,7 @@ The maximum open connections to Redis. A value of 0 means no limit.
     max_open_conns: 100
   ```
 
-##### redis_conn_max_lifetime
+### redis_conn_max_lifetime
 
 The maximum time a Redis connection may be reused. A value of 0 means no limit.
 
@@ -507,7 +444,7 @@ The maximum time a Redis connection may be reused. A value of 0 means no limit.
     conn_max_lifetime: 30m
   ```
 
-##### redis_idle_timeout
+### redis_idle_timeout
 
 The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 
@@ -519,11 +456,10 @@ The maximum time a Redis connection may stay idle. A value of 0 means no limit.
     idle_timeout: 5m
   ```
 
-##### redis_conn_wait_timeout
+### redis_conn_wait_timeout
 
 The maximum time to wait for a Redis connection if the max_open_conns
-limit is reached. A value of 0 means no wait. This is ignored if Redis is not
-running in cluster mode.
+limit is reached. A value of 0 means no wait.
 
 - Default value: 0
 - Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
@@ -533,7 +469,7 @@ running in cluster mode.
     conn_wait_timeout: 1s
   ```
 
-##### redis_read_timeout
+### redis_read_timeout
 
 The maximum time to wait to receive a response from a Redis server.
 A value of 0 means no timeout.
@@ -546,7 +482,7 @@ A value of 0 means no timeout.
     read_timeout: 5s
   ```
 
-##### redis_write_timeout
+### redis_write_timeout
 
 The maximum time to wait to send a command to a Redis server.
 A value of 0 means no timeout.
@@ -559,20 +495,9 @@ A value of 0 means no timeout.
     write_timeout: 5s
   ```
 
-##### Example YAML
+## Server
 
-```yaml
-redis:
-  address: localhost:7369
-  password: foobar
-  database: 14
-  connect_timeout: 10s
-  connect_retry_attempts: 2
-```
-
-### Server
-
-##### server_address
+### server_address
 
 The address to serve the Fleet webserver.
 
@@ -584,7 +509,7 @@ The address to serve the Fleet webserver.
     address: 0.0.0.0:443
   ```
 
-##### server_cert
+### server_cert
 
 The TLS cert to use when terminating TLS.
 
@@ -598,7 +523,7 @@ See [TLS certificate considerations](https://fleetdm.com/docs/deploying/introduc
     cert: /tmp/fleet.crt
   ```
 
-##### server_key
+### server_key
 
 The TLS key to use when terminating TLS.
 
@@ -610,7 +535,7 @@ The TLS key to use when terminating TLS.
     key: /tmp/fleet.key
   ```
 
-##### server_tls
+### server_tls
 
 Whether or not the server should be served over TLS.
 
@@ -622,7 +547,7 @@ Whether or not the server should be served over TLS.
     tls: false
   ```
 
-##### server_tls_compatibility
+### server_tls_compatibility
 
 Configures the TLS settings for compatibility with various user agents. Options are `modern` and `intermediate`. These correspond to the compatibility levels [defined by the Mozilla OpSec team](https://wiki.mozilla.org/index.php?title=Security/Server_Side_TLS&oldid=1229478) (updated July 24, 2020).
 
@@ -634,7 +559,7 @@ Configures the TLS settings for compatibility with various user agents. Options 
     tls_compatibility: intermediate
   ```
 
-##### server_url_prefix
+### server_url_prefix
 
 Sets a URL prefix to use when serving the Fleet API and frontend. Prefixes should be in the form `/apps/fleet` (no trailing slash).
 
@@ -648,7 +573,7 @@ Note that some other configurations may need to be changed when modifying the UR
     url_prefix: /apps/fleet
   ```
 
-##### server_keepalive
+### server_keepalive
 
 Controls the server side http keep alive property.
 
@@ -662,11 +587,11 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
     keepalive: true
   ```
 
-##### server_websockets_allow_unsafe_origin
+### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
-the Origin header may not reflect the client's true origin. In this case, you might need to 
-disable the origin header (by setting this configuration to `true`) 
+the Origin header may not reflect the client's true origin. In this case, you might need to
+disable the origin header (by setting this configuration to `true`)
 check or configure your reverse proxy to forward the correct Origin header.
 
 Setting to true will disable the origin check.
@@ -679,20 +604,23 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
-##### Example YAML
+### server_private_key
 
-```yaml
-server:
-  address: 0.0.0.0:443
-  password: foobar
-  cert: /tmp/fleet.crt
-  key: /tmp/fleet.key
-  invite_token_validity_period: 1d
-```
+This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
-#### Auth
+The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
-##### auth_bcrypt_cost
+- Default value: ""
+- Environment variable: FLEET_SERVER_PRIVATE_KEY
+- Config file format:
+  ```yaml
+  server:
+    private_key: 72414F4A688151F75D032F5CDA095FC4
+  ```
+
+## Auth
+
+### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
 
@@ -704,7 +632,7 @@ The bcrypt cost to use when hashing user passwords.
     bcrypt_cost: 14
   ```
 
-##### auth_salt_key_size
+### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
 
@@ -722,17 +650,9 @@ The key size of the salt which is generated when hashing user passwords.
     salt_key_size: 36
   ```
 
-##### Example YAML
+## App
 
-```yaml
-auth:
-  bcrypt_cost: 14
-  salt_key_size: 36
-```
-
-#### App
-
-##### app_token_key_size
+### app_token_key_size
 
 Size of generated app tokens.
 
@@ -744,7 +664,7 @@ Size of generated app tokens.
     token_key_size: 36
   ```
 
-##### app_invite_token_validity_period
+### app_invite_token_validity_period
 
 How long invite tokens should be valid for.
 
@@ -756,7 +676,7 @@ How long invite tokens should be valid for.
     invite_token_validity_period: 1d
   ```
 
-##### app_enable_scheduled_query_stats
+### app_enable_scheduled_query_stats
 
 Determines whether Fleet collects performance impact statistics for scheduled queries.
 
@@ -770,18 +690,9 @@ If set to `false`, stats are still collected for live queries.
     enable_scheduled_query_stats: true
   ```
 
-##### Example YAML
+## License
 
-```yaml
-app:
-  token_key_size: 36
-  salt_key_size: 36
-  invite_token_validity_period: 1d
-```
-
-#### License
-
-##### license_key
+### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
 
@@ -793,29 +704,9 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
-##### license_enforce_host_limit
+## Session
 
-Whether Fleet should enforce the host limit of the license, if true, attempting to enroll new hosts when the limit is reached will fail.
-
-- Default value: `false`
-- Environment variable: `FLEET_LICENSE_ENFORCE_HOST_LIMIT`
-- Config file format:
-  ```yaml
-  license:
-    enforce_host_limit: true
-  ```
-
-##### Example YAML
-
-```yaml
-license:
-  key: foobar
-  enforce_host_limit: false
-```
-
-#### Session
-
-##### session_key_size
+### session_key_size
 
 The size of the session key.
 
@@ -827,7 +718,7 @@ The size of the session key.
     key_size: 48
   ```
 
-##### session_duration
+### session_duration
 
 This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration.
 
@@ -841,16 +732,9 @@ Valid time units are `s`, `m`, `h`.
     duration: 4h
   ```
 
-##### Example YAML
+## Osquery
 
-```yaml
-session:
-  duration: 4h
-```
-
-#### Osquery
-
-##### osquery_node_key_size
+### osquery_node_key_size
 
 The size of the node key which is negotiated with `osqueryd` clients.
 
@@ -862,7 +746,7 @@ The size of the node key which is negotiated with `osqueryd` clients.
     node_key_size: 36
   ```
 
-##### osquery_host_identifier
+### osquery_host_identifier
 
 The identifier to use when determining uniqueness of hosts.
 
@@ -872,7 +756,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
-> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -882,7 +766,7 @@ Users that have duplicate UUIDs in their environment can benefit from setting th
     host_identifier: uuid
   ```
 
-##### osquery_enroll_cooldown
+### osquery_enroll_cooldown
 
 The cooldown period for host enrollment. If a host (uniquely identified by the `osquery_host_identifier` option) tries to enroll within this duration from the last enrollment, enroll will fail.
 
@@ -896,9 +780,9 @@ This flag can be used to control load on the database in scenarios in which many
     enroll_cooldown: 1m
   ```
 
-##### osquery_label_update_interval
+### osquery_label_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for label queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for label queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -914,9 +798,9 @@ Valid time units are `s`, `m`, `h`.
     label_update_interval: 90m
   ```
 
-##### osquery_policy_update_interval
+### osquery_policy_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for policy queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for policy queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -932,9 +816,9 @@ Valid time units are `s`, `m`, `h`.
     policy_update_interval: 90m
   ```
 
-##### osquery_detail_update_interval
+### osquery_detail_update_interval
 
-The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
+The interval at which Fleet will ask Fleet's agent (fleetd) to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -950,7 +834,7 @@ Valid time units are `s`, `m`, `h`.
     detail_update_interval: 90m
   ```
 
-##### osquery_status_log_plugin
+### osquery_status_log_plugin
 
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
@@ -965,7 +849,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
     status_log_plugin: firehose
   ```
 
-##### osquery_result_log_plugin
+### osquery_result_log_plugin
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
@@ -979,7 +863,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
     result_log_plugin: firehose
   ```
 
-##### osquery_max_jitter_percent
+### osquery_max_jitter_percent
 
 Given an update interval (label, or details), this will add up to the defined percentage in randomness to the interval.
 
@@ -996,7 +880,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
     max_jitter_percent: 10
   ```
 
-##### osquery_enable_async_host_processing
+### osquery_enable_async_host_processing
 
 **Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
@@ -1017,9 +901,9 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
- > Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+> Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
 
-##### osquery_async_host_collect_interval
+### osquery_async_host_collect_interval
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
 
@@ -1033,7 +917,7 @@ It can be set to a single duration value (e.g., "30s"), which defines the interv
     async_host_collect_interval: 1m
   ```
 
-##### osquery_async_host_collect_max_jitter_percent
+### osquery_async_host_collect_max_jitter_percent
 
 Applies only when `osquery_enable_async_host_processing` is enabled. A number interpreted as a percentage of `osquery_async_host_collect_interval` to add to (or remove from) the interval so that not all hosts try to do the collection at the same time.
 
@@ -1045,7 +929,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
     async_host_collect_max_jitter_percent: 5
   ```
 
-##### osquery_async_host_collect_lock_timeout
+### osquery_async_host_collect_lock_timeout
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
 
@@ -1059,7 +943,7 @@ It can be set to a single duration value (e.g., "1m"), which defines the lock ti
     async_host_collect_lock_timeout: 5m
   ```
 
-##### osquery_async_host_collect_log_stats_interval
+### osquery_async_host_collect_log_stats_interval
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Interval at which the host collection statistics are logged, 0 to disable logging of statistics. Note that logging is done at the "debug" level.
 
@@ -1071,7 +955,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Interval at
     async_host_collect_log_stats_interval: 5m
   ```
 
-##### osquery_async_host_insert_batch
+### osquery_async_host_insert_batch
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Size of the INSERT batch when collecting host data into the database.
 
@@ -1083,7 +967,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
     async_host_insert_batch: 1000
   ```
 
-##### osquery_async_host_delete_batch
+### osquery_async_host_delete_batch
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Size of the DELETE batch when collecting host data into the database.
 
@@ -1095,7 +979,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
     async_host_delete_batch: 1000
   ```
 
-##### osquery_async_host_update_batch
+### osquery_async_host_update_batch
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Size of the UPDATE batch when collecting host data into the database.
 
@@ -1107,7 +991,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Size of the
     async_host_update_batch: 500
   ```
 
-##### osquery_async_host_redis_pop_count
+### osquery_async_host_redis_pop_count
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Maximum number of items to pop from a redis key at a time when collecting host data into the database.
 
@@ -1119,7 +1003,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Maximum num
     async_host_redis_pop_count: 500
   ```
 
-##### osquery_async_host_redis_scan_keys_count
+### osquery_async_host_redis_scan_keys_count
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g., 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
 
@@ -1131,7 +1015,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
     async_host_redis_scan_keys_count: 100
   ```
 
-##### osquery_min_software_last_opened_at_diff
+### osquery_min_software_last_opened_at_diff
 
 The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
 
@@ -1143,23 +1027,13 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
-##### Example YAML
+## External activity audit logging
 
-```yaml
-osquery:
-  host_identifier: uuid
-  policy_update_interval: 30m
-  duration: 4h
-  status_log_plugin: firehose
-  result_log_plugin: firehose
-```
-#### External Activity Audit Logging
-
-> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
-##### activity_enable_audit_log
+### activity_enable_audit_log
 
 This enables/disables the log output for audit events.
 See the `activity_audit_log_plugin` option below that specifies the logging destination.
@@ -1172,7 +1046,7 @@ See the `activity_audit_log_plugin` option below that specifies the logging dest
     enable_audit_log: true
   ```
 
-##### activity_audit_log_plugin
+### activity_audit_log_plugin
 
 This is the log output plugin that should be used for audit logs.
 This flag only has effect if `activity_enable_audit_log` is set to `true`.
@@ -1189,9 +1063,9 @@ Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#k
     audit_log_plugin: firehose
   ```
 
-#### Logging (Fleet server logging)
+## Logging (Fleet server logging)
 
-##### logging_debug
+### logging_debug
 
 Whether or not to enable debug logging.
 
@@ -1203,7 +1077,7 @@ Whether or not to enable debug logging.
     debug: true
   ```
 
-##### logging_json
+### logging_json
 
 Whether or not to log in JSON.
 
@@ -1215,7 +1089,7 @@ Whether or not to log in JSON.
     json: true
   ```
 
-##### logging_disable_banner
+### logging_disable_banner
 
 Whether or not to log the welcome banner.
 
@@ -1227,7 +1101,7 @@ Whether or not to log the welcome banner.
     disable_banner: true
   ```
 
-##### logging_error_retention_period
+### logging_error_retention_period
 
 The amount of time to keep an error. Unique instances of errors are stored temporarily to help
 with troubleshooting, this setting controls that duration. Set to 0 to keep them without expiration,
@@ -1241,17 +1115,9 @@ and a negative value to disable storage of errors in Redis.
     error_retention_period: 1h
   ```
 
-##### Example YAML
+## Filesystem
 
-```yaml
-logging:
-  disable_banner: true
-  policy_update_interval: 30m
-  error_retention_period: 1h
-```
-#### Filesystem
-
-##### filesystem_status_log_file
+### filesystem_status_log_file
 
 This flag only has effect if `osquery_status_log_plugin` is set to `filesystem` (the default value).
 
@@ -1265,7 +1131,7 @@ The path which osquery status logs will be logged to.
     status_log_file: /var/log/osquery/status.log
   ```
 
-##### filesystem_result_log_file
+### filesystem_result_log_file
 
 This flag only has effect if `osquery_result_log_plugin` is set to `filesystem` (the default value).
 
@@ -1279,7 +1145,7 @@ The path which osquery result logs will be logged to.
     result_log_file: /var/log/osquery/result.log
   ```
 
-##### filesystem_audit_log_file
+### filesystem_audit_log_file
 
 This flag only has effect if `activity_audit_log_plugin` is set to `filesystem` (the default value) and if `activity_enable_audit_log` is set to `true`.
 
@@ -1293,7 +1159,7 @@ The path which audit logs will be logged to.
     audit_log_file: /var/log/fleet/audit.log
   ```
 
-##### filesystem_enable_log_rotation
+### filesystem_enable_log_rotation
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
@@ -1310,7 +1176,7 @@ rotated when files reach a size of 500 MB or an age of 28 days.
      enable_log_rotation: true
   ```
 
-##### filesystem_enable_log_compression
+### filesystem_enable_log_compression
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -1324,7 +1190,7 @@ This flag will cause the rotated logs to be compressed with gzip.
      enable_log_compression: true
   ```
 
-##### filesystem_max_size
+### filesystem_max_size
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -1338,7 +1204,7 @@ Sets the maximum size in megabytes of log files before it gets rotated.
      max_size: 100
   ```
 
-##### filesystem_max_age
+### filesystem_max_age
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -1353,7 +1219,7 @@ to zero will retain all logs.
      max_age: 0
   ```
 
-##### filesystem_max_backups
+### filesystem_max_backups
 
 This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
 
@@ -1368,21 +1234,9 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
      max_backups: 0
   ```
 
-##### Example YAML
+## Firehose
 
-```yaml
-osquery:
-  osquery_status_log_plugin: filesystem
-  osquery_result_log_plugin: filesystem
-filesystem:
-  status_log_file: /var/log/osquery/status.log
-  result_log_file: /var/log/osquery/result.log
-  enable_log_rotation: true
-```
-
-#### Firehose
-
-##### firehose_region
+### firehose_region
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
@@ -1398,7 +1252,7 @@ AWS region to use for Firehose connection.
     region: ca-central-1
   ```
 
-##### firehose_access_key_id
+### firehose_access_key_id
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
@@ -1416,7 +1270,7 @@ AWS access key ID to use for Firehose authentication.
     access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### firehose_secret_access_key
+### firehose_secret_access_key
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
@@ -1432,7 +1286,7 @@ AWS secret access key to use for Firehose authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### firehose_sts_assume_role_arn
+### firehose_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
@@ -1448,7 +1302,24 @@ AWS STS role ARN to use for Firehose authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
 
-##### firehose_status_stream
+### firehose_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Firehose authentication. This is typically used in 
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  firehose:
+    sts_external_id: your_unique_id
+  ```
+
+### firehose_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
 
@@ -1468,7 +1339,7 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
-##### firehose_result_stream
+### firehose_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `firehose`.
 
@@ -1488,7 +1359,7 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
-##### firehose_audit_stream
+### firehose_audit_stream
 
 This flag only has effect if `activity_audit_log_plugin` is set to `firehose`.
 
@@ -1508,25 +1379,9 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
+## Kinesis
 
-##### Example YAML
-
-```yaml
-osquery:
-  osquery_status_log_plugin: firehose
-  osquery_result_log_plugin: firehose
-firehose:
-  region: ca-central-1
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_stream: osquery_status
-  result_stream: osquery_result
-```
-
-#### Kinesis
-
-##### kinesis_region
+### kinesis_region
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
@@ -1542,7 +1397,7 @@ AWS region to use for Kinesis connection
     region: ca-central-1
   ```
 
-##### kinesis_access_key_id
+### kinesis_access_key_id
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
@@ -1563,7 +1418,7 @@ AWS access key ID to use for Kinesis authentication.
     access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### kinesis_secret_access_key
+### kinesis_secret_access_key
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
@@ -1579,7 +1434,7 @@ AWS secret access key to use for Kinesis authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### kinesis_sts_assume_role_arn
+### kinesis_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
@@ -1595,7 +1450,24 @@ AWS STS role ARN to use for Kinesis authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
-##### kinesis_status_stream
+### kinesis_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Kinesis authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  kinesis:
+    sts_external_id: your_unique_id
+  ```
+
+### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
 
@@ -1615,7 +1487,7 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-##### kinesis_result_stream
+### kinesis_result_stream
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kinesis`.
 
@@ -1635,7 +1507,7 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-##### kinesis_audit_stream
+### kinesis_audit_stream
 
 This flag only has effect if `activity_audit_log_plugin` is set to `kinesis`.
 
@@ -1655,24 +1527,9 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
-##### Example YAML
+## Lambda
 
-```yaml
-osquery:
-  osquery_status_log_plugin: kinesis
-  osquery_result_log_plugin: kinesis
-kinesis:
-  region: ca-central-1
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_stream: osquery_status
-  result_stream: osquery_result
-```
-
-#### Lambda
-
-##### lambda_region
+### lambda_region
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
@@ -1688,7 +1545,7 @@ AWS region to use for Lambda connection.
     region: ca-central-1
   ```
 
-##### lambda_access_key_id
+### lambda_access_key_id
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
@@ -1709,7 +1566,7 @@ AWS access key ID to use for Lambda authentication.
     access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### lambda_secret_access_key
+### lambda_secret_access_key
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
@@ -1725,7 +1582,7 @@ AWS secret access key to use for Lambda authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### lambda_sts_assume_role_arn
+### lambda_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
@@ -1741,7 +1598,24 @@ AWS STS role ARN to use for Lambda authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
   ```
 
-##### lambda_status_function
+### lambda_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Lambda authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  lambda:
+    sts_external_id: your_unique_id
+  ```
+
+### lambda_status_function
 
 This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
 
@@ -1760,7 +1634,7 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-##### lambda_result_function
+### lambda_result_function
 
 This flag only has effect if `osquery_result_log_plugin` is set to `lambda`.
 
@@ -1779,7 +1653,7 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-##### lambda_audit_function
+### lambda_audit_function
 
 This flag only has effect if `activity_audit_log_plugin` is set to `lambda`.
 
@@ -1798,24 +1672,9 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
-##### Example YAML
+## PubSub
 
-```yaml
-osquery:
-  osquery_status_log_plugin: lambda
-  osquery_result_log_plugin: lambda
-lambda:
-  region: ca-central-1
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_function: statusFunction
-  result_function: resultFunction
-```
-
-#### PubSub
-
-##### pubsub_project
+### pubsub_project
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `pubsub`.
@@ -1835,7 +1694,7 @@ for authentication with the service.
     project: my-gcp-project
   ```
 
-##### pubsub_result_topic
+### pubsub_result_topic
 
 This flag only has effect if `osquery_result_log_plugin` is set to `pubsub`.
 
@@ -1849,7 +1708,7 @@ The identifier of the pubsub topic that client results will be published to.
     result_topic: osquery_result
   ```
 
-##### pubsub_status_topic
+### pubsub_status_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1863,7 +1722,7 @@ The identifier of the pubsub topic that osquery status logs will be published to
     status_topic: osquery_status
   ```
 
-##### pubsub_audit_topic
+### pubsub_audit_topic
 
 This flag only has effect if `osquery_audit_log_plugin` is set to `pubsub`.
 
@@ -1877,7 +1736,7 @@ The identifier of the pubsub topic that client results will be published to.
     audit_topic: fleet_audit
   ```
 
-##### pubsub_add_attributes
+### pubsub_add_attributes
 
 This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
 
@@ -1898,24 +1757,9 @@ This feature is useful when combined with [subscription filters](https://cloud.g
     add_attributes: true
   ```
 
-##### Example YAML
+## Kafka REST Proxy logging
 
-```yaml
-osquery:
-  osquery_status_log_plugin: pubsub
-  osquery_result_log_plugin: pubsub
-pubsub:
-  project: my-gcp-project
-  result_topic: osquery_result
-  status_topic: osquery_status
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_function: statusFunction
-  result_function: resultFunction
-```
-
-#### Kafka REST Proxy logging
-
-##### kafkarest_proxyhost
+### kafkarest_proxyhost
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
@@ -1931,7 +1775,7 @@ The URL of the host which to check for the topic existence and post messages to 
     proxyhost: "https://localhost:8443"
   ```
 
-##### kafkarest_status_topic
+### kafkarest_status_topic
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
 
@@ -1945,7 +1789,7 @@ The identifier of the kafka topic that osquery status logs will be published to.
     status_topic: osquery_status
   ```
 
-##### kafkarest_result_topic
+### kafkarest_result_topic
 
 This flag only has effect if `osquery_result_log_plugin` is set to `kafkarest`.
 
@@ -1959,7 +1803,7 @@ The identifier of the kafka topic that osquery result logs will be published to.
     result_topic: osquery_result
   ```
 
-##### kafkarest_audit_topic
+### kafkarest_audit_topic
 
 This flag only has effect if `osquery_audit_log_plugin` is set to `kafkarest`.
 
@@ -1973,7 +1817,7 @@ The identifier of the kafka topic that audit logs will be published to.
     audit_topic: fleet_audit
   ```
 
-##### kafkarest_timeout
+### kafkarest_timeout
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
@@ -1989,7 +1833,7 @@ The timeout value for the http post attempt. Value is in units of seconds.
     timeout: 5
   ```
 
-##### kafkarest_content_type_value
+### kafkarest_content_type_value
 
 This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
@@ -2006,25 +1850,16 @@ can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.ht
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
-##### Example YAML
-
-```yaml
-osquery:
-  osquery_status_log_plugin: kafkarest
-  osquery_result_log_plugin: kafkarest
-kafkarest:
-  proxyhost: "https://localhost:8443"
-  result_topic: osquery_result
-  status_topic: osquery_status
-```
-
-#### Email backend
+## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
 SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
 configure Fleet to use AWS SES natively rather than through SMTP.
 
-##### backend
+A configured email backend is required for sending user invites, resetting passwords, verifying user email address changes,
+and multi-factor authentication within Fleet (without using an SSO identity provider).
+
+### backend
 
 Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
 
@@ -2033,11 +1868,11 @@ email:
   backend: ses
 ````
 
-#### SES
+## SES
 
 The following configurations only have an effect if SES email backend is enabled `FLEET_EMAIL_BACKEND=ses`.
 
-##### ses_region
+### ses_region
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
@@ -2051,7 +1886,7 @@ AWS region to use for SES connection.
     region: us-east-2
   ```
 
-##### ses_access_key_id
+### ses_access_key_id
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
@@ -2070,7 +1905,7 @@ AWS access key ID to use for Lambda authentication.
     access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### ses_secret_access_key
+### ses_secret_access_key
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
@@ -2089,7 +1924,7 @@ AWS secret access key to use for SES authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### ses_sts_assume_role_arn
+### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
@@ -2103,7 +1938,23 @@ AWS STS role ARN to use for SES authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
-##### ses_source_arn
+### ses_sts_external_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS External ID to use for SES authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  ses:
+    sts_external_id: your_unique_id
+  ```
+
+### ses_source_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
 required** when using the SES email backend.
@@ -2119,35 +1970,33 @@ for the email address specified in the Source parameter of SendRawEmail.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
-#### S3 file carving backend
+## S3
 
-##### s3_bucket
+### s3_software_installers_bucket
 
-Name of the S3 bucket to use to store file carves.
+Name of the S3 bucket for storing software and bootstrap package.
 
 - Default value: none
-- Environment variable: `FLEET_S3_BUCKET`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-carve-bucket
+    software_installers_bucket: some-bucket
   ```
 
-##### s3_prefix
+### s3_software_installers_prefix
 
-Prefix to prepend to carve objects.
-
-All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+Prefix to prepend to software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_PREFIX`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_PREFIX`
 - Config file format:
   ```yaml
   s3:
-    prefix: carves-go-here/
+    software_installers_prefix: prefix-here/
   ```
 
-##### s3_access_key_id
+### s3_software_installers_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2157,63 +2006,64 @@ If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to 
 The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### s3_secret_access_key
+### s3_software_installers_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### s3_sts_assume_role_arn
+### s3_software_installers_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
 - Config file format:
   ```yaml
   s3:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### s3_endpoint_url
+### s3_software_installers_sts_external_id
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
-or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   s3:
-    endpoint_url: http://localhost:9000
+   software_installers_sts_external_id: your_unique_id
   ```
 
-##### s3_disable_ssl
+### s3_software_installers_endpoint_url
 
-AWS S3 Disable SSL. Useful for local testing.
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
-- Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    disable_ssl: false
+    software_installers_endpoint_url: http://localhost:9000
   ```
 
-##### s3_force_s3_path_style
+### s3_software_installers_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2223,42 +2073,124 @@ will use virtual hosted bucket addressing when possible
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
-- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
 - Config file format:
   ```yaml
   s3:
-    force_s3_path_style: false
+    software_installers_force_s3_path_style: false
   ```
 
-##### s3_region
+### s3_software_installers_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
 Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
 
 - Default value:
-- Environment variable: `FLEET_S3_REGION`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
 - Config file format:
   ```yaml
   s3:
-    region: us-east-1
+    software_installers_region: us-east-1
   ```
 
-##### Example YAML
+### s3_carves_bucket
 
-```yaml
-s3:
-  bucket: some-carve-bucket
-  prefix: carves-go-here/
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  region: us-east-1
-```
+Name of the S3 bucket for file carves.
 
-#### Upgrades
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_BUCKET`
+- Config file format:
+  ```yaml
+  s3:
+     carves_bucket: some-bucket
+  ```
 
-##### allow_missing_migrations
+### s3_carves_prefix
+
+All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_PREFIX`
+- Config file format:
+  ```yaml
+  s3:
+     carves_prefix: prefix-here/
+  ```
+
+### s3_carves_access_key_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ACCESS_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+### s3_carves_secret_access_key
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+### s3_carves_sts_assume_role_arn
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+### s3_carves_sts_external_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_external_id: your_unique_id
+  ```
+
+### s3_carves_endpoint_url
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
+- Config file format:
+  ```yaml
+  s3:
+     carves_endpoint_url: http://localhost:9000
+  ```
+
+### s3_carves_force_s3_path_style
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```yaml
+  s3:
+     carves_force_s3_path_style: false
+  ```
+
+### s3_carves_region
+
+- Default value:
+- Environment variable: `FLEET_S3_CARVES_REGION`
+- Config file format:
+  ```yaml
+  s3:
+    carves_region: us-east-1
+  ```
+
+## Upgrades
+
+### allow_missing_migrations
 
 If set then `fleet serve` will run even if there are database migrations missing.
 
@@ -2270,13 +2202,13 @@ If set then `fleet serve` will run even if there are database migrations missing
     allow_missing_migrations: true
   ```
 
-#### Vulnerabilities
+## Vulnerabilities
 
-##### databases_path
+### databases_path
 
 The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
-When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+When `disable_schedule` is set to `false` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
 - Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
@@ -2286,7 +2218,7 @@ When `current_instance_checks` is set to `auto` (the default), Fleet instances w
     databases_path: /some/path
   ```
 
-##### periodicity
+### periodicity
 
 How often vulnerabilities are checked. This is also the interval at which the counts of hosts per software is calculated.
 
@@ -2298,7 +2230,7 @@ How often vulnerabilities are checked. This is also the interval at which the co
     periodicity: 1h
   ```
 
-##### cpe_database_url
+### cpe_database_url
 
 You can fetch the CPE dictionary database from this URL. Some users want to control where Fleet gets its database.
 When Fleet sees this value defined, it downloads the file directly.
@@ -2313,7 +2245,7 @@ If this value is not defined, Fleet checks for the latest release in Github and 
     cpe_database_url: ""
   ```
 
-##### cpe_translations_url
+### cpe_translations_url
 
 You can fetch the CPE translations from this URL.
 Translations are used when matching software to CPE entries in the CPE database that would otherwise be missed for various reasons.
@@ -2329,7 +2261,7 @@ If this value is not defined, Fleet checks for the latest release in Github and 
     cpe_translations_url: ""
   ```
 
-##### cve_feed_prefix_url
+### cve_feed_prefix_url
 
 Like the CPE dictionary, we allow users to define where to get the legacy CVE feeds from.
 In this case, the URL should be a host that serves the files in the legacy feed format.
@@ -2346,21 +2278,11 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
-##### current_instance_checks
+### disable_schedule
 
-When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
 
-- Default value: `auto`
-- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
-- Config file format:
-  ```yaml
-  vulnerabilities:
-    current_instance_checks: yes
-  ```
-
-##### disable_schedule
-
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+Similarly, to externally manage running vulnerability processing, set the value to `true` for all Fleet instances and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`
@@ -2371,7 +2293,7 @@ tools like crontab.
     disable_schedule: false
   ```
 
-##### disable_data_sync
+### disable_data_sync
 
 Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
 
@@ -2387,7 +2309,7 @@ To download the data streams, you can use `fleetctl vulnerability-data-stream --
     disable_data_sync: true
   ```
 
-##### recent_vulnerability_max_age
+### recent_vulnerability_max_age
 
 Maximum age of a vulnerability (a CVE) to be considered "recent". The age is calculated based on the published date of the CVE in the [National Vulnerability Database](https://nvd.nist.gov/) (NVD). Recent vulnerabilities play a special role in Fleet's [automations](https://fleetdm.com/docs/using-fleet/automations), as they are reported when discovered on a host if the vulnerabilities webhook or a vulnerability integration is enabled.
 
@@ -2399,7 +2321,7 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
-##### disable_win_os_vulnerabilities
+### disable_win_os_vulnerabilities
 
 If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
 vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
@@ -2413,18 +2335,9 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
     disable_win_os_vulnerabilities: true
   ```
 
-##### Example YAML
+## GeoIP
 
-```yaml
-vulnerabilities:
-  databases_path: /some/path
-  current_instance_checks: yes
-  disable_data_sync: true
-```
-
-#### GeoIP
-
-##### database_path
+### database_path
 
 The path to a valid Maxmind GeoIP database (mmdb). Support exists for the country & city versions of the database. If city database is supplied
 then Fleet will attempt to resolve the location via the city lookup, otherwise it defaults to the country lookup. The IP address used
@@ -2466,9 +2379,9 @@ work devices on them for e.g. oncall responsibilities.
     database_path: /some/path/to/geolite2.mmdb
   ```
 
-#### Sentry
+## Sentry
 
-##### DSN
+### DSN
 
 If set, then `Fleet serve` will capture errors and panics and push them to Sentry.
 
@@ -2480,16 +2393,15 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
     dsn: "https://somedsnprovidedby.sentry.com/"
   ```
 
+## Prometheus
 
-#### Prometheus
-
-##### basic_auth.username
+### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.username` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2500,13 +2412,13 @@ If `basic_auth.username` is not set, then:
       username: "foo"
   ```
 
-##### basic_auth.password
+### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.password` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2517,7 +2429,7 @@ If `basic_auth.password` is not set, then:
       password: "bar"
   ```
 
-##### basic_auth.disable
+### basic_auth.disable
 
 This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
 
@@ -2532,7 +2444,9 @@ If both `basic_auth.username` and `basic_auth.password` are set, then this setti
       disable: true
   ```
 
-#### Packaging
+<!-- #### Packaging
+
+Fleet Sandbox no longer exists. Fleet might use this later to enable one-click, downloaded agents (fleetd) (noahtalerman 2024-06-26)
 
 These configurations control how Fleet interacts with the
 packaging server (coming soon).  These features are currently only intended to be used within
@@ -2564,7 +2478,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Fleetd installers.
+This is the name of the S3 bucket to store pre-built Fleet agent (fleetd) installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`
@@ -2633,6 +2547,20 @@ This is the AWS STS role ARN for S3 authentication.
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
+##### packaging_s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  packaging:
+    s3:
+      sts_external_id: your_unique_id
+  ```
+
 ##### packaging_s3_endpoint_url
 
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
@@ -2691,108 +2619,15 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
   packaging:
     s3:
       region: us-east-1
-  ```
-
-##### Example YAML
-
-```yaml
-packaging:
-  s3:
-    bucket: some-bucket
-    prefix: installers-go-here/
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-    region: us-east-1
-```
+  ``` -->
 
 ## Mobile device management (MDM)
 
-> MDM features require some endpoints to be publicly accessible. For more details, see the guide, [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet)
+> The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-This section is a reference for the configuration required to turn on MDM features in production.
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
-If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
-
-##### mdm.apple_apns_cert_bytes
-
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_apns_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-##### mdm.apple_apns_key_bytes
-
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_apns_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
-##### mdm.apple_scep_cert_bytes
-
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
-
-If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](https://fleetdm.com/docs/using-fleet/MDM-migration-guide#how-to-turn-on-disk-encryption).
-
-##### mdm.apple_scep_key_bytes
-
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
-##### mdm.apple_scep_challenge
-
-An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Define a unique, static secret 32 characters in length and only include alphanumeric characters.
-
-> SCEP is commonly applied to a number of certificate use cases. Notably, Mobile Device Management (MDM) systems like Microsoft Intune and Apple MDM use SCEP for PKI certificate enrollment.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_challenge: scepchallenge
-  ```
-
-##### mdm.apple_scep_signer_validity_days
+### mdm.apple_scep_signer_validity_days
 
 The number of days the signed SCEP client certificates will be valid.
 
@@ -2804,7 +2639,7 @@ The number of days the signed SCEP client certificates will be valid.
     apple_scep_signer_validity_days: 100
   ```
 
-##### mdm.apple_scep_signer_allow_renewal_days
+### mdm.apple_scep_signer_allow_renewal_days
 
 The number of days allowed to renew SCEP certificates.
 
@@ -2816,52 +2651,7 @@ The number of days allowed to renew SCEP certificates.
     apple_scep_signer_allow_renewal_days: 30
   ```
 
-##### mdm.apple_bm_server_token_bytes
-
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_server_token_bytes: |
-      Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
-      Content-Transfer-Encoding: base64
-      ... rest of content ...
-  ```
-
-##### mdm.apple_bm_cert_bytes
-
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-##### mdm.apple_bm_key_bytes
-
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
-##### mdm.apple_dep_sync_periodicity
+### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
 
@@ -2872,12 +2662,13 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   mdm:
     apple_dep_sync_periodicity: 10m
   ```
-##### mdm.windows_wstep_identity_cert_bytes
+
+### mdm.windows_wstep_identity_cert_bytes
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
-- Config file format: 
+- Config file format:
   ```
   mdm:
    windows_wstep_identity_cert_bytes: |
@@ -2888,12 +2679,12 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 
 If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
 
-##### mdm.windows_wstep_identity_key_bytes
+### mdm.windows_wstep_identity_key_bytes
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
-- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
-- Config file format:  
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES`
+- Config file format:
   ```
   mdm:
     windows_wstep_identity_key_bytes: |
@@ -2901,11 +2692,6 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
   ```
-
-
-## Managing osquery configurations
-
-We recommend that you use an infrastructure configuration management tool to manage these osquery configurations consistently across your environment. If you're unsure about what configuration management tools your organization uses, contact your company's system administrators. If you are evaluating new solutions for this problem, the founders of Fleet have successfully managed configurations in large production environments using [Chef](https://www.chef.io/chef/) and [Puppet](https://puppet.com/).
 
 <h2 id="running-with-systemd">Running with systemd</h2>
 

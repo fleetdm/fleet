@@ -1,69 +1,40 @@
 import React from "react";
-import { uniqueId } from "lodash";
-
-import { ISoftwareTitleVersion } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ReactTooltip from "react-tooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "version-cell";
-
-const generateText = (versions: ISoftwareTitleVersion[]) => {
+const generateText = <T extends { version: string }>(versions: T[] | null) => {
   if (!versions) {
-    return <TextCell value="Unavailable" greyed />;
+    return <TextCell value="---" grey />;
   }
   const text =
     versions.length !== 1 ? `${versions.length} versions` : versions[0].version;
-  return <TextCell value={text} greyed={versions.length !== 1} />;
+  return <TextCell value={text} italic={versions.length !== 1} />;
 };
 
-const generateTooltip = (
-  versions: ISoftwareTitleVersion[],
-  tooltipId: string
-) => {
-  if (!versions) {
-    return null;
-  }
-
-  const versionNames = versions.map((version) => version.version);
-
-  return (
-    <ReactTooltip
-      effect="solid"
-      backgroundColor="#3e4771"
-      id={tooltipId}
-      data-html
-    >
-      <p className={`${baseClass}__versions`}>{versionNames.join(", ")}</p>
-    </ReactTooltip>
-  );
-};
-
-interface IVersionCellProps {
-  versions: ISoftwareTitleVersion[];
+interface IVersionCellProps<T extends { version: string }> {
+  versions: T[] | null;
 }
 
-const VersionCell = ({ versions }: IVersionCellProps) => {
-  const tooltipId = uniqueId();
-
+const VersionCell = <T extends { version: string }>({
+  versions,
+}: IVersionCellProps<T>) => {
   // only one version, no need for tooltip
   const cellText = generateText(versions);
-  if (!versions) {
+  if (!versions || versions.length <= 1) {
     return <>{cellText}</>;
   }
 
-  const versionTooltip = generateTooltip(versions, tooltipId);
   return (
-    <>
-      <div
-        className={`${baseClass}__version-text-with-tooltip`}
-        data-tip
-        data-for={tooltipId}
-      >
-        {cellText}
-      </div>
-      {versionTooltip}
-    </>
+    <TooltipWrapper
+      tipContent={<>{versions.map((version) => version.version).join(", ")}</>}
+      tipOffset={14}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      {cellText}
+    </TooltipWrapper>
   );
 };
 

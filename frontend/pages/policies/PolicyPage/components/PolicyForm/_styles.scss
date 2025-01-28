@@ -15,7 +15,10 @@
     .form-field--input {
       margin: 0;
     }
+  }
 
+  &__wrapper,
+  &__save-modal-form {
     .critical-checkbox-wrapper {
       // override form child width: 100%
       width: auto;
@@ -70,15 +73,23 @@
       .policy-description-wrapper,
       .policy-resolution-wrapper {
         display: flex;
-        align-items: center;
+        align-items: baseline;
+        gap: 0.5rem;
+        width: fit-content;
         &:not(.policy-form--editing) {
-          textarea:hover {
+          &:hover {
             cursor: pointer;
-            color: $core-vibrant-blue;
+            * {
+              color: $core-vibrant-blue;
+              cursor: pointer;
+            }
           }
         }
       }
       .policy-name-wrapper {
+        .no-value {
+          min-width: 112px;
+        }
         .policy-form__policy-name,
         .input-sizer::after {
           font-size: $large;
@@ -89,15 +100,24 @@
         }
       }
       .policy-description-wrapper {
+        .no-value {
+          min-width: 106px;
+        }
         .edit-icon {
           position: relative;
           top: 0;
+        }
+      }
+      .policy-resolution-wrapper {
+        .no-value {
+          min-width: 106px;
         }
       }
       .edit-icon {
         opacity: 1;
         transition: opacity 0.2s;
         margin-left: 0;
+        align-self: initial;
         &.hide {
           opacity: 0;
         }
@@ -146,14 +166,6 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
-    &:hover:not(.focus-visible):not(.no-hover) {
-      color: $core-vibrant-blue;
-      cursor: pointer;
-    }
-    &.focus-visible {
-      outline: 0;
-      cursor: text;
-    }
   }
 
   &__policy-resolution {
@@ -170,6 +182,19 @@
   &__policy-resolution {
     margin-top: 0;
     font-size: $x-small;
+  }
+
+  &__autofill-label {
+    display: flex;
+    justify-content: space-between;
+
+    .autofill-tooltip-wrapper {
+      display: flex; // Required for vertical centering
+    }
+
+    .autofill-button-tooltip {
+      font-weight: $regular;
+    }
   }
 
   &__button-wrap {

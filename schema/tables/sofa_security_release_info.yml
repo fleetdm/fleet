@@ -1,0 +1,47 @@
+name: sofa_security_release_info
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+  
+  - By default this table will return vulnerability data for the running operating system.
+
+  - Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).
+
+description: The information on the security release the device is running from [SOFA](https://sofa.macadmins.io/).
+examples: |-
+  For historical data, use the `os_version` predicate
+  
+  ```
+  SELECT * FROM sofa_security_release_info WHERE os_version="14.4.0"
+  ```
+platforms:
+  - darwin
+evented: false
+columns:
+  - name: update_name
+    description: The name of the release, like "macOS Sonoma 14.4.1"
+    required: false
+    type: text
+  - name: product_version
+    description: The version corresponding to this security release, like "14.4.1"
+    required: false
+    type: text
+  - name: release_date
+    description: The date the release was made available
+    required: false
+    type: text
+  - name: security_info
+    description: The URL to the information for this release
+    required: false
+    type: text
+  - name: unique_cves_count
+    description: The number of unique CVEs addressed in this release
+    required: false
+    type: integer
+  - name: days_since_previous_release
+    description: The number of days since the previous (older) release
+    required: false
+    type: integer
+  - name: os_version
+    description: If not specified, this is the version of the operating system that the device is running
+    required: false
+    type: text

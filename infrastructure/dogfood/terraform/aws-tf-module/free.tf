@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.0"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.9.0"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -25,6 +25,7 @@ module "free" {
   }
   rds_config = {
     name                = local.customer_free
+    engine_version      = "8.0.mysql_aurora.3.07.1"
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
@@ -76,6 +77,7 @@ module "free" {
     }
     extra_iam_policies          = module.ses-free.fleet_extra_iam_policies
     extra_environment_variables = merge(module.ses-free.fleet_extra_environment_variables, local.extra_environment_variables_free, module.geolite2.extra_environment_variables)
+    private_key_secret_name     = "${local.customer_free}-fleet-server-private-key"
   }
   alb_config = {
     name            = local.customer_free
@@ -86,7 +88,7 @@ module "free" {
       prefix  = local.customer_free
       enabled = true
     }
-    idle_timeout = 300
+    idle_timeout = 905
   }
 }
 
@@ -120,12 +122,6 @@ module "ses-free" {
   source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
   zone_id = aws_route53_zone.free.zone_id
   domain  = "free.fleetdm.com"
-}
-
-module "waf-free" {
-  source = "github.com/fleetdm/fleet//terraform/addons/waf-alb?ref=tf-mod-addon-waf-alb-v1.0.0"
-  name   = local.customer_free
-  lb_arn = module.free.byo-db.alb.lb_arn
 }
 
 module "migrations_free" {

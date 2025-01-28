@@ -1,3 +1,5 @@
+version: 2
+
 project_name: fleet
 
 monorepo:
@@ -79,6 +81,9 @@ universal_binaries:
     ids: [fleetctl-macos] # source binaries
     replace: true
     name_template: fleetctl # resulting binary name
+    hooks:
+      post:
+        - sh -c "FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh"
 
 archives:
   - id: fleet
@@ -133,10 +138,10 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ .Tag }}-untagged"
+  version_template: "{{ .Tag }}-untagged"
 
 changelog:
-  skip: true
+  disable: true
 
 release:
   github:

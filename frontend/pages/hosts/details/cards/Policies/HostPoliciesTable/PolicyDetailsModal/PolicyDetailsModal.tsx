@@ -20,6 +20,7 @@ const PolicyDetailsModal = ({
     <Modal
       title={`${policy?.name || "Policy name"}`}
       onExit={onCancel}
+      onEnter={onCancel}
       className={baseClass}
     >
       <div className={`${baseClass}__body`}>

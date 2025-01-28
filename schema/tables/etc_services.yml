@@ -1,10 +1,8 @@
 name: etc_services
-examples: >-
+examples: |-
   Identify the TCP and UDP ports associated to standard services.
 
   ```
-
   SELECT * FROM etc_services WHERE name='ftp';
-
   ```
 

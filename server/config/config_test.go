@@ -60,13 +60,22 @@ func TestConfigRoundtrip(t *testing.T) {
 				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
 					// supports a duration or per-task config
 					key_v.SetString("30s")
+				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
+				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
+					key_v.SetString("")
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
 				}
 			case int:
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:
-				key_v.SetBool(true)
+				switch conf_v.Type().Field(key_index).Name {
+				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
+				case "DisableSSL", "ForceS3PathStyle":
+					key_v.SetBool(false)
+				default:
+					key_v.SetBool(true)
+				}
 			case time.Duration:
 				d := time.Duration(conf_index*100 + key_index)
 				key_v.Set(reflect.ValueOf(d))
@@ -686,3 +695,44 @@ e+Z1cALnWREYhEPv4JrR5U0VvqeIdExDD6Ida61yvd7oc59pn0kpfKjozPJr6FsU
 // prevent static analysis tools from raising issues due to detection of private key
 // in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestValidateCloudfrontURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		url        string
+		publicKey  string
+		privateKey string
+		errMatches string
+	}{
+		{"happy path", "https://example.com", "public", "private", ""},
+		{"bad URL", "bozo!://example.com", "public", "private", "parse"},
+		{"non-HTTPS URL", "http://example.com", "public", "private", "cloudfront url scheme must be https"},
+		{"missing URL", "", "public", "private", "`s3_software_installers_cloudfront_url` must be set"},
+		{"missing public key", "https://example.com", "", "private",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{"missing private key", "https://example.com", "public", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{"missing keys", "https://example.com", "", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersCloudFrontURL:                   c.url,
+				SoftwareInstallersCloudFrontURLSigningPublicKeyID: c.publicKey,
+				SoftwareInstallersCloudFrontURLSigningPrivateKey:  c.privateKey,
+			}
+			initFatal := func(err error, msg string) {
+				if c.errMatches != "" {
+					require.Error(t, err)
+					require.Regexp(t, c.errMatches, err.Error())
+				} else {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+			s3.ValidateCloudFrontURL(initFatal)
+		})
+	}
+}

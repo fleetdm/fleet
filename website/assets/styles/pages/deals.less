@@ -1,0 +1,129 @@
+#deals {
+
+  input, select {
+    height: 48px;
+    border-radius: 6px;
+    &:disabled {
+      color: #8B8FA2;
+      background-color: #F9FAFC;
+    }
+  }
+  label {
+    color: @core-fleet-black;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  h2 {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  a {
+    text-decoration: underline;
+    color: @core-fleet-black-75;
+    &:hover {
+      color: @core-fleet-black-75;
+    }
+  }
+
+  [purpose='page-content'] {
+    max-width: 528px;
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: 48px;
+  }
+  [purpose='page-container'] {
+    padding-left: 64px;
+    padding-right: 64px;
+    padding-top: 64px;
+  }
+
+  [purpose='form-card'] {
+    padding: 32px;
+    margin-top: 48px;
+    border-radius: 16px;
+  }
+  [purpose='form-section'] {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  [purpose='hosting-selector'] {
+    font-size: 16px;
+    color: @core-fleet-black-75;
+    text-select: none;
+    border-radius: 6px;
+  }
+  [purpose='hosting-selector-dropwdown'] {
+    width: 100%;
+    max-width: 462px;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0px;
+    .dropdown-item {
+      display: flex;
+      justify-content: center;
+      border-top: 1px solid @core-vibrant-blue-15;
+      padding: 0px 12px;
+      height: 48px;
+      &:active {
+        color: unset;
+      }
+    }
+  }
+
+  [purpose='submit-button'] {
+    display: flex;
+    // width: 260px;
+    height: 48px;
+    padding: 16px 32px;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: auto;
+    color: #FFF;
+    text-align: center;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 24px;
+  }
+
+  @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding-left: 48px;
+      padding-right: 48px;
+      padding-top: 48px;
+    }
+
+  }
+
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding-left: 32px;
+      padding-right: 32px;
+      padding-top: 32px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    [purpose='page-container'] {
+      padding-left: 24px;
+      padding-right: 24px;
+      padding-top: 32px;
+    }
+    [purpose='hosting-selector-dropwdown'] {
+      width: unset;
+      max-width: unset;
+    }
+  }
+
+}

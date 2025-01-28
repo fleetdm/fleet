@@ -1,5 +1,5 @@
 .label-filter-select {
-  width: 175px;
+  width: 300px;
 
   svg {
     transition: transform 0.25s ease;
@@ -25,6 +25,10 @@
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
+
+    :hover {
+      cursor: pointer;
+    }
 
     &--is-focused,
     &--menu-is-open,
@@ -64,12 +68,12 @@
   }
 
   .label-filter-select__placeholder {
-    width: 75px; // Truncates text for smaller filter width
+    width: 215px; // Any larger runs into indicator
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: 1150px) {
+    @media (max-width: $table-controls-break) {
       width: auto;
     }
   }
@@ -99,18 +103,28 @@
 
   .label-filter-select__option {
     padding: 10px 1rem;
+    border-radius: $border-radius;
 
     &:hover {
       cursor: pointer;
     }
 
-    &--is-selected,
-    &:active {
-      background-color: $ui-vibrant-blue-25;
+    &--is-selected {
+      background-color: transparent;
+
+      .option-label {
+        span {
+          font-weight: $bold;
+        }
+      }
     }
 
     &--is-focused {
       background-color: $ui-vibrant-blue-10;
+
+      &:active {
+        background-color: $ui-vibrant-blue-25;
+      }
     }
 
     &--is-disabled {
@@ -149,12 +163,12 @@
   }
 }
 
-@media (min-width: 1150px) {
+@media (min-width: $table-controls-break) {
   .label-filter-select {
     min-width: 220px;
 
     &__single-value {
-      max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue
+      max-width: 210px !important; // Must override default styling of .css-qc6sy-singleValue
     }
   }
 }

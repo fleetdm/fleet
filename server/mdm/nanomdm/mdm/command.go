@@ -23,11 +23,10 @@ type ErrorChain struct {
 // See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/sending_mdm_commands_to_a_device
 type CommandResults struct {
 	Enrollment
-	CommandUUID string
+	CommandUUID string `plist:",omitempty"`
 	Status      string
-	ErrorChain  []ErrorChain
-	RequestType string
-	Raw         []byte `plist:"-"` // Original command result XML plist
+	ErrorChain  []ErrorChain `plist:",omitempty"`
+	Raw         []byte       `plist:"-"` // Original command result XML plist
 }
 
 // DecodeCheckin unmarshals rawMessage into results
@@ -44,6 +43,13 @@ func DecodeCommandResults(rawResults []byte) (results *CommandResults, err error
 	return
 }
 
+type CommandSubtype string
+
+const (
+	CommandSubtypeNone               CommandSubtype = "None"
+	CommandSubtypeProfileWithSecrets CommandSubtype = "ProfileWithSecrets"
+)
+
 // Command represents a generic MDM command without command-specific fields.
 type Command struct {
 	CommandUUID string
@@ -51,6 +57,11 @@ type Command struct {
 		RequestType string
 	}
 	Raw []byte `plist:"-"` // Original command XML plist
+}
+
+type CommandWithSubtype struct {
+	Command
+	Subtype CommandSubtype
 }
 
 // DecodeCommand unmarshals rawCommand into command

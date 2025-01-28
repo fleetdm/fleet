@@ -1,11 +1,9 @@
 name: suid_bin
-examples: >-
+examples: |-
   Identify unsigned executables with suid privileges.
 
   ```
-
   SELECT s.path, s.username, s.permissions, sig.signed, sig.team_identifier, sig.authority FROM suid_bin s JOIN signature sig on s.path = sig.path WHERE sig.signed='0';
-
   ```
 columns:
   - name: pid_with_namespace

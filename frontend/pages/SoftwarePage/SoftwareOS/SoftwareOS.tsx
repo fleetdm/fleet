@@ -1,3 +1,5 @@
+/** software/os OS tab */
+
 import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -8,6 +10,8 @@ import {
 } from "services/entities/operating_systems";
 
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { SelectedPlatform } from "interfaces/platform";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 
@@ -21,6 +25,8 @@ interface ISoftwareOSProps {
   orderKey: string;
   currentPage: number;
   teamId?: number;
+  resetPageIndex: boolean;
+  platform: SelectedPlatform;
 }
 
 const SoftwareOS = ({
@@ -31,16 +37,19 @@ const SoftwareOS = ({
   orderKey,
   currentPage,
   teamId,
+  resetPageIndex,
+  platform,
 }: ISoftwareOSProps) => {
   const queryParams = {
     page: currentPage,
     per_page: perPage,
     order_direction: orderDirection,
     order_key: orderKey,
+    platform: platform === "all" ? undefined : platform,
     teamId,
   };
 
-  const { data, isFetching, isError } = useQuery<
+  const { data, isFetching, isLoading, isError } = useQuery<
     IOSVersionsResponse,
     Error,
     IOSVersionsResponse,
@@ -59,6 +68,10 @@ const SoftwareOS = ({
     }
   );
 
+  if (isLoading) {
+    return <Spinner />;
+  }
+
   if (isError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
@@ -75,6 +88,8 @@ const SoftwareOS = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching}
+        resetPageIndex={resetPageIndex}
+        platform={platform}
       />
     </div>
   );

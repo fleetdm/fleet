@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,27 +21,56 @@ const (
 	mockInstallerContents = "mock"
 )
 
+func SetupTestSoftwareInstallerStore(tb testing.TB, bucket, prefix string) *SoftwareInstallerStore {
+	store := setupTestStore(tb, bucket, prefix, NewSoftwareInstallerStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
+func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *BootstrapPackageStore {
+	store := setupTestStore(tb, bucket, prefix, NewBootstrapPackageStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
 // SetupTestInstallerStore creates a new store with minio as a back-end
 // for local testing
 func SetupTestInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
+	store := setupTestStore(tb, bucket, prefix, NewInstallerStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
+type testBucketCreator interface {
+	CreateTestBucket(name string) error
+}
+
+func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, newFn func(config.S3Config) (T, error)) T {
 	checkEnv(tb)
 
-	store, err := NewInstallerStore(config.S3Config{
-		Bucket:           bucket,
-		Prefix:           prefix,
-		Region:           "minio",
-		EndpointURL:      testEndpoint,
-		AccessKeyID:      accessKeyID,
-		SecretAccessKey:  secretAccessKey,
-		ForceS3PathStyle: true,
-		DisableSSL:       true,
+	store, err := newFn(config.S3Config{
+		SoftwareInstallersBucket:           bucket,
+		SoftwareInstallersPrefix:           prefix,
+		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersEndpointURL:      testEndpoint,
+		SoftwareInstallersAccessKeyID:      accessKeyID,
+		SoftwareInstallersSecretAccessKey:  secretAccessKey,
+		SoftwareInstallersForceS3PathStyle: true,
+		SoftwareInstallersDisableSSL:       true,
+
+		CarvesBucket:           bucket,
+		CarvesPrefix:           prefix,
+		CarvesRegion:           "minio",
+		CarvesEndpointURL:      testEndpoint,
+		CarvesAccessKeyID:      accessKeyID,
+		CarvesSecretAccessKey:  secretAccessKey,
+		CarvesForceS3PathStyle: true,
+		CarvesDisableSSL:       true,
 	})
 	require.Nil(tb, err)
 
 	err = store.CreateTestBucket(bucket)
 	require.NoError(tb, err)
-
-	tb.Cleanup(func() { cleanupStore(tb, store) })
 
 	return store
 }
@@ -76,24 +106,33 @@ func mockInstaller(secret, kind string, desktop bool) fleet.Installer {
 	}
 }
 
-func cleanupStore(tb testing.TB, store *InstallerStore) {
+func cleanupStore(tb testing.TB, store *s3store) {
 	checkEnv(tb)
+
 	resp, err := store.s3client.ListObjects(&s3.ListObjectsInput{
 		Bucket: &store.bucket,
 	})
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == s3.ErrCodeNoSuchBucket {
+			// fine, nothing to clean-up if the bucket no longer exists, no error
+			return
+		}
+	}
 	require.NoError(tb, err)
 
 	var objs []*s3.ObjectIdentifier
 	for _, o := range resp.Contents {
 		objs = append(objs, &s3.ObjectIdentifier{Key: o.Key})
 	}
-	_, err = store.s3client.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: &store.bucket,
-		Delete: &s3.Delete{
-			Objects: objs,
-		},
-	})
-	require.NoError(tb, err)
+	if len(objs) > 0 {
+		_, err = store.s3client.DeleteObjects(&s3.DeleteObjectsInput{
+			Bucket: &store.bucket,
+			Delete: &s3.Delete{
+				Objects: objs,
+			},
+		})
+		require.NoError(tb, err)
+	}
 
 	_, err = store.s3client.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: &store.bucket,

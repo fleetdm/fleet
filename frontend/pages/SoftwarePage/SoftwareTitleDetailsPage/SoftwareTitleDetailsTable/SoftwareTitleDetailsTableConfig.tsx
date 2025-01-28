@@ -6,6 +6,7 @@ import {
   ISoftwareVulnerability,
 } from "interfaces/software";
 import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -13,6 +14,11 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 
+interface ISoftwareTitleDetailsTableConfigProps {
+  router: InjectedRouter;
+  teamId?: number;
+  isIPadOSOrIOSApp: boolean;
+}
 interface ICellProps {
   cell: {
     value: number | string | ISoftwareVulnerability[];
@@ -40,7 +46,11 @@ interface IVulnCellProps extends ICellProps {
   };
 }
 
-const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
+const generateSoftwareTitleDetailsTableConfig = ({
+  router,
+  teamId,
+  isIPadOSOrIOSApp,
+}: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -48,18 +58,27 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
+        if (!cellProps.cell.value) {
+          // renders desired empty state
+          return <TextCell />;
+        }
         const { id } = cellProps.row.original;
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
+          router?.push(softwareVersionDetailsPath);
         };
 
         // TODO: make only text clickable
         return (
           <LinkCell
             className="name-link"
-            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
+            path={softwareVersionDetailsPath}
             customOnClick={onClickSoftware}
             value={cellProps.cell.value}
           />
@@ -77,10 +96,13 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       // With the versions data, we can sum up the vulnerabilities to get the
       // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnCellProps): JSX.Element => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
+      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        if (isIPadOSOrIOSApp) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
         // TODO: tooltip
-      ),
+      },
     },
     {
       title: "Hosts",
@@ -88,20 +110,30 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       disableSortBy: true,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_version_id: cellProps.row.original.id,
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                  team_id: teamId,
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
     },
   ];
 

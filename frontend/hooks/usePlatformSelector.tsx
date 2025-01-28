@@ -2,22 +2,30 @@ import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
 
 import {
-  SelectedPlatformString,
-  SUPPORTED_PLATFORMS,
+  CommaSeparatedPlatformString,
+  QUERYABLE_PLATFORMS,
+  QueryablePlatform,
 } from "interfaces/platform";
+import { IPolicySoftwareToInstall } from "interfaces/policy";
 
 import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
-  getSelectedPlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
+  getSelectedPlatforms: () => QueryablePlatform[];
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
+  disabled?: boolean;
+  installSoftware?: IPolicySoftwareToInstall;
+  currentTeamId?: number;
 }
 
 const usePlatformSelector = (
-  platformContext: SelectedPlatformString | null | undefined,
-  baseClass = ""
+  platformContext: CommaSeparatedPlatformString | null | undefined,
+  baseClass = "",
+  disabled = false,
+  installSoftware: IPolicySoftwareToInstall | undefined,
+  currentTeamId: number | undefined
 ): IPlatformSelector => {
   const [checkDarwin, setCheckDarwin] = useState(false);
   const [checkWindows, setCheckWindows] = useState(false);
@@ -45,7 +53,7 @@ const usePlatformSelector = (
   };
 
   const getSelectedPlatforms = useCallback(() => {
-    return SUPPORTED_PLATFORMS.filter((p) => checksByPlatform[p]);
+    return QUERYABLE_PLATFORMS.filter((p) => checksByPlatform[p]);
   }, [checksByPlatform]);
 
   const isAnyPlatformSelected = Object.values(checksByPlatform).includes(true);
@@ -69,9 +77,12 @@ const usePlatformSelector = (
         setCheckWindows={setCheckWindows}
         setCheckLinux={setCheckLinux}
         setCheckChrome={setCheckChrome}
+        disabled={disabled}
+        installSoftware={installSoftware}
+        currentTeamId={currentTeamId}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux, checkChrome]);
+  }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
 
   return {
     setSelectedPlatforms,

@@ -2,8 +2,8 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-endpoint-ops,:release'
-assignees: 'xpkoala,sabrinabuckets'
+labels: '#g-mdm,#g-orchestration,#g-software:release'
+assignees: 'xpkoala,pezhub,jmwatts'
 
 ---
 
@@ -27,11 +27,12 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 ### Prerequisites
 
-1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://github.com/fleetdm/fleet/blob/main/handbook/product.md#manual-qa )
+1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://fleetdm.com/handbook/engineering#run-fleet-locally-for-qa-purposes)
 2. Unless you are explicitly testing older browser versions, browser is up to date.
 3. Certificate & flagfile are in place to create new host.
 4. In your browser, clear local storage using devtools.
 
+### Orchestration
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
@@ -53,20 +54,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 3. forget password link prompts for email
 4. valid credentials result in a successful login.
 5. valid sso credentials result in a successful login</td><td>pass/fail</td></tr>
-<tr><td>Query flow</td><td>Create, edit, run, and delete queries. </td><td>
-
-1. permissions regarding creating/editing/deleting queries are up to date with documentation
-2. syntax errors result in error messaging
-3. queries can be run manually 
-</td><td>pass/fail</td></tr>
-<tr><td>Host Flow</td><td>Verify a new host can be added and removed following modal instructions using your own device.</td><td>
-
-1. Host is added via command line
-2. Host serial number and date added are accurate
-3. Host is not visible after it is deleted
-4. Warning and informational modals show when expected and make sense
-</td><td>pass/fail</td></tr>
-
 <tr><td>Packs flow</td><td>Verify management, operation, and logging of ["2017 packs"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).</td><td>
 
 1. Packs successfully run on host machines after migrations 
@@ -82,8 +69,90 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
+<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
 
+1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+</td><td>pass/fail</td></tr>
+</table>
 
+### MDM
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
+  
+1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
+2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
+3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+</td><td>pass/fail</td></tr>
+
+<tr><td>MDM migration flow</td><td>Verify MDM migration for ADE and non-ADE hosts</td><td>
+  
+1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
+2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
+3. Turn off MDM on a non ADE-eligible macOS host.
+4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
+</td><td>pass/fail</td></tr>
+<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
+
+1. Verify Profiles upload/download/delete (macOS & Windows).
+2. Verify Profiles are delivered to host and applied. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
+
+1. Configure End user authentication.
+3. Upload a Bootstrap package.
+4. Add software (FMA, VPP, & Custom pkg)
+5. Add a script
+6. Enroll an ADE-eligible macOS host and verify successful authentication.
+7. Verify Bootstrap package is delivered.
+8. Verify SwiftDialogue window displays.
+9. Verify software installs and script runs.
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
+
+1. Configure OS updates (macOS & Windows).
+2. Verify on-device that Nudge prompt appears (macOS 13).
+3. Verify enforce minimumOS occurs during enrollment (macOS 14+).
+</td><td>pass/fail</td></tr>
+
+<tr><td>iOS/iPadOS</td><td>Verify enrollment, profiles, & software installs</td><td>
+
+1. Verify ADE enrollment.
+2. Verify OTA enrollment.
+3. Verify Profiles are delivered to host and applied.
+4. Verify VPP apps install & display correctly in Activity feed.
+ 
+</td><td>pass/fail</td></tr>
+<tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
+
+1. Renew APNs Certificate.
+2. Renew ABM Token.
+3. Ensure ADE hosts can enroll.
+</td><td>pass/fail</td></tr>
+
+</table>
+
+### Software
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><td>Query flow</td><td>Create, edit, run, and delete queries. </td><td>
+
+1. permissions regarding creating/editing/deleting queries are up to date with documentation
+2. syntax errors result in error messaging
+3. queries can be run manually 
+</td><td>pass/fail</td></tr>
+<tr><td>Host Flow</td><td>Verify a new host can be added and removed following modal instructions using your own device.</td><td>
+
+1. Host is added via command line
+2. Host serial number and date added are accurate
+3. Host is not visible after it is deleted
+4. Warning and informational modals show when expected and make sense
+</td><td>pass/fail</td></tr>
 <tr><td>My device page</td><td>Verify the end user's my device page loads successfully.</td><td>
 
 1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.
@@ -91,46 +160,26 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 3. Styling and padding appears correct.
  
 </td><td>pass/fail</td></tr>
-
-<tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
-  
-1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
-2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
-</td><td>pass/fail</td></tr>
-
 <tr><td>Scripts</td><td>Verify script library and execution</td><td>
 
 1. Verify able to run a script on all host types from CLI.
 2. Verify scripts library upload/download/delete.
-3. From Host details (Windows and macOS) run a script that should PASS, verify.
-4. From Host details (Windows and macOS) run a script that should FAIL, verify.
+3. From Host details (macOS, Windows, & Linux) run a script that should PASS, verify.
+4. From Host details (macOS, Windows, & Linux) run a script that should FAIL, verify.
 5. Verify UI loading state and statuses for scripts.
-6. Disable scripts globally and verify unable to run.
-7. Verify scripts display correctly in Activity feed.
+8. Disable scripts globally and verify unable to run.
+9. Verify scripts display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
-<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
+<tr><td>Software</td><td>Verify software library and install / download</td><td>
 
-1. Verify able to configure Disk encryption.
-2. Verify host enrolled with Disk encryption enforced successfully encrypts.
-3. Verify Profiles upload/download/delete (macOS & Windows).
-4. Verify profiles are delivered to host and applied. 
+1. Verify software library upload/download/delete.
+2. From Host details (macOS, Windows, & Linux) run an install that should PASS, verify.
+3. From My Device (macOS, Windows, & Linux) software tab should have self-service items available, verify.
+4. Verify UI loading state and statuses for installing software.
+7. Verify software installs display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
-<tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
-
-1. Configure End user authentication.
-2. Upload a Boostrap package.
-3. Enroll an ADE-eligible macOS host and verify successful authentication.
-4. Verify Boostrap package is delivered.
-</td><td>pass/fail</td></tr>
-
-<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
-
-1. Configure OS updates (macOS & Windows).
-2. Verify on-device that Nudge prompt appears (macOS). 
-</td><td>pass/fail</td></tr>
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
 
@@ -138,17 +187,17 @@ Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
 </td><td>pass/fail</td></tr>
+</table>
 
-<tr><td>Migration Test with Percona XtraDB MySQL Server</td><td>Verify Fleet can migrate to the next version without issues when using a specific version of Percona XtraDB Server.</td><td>
-
-Run the instructions in [tools/percona/test/README.md](../../tools/percona/test/README.md)
-</td><td>pass/fail</td></tr>
-  
+### All Product Groups
+<table>
+ <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
   
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
-2. If any are found raise an alarm in the `#help-engineering` and `#help-product-design` channels.
-</td><td>pass/fail</td></tr>
+2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
+</td><td>pass/fail</td></tr> 
 </table>
 
 ### Notes

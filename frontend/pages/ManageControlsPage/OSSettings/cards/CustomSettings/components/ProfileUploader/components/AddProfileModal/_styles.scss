@@ -1,0 +1,143 @@
+.add-profile-modal {
+  &__modal-content-wrap {
+    margin-top: $pad-large;
+
+    .add-profile__file {
+      padding: $pad-medium $pad-large;
+    }
+  }
+
+  &__upload-button {
+    margin-top: 8px;
+    padding: 0;
+  }
+
+  &__file-chooser {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: $pad-medium;
+
+    input {
+      display: none;
+    }
+
+    &--button-wrap {
+      display: flex;
+      justify-content: center;
+      gap: $pad-small;
+      cursor: pointer;
+      height: 38px;
+      align-items: center;
+    }
+  }
+
+  &__selected-file {
+    display: flex;
+    gap: 16px;
+
+    &--details {
+      display: flex;
+      flex-direction: column;
+
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+
+  &__profile-graphic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+
+    &--message {
+      text-align: center;
+      line-height: 20px;
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: $pad-medium;
+  }
+
+  &__target {
+    margin: $pad-large 0;
+  }
+
+  &__custom-label-chooser {
+    margin-top: $pad-medium;
+  }
+
+  &__description {
+    margin: $pad-medium 0;
+  }
+
+  &__no-labels {
+    display: flex;
+    height: 187px;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+    justify-content: center;
+
+    span {
+      color: $ui-fleet-black-75;
+    }
+  }
+
+  &__checkboxes {
+    display: flex;
+    max-height: 187px;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+
+    .loading-spinner {
+      margin: 69.5px auto;
+    }
+  }
+
+  &__label {
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__label-name {
+    padding-left: $pad-large;
+  }
+
+  .fleet-checkbox {
+    height: 20px;
+    display: flex;
+    align-items: center;
+
+    &__label {
+      width: 490px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

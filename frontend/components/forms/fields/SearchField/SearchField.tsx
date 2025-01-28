@@ -4,13 +4,12 @@ import { IconNames } from "components/icons";
 // @ts-ignore
 import InputFieldWithIcon from "../InputFieldWithIcon";
 
-const baseClass = "search-field";
-
 export interface ISearchFieldProps {
   placeholder: string;
   defaultValue?: string;
   onChange: (value: string) => void;
   onClick?: (e: React.MouseEvent) => void;
+  clearButton?: boolean;
   icon?: IconNames;
 }
 
@@ -18,6 +17,7 @@ const SearchField = ({
   placeholder,
   defaultValue = "",
   onChange,
+  clearButton,
   onClick,
   icon = "search",
 }: ISearchFieldProps): JSX.Element => {
@@ -37,9 +37,9 @@ const SearchField = ({
       name={icon}
       placeholder={placeholder}
       value={searchQueryInput}
-      // inputWrapperClass={`${baseClass}__input-wrapper`}
       onChange={onInputChange}
       onClick={onClick}
+      clearButton={clearButton}
       iconPosition="start"
       iconSvg={icon}
     />

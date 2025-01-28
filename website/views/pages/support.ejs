@@ -1,12 +1,49 @@
 <div id="support" v-cloak>
   <div purpose="page-container" class="container">
+
+    <div purpose="page-title" class="mx-auto">
+      <h1>Ask the community</h1>
+      <p>Fleet has an active open-source community of kind and helpful people. If you have a question about something that isn't in the documentation, we hang out in:</p>
+      <%primaryBuyingSituation%>
+    </div>
+    <div purpose="community-cards" class="d-flex justify-content-center flex-sm-row flex-column">
+      <a href="https://macadmins.org" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || !primaryBuyingSituation ? 'd-flex' : 'd-none' %>">
+        <div purpose="support-card" class="card d-flex justify-content-center" >
+          <div class="d-flex flex-row align-items-center">
+            <img alt="Macadmins logo" src="/images/logo-macadmins-48x48@2x.png">
+            <h3>macadmins // #fleet</h3>
+          </div>
+          <p>Chat about next-gen MDM, packaging, Apple, Windows, desktop Linux, apps, scripting. (And all things IT.)</p>
+        </div>
+      </a>
+      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || primaryBuyingSituation === 'eo-it' ? 'd-none' : 'd-flex'%>">
+        <div purpose="support-card" class="card d-flex justify-content-center">
+          <div class="d-flex flex-row align-items-center">
+            <img alt="Osquery logo" src="/images/logo-osquery-48x48@2x.png">
+            <h3>osquery // #fleet</h3>
+          </div>
+          <p><%= primaryBuyingSituation === 'eo-security' ? 'Chat about securing servers, laptops, and more.' :
+                primaryBuyingSituation === 'vm' ? 'Chat about the future of security engineering, vulnerability management, OT/ICS, cybersecurity, and more.' :
+                'Chat about posture, detection, vulns, reporting.  (And all things cybersecurity.)'
+              %>
+          </p>
+        </div>
+      </a>
+    </div>
     <div purpose="page-title" class="mx-auto">
       <h1>Support</h1>
-      <p>Ask a question, chat with other engineers, or get in touch with the Fleet team.</p>
+      <p>Ask a question, chat with engineers, or get in touch with the Fleet team. For answers to commonly asked questions, check the <a href="/docs/get-started/faq">FAQ</a>.</p>
     </div>
+
     <div purpose="support-cards" class="d-flex mx-auto justify-content-center">
       <div purpose="support-row" class="d-flex">
-
+        <a href="/handbook/company/communications#customer-support-service-level-agreements-slas">
+          <div purpose="support-card" class="card d-flex justify-content-center">
+            <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
+            <h3>Premium support</h3>
+            <p>Dedicated support from the Fleet team.</p>
+          </div>
+        </a>
         <a href="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=" target="_blank">
           <div purpose="support-card" class="card d-flex justify-content-center">
             <img alt="Bug report" src="/images/icon-bug-64x64@2x.png">
@@ -14,19 +51,15 @@
             <p>Report a bug to help us improve.</p>
           </div>
         </a>
-
+      </div>
+      <div purpose="support-row" class="d-flex">
         <a href="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=" target="_blank">
           <div purpose="support-card" class="card d-flex justify-content-center">
             <img alt="Suggestions" src="/images/icon-suggestion-64x64@2x.png" class="mx-auto mx-sm-0">
-            <h3>Suggestions</h3>
+            <h3>Suggest a feature</h3>
             <p>Propose a new feature or enhancement in Fleet.</p>
           </div>
         </a>
-
-      </div>
-
-      <div purpose="support-row" class="d-flex">
-
         <a href="/contact">
           <div purpose="support-card" class="card d-flex justify-content-center" >
             <img alt="Ask us anything" src="/images/icon-ask-anything-64x64@2x.png">
@@ -34,41 +67,9 @@
             <p>Can’t find what you’re looking for? Get in touch.</p>
           </div>
         </a>
-
-        <a href="/handbook/company/communications#customer-support-service-level-agreements-slas">
-          <div purpose="support-card" class="card d-flex justify-content-center">
-            <img alt="Premium support" src="/images/icon-premium-support-64x64@2x.png">
-            <h3>Premium support</h3>
-            <p>Dedicated Slack channel and support from the Fleet team.</p>
-          </div>
-        </a>
-
       </div>
     </div>
-    <div purpose="page-title" class="mx-auto">
-      <h1>Ask the community</h1>
-      <p>Fleet has an active open-source community of knowledgeable and helpful users. If you have a question about something that isn't in the documentation, try one of these places:</p>
-    </div>
-    <div purpose="community-cards" class="d-flex justify-content-center flex-sm-row flex-column">
-      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="d-flex">
-        <div purpose="support-card" class="card d-flex justify-content-center">
-          <div class="d-flex flex-row align-items-center">
-            <img alt="Osquery logo" src="/images/logo-osquery-48x48@2x.png">
-            <h3>Osquery Slack</h3>
-          </div>
-          <p>Chat about using Fleet or osquery to secure servers, laptops, and more.</p>
-        </div>
-      </a>
-      <a href="https://macadmins.org" target="_blank" class="d-flex">
-        <div purpose="support-card" class="card d-flex justify-content-center" >
-          <div class="d-flex flex-row align-items-center">
-            <img alt="Macadmins logo" src="/images/logo-macadmins-48x48@2x.png">
-            <h3>MacAdmins Slack</h3>
-          </div>
-          <p>Chat about using Fleet to manage workstations.</p>
-        </div>
-      </a>
-    </div>
+
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

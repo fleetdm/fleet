@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -159,7 +160,7 @@ func TestUniqueOS(t *testing.T) {
 	for i := range testHostIDs {
 		wg.Add(1)
 		go func(id int) {
-			err := ds.UpdateHostOperatingSystem(ctx, uint(id), testOS)
+			err := ds.UpdateHostOperatingSystem(ctx, uint(id), testOS) //nolint:gosec // dismiss G115
 			assert.NoError(t, err)
 			wg.Done()
 		}(i)
@@ -295,10 +296,17 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
+	_, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
 	// insert test host and os id
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[0].ID)
 	require.NoError(t, err)
 	os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[0], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[0], *os)
 
@@ -309,10 +317,18 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
 	// no change
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
 	os, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 }
@@ -352,7 +368,7 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedHostOS := func(expectDeletedIDs []uint) {
 		for _, h := range testHosts {
 			os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), h.ID)
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				require.Contains(t, expectDeletedIDs, h.ID)
 				return
 			}

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -31,9 +32,10 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
       	gravatar_url,
       	position,
         sso_enabled,
+	    mfa_enabled,
 		api_only,
 		global_role
-      ) VALUES (?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
       `
 		result, err := tx.ExecContext(ctx, sqlStatement,
 			user.Password,
@@ -44,14 +46,20 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 			user.GravatarURL,
 			user.Position,
 			user.SSOEnabled,
+			user.MFAEnabled,
 			user.APIOnly,
 			user.GlobalRole)
+
+		// set timestamp as close as possible to insert query to be as accurate as possible without needing to SELECT
+		user.CreatedAt = time.Now().UTC().Truncate(time.Second) // truncating because DB is at second resolution
+		user.UpdatedAt = user.CreatedAt
+
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create new user")
 		}
 
 		id, _ := result.LastInsertId()
-		user.ID = uint(id)
+		user.ID = uint(id) //nolint:gosec // dismiss G115
 
 		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err
@@ -67,7 +75,11 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
-		"SELECT * FROM users "+
+		// everything except `settings`. Since we only want to include user settings on an opt-in basis
+		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
+		// when explicitly coded to be, via calling the dedicated UserSettings method. Otherwise,
+		// `settings` would be included in `user` objects in various places, which we do not want.
+		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled FROM users "+
 			"WHERE %s = ? LIMIT 1",
 		searchCol,
 	)
@@ -163,10 +175,16 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
       	gravatar_url = ?,
       	position = ?,
         sso_enabled = ?,
+        mfa_enabled = ?,
         api_only = ?,
+        settings = ?,
 		global_role = ?
       WHERE id = ?
       `
+	settingsBytes, err := json.Marshal(user.Settings)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling user settings")
+	}
 	result, err := tx.ExecContext(ctx, sqlStatement,
 		user.Password,
 		user.Salt,
@@ -176,7 +194,9 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		user.GravatarURL,
 		user.Position,
 		user.SSOEnabled,
+		user.MFAEnabled,
 		user.APIOnly,
+		settingsBytes,
 		user.GlobalRole,
 		user.ID)
 	if err != nil {
@@ -276,13 +296,13 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
-func amountUsersDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
-	var amount int
-	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM users`)
+func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, db, &count, fmt.Sprintf(`SELECT count(*) FROM %s`, tableName))
 	if err != nil {
 		return 0, err
 	}
-	return amount, nil
+	return count, nil
 }
 
 func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since time.Time) (int, error) {
@@ -300,4 +320,29 @@ func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since
 		return 0, err
 	}
 	return amount, nil
+}
+
+func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.UserSettings, error) {
+	settings := &fleet.UserSettings{}
+	var bytes []byte
+	stmt := `
+		SELECT settings FROM users WHERE id = ?
+	`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, stmt, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("UserSettings").WithID(userID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting user settings")
+	}
+
+	if len(bytes) == 0 {
+		return settings, nil
+	}
+
+	err = json.Unmarshal(bytes, settings)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user settings")
+	}
+	return settings, nil
 }

@@ -1,0 +1,10 @@
+.example-ticket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+
+  &__screenshot {
+    max-width: 400px;
+  }
+}

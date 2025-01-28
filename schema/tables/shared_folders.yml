@@ -1,9 +1,7 @@
 name: shared_folders
-examples: >-
+examples: |-
   List all shared folders except for the standard public ones.
   
   ```
-  
   SELECT * FROM shared_folders WHERE path NOT LIKE '/Users/%%/Public%';
-  
   ```

@@ -41,7 +41,7 @@ type PasswordResetMailer struct {
 }
 
 func (r PasswordResetMailer) Message() ([]byte, error) {
-	r.CurrentYear = time.Now().Year()
+	r.CurrentYear = time.Now().Year() // nolint:staticcheck // SA4005 false positive for Go templates
 	t, err := server.GetTemplate("server/mail/templates/password_reset.html", "email_template")
 	if err != nil {
 		return nil, err

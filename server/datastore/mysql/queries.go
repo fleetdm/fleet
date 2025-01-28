@@ -4,17 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
-	"strings"
 )
 
 const (
 	statsScheduledQueryType = iota
 	statsLiveQueryType
 )
+
+var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
@@ -233,14 +238,14 @@ func (ds *Datastore) NewQuery(
 		query.DiscardData,
 	)
 
-	if err != nil && isDuplicate(err) {
+	if err != nil && IsDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
 	}
 
 	id, _ := result.LastInsertId()
-	query.ID = uint(id)
+	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
 	return query, nil
 }
@@ -414,11 +419,14 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
 		}
 	}
-
 }
 
 // Query returns a single Query identified by id, if such exists.
 func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
+	return query(ctx, ds.reader(ctx), id)
+}
+
+func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, error) {
 	sqlQuery := `
 		SELECT 
 			q.id,
@@ -453,14 +461,14 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 		WHERE q.id = ?
 	`
 	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
+	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
+	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
@@ -468,9 +476,10 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 }
 
 // ListQueries returns a list of queries with sort order and results limit
-// determined by passed in fleet.ListOptions
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-	sql := `
+// determined by passed in fleet.ListOptions, count of total queries returned without limits, and
+// pagination metadata
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	getQueriesStmt := `
 		SELECT
 			q.id,
 			q.team_id,
@@ -488,7 +497,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.discard_data,
 			q.created_at,
 			q.updated_at,
-			q.discard_data,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -504,10 +512,14 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	args := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
-	if opt.TeamID != nil {
+	switch {
+	case opt.TeamID != nil && opt.MergeInherited:
+		args = append(args, *opt.TeamID)
+		whereClauses += " AND (team_id = ? OR team_id IS NULL)"
+	case opt.TeamID != nil:
 		args = append(args, *opt.TeamID)
 		whereClauses += " AND team_id = ?"
-	} else {
+	default:
 		whereClauses += " AND team_id IS NULL"
 	}
 
@@ -519,28 +531,59 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
-	if opt.MatchQuery != "" {
-		whereClauses += " AND q.name = ?"
-		args = append(args, opt.MatchQuery)
+	if opt.Platform != nil {
+		qs := fmt.Sprintf("%%%s%%", *opt.Platform)
+		args = append(args, qs)
+		whereClauses += ` AND (q.platform LIKE ? OR q.platform = '')`
 	}
 
-	sql += whereClauses
-	sql, args = appendListOptionsWithCursorToSQL(sql, args, &opt.ListOptions)
+	// normalize the name for full Unicode support (Unicode equivalence).
+	normMatch := norm.NFC.String(opt.MatchQuery)
+	whereClauses, args = searchLike(whereClauses, args, normMatch, querySearchColumns...)
 
-	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing queries")
+	getQueriesStmt += whereClauses
+
+	// build the count statement before adding pagination constraints
+	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
+
+	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+
+	dbReader := ds.reader(ctx)
+	queries := []*fleet.Query{}
+	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, results); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	// perform a second query to grab the count
+	var count int
+	if err := sqlx.GetContext(ctx, dbReader, &count, getQueriesCountStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	return results, nil
+	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
+		// discrepancy
+		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			queries = queries[:len(queries)-1]
+		}
+	}
+
+	return queries, count, meta, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
 func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
+	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
+}
+
+func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
@@ -574,7 +617,7 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...)
+	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}
@@ -669,7 +712,7 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 // GetLiveQueryStats returns the live query stats for the given query and hosts.
 func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
 	stmt, args, err := sqlx.In(
-		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size
+		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size, last_executed
 		FROM scheduled_query_stats
 		WHERE host_id IN (?) AND scheduled_query_id = ? AND query_type = ?
 	`, hostIDs, queryID, statsLiveQueryType,
@@ -692,8 +735,8 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 	}
 
 	// Bulk insert/update
-	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?),"
-	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval) VALUES " +
+	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?,?),"
+	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval, last_executed) VALUES " +
 		strings.Repeat(valueStr, len(stats))
 	stmt = strings.TrimSuffix(stmt, ",")
 
@@ -701,7 +744,7 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 	for _, s := range stats {
 		args = append(
 			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
-			0, 0,
+			0, 0, s.LastExecuted,
 		)
 	}
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
@@ -709,4 +752,16 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 		return ctxerr.Wrap(ctx, err, "update live query stats")
 	}
 	return nil
+}
+
+func numSavedQueriesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM queries WHERE saved
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

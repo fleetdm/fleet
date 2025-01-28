@@ -3,7 +3,6 @@ import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
@@ -14,10 +13,7 @@ interface IFilterPillProps {
   onClear: () => void;
   icon?: IconNames;
   tooltipDescription?: string | ReactNode;
-  premiumFeatureTooltipDelayHide?: number;
   className?: string;
-  isSandboxMode?: boolean;
-  sandboxPremiumOnlyIcon?: boolean;
 }
 
 const baseClass = "filter-pill";
@@ -26,11 +22,8 @@ const FilterPill = ({
   label,
   icon,
   tooltipDescription,
-  premiumFeatureTooltipDelayHide,
   className,
   onClear,
-  isSandboxMode = false,
-  sandboxPremiumOnlyIcon = false,
 }: IFilterPillProps) => {
   const baseClasses = classnames(baseClass, className);
   const labelClasses = classnames(`${baseClass}__label`, {
@@ -47,12 +40,6 @@ const FilterPill = ({
         <span>
           <div className={labelClasses}>
             {icon && <Icon name={icon} />}
-            {isSandboxMode && sandboxPremiumOnlyIcon && (
-              <PremiumFeatureIconWithTooltip
-                tooltipPositionOverrides={{ leftAdj: 120, topAdj: -3 }}
-                tooltipDelayHide={premiumFeatureTooltipDelayHide}
-              />
-            )}
             <span
               data-tip={tooltipDescription}
               data-for={`filter-pill-tooltip-${label}`}
@@ -62,7 +49,7 @@ const FilterPill = ({
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
-              variant={"small-text-icon"}
+              variant="small-text-icon"
               title={label}
             >
               <Icon name="close" color="core-fleet-blue" size="small" />

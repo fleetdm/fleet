@@ -34,6 +34,8 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.queries'};
     } else if (!_.isArray(sails.config.builtStaticContent.markdownPages)) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
+    } else if (!_.isArray(sails.config.builtStaticContent.policies)) {
+      throw {badConfig: 'builtStaticContent.policies'};
     }
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
@@ -43,25 +45,32 @@ module.exports = {
     //  ╠═╣╠═╣║║║ ║║───║  ║ ║ ║║║╣  ║║  ╠═╝╠═╣║ ╦║╣ ╚═╗
     //  ╩ ╩╩ ╩╝╚╝═╩╝   ╚═╝╚═╝═╩╝╚═╝═╩╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     let HAND_CODED_HTML_PAGES = [
-      '/',
-      '/company/contact',
-      '/queries',
+      '/',//« home page
       '/pricing',
-      '/transparency',
-      '/docs',
-      '/logos',
-      '/reports/state-of-device-management',
-      '/releases',
-      '/success-stories',
-      '/securing',
-      '/engineering',
-      '/guides',
-      '/announcements',
-      '/report',
-      '/deploy',
-      '/podcasts',
-      '/device-management',
+      '/contact',
       '/support',
+      '/integrations',
+      '/logos',// « brand usage guidelines
+      '/articles',// « overview page (individual article pages are dynamic)
+      '/releases',// « article category page
+      '/success-stories',// « article category page
+      '/securing',// « article category page
+      '/engineering',// « article category page
+      '/guides',// « article category page
+      '/announcements',// « article category page
+      '/deploy',// « article category page
+      '/podcasts',// « article category page
+      // Product category pages:
+      '/orchestration',
+      '/device-management',
+      '/vulnerability-management',
+      // Other stuff:
+      // > Note: /handbook overview page is already included amongst the markdown pages
+      // > Note: Same for /docs
+      '/transparency',// « default transparency link, pointed at by Fleet Desktop
+      '/queries',// « overview page (all subpages are dynamic)
+      '/tables',// « overview page (all subpages are dynamic)
+      '/reports/state-of-device-management',// « 2021 research
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
@@ -72,12 +81,22 @@ module.exports = {
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╦═╗   ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝║╣ ╠╦╝───║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝╠═╣║ ╦║╣ ╚═╗
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╚═╝╩╚═   ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╩ ╩╚═╝╚═╝╚═╝
-    for (let query of sails.config.builtStaticContent.queries) {
+    let vitals = _.where(sails.config.builtStaticContent.queries, {kind: 'built-in'});
+    let queries = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
+    let policies = _.where(sails.config.builtStaticContent.policies, {kind: 'policy'});
+    for (let query of queries) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let query of vitals) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/vitals/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let query of policies) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/policies/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     //  ╔╦╗╦ ╦╔╗╔╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╦═╗╔═╗╔╦╗  ╔╦╗╔═╗╦═╗╦╔═╔╦╗╔═╗╦ ╦╔╗╔
     //   ║║╚╦╝║║║╠═╣║║║║║    ╠═╝╠═╣║ ╦║╣ ╚═╗  ╠╣ ╠╦╝║ ║║║║  ║║║╠═╣╠╦╝╠╩╗ ║║║ ║║║║║║║
     //  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝  ╚  ╩╚═╚═╝╩ ╩  ╩ ╩╩ ╩╩╚═╩ ╩═╩╝╚═╝╚╩╝╝╚╝
+    // (includes data table documentation pages; i.e. `/tables/*`)
     for (let pageInfo of sails.config.builtStaticContent.markdownPages) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+pageInfo.url)}</loc><lastmod>${_.escape(new Date(pageInfo.lastModifiedAt).toJSON())}</lastmod></url>`;
     }//∞

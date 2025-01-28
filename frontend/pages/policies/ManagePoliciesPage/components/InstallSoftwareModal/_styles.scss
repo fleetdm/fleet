@@ -1,0 +1,50 @@
+.manage-policies-page {
+  .install-software-modal {
+    .form-field__help-text {
+      font-size: 14px;
+      line-height: 21px;
+      margin-top: $pad-large;
+    }
+
+    .form-field--dropdown {
+      width: 276px;
+      .Select-placeholder {
+        color: $ui-fleet-black-50;
+      }
+      .Select-menu {
+        max-height: none;
+        overflow: visible;
+      }
+      .Select-menu-outer {
+        max-height: 240px;
+        overflow-y: auto;
+      }
+    }
+    .policy-row {
+      height: 40px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+
+    &__no-software {
+      display: flex;
+      height: 178px;
+      flex-direction: column;
+      align-items: center;
+      gap: $pad-small;
+      justify-content: center;
+      font-size: $small;
+
+      div {
+        color: $ui-fleet-black-75;
+        font-size: $xx-small;
+        a {
+          font-size: inherit;
+        }
+      }
+    }
+    .data-error {
+      padding: 78px;
+    }
+  }
+}

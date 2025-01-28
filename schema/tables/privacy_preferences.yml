@@ -84,5 +84,5 @@ columns:
     description: 1 if enabled else 0 * Available for Chrome 111+
     required: false
     type: integer
-notes: |
+notes: |-
   - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).

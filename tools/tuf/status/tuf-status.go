@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -162,19 +163,22 @@ func byteCountSI(b int64) string {
 func channelVersionCommand() *cli.Command {
 	componentFileMap := map[string]map[string]string{
 		"orbit": {
-			"linux":   "orbit",
-			"macos":   "orbit",
-			"windows": "orbit.exe",
+			"linux":       "orbit",
+			"linux-arm64": "orbit",
+			"macos":       "orbit",
+			"windows":     "orbit.exe",
 		},
 		"desktop": {
-			"linux":   "desktop.tar.gz",
-			"macos":   "desktop.app.tar.gz",
-			"windows": "fleet-desktop.exe",
+			"linux":       "desktop.tar.gz",
+			"linux-arm64": "desktop.tar.gz",
+			"macos":       "desktop.app.tar.gz",
+			"windows":     "fleet-desktop.exe",
 		},
 		"osqueryd": {
-			"linux":     "osqueryd",
-			"macos-app": "osqueryd.app.tar.gz",
-			"windows":   "osqueryd.exe",
+			"linux":       "osqueryd",
+			"linux-arm64": "osqueryd",
+			"macos-app":   "osqueryd.app.tar.gz",
+			"windows":     "osqueryd.exe",
 		},
 		"nudge": {
 			"macos": "nudge.app.tar.gz",
@@ -182,11 +186,15 @@ func channelVersionCommand() *cli.Command {
 		"swiftDialog": {
 			"macos": "swiftDialog.app.tar.gz",
 		},
+		"escrowBuddy": {
+			"macos": "escrowBuddy.pkg",
+		},
 	}
 	var (
 		channel    string
 		tufURL     string
 		components cli.StringSlice
+		format     string
 	)
 	return &cli.Command{
 		Name:  "channel-version",
@@ -195,20 +203,31 @@ func channelVersionCommand() *cli.Command {
 			urlFlag(&tufURL),
 			&cli.StringFlag{
 				Name:        "channel",
-				EnvVars:     []string{"CHANNEL"},
+				EnvVars:     []string{"TUF_STATUS_CHANNEL"},
 				Value:       "stable",
 				Destination: &channel,
 				Usage:       "Channel name",
 			},
 			&cli.StringSliceFlag{
 				Name:        "components",
-				EnvVars:     []string{"COMPONENTS"},
-				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog"),
+				EnvVars:     []string{"TUF_STATUS_COMPONENTS"},
+				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"),
 				Destination: &components,
 				Usage:       "List of components",
 			},
+			&cli.StringFlag{
+				Name:        "format",
+				EnvVars:     []string{"TUF_STATUS_FORMAT"},
+				Value:       "json",
+				Destination: &format,
+				Usage:       "Output format (json, markdown)",
+			},
 		},
 		Action: func(c *cli.Context) error {
+			if format != "json" && format != "markdown" {
+				return errors.New("supported formats are: json, markdown")
+			}
+
 			res, err := http.Get(tufURL) //nolint
 			if err != nil {
 				return err
@@ -284,11 +303,49 @@ func channelVersionCommand() *cli.Command {
 				}
 			}
 
-			b, err := json.MarshalIndent(outputMap, "", "  ")
-			if err != nil {
-				return err
+			if format == "json" {
+				b, err := json.MarshalIndent(outputMap, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%s\n", b)
+			} else if format == "markdown" {
+				table := tablewriter.NewWriter(os.Stdout)
+				table.SetHeader([]string{"Component\\OS", "macOS", "Linux", "Windows", "Linux (arm64)"})
+				table.SetAutoFormatHeaders(false)
+				table.SetCenterSeparator("|")
+				table.SetHeaderLine(true)
+				table.SetRowLine(false)
+				table.SetTablePadding("\t")
+				table.SetColumnSeparator("|")
+				table.SetNoWhiteSpace(false)
+				table.SetAutoWrapText(true)
+				table.SetBorders(tablewriter.Border{
+					Left:   true,
+					Top:    false,
+					Bottom: false,
+					Right:  true,
+				})
+				var rows [][]string
+				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"}
+				setIfEmpty := func(m map[string]string, k string) string {
+					v := m[k]
+					if v == "" {
+						v = "-"
+					}
+					return v
+				}
+				for _, component := range componentsInOrder {
+					oss := outputMap[component]
+					row := []string{component}
+					for _, os := range []string{"macos", "linux", "windows", "linux-arm64"} {
+						row = append(row, setIfEmpty(oss, os))
+					}
+					rows = append(rows, row)
+				}
+				table.AppendBulk(rows)
+				table.Render()
 			}
-			fmt.Printf("%s\n", b)
 
 			return nil
 		},

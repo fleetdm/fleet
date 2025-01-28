@@ -1,20 +1,24 @@
 package execuser
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 )
 
 // run uses macOS open command to start application as the current login user.
-func run(path string, opts eopts) error {
+// Note that the child process spawns a new process in user space and thus it is not
+// effective to add a context to this function to cancel the child process.
+func run(path string, opts eopts) (lastLogs string, err error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("stat path %q: %w", path, err)
+		return "", fmt.Errorf("stat path %q: %w", path, err)
 	}
 
 	if !info.IsDir() {
-		return fmt.Errorf("path is not an .app directory: %s", path)
+		return "", fmt.Errorf("path is not an .app directory: %s", path)
 	}
 	var arg []string
 	if opts.stderrPath != "" {
@@ -38,10 +42,19 @@ func run(path string, opts eopts) error {
 	}
 
 	cmd := exec.Command("/usr/bin/open", arg...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	tw := &TransientWriter{}
+	cmd.Stderr = io.MultiWriter(tw, os.Stderr)
+	cmd.Stdout = io.MultiWriter(tw, os.Stdout)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("open path %q: %w", path, err)
+		return tw.String(), fmt.Errorf("open path %q: %w", path, err)
 	}
-	return nil
+	return tw.String(), nil
+}
+
+func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
+	return nil, 0, errors.New("not implemented")
+}
+
+func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
+	return nil, errors.New("not implemented")
 }

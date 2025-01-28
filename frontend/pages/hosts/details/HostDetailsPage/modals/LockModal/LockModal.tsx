@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import hostAPI from "services/entities/hosts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import { NotificationContext } from "context/notification";
-import { AxiosError } from "axios";
 
 const baseClass = "lock-modal";
 
@@ -34,10 +34,9 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash("success", "Host is locking!");
-    } catch (error) {
-      const err = error as AxiosError;
-      renderFlash("error", err.message);
+      renderFlash("success", "Locking host or will lock when it comes online.");
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
     }
     onClose();
     setIsLocking(false);

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,12 +14,78 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli/v2"
 )
+
+type withDS struct {
+	suite *suite.Suite
+	ds    *mysql.Datastore
+}
+
+func (ts *withDS) SetupSuite(dbName string) {
+	t := ts.suite.T()
+	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	test.AddAllHostsLabel(t, ts.ds)
+
+	// Set up the required fields on AppConfig
+	appConf, err := ts.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	appConf.OrgInfo.OrgName = "FleetTest"
+	appConf.ServerSettings.ServerURL = "https://example.org"
+	err = ts.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+}
+
+func (ts *withDS) TearDownSuite() {
+	_ = ts.ds.Close()
+}
+
+type withServer struct {
+	withDS
+
+	server *httptest.Server
+	users  map[string]fleet.User
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (ts *withServer) getTestToken(email string, password string) string {
+	params := loginRequest{
+		Email:    email,
+		Password: password,
+	}
+	j, err := json.Marshal(&params)
+	require.NoError(ts.suite.T(), err)
+
+	requestBody := io.NopCloser(bytes.NewBuffer(j))
+	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
+	require.NoError(ts.suite.T(), err)
+	defer func() { _ = resp.Body.Close() }()
+	assert.Equal(ts.suite.T(), http.StatusOK, resp.StatusCode)
+
+	jsn := struct {
+		User  *fleet.User         `json:"user"`
+		Token string              `json:"token"`
+		Err   []map[string]string `json:"errors,omitempty"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.NoError(ts.suite.T(), err)
+	require.Len(ts.suite.T(), jsn.Err, 0)
+
+	return jsn.Token
+}
 
 // runServerWithMockedDS runs the fleet server with several mocked DS methods.
 //
@@ -54,6 +121,39 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	require.NoError(t, err)
+	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+		return map[fleet.MDMAssetName]string{
+			fleet.MDMAssetABMCert:            "abmcert",
+			fleet.MDMAssetABMKey:             "abmkey",
+			fleet.MDMAssetABMTokenDeprecated: "abmtoken",
+			fleet.MDMAssetAPNSCert:           "apnscert",
+			fleet.MDMAssetAPNSKey:            "apnskey",
+			fleet.MDMAssetCACert:             "scepcert",
+			fleet.MDMAssetCAKey:              "scepkey",
+		}, nil
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+			fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+			fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+			fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+			fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+			fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+		}, nil
+	}
+
+	ds.ApplyYaraRulesFunc = func(context.Context, []fleet.YaraRule) error {
+		return nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
 	}
 
 	var cachedDS fleet.Datastore

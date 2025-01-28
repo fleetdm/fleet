@@ -9,6 +9,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 1. The script is executed on a macOS host.
 2. Fleet server also running on the same macOS host.
 3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
+4. The hosts are running on the same GOARCH as the macOS host. If not, you can set the `GOARCH` environment variable to compile for the desired architecture. For example: `GOARCH=amd64`
 
 > PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
 > has such hostname (and `localhost`) defined as SANs.
@@ -19,7 +20,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
-SYSTEMS="macos windows linux" \
+SYSTEMS="macos windows linux linux-arm64" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 DEB_FLEET_URL=https://host.docker.internal:8080 \
@@ -30,11 +31,14 @@ MSI_FLEET_URL=https://host.docker.internal:8080 \
 MSI_TUF_URL=http://host.docker.internal:8081 \
 GENERATE_PKG=1 \
 GENERATE_DEB=1 \
+GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
+GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
+DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
 
@@ -54,6 +58,32 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 ./tools/tuf/test/main.sh
 ```
 
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+# defaults to amd64
+GOARCH=arm64 \
+[...]
+./tools/tuf/test/main.sh
+```
+
+# Test fleetd with expired signatures on a TUF repository
+
+To generate a TUF repository with shorter expiration time for roles you can set the following environment variables:
+```shell
+[...]
+KEY_EXPIRATION_DURATION=5m \
+TARGETS_EXPIRATION_DURATION=5m \
+SNAPSHOT_EXPIRATION_DURATION=5m \
+TIMESTAMP_EXPIRATION_DURATION=5m \
+[...]
+./tools/tuf/test/main.sh
+```
+
+> NOTE: The duration has to be enough time to generate the packages (otherwise the `fleetctl package` command will fail).
+
+> `KEY_EXPIRATION_DURATION` is used to set the expiration of the `root.json` signature.
+
 # Add new updates
 
 To add new updates (osqueryd or orbit), use `push_target.sh`.
@@ -65,6 +95,19 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 
 # Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
+```
+
+If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
+
+```sh
+# Compile a universal binary of Orbit:
+CGO_ENABLED=1 \
+ORBIT_VERSION=42 \
+ORBIT_BINARY_PATH="orbit-macos" \
+go run ./orbit/tools/build/build.go
+
+# Push the compiled Orbit as a new version
+./tools/tuf/test/push_target.sh macos orbit orbit-macos 43
 ```
 
 E.g. to add a new version of `osqueryd` for macOS:

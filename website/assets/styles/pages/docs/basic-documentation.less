@@ -1,25 +1,33 @@
 #basic-documentation {
 
   h1 {
-    font-size: 28px;
-    line-height: 34px;
+    font-size: 30px;
   }
 
   h2 {
-    font-size: 24px;
-    line-height: 28px;
+    font-size: 28px;
   }
 
   h3 {
-    font-size: 20px;
-    line-height: 24px;
+    font-size: 24px;
   }
 
   h4 {
-    margin-top: 24px;
-    font-size: 18px;
-    line-height: 24px;
+    font-size: 20px;
   }
+
+  h5 {
+    font-size: 18px;
+  }
+
+  h6 {
+    font-size: 16px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.2;
+  }
+
 
 
   a:not(.btn) {
@@ -385,6 +393,7 @@
 
     }
     [purpose='swag-cta'] {
+      cursor: pointer;
       display: flex;
       border: 1px solid #E3E3E3;
       box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
@@ -500,9 +509,7 @@
     }
 
     [purpose='content'] {
-      .markdown-heading {
-        scroll-margin-top: 140px;
-      }
+      width: 100%;
       hr {
         margin: 0px;
         padding: 0px;
@@ -514,6 +521,7 @@
       }
       h1 {
         padding-bottom: 16px;
+        scroll-margin-top: 104px;
       }
 
       h2 {
@@ -521,32 +529,44 @@
         margin-top: 32px;
         padding-top: 52px;
         padding-bottom: 24px;
-
+        scroll-margin-top: 80px;
         &:first-of-type {
           border-top: none;
           padding-top: 24px;
+          scroll-margin-top: 108px;
           margin-top: 0px;
         }
       }
 
       h3 {
         padding-bottom: 16px;
-        margin-top: 24px;
-        margin-bottom: 40px;
-        border-bottom: 1px dashed @core-fleet-black-25;
+        margin-top: 40px;
+        scroll-margin-top: 104px;
       }
 
       h4 {
         padding-bottom: 24px;
+        margin-top: 24px;
         margin-bottom: 0px;
+        scroll-margin-top: 104px;
       }
 
       h5 {
-        font-size: 16px;
         font-weight: 700;
         font-family: @main-font;
-        margin-bottom: 16px;
+        margin-top: 16px;
+        margin-bottom: 24px;
+        scroll-margin-top: 104px;
       }
+
+      h6 {
+        font-weight: 700;
+        font-family: @main-font;
+        margin-top: 16px;
+        margin-bottom: 24px;
+        scroll-margin-top: 104px;
+      }
+
       pre + hr + h3 {
         padding-top: 0px;
       }
@@ -557,6 +577,48 @@
         margin: 24px 0 32px 32px;
         display: block;
         position: relative;
+      }
+      [purpose='deploying-guide-buttons'] {
+        margin-top: 40px;
+        // padding-bottom: 40px;
+        div {
+          display: flex;
+          flex-direction: column;
+          align-content: center;
+          justify-content: center;
+          text-align: center;
+          flex-grow: 1;
+          p {
+            font-size: 14px;
+            font-style: normal;
+            font-weight: 400;
+            margin-bottom: 16px;
+          }
+          img {
+            padding: 0;
+            width: auto;
+            height: 80px;
+          }
+        }
+        a {
+          margin-bottom: 40px;
+          padding: 24px;
+          border: 1px solid @core-fleet-black-25;
+          margin-left: 8px;
+          margin-right: 8px;
+          border-radius: 12px;
+          flex-grow: 1;
+          color: unset;
+          &:hover {
+            text-decoration: unset;
+            border: 1px solid @core-vibrant-blue;
+          }
+        }
+      }
+      [purpose='deploy-to-render-button'] {
+        img {
+          margin: 0;
+        }
       }
       [purpose='quote'] {
         font-style: italic;
@@ -640,16 +702,25 @@
           margin-left: 36px;
           text-indent: -36px;
           padding-left: 0px;
-          margin-bottom: 16px;
+          padding-bottom: 24px;
           code:not(.nohighlight):not(.mermaid) {
             display: inline;
           }
+          > pre:not(.algolia-autocomplete):not(.ds-dropdown-menu):not(.json) {
+            margin-top: 32px;
+            margin-bottom: 16px;
+            text-indent: 0px;
+          }
           p {
+            padding-bottom: 16px;
             display: inline;
             margin-bottom: 0px;
           }
           blockquote {
             text-indent: 0px;
+            p {
+              padding-bottom: 0px;
+            }
           }
         }
         > li::before {
@@ -695,7 +766,7 @@
         border-collapse: collapse;
         font-size: 16px;
         line-height: 24px;
-        margin-bottom: 16px;
+        margin-bottom: 0;
         word-wrap: break-word;
 
         th {
@@ -712,6 +783,11 @@
           padding: 8px 7px 7px 8px;
         }
       }
+
+      .table-responsive {
+        margin-bottom: 32px;
+      }
+
       .note {
         background-color: @core-vibrant-blue-10;
         border-radius: 12px;
@@ -731,24 +807,38 @@
           margin: 0px;
         }
       }
-      [purpose='slack-cta'] {
-        padding-top: 40px;
-        padding-bottom: 40px;
-        margin-bottom: 40px;
-        border-top: 1px solid @core-fleet-black-25;
-        border-bottom: 1px solid @core-fleet-black-25;
-        h3 {
-          margin-top: 0;
-          margin-bottom: 24px;
-          padding-bottom: 0;
-          border-bottom: 0;
+
+      [purpose='docs-start-cta'] {
+        margin-top: 40px;
+        border: 1px solid @core-fleet-black-10;
+        border-radius: 16px;
+        overflow: hidden;
+        [purpose='docs-start-cta-image'] {
+          height: 180px;
+          background-image: url('/images/docs-cta-stage-1-314x180@2x.png');
+          background-size: cover;
+          background-position-y: center;
+        }
+        [purpose='docs-start-cta-content'] {
+          flex-direction: column;
+          align-items: center;
+          padding: 20px 24px;
+          flex-grow: 1;
+          h2 {
+            padding: 0;
+            margin-bottom: 4px;
+          }
+          p {
+            margin-bottom: 12px;
+          }
+        }
+        [purpose='continue-button'] {
+          font-size: 14px;
+          padding: 6px 12px;
+          width: 131px;
         }
       }
-      [purpose='improve-docs'] {
-        h3 {
-          border-bottom: 0;
-        }
-      }
+
       [purpose='checklist-item'] {
         display: flex;
         input[type='checkbox'] {
@@ -777,13 +867,15 @@
         position: relative;
         margin-bottom: 40px;
         width: 100%;
-        padding-bottom: 57%;
+        padding-bottom: 56%;
         iframe {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
+          border: none;
+          border-radius: 12px;
         }
       }
 
@@ -814,10 +906,6 @@
 
       .header-hidden { // For scrolling the sidebars with the sticky header
         transform: translateY(-80px);
-        max-height: calc(~'100vh - 60px');
-      }
-      .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
-        max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
         height: fit-content;
@@ -833,7 +921,7 @@
         }
         min-width: 190px;
         position: sticky;
-        top: 170px;
+        top: 104px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -847,6 +935,10 @@
           padding-top: 4px;
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
+          max-height: calc(~'100vh - 60px');
+          transition-property: max-height;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+          transition-duration: 500ms;
           a {
             color: @core-fleet-black;
             text-decoration: none;
@@ -855,9 +947,9 @@
             }
           }
         }
-        &:not(.scrolled) {
+        &:not(.header-hidden) {
           [purpose='subtopics'] {
-            max-height: calc(~'100vh - 225px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+            max-height: calc(~'100vh - 140px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
           }
         }
       }
@@ -868,7 +960,8 @@
     }
     [purpose='back-to-top-button-container'] {
       position: sticky;
-      bottom: 107px;
+      bottom: 200px;
+      right: 0px;
       overflow-x: hidden;
       pointer-events: none;
     }
@@ -928,6 +1021,7 @@
         // Note: we're specifying a minimum height for this element to be the height of the edit page button.
         // Even if there are no subtopics on a documentation page, we can be sure that the edit page button will not overlap the pages content.
         min-height: 30px;
+        margin-bottom: 32px;
 
         [purpose='subtopics'] {
           color: @core-fleet-black;

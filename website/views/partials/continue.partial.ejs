@@ -1,0 +1,87 @@
+
+<%if(typeof me !== 'undefined' && showStartCta){%>
+
+  <div purpose="continue-banner" id="start-cta" class="d-flex justify-content-end">
+    <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
+      <div purpose="banner-image-background">
+        <div purpose="banner-image" class="<%=['2 - Aware'].includes(me.psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(me.psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(me.psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(me.psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(me.psychologicalStage) ? 'stage-six' : ''%>">
+        </div>
+      </div>
+      <div purpose="banner-text" class="d-flex flex-column justify-content-center">
+        <% if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
+          <strong>Tried Fleet yet?</strong>
+          <p>Get started with Fleet</p>
+        <% } else if(me.psychologicalStage ===  '4 - Has use case') { %>
+          <strong>Feeling confident?</strong>
+          <p>Get set up with Fleet</p>
+        <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
+          <strong>Talk to the team</strong>
+          <p>Let’s get you set up!</p>
+        <% } %>
+        <div>
+          <a purpose="continue-button" class="start-cta-continue-button" href="/start">
+            Continue
+            <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <a purpose="continue-chevron" class="mobile-start-cta-continue-button" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
+      <div class="d-flex flex-column align-self-start">
+        <div purpose="banner-close-button" class="start-cta-close-button">&times;</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    if (window._hasAlreadyLoadedContinuePartialScript) {
+      throw new Error('continue.partial.ejs should never be included in the HTML more than once.');
+    }
+    window._hasAlreadyLoadedContinuePartialScript = true;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Toggle 'collapsed' on banner body when close button is clicked
+      $('[purpose="banner-close-button"]').click((event)=>{
+        event.stopPropagation(); // Prevent the event from triggering the event listener that removes the collapsed class from running.
+        Cloud.updateStartCtaVisibility().exec();
+        $('[purpose="banner-body"]').addClass('collapsed');
+      });//œ
+
+      // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
+      $('[purpose="banner-body"]').click((event)=> {
+        if(window.innerWidth < 991) {// If the mobile version of the CTA is visible, the entire body is a clickable link.
+          window.location = '/start';
+        } else {
+          let $el = $(event.currentTarget);
+          if ($el.hasClass('collapsed')) {
+            Cloud.updateStartCtaVisibility().exec();
+            $el.removeClass('collapsed');
+          }
+        }
+      });//œ
+
+      if(SAILS_LOCALS.isHomepage){
+        // If this is on the Fleet homepage, remove the invisible class after the user scrolls the height of their viewport.
+        let lastScrollTop = 0;
+        let banner = document.querySelector('[purpose="banner-body"]');
+        window.addEventListener('scroll', ()=>{
+          let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
+            // If the user scrolls 1.5x the height of their browser window, hide the page banner.
+            banner.classList.remove('invisible');
+            lastScrollTop = scrollTop;
+          }
+        });//œ
+      } else {
+        // OTehrwise, remove the 'invisible' class 1 second after page loads
+        setTimeout(() => {
+          $('[purpose="banner-body"]').toggleClass('invisible');
+        }, 1000);;//œ
+      }
+    });//œ
+  </script>
+<% } %>
+

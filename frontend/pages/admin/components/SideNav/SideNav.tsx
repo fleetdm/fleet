@@ -12,7 +12,6 @@ export interface ISideNavItem<T> {
   urlSection: string;
   path: string;
   Card: (props: T) => JSX.Element;
-  exclude?: boolean;
 }
 
 interface ISideNavProps {

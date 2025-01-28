@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "sockets": false
+  },
+  "generators": {
+    "modules": {}
+  },
+  "_generatedWith": {
+    "sails": "1.5.11",
+    "sails-generate": "2.0.11"
+  }
+}

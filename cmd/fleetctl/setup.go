@@ -88,7 +88,7 @@ func setupCommand() *cli.Command {
 			token, err := fleet.Setup(flEmail, flName, flPassword, flOrgName)
 			if err != nil {
 				root := ctxerr.Cause(err)
-				switch root.(type) {
+				switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case service.SetupAlreadyErr:
 					return err
 				}

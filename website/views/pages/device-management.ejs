@@ -1,4 +1,4 @@
-<div id="device-management" v-cloak>
+<div id="device-management-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
@@ -6,174 +6,524 @@
           <h4>Device management (MDM)</h4>
           <h1>Manage everything in one place</h1>
         </div>
-        <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-          <div purpose="hero-image">
-            <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/device-management-hero-380x293@2x.png">
-          </div>
-          <div purpose="hero-text">
-            <strong>Your last MDM migration</strong>
-            <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in and get it out.</p>
-            <strong>Simplify your tools</strong>
-            <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
-            <strong>Implement “zero trust” faster</strong>
-            <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
-            <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
-              <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+        <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
+        <%if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>
+          <div purpose="testimonial-quote">
+            <div purpose="quote">
+              <img alt="Deloitte logo" purpose="quote-logo" src="/images/social-proof-logo-deloitte-130x32@2x.png">
+              <p>“Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.”</p>
             </div>
+            <a href="https://www.linkedin.com/in/cmajumdar/" class="d-inline-block" target="_blank">
+            <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
+              <div purpose="quote-image"><img src="/images/testimonial-author-chandra-majumdar-48x48@2x.png" alt="Chandra Majumdar"></div>
+              <div class="d-flex flex-column">
+                <p purpose="name">Chandra Majumdar</p>
+                <p purpose="title">Partner - Cyber and Strategic Risk</p>
+              </div>
+            </div>
+            </a>
           </div>
+        <%} else {%>
+          <div purpose="testimonial-quote">
+            <div purpose="quote">
+              <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+              <p>“We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.”</p>
+            </div>
+            <a href="https://www.linkedin.com/in/kennybotelho/" class="d-inline-block" target="_blank">
+            <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
+              <div purpose="quote-image"><img src="/images/testimonial-author-kenny-botelho-48x48@2x.png" alt="Kenny Botelho"></div>
+              <div class="d-flex flex-column">
+                <p purpose="name">Kenny Botelho</p>
+                <p purpose="title">Lead Client Platform Engineer</p>
+              </div>
+            </div>
+            </a>
+          </div>
+
+
+        <% } %>
+
+        </div>
+        <div purpose="button-row" class="d-flex align-items-center pt-3">
+          <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
-      <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-        <div purpose="testimonial-quote">
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.</p>
-          </div>
-          <div purpose="quote-attribution" class="d-flex flex-md-row flex-column align-items-center">
-            <div purpose="quote-image"><img src="/images/testimonial-kenny-botelho-48x48@2x.jpg" alt="Kenny Botelho"></div>
-            <div class="d-flex flex-column">
-              <p purpose="name">Kenny Botelho</p>
-              <p purpose="title">Lead Client Platform Engineer</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <logo-carousel></logo-carousel>
 
-
-      <%/* Your last MDM migration section */%>
-      <div purpose="page-section">
-        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center mb-0">
-          <div purpose="feature-image" class="left">
-            <img alt="Your last MDM migration" src="/images/device-management-feature-image-1-380x320@2x.png">
-          </div>
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Your last MDM migration</h2>
-            <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in <i>and</i> get it out.</p>
-            <div purpose="checklist" class="flex-column d-flex">
-            <p>Ramp up to modern management faster with the latest compliance standards and security features built in.</p>
-            <p>Reclaim lost engineering hours and leave clicky-clicky manual entry in the past. (There's a great GUI if you like clicking.)</p>
-            <p>Lower barriers to integration with an intentional API-first design and surprisingly easy access to data. Everything you can do in the UI, you can do with the API.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%/* Simplify your tools section */%>
-      <div purpose="page-section">
-        <div purpose="feature-headline">
-          <h2>Simplify your tools</h2>
-          <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
-        </div>
-
-        <div purpose="two-column-features" class="mx-auto">
-
-          <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-center">
-            <div purpose="feature-column" class="ml-sm-0">
-            <img alt="Patch every OS" src="/images/device-management-icon-patch-every-os-48x48@2x.png">
-              <h5>Patch every OS</h5>
-              <p>Shorten patch timelines with custom, enforceable deadlines and grace periods for every operating system. Encourage updates with Declarative Device Management (DDM), Nudge, and Windows Update from one interface.</p>
-            </div>
-
-            <div purpose="feature-column" class="mr-sm-0 mb-0">
-            <img alt="Push profiles" src="/images/device-management-icon-verify-updates-and-settings-48x48@2x.png">
-              <h5>Push profiles</h5>
-              <p>Remote-control settings on your Macs and PCs like Wi-Fi, certificates, passwords, screen lock, etc.  Deploy baselines or customize your own to comply with your organization’s security requirements.</p>
-            </div>
-          </div>
-
-          <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-center mb-0">
-            <div purpose="feature-column" class="ml-sm-0">
-            <img alt="Manage software installs from anywhere" src="/images/device-management-icon-automatic-posture-assessment-48x48@2x.png">
-              <h5>Manage software installs from anywhere</h5>
-              <p>Get employees the software and settings they need with less drama by managing app packages, operating system versions, and patch levels for every platform, on top of open standards and data.</p>
-            </div>
-
-            <div purpose="feature-column" class="mr-sm-0 mb-0">
-            <img alt="Access the latest Apple and Windows APIs" src="/images/device-management-icon-circular-action-48x48@2x.png">
-              <h5>Access the latest Apple and Windows APIs</h5>
-              <p>Turn on the latest native macOS and Windows operating system capabilities like DDM and Autopilot, all in one place. Fleet’s team and community test against every new Apple and Microsoft release.</p>
-            </div>
-          </div>
-        </div>
-
-        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-          <div purpose="feature-image" class="left">
-            <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x320@2x.png">
-          </div>
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h3>Onboard and offboard employees remotely</h3>
-            <p>Easily enroll everything in one place and please auditors without making engineers give up their Linux computers.</p>
-            <div purpose="checklist" class="flex-column d-flex">
-              <p>Offboard employees with remote lock, and decommission lost and stolen devices with remote wipe.</p>
-              <p>Connect to identity providers like Okta, Azure, Google Workspace, or any other that supports OpenID Connect.</p>
-              <p>Keep hard disks encrypted with key escrow for FileVault and Bitlocker, and prove it with a couple of clicks or the REST API.</p>
-              <p>Enroll all your devices with Apple Business Manager, Microsoft Autopilot, and built-in packages for Linux systems.</p>
-            </div>
-          </div>
-        </div>
-
+    <%/* Debunk the cross-platform myth */%>
+      <div purpose="page-section" class="pb-0">
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
-            <h3>Manage devices like code</h3>
-            <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+            <h2>Debunk the cross-platform myth</h2>
+            <p>Conventional wisdom holds that cross-platform MDM solutions don't hold up at scale. Few, if any, have lived up to the hype.</p>
+            <p>Instead, Fleet lets you work directly with data and events from each native operating system. So while you can still use familiar concepts like smart groups and extension attributes, you don’t get stuck “talking Windows” to Apple devices.</p>
           </div>
           <div purpose="feature-image" class="right">
-            <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+            <img alt="Transparency for end users" src="/images/mdm-debunk-cross-platform-myth-528x377@2x.png">
           </div>
-        </div>
-      </div>
-      <%/* Implement “zero trust” faster section */%>
-      <div purpose="page-section">
-        <div purpose="feature-headline" style="max-width: 580px;">
-          <h2>Implement “zero trust” faster</h2>
-          <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
         </div>
 
         <div purpose="three-column-features" class="mx-auto">
-          <div purpose="feature-row" class="d-flex flex-md-row flex-column align-items-md-start align-items-center justify-content-center">
-
-            <div purpose="feature-column" class="ml-md-0">
-              <img alt="Control the login experience" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
-              <h5>Control the login experience</h5>
-              <p>Ensure that only healthy, up-to-date devices can log in and access company data and resources with conditional access.</p>
+          <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center align-items-center align-items-sm-start">
+            <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
+              <h5>Operating systems</h5>
+              <p>Enforce OS updates with Declarative Device Management (DDM), <a href="https://github.com/macadmins/nudge" target="_blank">Nudge</a>, and Windows Update from one console.</p>
             </div>
 
-            <div purpose="feature-column">
-              <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
-              <h5>Manage device posture</h5>
-              <p>Find vulnerable software, track progress for security remediation project deadlines, and enforce due dates with automations and tickets.</p>
+            <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
+              <h5>Automated enrollment</h5>
+              <p>Drop-ship devices to your end users with Apple Business Manager or Autopilot and let them set up their own account. No IT help needed.</p>
             </div>
 
-            <div purpose="feature-column" class="mr-md-0 mb-0">
-              <img alt="Simplify health checks" src="/images/device-management-icon-simplify-health-checks-48x48@2x.png">
-              <h5>Simplify health checks</h5>
-              <p>Use <a href="https://fleetdm.com/queries">common health checks</a> from industry peers, or easily create your own with low-level access to system data and events.</p>
+            <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
+              <h5>Config management</h5>
+              <p>Manage settings with configuration profiles for Apple and device profiles for Windows. Use a canary team to test changes before they go live.</p>
             </div>
+            <div purpose="feature-item" class="pr-0 pr-lg-4 pl-lg-0 col-12 col-sm-6 col-lg-4">
+              <h5>App management</h5>
+              <p>Keep applications and plugins secure and up-to-date automatically. Install the software end users need or let them install it themselves via self service.</p>
+            </div>
+
+            <div purpose="feature-item" class="pl-0 pl-lg-4 col-12 col-sm-6 col-lg-4">
+              <h5>Scripts and events</h5>
+              <p>Easily manage and version control your custom script library. Execute shell and PowerShell scripts when computers drift from the baseline.</p>
+            </div>
+
+            <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4">
+              <h5>Keep up with Apple</h5>
+              <p>Fleet's team and community stay on top of the latest features and releases from all supported platform vendors—not just Apple.</p>
+            </div>
+          </div>
+
+          <div purpose="feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center mb-0 align-items-center align-items-sm-start">
           </div>
         </div>
       </div>
+      <div v-if="showSwagForm">
+      <a purpose="swag-request-button" class="d-flex align-items-center justify-content-center mx-auto" @click="clickSwagRequestCTA()">
+        <div class="d-flex flex-row align-items-center">
+        <img style="height: auto; width: 47px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+          <p class="mb-0"><strong class="mr-1">Request Fleet swag. </strong>
+          </p>
+          <span>It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" /></span>
+        </div>
+      </a>
+      </div>
+      <div purpose="comparison-section">
+        <h2>Head-to-head with the big players</h2>
+        <p>Considering a move to Fleet as a cross-platform, open-source MDM alternative? See how we compare:</p>
+        <div purpose="desktop-comparison-table" class="d-none d-sm-block">
+          <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
+            <div purpose="fleet-column"><strong>Fleet</strong></div>
+            <div purpose="comparison-column" class="d-flex">
+              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
+                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{comparisonMode === 'omnissa' ? 'Omnissa (WS1)' : 'Jamf Pro'}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
+              </div>
+              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+                <div class="dropdown-item"
+                  @click="comparisonMode = 'omnissa'">Omnissa (WS1)</div>
+                  <div class="dropdown-item"
+                  @click="comparisonMode = 'jamf'">Jamf Pro</div>
+              </div>
+            </div>
+          </div>
+          <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Zero-touch setup</p></div>
+              <div purpose="fleet-column">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+              </div>
+              <div purpose="comparison-column" v-if="comparisonMode === 'omnissa'">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+              </div>
+              <div purpose="comparison-column" v-if="comparisonMode === 'jamf'">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>iOS/iPadOS management</p></div>
+              <div purpose="fleet-column">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name">
+                <p>Complete device inventory </p>
+                <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint. Access over 300 tables of system state data. Use presets or create your own queries.">
+              </div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column"></div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Operating system updates</p></div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Configuration management and scripting</p></div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Remote lock and wipe</p></div>
+              <div purpose="fleet-column">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
+              </div>
+              <div purpose="comparison-column">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name" class="d-flex align-items-center"><p>App management </p>
+                <!-- <span purpose="table-new-badge" class="ml-2">New</span> -->
+              </div>
+              <div purpose="fleet-column">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Automated device compliance</p></div>
+              <div purpose="fleet-column">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>REST API</p></div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
+            <div purpose="table-row">
+              <div purpose="feature-name"><p>Open source</p></div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column"></div>
+            </div>
+          </div>
+        </div>
+
+        <div purpose="mobile-comparison-table" class="d-block d-sm-none">
+          <p class="mt-5 mb-2 font-weight-bold">Compare with:</p>
+          <div purpose="mobile-comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
+            id="mobileDropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {{comparisonMode === 'omnissa' ? 'Omnissa (WS1)' : 'Jamf Pro'}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
+          </div>
+          <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
+            <div class="dropdown-item"
+              @click="comparisonMode = 'omnissa'">Omnissa (WS1)</div>
+              <div class="dropdown-item"
+              @click="comparisonMode = 'jamf'">Jamf Pro</div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Zero-touch setup</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>iOS/iPadOS management</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Complete device state</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Operating system updates</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Configuration management and scripting</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Remote lock and wipe</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>App management </p>
+              <!-- <span purpose="table-new-badge" class="ml-2">New</span> -->
+            </div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Automated device compliance</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>REST API</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>MDM migration</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+          </div>
+
+          <div purpose="feature-table">
+            <div purpose="feature-name"><p>Open source</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <animated-arrow-button class="mx-auto" href="/pricing">View all features</animated-arrow-button>
+      </div>
+      <%/* Shorten the feedback loop section */%>
       <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
-            <h2>Absolute certainty</h2>
-            <p>Reduce time wasted hunting down whether a change happened. Actually verify that settings are applied using real data pulled from your users' devices.</p>
+            <h2>Shorten the feedback loop</h2>
+            <p>Spend less time debugging whether changes actually happened.</p>
             <div purpose="checklist" class="flex-column d-flex">
-              <p>Use a git repo as the source of truth to reduce errors (submitting the wrong patch, configuration setting etc)</p>
-              <p>Every change to a policy or security control is tracked and auditable in Fleet’s history, or via the repo commit log</p>
+              <p>Use a single, open platform for Apple, Windows, and Linux.</p>
+              <p>Auto-verify patches and settings on users’ devices. Avoid unnecessary tickets.</p>
+              <p>Every change to a policy or security control is tracked and auditable in Fleet’s UI, or in your logs.</p>
             </div>
           </div>
-          <div purpose="feature-image" class="right">
-            <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/device-management-hero-image-380x396@2x.png">
+          <div purpose="feature-image">
+            <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/mdm-shorten-feedback-loop-528x377@2x.png">
           </div>
         </div>
       </div>
-
-      <div purpose="page-section" class="mb-0">
+      <%/* Mordern change management section */%>
+      <div purpose="page-section">
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-          <div purpose="feature-image" class="left">
-            <img alt="Transparency for end users" src="/images/device-management-transparency-380x320@2x.png">
+          <div purpose="feature-image" class="right">
+            <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
           </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h2>Modern change management</h2>
+            <p>Provide a transparent log of all changes and collaborate on how your devices are managed.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Democratize change with GitOps so everyone can contribute to device management and security.</p>
+              <p>Maintain reliable employee experiences with version-controlled changes and enhancements.</p>
+              <p>Use CI/CD and peer reviews to look before you leap.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <%/* Scope transparency section */%>
+      <div purpose="page-section">
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
             <h2>Scope transparency</h2>
             <p>Increase <a href="https://fleetdm.com/handbook/company/why-this-way#why-open-source">buy-in</a> from end users by clarifying how their work computers are managed.</p>
@@ -183,34 +533,39 @@
               <p>Set clear expectations about how to configure company devices</p>
             </div>
           </div>
+          <div purpose="feature-image" class="right">
+            <img alt="Transparency for end users" src="/images/mdm-scope-transparency-528x377@2x.png">
+          </div>
         </div>
       </div>
-
     </div>
   </div>
   <%/* End of page gradient */%>
-  <div purpose="bottom-gradient">
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
-        <h4>Who else uses Fleet?</h4>
-        <h2>Empowering IT teams</h2>
+        <h2 class="mb-3">What people are saying</h2>
       </div>
     </div>
 
     <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
-    <div purpose="page-container" class="pb-0 container">
 
+
+  <div purpose="bottom-gradient">
+    <div purpose="page-container" class="container">
       <div purpose="section-headline" class="text-center">
         <h4>Device management (MDM)</h4>
-        <h2>Manage everything in one place</h2>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+        <h1>Your easiest MDM migration</h1>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Microsoft Word</title>
+    <organization>com.microsoft</organization>
+    <options customize="allow" require-scripts="true" hostArchitectures="arm64,x86_64"/>
+    <domains enable_anywhere="true" enable_currentUserHome="false" enable_localSystem="true"/>
+    <license file="License.rtf" mime-type="text/html"/>
+    <background file="background.png" scaling="none" alignment="bottomleft"/>
+    <allowed-os-versions>
+        <os-version min="12.0"/>
+    </allowed-os-versions>
+    <!-- Component packages to be included in the distribution. -->
+    <pkg-ref id="com.microsoft.word" packageIdentifier="com.microsoft.package.Microsoft_Word.app" version="16.86.24060916" installKBytes="2332777">#Microsoft_Word.pkg</pkg-ref>
+    <pkg-ref id="com.microsoft.autoupdate" packageIdentifier="com.microsoft.package.Microsoft_AutoUpdate.app" version="4.72.24060916" installKBytes="10987">#Office16_all_autoupdate.pkg</pkg-ref>
+    <pkg-ref id="com.microsoft.licensing" packageIdentifier="com.microsoft.pkg.licensing" version="16.86.24060916" installKBytes="1479">#Office16_all_licensing.pkg</pkg-ref>
+    <!-- Choices which reference defined pkg-refs. -->
+    <choices-outline>
+        <line choice="com.microsoft.word"/>
+        <line choice="com.microsoft.autoupdate"/>
+        <line choice="com.microsoft.licensing"/>
+    </choices-outline>
+    <!-- Choice definitions for each package choice above. -->
+    <choice id="com.microsoft.word" visible="true" enabled="false" title="Microsoft Word" description="Microsoft Word">
+        <pkg-ref id="com.microsoft.word">
+            <must-close>
+                <app id="com.microsoft.Word"/>
+            </must-close>
+        </pkg-ref>
+    </choice>
+    <choice id="com.microsoft.autoupdate" visible="true" title="Microsoft AutoUpdate" description="Microsoft AutoUpdate">
+        <pkg-ref id="com.microsoft.autoupdate">
+            <must-close>
+                <app id="com.microsoft.autoupdate2"/>
+            </must-close>
+        </pkg-ref>
+    </choice>
+    <choice id="com.microsoft.licensing" visible="false">
+        <pkg-ref id="com.microsoft.licensing"/>
+    </choice>
+    <installation-check script="InstallationCheck();"/>
+    <script>
+	function InstallationCheck()
+	{
+		var result;
+		try {
+			result = system.compareVersions(system.version.ProductVersion, '12.0') &gt;= 0;
+		} catch (e) { }
+
+		if (!result)
+		{
+			my.result.type = 'Fatal';
+			my.result.title = system.localizedString('require-min-os-title');
+			my.result.message = system.localizedString('require-min-os-message');;
+		}
+		return result;
+	}
+	</script>
+    <pkg-ref id="com.microsoft.word">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.webservices" path="Microsoft Word.app/Contents/Frameworks/MicrosoftWebServices.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.isizulu" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IsiZuluSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mbukernel" path="Microsoft Word.app/Contents/Frameworks/mbukernel.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.oleautomation" path="Microsoft Word.app/Contents/Frameworks/OLEAutomation.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.german" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GermanHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.dutch" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DutchGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.csi" path="Microsoft Word.app/Contents/Frameworks/MicrosoftCSI.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.ole" path="Microsoft Word.app/Contents/Frameworks/OLE.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.swedish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SwedishThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.portuguese.portugal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IberianPortugueseThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.outlook.capi.framework" path="Microsoft Word.app/Contents/Frameworks/OPF.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.metex" path="Microsoft Word.app/Contents/Frameworks/MetEx.framework"/>
+            <bundle id="com.microsoft.DocsUI" path="Microsoft Word.app/Contents/Resources/DocsUIBundle_Mac.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.basque" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BasqueSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.italian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ItalianThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="1.1.0" CFBundleVersion="1.1.0" id="com.microsoft.WordModels" path="Microsoft Word.app/Contents/Resources/WordModels.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.swedish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SwedishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.galician" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GalicianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.italian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ItalianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.russian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/RussianHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mso30" path="Microsoft Word.app/Contents/Frameworks/mso30.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.korean" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/KoreanSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.dutch" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DutchThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.outlookrightsframework" path="Microsoft Word.app/Contents/Frameworks/OutlookRightsFramework.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mbufont" path="Microsoft Word.app/Contents/Frameworks/MicrosoftFontLibrary.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.Oimg" path="Microsoft Word.app/Contents/Frameworks/Oimg.framework"/>
+            <bundle CFBundleShortVersionString="4.0.6" id="com.microsoft.ADAL" path="Microsoft Word.app/Contents/Frameworks/ADAL4.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.macedonian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/MacedonianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.lithuanian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/LithuanianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.arabic" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ArabicGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.ocsclient" path="Microsoft Word.app/Contents/Frameworks/OcsClient.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.converters.excel" path="Microsoft Word.app/Contents/SharedSupport/Text Converters/Microsoft Excel 2.x-11.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.kiswahili" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/KiswahiliSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.norwegian.bokmaal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianBokmaalHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.proofing" path="Microsoft Word.app/Contents/Frameworks/MicrosoftProofing.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.uniscribe" path="Microsoft Word.app/Contents/Frameworks/Uniscribe.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.german" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GermanThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EnglishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.hungarian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/HungarianGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msoab" path="Microsoft Word.app/Contents/Frameworks/OfficeAddressBook.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.norwegian.nynorsk" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianNynorskHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.czech" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CzechGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="0.14.10" CFBundleVersion="0.14.10" id="com.microsoft.ai" path="Microsoft Word.app/Contents/Frameworks/ai.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.portuguese.portugal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IberianPortugueseSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.merp" path="Microsoft Word.app/Contents/Frameworks/merp.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.visualbasic" path="Microsoft Word.app/Contents/Frameworks/Visual Basic for Applications.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mso99" path="Microsoft Word.app/Contents/Frameworks/mso99.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.CocoaUI" path="Microsoft Word.app/Contents/Frameworks/CocoaUI.framework"/>
+            <bundle id="com.microsoft.setupui.bundle" path="Microsoft Word.app/Contents/Resources/setupui_bundle.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.french" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FrenchThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.kazakh" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/KazakhSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="0.27.0" CFBundleVersion="0.27.0" id="com.microsoft.FluentUI" path="Microsoft Word.app/Contents/Frameworks/FluentUI.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EnglishThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.contextualspeller.german" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CssGermanSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.croatian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CroatianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.spanish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SpanishGrammar.proofingtool"/>
+            <bundle id="com.microsoft.office.ouiwhatsnew.bundle" path="Microsoft Word.app/Contents/Resources/OUIWhatsNewBundle_mac.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.languageidentification" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/LanguageIdentification.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.latvian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/LatvianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.dwrite" path="Microsoft Word.app/Contents/Frameworks/dwrite10.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.danish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DanishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.portuguese.brazil" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BrazilianPortugueseThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.Word" path="Microsoft Word.app"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.forms" path="Microsoft Word.app/Contents/Frameworks/Forms.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.greek" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GreekSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.italian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ItalianHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.arabic" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ArabicThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.marathi" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/MarathiSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.contextualspeller.spanish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CssSpanishSpeller.proofingtool"/>
+            <bundle id="com.microsoft.office.ouiofficespace.bundle" path="Microsoft Word.app/Contents/Frameworks/mso99.framework/Versions/A/Resources/OUIOfficeSpaceBundle.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.spanish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SpanishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.afrikaans" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/AfrikaansSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.dutch" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DutchSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.xmllite" path="Microsoft Word.app/Contents/Frameworks/Xmllite.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.portuguese.portugal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IberianPortugueseGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.gujarati" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GujaratiSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msls3" path="Microsoft Word.app/Contents/Frameworks/MicrosoftPTLS.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.farsi" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FarsiSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.isixhosa" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IsiXhosaSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.bulgarian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BulgarianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.norwegian.bokmaal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianBokmaalSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.serbian.latin" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SerbianLatinSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.russian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/RussianThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.czech" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CzechThesaurus.proofingtool"/>
+            <bundle id="com.microsoft.officeprefsui.bundle" path="Microsoft Word.app/Contents/Resources/OfficePrefsUI.bundle"/>
+            <bundle CFBundleShortVersionString="4.2.25" CFBundleVersion="4.2.25.201222" id="com.microsoft.protection.rightsmanagement-mac" path="Microsoft Word.app/Contents/Frameworks/MSRightsManagement.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.turkish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/TurkishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.finnish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FinnishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.SAExt" path="Microsoft Word.app/Contents/Frameworks/SAExt.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mbulocale" path="Microsoft Word.app/Contents/Frameworks/mbulocale.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.contextualspeller.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CssEnglishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.portuguese.brazil" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BrazilianPortugueseSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.russian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/RussianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.proofing.japanese" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/JapaneseProofing.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.thai" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ThaiSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.credui" path="Microsoft Word.app/Contents/Frameworks/MicrosoftCredui.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.french" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FrenchHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.polish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/PolishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.contextualspeller.french" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CssFrenchSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.bosnian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BosnianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.wlmkernel" path="Microsoft Word.app/Contents/Frameworks/WLMKernel.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.catalan" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CatalanThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EnglishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msospectre" path="Microsoft Word.app/Contents/Frameworks/msospectre.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.osfstorage2" path="Microsoft Word.app/Contents/Frameworks/osfstorage2.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mso40ui" path="Microsoft Word.app/Contents/Frameworks/mso40ui.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.hungarian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/HungarianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.setswana" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SetswanaSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.wlmuser" path="Microsoft Word.app/Contents/Frameworks/WLMUser.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.malay" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/MalaySpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.arabic" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ArabicSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.ivy" path="Microsoft Word.app/Contents/Frameworks/MicrosoftIvy.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.ProofingUI" path="Microsoft Word.app/Contents/Frameworks/ProofingUI.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.french" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FrenchSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.czech" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CzechSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.estonian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EstonianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.openxml.excel.app" path="Microsoft Word.app/Contents/SharedSupport/Open XML for Excel.app"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mso20" path="Microsoft Word.app/Contents/Frameworks/mso20.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.converters.recover" path="Microsoft Word.app/Contents/SharedSupport/Text Converters/Recover Text Converter.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.outlook.core.framework" path="Microsoft Word.app/Contents/Frameworks/OutlookCore.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.finnish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FinnishThesaurus.proofingtool"/>
+            <bundle id="com.microsoft.urlmon.bundle" path="Microsoft Word.app/Contents/Resources/Urlmon.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.Hlink" path="Microsoft Word.app/Contents/Frameworks/Hlink.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.danish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DanishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.norwegian.bokmaal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianBokmaalGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.frameworks.wincrypto" path="Microsoft Word.app/Contents/Frameworks/WinCrypto.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.COMBase" path="Microsoft Word.app/Contents/Frameworks/COMBase.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.richedit" path="Microsoft Word.app/Contents/Frameworks/MicrosoftRichEdit.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.danish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DanishThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.OutlookFoundation.framework" path="Microsoft Word.app/Contents/Frameworks/OutlookFoundation.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.igx" path="Microsoft Word.app/Contents/Frameworks/SmartArt.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.rpcrt4" path="Microsoft Word.app/Contents/Frameworks/rpcrt4.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.fba" path="Microsoft Word.app/Contents/Frameworks/MicrosoftFBA.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msgrlibclient" path="Microsoft Word.app/Contents/Frameworks/MsgrLibClient.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.gfx" path="Microsoft Word.app/Contents/Frameworks/Gfx.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.converterlib" path="Microsoft Word.app/Contents/Frameworks/MicrosoftConversionLibrary.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EnglishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.catalan" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CatalanSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mbuCloudServices" path="Microsoft Word.app/Contents/Frameworks/MicrosoftCloudServices.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.portuguese.brazil" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BrazilianPortugueseGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.Office.mso-intl" path="Microsoft Word.app/Contents/Frameworks/mso99.framework/Versions/A/Resources/mso_intl.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.polish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/PolishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.molc.framework" path="Microsoft Word.app/Contents/Frameworks/molc.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.turkish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/TurkishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.german" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GermanSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.netlib" path="Microsoft Word.app/Contents/Frameworks/Netlib.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.finnish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FinnishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.swedish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SwedishSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msxml" path="Microsoft Word.app/Contents/Frameworks/MSXML.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.mbuinstrument" path="Microsoft Word.app/Contents/Frameworks/mbuinstrument.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.indonesian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IndonesianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.dutch" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DutchHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.XPG" path="Microsoft Word.app/Contents/Frameworks/XPG.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.word.wordsdkshim" path="Microsoft Word.app/Contents/Frameworks/WordSDKShim.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.hebrew" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/HebrewThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.portuguese.portugal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/IberianPortugueseHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.tamil" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/TamilSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.norwegian.nynorsk" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianNynorskSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.italian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/ItalianGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.sesothosaleboa" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SesothoSaLeboaSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.french" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FrenchGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.GENERICPTBUNDLEIDENTIFIER" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GenericCssSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.russian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/RussianGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.spanish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SpanishThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.kannada" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/KannadaSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.polish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/PolishThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.msocf" path="Microsoft Word.app/Contents/Frameworks/MsoCF.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.errorreporting" path="Microsoft Word.app/Contents/SharedSupport/Microsoft Error Reporting.app"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.officeart" path="Microsoft Word.app/Contents/Frameworks/OfficeArt.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.chart" path="Microsoft Word.app/Contents/Frameworks/Chart.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.czech" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CzechHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.wordforms.lexicon.english" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/EnglishWordForms.lexicon"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.slovak" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SlovakSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.turkish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/TurkishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.finnish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/FinnishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.wlmgdi" path="Microsoft Word.app/Contents/Frameworks/WLMGraphicsDevice.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.norwegian.bokmaal" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianBokmaalThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.portuguese.brazil" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/BrazilianPortugueseHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.danish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/DanishGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.swedish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SwedishHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.romanian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/RomanianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.ukrainian" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/UkrainianSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.norwegian.nynorsk" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/NorwegianNynorskThesaurus.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.polish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/PolishHyphenator.proofingtool"/>
+            <bundle CFBundleVersion="1.0" id="com.microsoft.WordPDE" path="Microsoft Word.app/Contents/Plugins/WordPDE.plugin"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.osf" path="Microsoft Word.app/Contents/Frameworks/osf.framework"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.hebrew" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/HebrewSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.serbian.cyrillic" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SerbianCyrillicSpeller.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.thesaurus.turkish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/TurkishThesaurus.proofingtool"/>
+            <bundle id="com.microsoft.FluentUIResources-macos" path="Microsoft Word.app/Contents/Frameworks/FluentUI.framework/Versions/A/Resources/FluentUIResources-macos.bundle"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.grammar.german" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/GermanGrammar.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.hyphenator.catalan" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/CatalanHyphenator.proofingtool"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.speller.spanish" path="Microsoft Word.app/Contents/SharedSupport/Proofing Tools/SpanishSpeller.proofingtool"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.microsoft.autoupdate">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="4.72" CFBundleVersion="4.72.24060916" id="com.microsoft.autoupdate.fba" path="Microsoft AutoUpdate.app/Contents/MacOS/Microsoft Update Assistant.app"/>
+            <bundle CFBundleShortVersionString="16.86" CFBundleVersion="16.86.24060916" id="com.microsoft.errorreporting" path="Microsoft AutoUpdate.app/Contents/SharedSupport/Microsoft Error Reporting.app"/>
+            <bundle CFBundleShortVersionString="4.72" CFBundleVersion="4.72.24060916" id="com.microsoft.autoupdate2" path="Microsoft AutoUpdate.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.microsoft.licensing">
+        <bundle-version/>
+    </pkg-ref>
+</installer-gui-script>

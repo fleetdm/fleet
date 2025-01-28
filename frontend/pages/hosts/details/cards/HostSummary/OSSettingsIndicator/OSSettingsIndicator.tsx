@@ -1,12 +1,10 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 
 import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
-import { COLORS } from "styles/var/colors";
 
 const baseClass = "os-settings-indicator";
 
@@ -21,7 +19,6 @@ interface IStatusDisplayOption {
     IconNames,
     "success" | "success-outline" | "pending" | "pending-outline" | "error"
   >;
-  tooltipText: string;
 }
 type StatusDisplayOptions = Record<
   MdmProfileStatusForDisplay,
@@ -31,24 +28,15 @@ type StatusDisplayOptions = Record<
 const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   Verified: {
     iconName: "success",
-    tooltipText:
-      "The host applied all OS settings. Fleet verified with osquery.",
   },
   Verifying: {
     iconName: "success-outline",
-    tooltipText:
-      "The host acknowledged all MDM commands to apply OS settings. " +
-      "Fleet is verifying the OS settings are applied with osquery.",
   },
   Pending: {
     iconName: "pending-outline",
-    tooltipText:
-      "The host will receive MDM command to apply OS settings when the host comes online.",
   },
   Failed: {
     iconName: "error",
-    tooltipText:
-      "The host failed to apply the latest OS settings. Click to view error(s).",
   },
 };
 
@@ -59,7 +47,7 @@ const countHostProfilesByStatus = (
     (acc, { status }) => {
       if (status === "failed") {
         acc.failed += 1;
-      } else if (status === "pending") {
+      } else if (status === "pending" || status === "action_required") {
         acc.pending += 1;
       } else if (status === "verifying") {
         acc.verifying += 1;
@@ -129,31 +117,13 @@ const OSSettingsIndicator = ({
   return (
     <span className={`${baseClass} info-flex__data`}>
       <Icon name={statusDisplayOption.iconName} />
-      <span
-        className="tooltip tooltip__tooltip-icon"
-        data-tip
-        data-for={`${baseClass}-tooltip`}
-        data-tip-disable={false}
+      <Button
+        onClick={onClick}
+        variant="text-link"
+        className={`${baseClass}__button`}
       >
-        <Button
-          onClick={onClick}
-          variant="text-link"
-          className={`${baseClass}__button`}
-        >
-          {displayStatus}
-        </Button>
-      </span>
-      <ReactTooltip
-        place="bottom"
-        effect="solid"
-        backgroundColor={COLORS["tooltip-bg"]}
-        id={`${baseClass}-tooltip`}
-        data-html
-      >
-        <span className="tooltip__tooltip-text">
-          {statusDisplayOption.tooltipText}
-        </span>
-      </ReactTooltip>
+        {displayStatus}
+      </Button>
     </span>
   );
 };

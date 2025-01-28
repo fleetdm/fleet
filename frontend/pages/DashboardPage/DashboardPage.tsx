@@ -1,8 +1,17 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+
 import paths from "router/paths";
 
 import {
@@ -11,20 +20,18 @@ import {
 } from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
-import {
-  IMacadminAggregate,
-  IMunkiIssuesAggregate,
-  IMunkiVersionsAggregate,
-} from "interfaces/macadmins";
+import { IMacadminAggregate } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
-  IMdmSolution,
   IMdmSummaryResponse,
+  IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
+import { IConfig } from "interfaces/config";
+
 import { useTeamIdParam } from "hooks/useTeamIdParam";
+
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
@@ -33,22 +40,30 @@ import softwareAPI, {
   ISoftwareCountQueryKey,
 } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import configAPI from "services/entities/config";
 import hosts from "services/entities/hosts";
+
 import sortUtils from "utilities/sort";
 import {
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
+  DEFAULT_USE_QUERY_OPTIONS,
+  PlatformValueOptions,
 } from "utilities/constants";
+
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
-import SandboxGate from "components/Sandbox/SandboxGate";
+
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "./helpers";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -61,6 +76,9 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
+import MdmSolutionModal from "./components/MdmSolutionModal";
+import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
+import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
 
@@ -82,13 +100,12 @@ interface IDashboardProps {
 const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const { pathname } = location;
   const {
-    config,
     isGlobalAdmin,
     isGlobalMaintainer,
     isPremiumTier,
-    isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const {
     currentTeamId,
@@ -107,9 +124,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
-    "all"
-  );
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<PlatformValueOptions>("all");
   const [
     selectedPlatformLabelId,
     setSelectedPlatformLabelId,
@@ -119,6 +137,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
   const [chromeCount, setChromeCount] = useState(0);
+  const [iosCount, setIosCount] = useState(0);
+  const [ipadosCount, setIpadosCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -128,25 +148,28 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
-  const [showMunkiCard, setShowMunkiCard] = useState(true);
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showMdmSolutionModal, setShowMdmSolutionModal] = useState(false);
+  const [
+    showActivityFeedAutomationsModal,
+    setShowActivityFeedAutomationsModal,
+  ] = useState(false);
+  const [
+    updatingActivityFeedAutomations,
+    setUpdatingActivityFeedAutomations,
+  ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
-  const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
+  const [mdmSolutions, setMdmSolutions] = useState<
+    IMdmSummaryMdmSolution[] | null
+  >([]);
 
-  const [munkiIssuesData, setMunkiIssuesData] = useState<
-    IMunkiIssuesAggregate[]
-  >([]);
-  const [munkiVersionsData, setMunkiVersionsData] = useState<
-    IMunkiVersionsAggregate[]
-  >([]);
+  const selectedMdmSolutionName = useRef<string>("");
+
   const [mdmTitleDetail, setMdmTitleDetail] = useState<
-    JSX.Element | string | null
-  >();
-  const [munkiTitleDetail, setMunkiTitleDetail] = useState<
     JSX.Element | string | null
   >();
 
@@ -161,6 +184,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  const { data: config, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
@@ -205,10 +236,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
+        const iphones = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
+        ) || { platform: "ios", hosts_count: 0 };
+
+        const ipads = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
+        ) || { platform: "ipados", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setChromeCount(chromebooks.hosts_count);
+        setIosCount(iphones.hosts_count);
+        setIpadosCount(ipads.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -282,7 +323,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve={"software"}
+                customTooltipText={
+                  <>
+                    Fleet periodically queries all hosts to
+                    <br />
+                    retrieve software. Click to view
+                    <br />
+                    hosts for the most up-to-date lists.
+                  </>
+                }
               />
             );
           setShowSoftwareCard(true);
@@ -344,7 +393,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setMdmTitleDetail(
           <LastUpdatedText
             lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"MDM information"}
+            whatToRetrieve="MDM information"
           />
         );
         const statusData: IMdmStatusCardData[] = [
@@ -370,26 +419,24 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
-    IMacadminAggregate,
-    Error
-  >(["macAdmins", teamIdForApi], () => macadminsAPI.loadAll(teamIdForApi), {
-    keepPreviousData: true,
-    enabled: isRouteOk && selectedPlatform === "darwin",
-    onSuccess: ({
-      macadmins: { munki_issues, munki_versions, counts_updated_at },
-    }) => {
-      setMunkiVersionsData(munki_versions);
-      setMunkiIssuesData(munki_issues);
-      setShowMunkiCard(!!munki_versions);
-      setMunkiTitleDetail(
-        <LastUpdatedText
-          lastUpdatedAt={counts_updated_at}
-          whatToRetrieve={"Munki"}
-        />
-      );
-    },
-  });
+  const {
+    data: macAdminsData,
+    isFetching: isMacAdminsFetching,
+    error: errorMacAdmins,
+  } = useQuery<IMacadminAggregate, Error, IMacadminAggregate["macadmins"]>(
+    ["macAdmins", teamIdForApi],
+    () => macadminsAPI.loadAll(teamIdForApi),
+    {
+      select: (data) => data.macadmins,
+      keepPreviousData: true,
+      enabled: isRouteOk && selectedPlatform === "darwin",
+    }
+  );
+  const {
+    munki_issues: munkiIssues,
+    munki_versions: munkiVersions,
+    counts_updated_at: munkiCountsUpdatedAt,
+  } = macAdminsData || {};
 
   useEffect(() => {
     softwareCount && softwareCount > 0
@@ -422,40 +469,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  const { MANAGE_HOSTS } = paths;
-
-  const HostsSummaryCard = useInfoCard({
-    title: "Hosts",
-    action:
-      selectedPlatform === "all"
-        ? {
-            type: "link",
-            text: "View all hosts",
-          }
-        : undefined,
-    actionUrl: selectedPlatform === "all" ? MANAGE_HOSTS : undefined,
-    total_host_count:
-      !isHostSummaryFetching && !errorHosts
-        ? hostSummaryData?.totals_hosts_count
-        : undefined,
-    showTitle: true,
-    children: (
-      <HostsSummary
-        currentTeamId={teamIdForApi}
-        macCount={macCount}
-        windowsCount={windowsCount}
-        linuxCount={linuxCount}
-        chromeCount={chromeCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
-        builtInLabels={labels}
-        showHostsUI={showHostsUI}
-        selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
-      />
-    ),
-  });
-
-  // NOTE: this is called once on the initial rendering. The initial render of
+  // This is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
     pageIndex: newPageIndex,
@@ -474,13 +488,89 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       );
   };
 
-  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
-  // collecting inventory
-  const isCollectingInventory =
-    !isAnyTeamSelected &&
-    !softwarePageIndex &&
-    !software?.software &&
-    software?.counts_updated_at === null;
+  let refetchActivities = () => {
+    /* noop */
+  };
+  const setRefetchActivities = (refetch: () => void) => {
+    refetchActivities = refetch;
+  };
+
+  const onSubmitActivityFeedAutomationsModal = useCallback(
+    async (formData: IAFAMFormData) => {
+      setUpdatingActivityFeedAutomations(true);
+      try {
+        if (
+          formData.enabled !==
+            config?.webhook_settings.activities_webhook
+              .enable_activities_webhook ||
+          formData.url !==
+            config?.webhook_settings.activities_webhook.destination_url
+        ) {
+          await configAPI.update({
+            webhook_settings: {
+              activities_webhook: {
+                enable_activities_webhook: formData.enabled,
+                destination_url: formData.url,
+              },
+            },
+          });
+        }
+        renderFlash(
+          "success",
+          "Successfully updated activity feed automations."
+        );
+        setShowActivityFeedAutomationsModal(false);
+      } catch {
+        renderFlash(
+          "error",
+          "Couldn't update activity feed automations. Please try again."
+        );
+      } finally {
+        setUpdatingActivityFeedAutomations(false);
+        refetchConfig();
+        refetchActivities();
+      }
+    },
+    [
+      config?.webhook_settings.activities_webhook.destination_url,
+      config?.webhook_settings.activities_webhook.enable_activities_webhook,
+      refetchConfig,
+      renderFlash,
+    ]
+  );
+
+  const HostsSummaryCard = useInfoCard({
+    title: "Hosts",
+    action:
+      selectedPlatform === "all"
+        ? {
+            type: "link",
+            text: "View all hosts",
+          }
+        : undefined,
+    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
+    total_host_count:
+      !isHostSummaryFetching && !errorHosts
+        ? hostSummaryData?.totals_hosts_count
+        : undefined,
+    showTitle: true,
+    children: (
+      <HostsSummary
+        currentTeamId={teamIdForApi}
+        macCount={macCount}
+        windowsCount={windowsCount}
+        linuxCount={linuxCount}
+        chromeCount={chromeCount}
+        iosCount={iosCount}
+        ipadosCount={ipadosCount}
+        isLoadingHostsSummary={isHostSummaryFetching}
+        builtInLabels={labels}
+        showHostsUI={showHostsUI}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+      />
+    ),
+  });
 
   const MissingHostsCard = useInfoCard({
     title: "",
@@ -491,7 +581,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
-        isSandboxMode={isSandboxMode}
       />
     ),
   });
@@ -506,7 +595,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
         currentTeamId={teamIdForApi}
-        isSandboxMode={isSandboxMode}
         notSupported={selectedPlatform === "chrome"}
       />
     ),
@@ -534,11 +622,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const ActivityFeedCard = useInfoCard({
     title: "Activity",
     showTitle: showActivityFeedTitle,
+    action: canEditActivityFeedAutomations
+      ? {
+          type: "button",
+          text: "Manage automations",
+          onClick: () => setShowActivityFeedAutomationsModal(true),
+        }
+      : undefined,
     children: (
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
-        isSandboxMode={isSandboxMode}
+        setRefetchActivities={setRefetchActivities}
       />
     ),
   });
@@ -556,12 +651,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     children: (
       <Software
         errorSoftware={errorSoftware}
-        isCollectingInventory={isCollectingInventory}
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
         teamId={currentTeamId}
-        pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
@@ -569,6 +662,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       />
     ),
   });
+
+  const munkiTitleDetail = useMemo(
+    () => (
+      <LastUpdatedText
+        lastUpdatedAt={munkiCountsUpdatedAt}
+        whatToRetrieve="Munki"
+      />
+    ),
+    [munkiCountsUpdatedAt]
+  );
 
   const MunkiCard = useInfoCard({
     title: "Munki",
@@ -588,37 +691,35 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <Munki
         errorMacAdmins={errorMacAdmins}
         isMacAdminsFetching={isMacAdminsFetching}
-        munkiIssuesData={munkiIssuesData}
-        munkiVersionsData={munkiVersionsData}
+        munkiIssuesData={munkiIssues || []}
+        munkiVersionsData={munkiVersions || []}
         selectedTeamId={currentTeamId}
       />
     ),
   });
 
-  const MDMCard = (
-    <SandboxGate>
-      {useInfoCard({
-        title: "Mobile device management (MDM)",
-        titleDetail: mdmTitleDetail,
-        showTitle: !isMdmFetching,
-        description: (
-          <p>
-            MDM is used to change settings and install software on your hosts.
-          </p>
-        ),
-        children: (
-          <Mdm
-            isFetching={isMdmFetching}
-            error={errorMdm}
-            mdmStatusData={mdmStatusData}
-            mdmSolutions={mdmSolutions}
-            selectedPlatformLabelId={selectedPlatformLabelId}
-            selectedTeamId={currentTeamId}
-          />
-        ),
-      })}
-    </SandboxGate>
-  );
+  const MDMCard = useInfoCard({
+    title: "Mobile device management (MDM)",
+    titleDetail: mdmTitleDetail,
+    showTitle: !isMdmFetching,
+    description: (
+      <p>MDM is used to change settings and install software on your hosts.</p>
+    ),
+    children: (
+      <Mdm
+        isFetching={isMdmFetching}
+        error={errorMdm}
+        mdmStatusData={mdmStatusData}
+        mdmSolutions={mdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
+        onClickMdmSolution={(mdmSolution) => {
+          selectedMdmSolutionName.current = mdmSolution.name;
+          setShowMdmSolutionModal(true);
+        }}
+      />
+    ),
+  });
 
   const OperatingSystemsCard = useInfoCard({
     title: "Operating systems",
@@ -656,7 +757,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
-      {showMunkiCard && (
+      {!!munkiVersions && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
     </>
@@ -676,6 +777,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const iosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
+  const ipadosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -686,20 +801,19 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return linuxLayout();
       case "chrome":
         return chromeLayout();
+      case "ios":
+        return iosLayout();
+      case "ipados":
+        return ipadosLayout();
       default:
         return allLayout();
     }
   };
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
 
     return (
       <AddHostsModal
@@ -707,8 +821,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
+      />
+    );
+  };
+
+  const renderMdmSolutionModal = () => {
+    if (!mdmSolutions) {
+      return null;
+    }
+
+    const selectedMdmSolutions = mdmSolutions?.filter(
+      (solution) => solution.name === selectedMdmSolutionName.current
+    );
+
+    return (
+      <MdmSolutionModal
+        mdmSolutions={selectedMdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
+        onCancel={() => {
+          setShowMdmSolutionModal(false);
+          selectedMdmSolutionName.current = "";
+        }}
       />
     );
   };
@@ -722,7 +857,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               selectedTeamId={currentTeamId}
               currentUserTeams={userTeams}
               onChange={handleTeamChange}
-              isSandboxMode={isSandboxMode}
             />
           );
         }
@@ -750,14 +884,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
-          <Dropdown
+          <DropdownWrapper
+            name="platform-filter"
             value={selectedPlatform || ""}
-            className={`${baseClass}__platform_dropdown`}
+            className={`${baseClass}__platform-filter`}
             options={PLATFORM_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={(value: SelectedPlatform) => {
+            onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
-                (platform) => platform.value === value
+                (platform) => platform.value === option?.value
               );
               router.push(
                 (selectedPlatformOption?.path || paths.DASHBOARD)
@@ -775,16 +909,27 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier && (
-              <div className={`${baseClass}__section`}>
-                {MissingHostsCard}
-                {LowDiskSpaceHostsCard}
-              </div>
-            )}
+            {isPremiumTier &&
+              selectedPlatform !== "ios" &&
+              selectedPlatform !== "ipados" && (
+                <div className={`${baseClass}__section`}>
+                  {MissingHostsCard}
+                  {LowDiskSpaceHostsCard}
+                </div>
+              )}
           </>
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
+        {showMdmSolutionModal && renderMdmSolutionModal()}
+        {showActivityFeedAutomationsModal && config && (
+          <ActivityFeedAutomationsModal
+            automationSettings={config.webhook_settings.activities_webhook}
+            onSubmit={onSubmitActivityFeedAutomationsModal}
+            onExit={() => setShowActivityFeedAutomationsModal(false)}
+            isUpdating={updatingActivityFeedAutomations}
+          />
+        )}
       </div>
     </MainContent>
   );

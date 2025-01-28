@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,13 +13,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
-	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +102,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceHostRequest struct {
-	Token string `url:"token"`
+	Token           string `url:"token"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func (r *getDeviceHostRequest) deviceAuthToken() string {
@@ -108,8 +112,10 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 
 type getDeviceHostResponse struct {
 	Host                      *HostDetailResponse      `json:"host"`
+	SelfService               bool                     `json:"self_service"`
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
+	OrgContactURL             string                   `json:"org_contact_url"`
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
 	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
@@ -118,6 +124,7 @@ type getDeviceHostResponse struct {
 func (r getDeviceHostResponse) error() error { return r.Err }
 
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getDeviceHostRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -128,6 +135,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  false,
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
@@ -152,12 +160,6 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	deviceGlobalConfig := fleet.DeviceGlobalConfig{
-		MDM: fleet.DeviceGlobalMDMConfig{
-			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
-		},
-	}
-
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -167,16 +169,50 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		resp.DEPAssignedToFleet = ptr.Bool(hdep.IsDEPAssignedToFleet())
 	}
 
+	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
+	if resp.TeamID != nil {
+		// load the team to get the device's team's software inventory config.
+		tm, err := svc.GetTeam(ctx, *resp.TeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+		if tm != nil {
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
+		}
+	}
+
+	hasSelfService := false
+	if softwareInventoryEnabled {
+		hasSelfService, err = svc.HasSelfServiceSoftwareInstallers(ctx, host)
+		if err != nil {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+	}
+
+	deviceGlobalConfig := fleet.DeviceGlobalConfig{
+		MDM: fleet.DeviceGlobalMDMConfig{
+			// TODO(mna): It currently only returns the Apple enabled and configured,
+			// regardless of the platform of the device. See
+			// https://github.com/fleetdm/fleet/pull/19304#discussion_r1618792410.
+			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+		},
+		Features: fleet.DeviceFeatures{
+			EnableSoftwareInventory: softwareInventoryEnabled,
+		},
+	}
+
 	return getDeviceHostResponse{
-		Host:         resp,
-		OrgLogoURL:   ac.OrgInfo.OrgLogoURL,
-		License:      *license,
-		GlobalConfig: deviceGlobalConfig,
+		Host:          resp,
+		OrgLogoURL:    ac.OrgInfo.OrgLogoURL,
+		OrgContactURL: ac.OrgInfo.ContactURL,
+		License:       *license,
+		GlobalConfig:  deviceGlobalConfig,
+		SelfService:   hasSelfService,
 	}, nil
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err
@@ -413,29 +449,31 @@ type fleetdErrorResponse struct{}
 
 func (r fleetdErrorResponse) error() error { return nil }
 
-// for now, this endpoint must always return a 500 status code, this
-// way errors are picked up and reported by any monitoring tool that
-// looks for 5xx errors.
-//
-// since the handler is returning an error, this is redundant, but I'm adding
-// it as a safeguard.
-//
-// See: https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460
-func (r fleetdErrorResponse) Status() int { return http.StatusInternalServerError }
-
 func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*fleetdErrorRequest)
-	err := svc.ReceiveFleetdError(ctx, req.FleetdError)
-	// return the error as the second parameter to get better logs in the server.
-	return fleetdErrorResponse{}, err
+	err := svc.LogFleetdError(ctx, req.FleetdError)
+	if err != nil {
+		return nil, err
+	}
+	return fleetdErrorResponse{}, nil
 }
 
-func (svc *Service) ReceiveFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
+func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	return ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	err := ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	level.Warn(svc.logger).Log(
+		"msg",
+		"fleetd error",
+		"error",
+		err,
+	)
+	// Send to Redis/telemetry (if enabled)
+	ctxerr.Handle(ctx, err)
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -464,7 +502,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
 	// this content type will make macos open the profile with the proper application
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=utf-8")
 	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
@@ -496,56 +534,42 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
+	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appConfig.OrgInfo.OrgName,
-		appConfig.ServerSettings.ServerURL,
-		svc.config.MDM.AppleSCEPChallenge,
-		svc.mdmPushCertTopic,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	return mobileConfig, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Request a disk encryption reset
-////////////////////////////////////////////////////////////////////////////////
-
-type rotateEncryptionKeyRequest struct {
-	Token string `url:"token"`
-}
-
-func (r *rotateEncryptionKeyRequest) deviceAuthToken() string {
-	return r.Token
-}
-
-type rotateEncryptionKeyResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r rotateEncryptionKeyResponse) error() error { return r.Err }
-
-func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return rotateEncryptionKeyResponse{Err: err}, nil
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
-	if err := svc.RequestEncryptionKeyRotation(ctx, host.ID); err != nil {
-		return rotateEncryptionKeyResponse{Err: err}, nil
+	tmSecrets, err := svc.ds.GetEnrollSecrets(ctx, host.TeamID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "getting host team enroll secrets")
 	}
-	return rotateEncryptionKeyResponse{}, nil
-}
+	if len(tmSecrets) == 0 && host.TeamID != nil {
+		tmSecrets, err = svc.ds.GetEnrollSecrets(ctx, nil)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, err, "getting no team enroll secrets")
+		}
+	}
+	if len(tmSecrets) == 0 {
+		return nil, &fleet.BadRequestError{Message: "unable to find an enroll secret to generate enrollment profile"}
+	}
 
-func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
-	return fleet.ErrMissingLicense
+	enrollSecret := tmSecrets[0].Secret
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file for manual enrollment")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, profBytes, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -583,4 +607,81 @@ func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Trigger linux key escrow
+////////////////////////////////////////////////////////////////////////////////
+
+type triggerLinuxDiskEncryptionEscrowRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *triggerLinuxDiskEncryptionEscrowRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type triggerLinuxDiskEncryptionEscrowResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) error() error { return r.Err }
+
+func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
+
+func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+
+	if err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host); err != nil {
+		return triggerLinuxDiskEncryptionEscrowResponse{Err: err}, nil
+	}
+	return triggerLinuxDiskEncryptionEscrowResponse{}, nil
+}
+
+func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Current Device's Software
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceSoftwareRequest struct {
+	Token string `url:"token"`
+	fleet.HostSoftwareTitleListOptions
+}
+
+func (r *getDeviceSoftwareRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceSoftwareResponse struct {
+	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
+	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
+	Err      error                              `json:"error,omitempty"`
+}
+
+func (r getDeviceSoftwareResponse) error() error { return r.Err }
+
+func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceSoftwareResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareRequest)
+	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.HostSoftwareTitleListOptions)
+	if err != nil {
+		return getDeviceSoftwareResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostSoftwareWithInstaller{}
+	}
+	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }

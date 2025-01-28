@@ -1,0 +1,38 @@
+.package-form {
+  &__uploading-message {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: $pad-large;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    fieldset {
+      border: none;
+      padding: 0;
+      margin: 0;
+
+      legend {
+        margin-bottom: $pad-small;
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+    }
+  }
+
+  &__file-uploader {
+    box-sizing: border-box;
+  }
+
+  .info-banner {
+    margin-top: $pad-small;
+  }
+}

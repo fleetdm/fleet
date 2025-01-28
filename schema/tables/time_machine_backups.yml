@@ -1,12 +1,10 @@
 name: time_machine_backups
-examples: >-
+examples: |-
   See the time of the latest backup. In environments where you want to encourage
   backups, this can be useful to remind users to perform them, and in
   environments where you do not allow backups, to detect that they are
   happening.
 
   ```
-
   SELECT strftime('%Y-%m-%d %H:%M:%S',backup_date,'unixepoch') AS last_backup FROM time_machine_backups;
-
   ```

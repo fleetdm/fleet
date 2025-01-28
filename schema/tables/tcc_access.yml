@@ -1,0 +1,53 @@
+name: tcc_access
+platforms:
+  - darwin
+description: Information about macOS TCC database contents, for determining permissions granted to applications.
+evented: false
+columns:
+  - name: source
+    type: text
+    description: Either "user" or "system".
+    required: false
+  - name: uid
+    type: integer
+    description: The local user the permissions are for.  `0` for the system (root) user.
+    required: false
+  - name: service
+    type: text
+    description: The name of the TCC service.
+    required: false
+  - name: client
+    type: text
+    description: The bundle identifier or absolute path to the program using the TCC service.
+    required: false
+  - name: client_type
+    type: integer
+    description: Indicates whether client is a bundle identifier (0) or absolute path (1). 
+    required: false
+  - name: auth_value
+    type: integer
+    description: 'Indicates whether the access is: denied (0), unknown (1), allowed (2), or limited (3).'
+    required: false
+  - name: auth_reason
+    type: integer
+    description: TODO
+    required: false
+  - name: last_modified
+    type: bigint
+    description: The last time the entry was modified, in epoch seconds.
+    required: false
+  - name: policy_id
+    type: integer
+    description: The MDM policy that allows TCC access for the application.
+    required: false
+  - name: indirect_object_identifier
+    type: text
+    description: For kTCCServiceAppleEvents, what the client is asking to interact with, or "UNUSED" when it doesn't apply. Absolute path or bundle identifier.
+    required: false
+  - name: indirect_object_identifier_type
+    type: integer
+    description: Indicates whether indirect_object_identifier is a bundle identifier (0) or absolute path (1), if applicable.
+    required: false
+notes: |-
+ - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+ - This table requires that Fleet's agent (fleetd) has Full Disk Access.

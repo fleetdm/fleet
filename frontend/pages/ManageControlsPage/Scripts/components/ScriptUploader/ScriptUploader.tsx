@@ -1,7 +1,5 @@
 import React, { useContext, useState } from "react";
-import { AxiosResponse } from "axios";
 
-import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
 
@@ -36,15 +34,7 @@ const ScriptPackageUploader = ({
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {
-      const error = e as AxiosResponse<IApiError>;
-      const apiErrMessage = getErrorMessage(error);
-      const renderErrMessage = apiErrMessage.includes(
-        "File type not supported. Only .sh and .ps1 file type is allowed."
-      )
-        ? // per https://github.com/fleetdm/fleet/issues/14752#issuecomment-1809927441
-          "The file should be .sh or .ps1 file."
-        : apiErrMessage;
-      renderFlash("error", `Couldn't upload. ${renderErrMessage}`);
+      renderFlash("error", getErrorMessage(e));
     } finally {
       setShowLoading(false);
     }
@@ -55,7 +45,7 @@ const ScriptPackageUploader = ({
       className={baseClass}
       graphicName={["file-sh", "file-ps1"]}
       message="Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows"
-      additionalInfo="Script will run with “#!/bin/sh”on macOS and Linux."
+      additionalInfo="Script will run with “#!/bin/sh” or “#!/bin/zsh” on macOS and Linux."
       accept=".sh,.ps1"
       onFileUpload={onUploadFile}
       isLoading={showLoading}

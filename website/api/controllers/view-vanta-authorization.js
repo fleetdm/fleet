@@ -28,6 +28,10 @@ module.exports = {
       viewTemplatePath: 'pages/vanta-authorization',
     },
 
+    redirect: {
+      description: 'The requesting user will be redirected to the URL they specified after set up.',
+      responseType: 'redirect'
+    },
 
   },
 
@@ -88,6 +92,10 @@ module.exports = {
 
     if(!updatedRecord){
       throw new Error(`When trying to update a VantaConnection record (id: ${recordOfThisAuthorization.id}) with an authorization token from Vanta, the database record associated with this request has gone missing.`);
+    }
+    if(this.req.signedCookies.redirectAfterSetup){
+      let redirectUrl = this.req.signedCookies.redirectAfterSetup;
+      throw {redirect: redirectUrl};
     }
 
     return {

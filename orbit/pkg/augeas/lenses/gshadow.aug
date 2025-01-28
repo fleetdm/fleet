@@ -47,7 +47,7 @@ let integer = Rx.integer
 (* View: member *)
 let member       = [ label "member" . store word ]
 (* View: member_list
-         the member list is a comma separated list of
+         the member list is a comma-separated list of
          users allowed to chgrp to the group without
          being prompted for the group's password *)
 let member_list  = Build.opt_list member comma
@@ -55,7 +55,7 @@ let member_list  = Build.opt_list member comma
 (* View: admin *)
 let admin      = [ label "admin" . store word ]
 (* View: admin_list
-         the admin_list is a comma separated list of
+         the admin_list is a comma-separated list of
          users allowed to change the group's password
          and the member_list *)
 let admin_list = Build.opt_list admin comma

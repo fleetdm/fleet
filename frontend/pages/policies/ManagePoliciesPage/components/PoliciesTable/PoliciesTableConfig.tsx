@@ -2,25 +2,20 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import {
-  formatDistanceToNowStrict,
-  isAfter,
-  millisecondsToHours,
-  millisecondsToMinutes,
-} from "date-fns";
-import ReactTooltip from "react-tooltip";
+import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
-import { COLORS } from "styles/var/colors";
+import { createHostsByPolicyPath } from "utilities/helpers";
+import InheritedBadge from "components/InheritedBadge";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -61,18 +56,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
-};
-
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;
   if (seconds < 60) {
@@ -88,11 +71,11 @@ const getPolicyRefreshTime = (ms: number): string => {
 
 const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
   return (
-    <span className={`tooltip__tooltip-text`}>
+    <>
       Fleet is collecting policy results. Try again
       <br />
       in about {getPolicyRefreshTime(osqueryPolicyMs)} as the system catches up.
-    </span>
+    </>
   );
 };
 
@@ -101,31 +84,13 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 const generateTableHeaders = (
   options: {
     selectedTeamId?: number | null;
-    canAddOrDeletePolicy?: boolean;
+    hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  policiesList: IPolicyStats[] = [],
-  isPremiumTier?: boolean,
-  isSandboxMode?: boolean
+  isPremiumTier?: boolean
 ): IDataColumn[] => {
-  const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
-
-  // Figure the time since the host counts were updated.
-  // First, find first policy item with host_count_updated_at.
-  const updatedAt =
-    policiesList.find((p) => !!p.host_count_updated_at)
-      ?.host_count_updated_at || "";
-  let timeSinceHostCountUpdate = "";
-  if (updatedAt) {
-    try {
-      timeSinceHostCountUpdate = formatDistanceToNowStrict(
-        new Date(updatedAt),
-        { addSuffix: true }
-      );
-    } catch (e) {
-      // Do nothing.
-    }
-  }
+  const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
+  const viewingTeamPolicies = selectedTeamId !== -1;
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -144,11 +109,10 @@ const generateTableHeaders = (
             <>
               <div className="policy-name-text">{cellProps.cell.value}</div>
               {isPremiumTier && cellProps.row.original.critical && (
-                <>
+                <div className="critical-badge">
                   <span
-                    className="tooltip-base"
-                    data-tip
-                    data-for={`critical-tooltip-${cellProps.row.original.id}`}
+                    className="critical-badge-icon"
+                    data-tooltip-id={`critical-tooltip-${cellProps.row.original.id}`}
                   >
                     <Icon
                       className="critical-policy-icon"
@@ -157,24 +121,23 @@ const generateTableHeaders = (
                       color="core-fleet-blue"
                     />
                   </span>
-                  <ReactTooltip
+                  <ReactTooltip5
                     className="critical-tooltip"
+                    disableStyleInjection
                     place="top"
-                    type="dark"
-                    effect="solid"
+                    opacity={1}
                     id={`critical-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor={COLORS["tooltip-bg"]}
+                    offset={8}
+                    positionStrategy="fixed"
                   >
                     This policy has been marked as critical.
-                    {isSandboxMode && (
-                      <>
-                        <br />
-                        This is a premium feature.
-                      </>
-                    )}
-                  </ReactTooltip>
-                </>
+                  </ReactTooltip5>
+                </div>
               )}
+              {viewingTeamPolicies &&
+                cellProps.row.original.team_id === null && (
+                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                )}
             </>
           }
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
@@ -184,13 +147,12 @@ const generateTableHeaders = (
     },
     {
       title: "Yes",
-      Header: () => (
-        <PassingColumnHeader
-          isPassing
-          timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+      Header: (cellProps) => (
+        <HeaderCell
+          value={<PassingColumnHeader isPassing />}
+          isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      disableSortBy: true,
       accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
         if (cellProps.row.original.has_run) {
@@ -208,24 +170,24 @@ const generateTableHeaders = (
           );
         }
         return (
-          <>
+          <div className="policy-has-not-run">
             <span
-              className="text-cell text-muted has-not-run tooltip"
-              data-tip
-              data-for={`passing_${cellProps.row.original.id.toString()}`}
+              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
             >
               ---
             </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
+            <ReactTooltip5
+              className="policy-has-not-run-tooltip"
+              disableStyleInjection
+              place="top"
+              opacity={1}
               id={`passing_${cellProps.row.original.id.toString()}`}
-              data-html
+              offset={8}
+              positionStrategy="fixed"
             >
               {getTooltip(cellProps.row.original.next_update_ms)}
-            </ReactTooltip>
-          </>
+            </ReactTooltip5>
+          </div>
         );
       },
     },
@@ -233,12 +195,7 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing={false}
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing={false} />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -259,63 +216,74 @@ const generateTableHeaders = (
           );
         }
         return (
-          <>
+          <div className="policy-has-not-run">
             <span
-              className="text-cell text-muted has-not-run tooltip"
-              data-tip
-              data-for={`failing_${cellProps.row.original.id.toString()}`}
+              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
             >
               ---
             </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`failing_${cellProps.row.original.id.toString()}`}
-              data-html
+            <ReactTooltip5
+              className="policy-has-not-run-tooltip"
+              disableStyleInjection
+              place="top"
+              opacity={1}
+              id={`passing_${cellProps.row.original.id.toString()}`}
+              offset={8}
+              positionStrategy="fixed"
             >
               {getTooltip(cellProps.row.original.next_update_ms)}
-            </ReactTooltip>
-          </>
+            </ReactTooltip5>
+          </div>
         );
       },
       sortType: "caseInsensitive",
     },
   ];
 
-  if (tableType !== "inheritedPolicies") {
-    tableHeaders.push({
-      title: "Automations",
-      Header: "Automations",
-      disableSortBy: true,
-      accessor: "webhook",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusIndicator value={cellProps.cell.value} />
-      ),
-    });
-
-    if (!canAddOrDeletePolicy) {
-      return tableHeaders;
-    }
-
+  if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
-      Header: (cellProps: IHeaderProps) => {
-        const props = cellProps.getToggleAllRowsSelectedProps();
-        const checkboxProps = {
-          value: props.checked,
-          indeterminate: props.indeterminate,
-          onChange: () => cellProps.toggleAllRowsSelected(),
+      Header: (headerProps: any) => {
+        // When viewing team policies, the select all checkbox will ignore inherited policies
+        const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
+          headerProps,
+          checkIfRowIsSelectable: (row) => row.original.team_id !== null,
+        });
+
+        // Regular table selection logic
+        const {
+          getToggleAllRowsSelectedProps,
+          toggleAllRowsSelected,
+        } = headerProps;
+        const { checked, indeterminate } = getToggleAllRowsSelectedProps();
+
+        const regularCheckboxProps = {
+          value: checked,
+          indeterminate,
+          onChange: () => {
+            toggleAllRowsSelected();
+          },
         };
-        return <Checkbox {...checkboxProps} />;
+
+        const checkboxProps = viewingTeamPolicies
+          ? teamCheckboxProps
+          : regularCheckboxProps;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const inheritedPolicy = cellProps.row.original.team_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,
           onChange: () => cellProps.row.toggleRowSelected(),
         };
-        return <Checkbox {...checkboxProps} />;
+
+        // When viewing team policies and a row is an inherited policy, do not render checkbox
+        if (viewingTeamPolicies && inheritedPolicy) {
+          return <></>;
+        }
+
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     });
@@ -355,13 +323,15 @@ const generateDataSet = (
   // So, we need to add `osquery_policy` to the time of the cron update.
   let policiesLastRun: Date;
   let osqueryPolicyMs = 0;
-  const hostCountUpdatedAt =
+  const policiesThatHaveRunHostCountUpdatedAt =
+    // host counts of all policies that have run are updated at the same time, and are therefore
+    // identical, so we can use the first one. Those that haven't run will be `null`.
     policiesList.find((p) => !!p.host_count_updated_at)
       ?.host_count_updated_at || "";
   // If host_count_updated_at is not present, we assume the worst case.
   const hostCountUpdateIntervalMs = 60 * 60 * 1000; // 1 hour (from server's `cron.go`)
-  const hostCountUpdatedAtDate = hostCountUpdatedAt
-    ? new Date(hostCountUpdatedAt)
+  const hostCountUpdatedAtDate = policiesThatHaveRunHostCountUpdatedAt
+    ? new Date(policiesThatHaveRunHostCountUpdatedAt)
     : new Date(Date.now() - hostCountUpdateIntervalMs);
   if (osquery_policy) {
     // Convert from nanosecond to milliseconds
@@ -370,13 +340,14 @@ const generateDataSet = (
       hostCountUpdatedAtDate.getTime() - osqueryPolicyMs
     );
   } else {
+    // temporarily unused - will restore use with upcoming DB update
     policiesLastRun = hostCountUpdatedAtDate;
   }
   // Now we figure out when the next host count update will be.
   // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.
   const nextHostCountUpdateMs =
     hostCountUpdateIntervalMs -
-    (hostCountUpdatedAt
+    (policiesThatHaveRunHostCountUpdatedAt
       ? (Date.now() - hostCountUpdatedAtDate.getTime()) %
         hostCountUpdateIntervalMs
       : 0);
@@ -390,7 +361,14 @@ const generateDataSet = (
 
     // Define policy has_run based on updated_at compared against last time policies ran.
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
-    policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+    // TODO: restore and update setting of policyItem.has_run based on upcoming custom
+    // `policy_membership_updated_at`(ish) DB column/API response field
+    // policyItem.has_run = isAfter(policiesLastRun, policyItemUpdatedAt);
+
+    // all of the policiess `has_run` will be either true (cron has run, so host_count_updated_at
+    // has a value that is the same for all such policies) or false (policy is new, wasn't included
+    // in last cron run, host_count_updated_at is `null`)
+    policyItem.has_run = !!policyItem.host_count_updated_at;
     if (!policyItem.has_run) {
       // Include time for next update for reference in tooltip, which is only present if policy has not run.
       policyItem.next_update_ms = nextPolicyUpdateMs(

@@ -1,155 +1,171 @@
 <div id="transparency" v-cloak>
-
-  <div style="max-width: 1008px;" class="container-fluid d-flex flex-column justify-content-center align-items-center px-3 px-md-4 pt-3 pt-lg-5 pb-5 mx-auto my-5">
-    <div class="container-fluid d-flex flex-column text-center justify-content-center align-items-center pb-5 mb-3 mx-auto">
-      <h3 class="pb-3">What personal information can Fleet see?</h3>
-      <p class="m-0">End users deserve to know what their employer can see on their laptops and the systems they manage.</p>
-    </div>
-    <div purpose="card" class="d-flex">
-      <h4 class="text-center pb-4 mb-3">Fleet does <span style="font-weight: 900">NOT</span> have access to:</h4>
-      <div class="d-flex flex-column flex-sm-row flex-wrap w-100 justify-content-center pb-lg-4">
-        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
-          <img style="max-height: 80px; width: auto" alt="keyboard icon" src="/images/keystrokes-93x80@2x.png"/>
-          <p class="pt-2 pt-sm-3 m-0">Keystrokes</p>
-        </div>
-        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
-          <img style="max-height: 80px; width: auto" alt="mouse icon" src="/images/mouse-movement-98x80@2x.png"/>
-          <p class="pt-2 pt-sm-3 m-0">Mouse movements</p>
-        </div>
-        <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
-          <img style="max-height: 80px; width: auto" alt="messages icon" src="/images/emails-and-chat-101x81@2x.png"/>
-          <p class="pt-2 pt-sm-3 m-0">Email & text messages</p>
-        </div>
-        <div class="d-flex flex-column flex-sm-row flex-wrap align-items-center justify-content-center">
-          <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
-            <img style="max-height: 80px; width: auto" alt="webcam icon" src="/images/webcam-81x80@2x.png"/>
-            <p class="pt-2 pt-sm-3 m-0">Webcams & mic</p>
-          </div>
-          <div class="d-flex flex-column align-items-center text-center justify-content-center px-4 mb-5">
-            <img style="max-height: 80px; width: auto" alt="computer screen icon" src="/images/screen-82x81@2x.png"/>
-            <p class="pt-2 pt-sm-3 m-0">Screen content</p>
-          </div>
-        </div>
+  <div purpose="page-container" class="container-fluid">
+    <div purpose="page-content">
+      <div purpose="hero-text">
+        <h1 class="text-center">Why is Fleet on my computer?</h1>
+        <p class="text-center">Fleet makes it a little easier for your IT team to keep your computer healthy without interfering with your work.</p>
+      </div>
+      <div purpose="feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+      <div purpose="feature-text" class="d-flex flex-column">
+        <h3>How does it affect me?</h3>
+        <p>Your IT team has to maintain your computer and keep it compliant with a bunch of security requirements. But they also realize you have a job to do. So they want to be as un-intrusive as possible.</p>
+        <p>That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank">take it apart</a> and see what it’s doing to your computer.</p>
+        <!-- <div purpose="swag-cta" v-if="showSwagForm">
+          <a purpose="swag-link" style="text-decoration: none;" class="d-inline" href="https://kqphpqst851.typeform.com/to/Whm2imZc">
+            <div class="d-flex flex-row justify-content-center align-items-center">
+              <div><img alt="A tumbler with a Fleet logo" src="/images/icon-fleet-tumbler-55x51@2x.png"></div>
+              <div class="d-flex flex-column">
+                <strong>Get a Fleet tumbler</strong>
+                <animated-arrow-button target="_blank" style="font-weight: 400;">It's free</animated-arrow-button>
+              </div>
+            </div>
+          </a>
+        </div> -->
+      </div>
+      <div purpose="feature-image">
+        <img alt="Information about a users device in Fleet." src="/images/better-hero-image-468x380@2x.png">
       </div>
     </div>
-    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center pt-5 pb-5 mt-5 mx-auto">
-      <h3 class="text-center pb-3 m-0">Here’s how Fleet can see and manage your devices:</h3>
-      <div style="max-width: 800px; color: #192147;" class="pt-5 w-100 mx-auto">
-        <div class="mb-5">
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header1" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
-              System settings
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body1" class="collapse" aria-labelledby="accordion__header1">
-              Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your Mac up to date so you don’t have to.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header2" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body2" aria-controls="accordion__body2">
-              Device actions
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
-              Fleet can take action on your device remotely like trigger a restart for your device. This is useful for IT teams to help you troubleshoot remotely if you run into any issues with your device.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header3" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body3" aria-controls="accordion__body3">
-              Shell scripts
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body3" class="collapse" aria-labelledby="accordion__header3">
-              Fleet can run any shell script on your device remotely. This is useful for IT teams to help you troubleshoot remotely if you run into any issues with your device.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header4" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body4" aria-controls="accordion__body4">
-              User account logins
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body4" class="collapse" aria-labelledby="accordion__header4">
-              Fleet can see details about the user accounts associated with your device, including which accounts have logged in recently. This is useful for IT and security teams to identify logins from suspicious accounts.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header5" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body5" aria-controls="accordion__body5">
-              Device health & performance
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body5" class="collapse" aria-labelledby="accordion__header5">
-              Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header6" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body6" aria-controls="accordion__body6">
-              Installed software packages
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body6" class="collapse" aria-labelledby="accordion__header6">
-              Fleet can access a detailed list of the software installed on your device. With this information, IT teams can better manage software update schedules, and reduce disruption to your workflow. Security teams can also use this data to determine if any of your software has been compromised, by referencing your software’s version number against known vulnerable software databases.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header7" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body7" aria-controls="accordion__body7">
-              Running processes
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body7" class="collapse" aria-labelledby="accordion__header7">
-              Fleet can access a list of processes running on your device. These are processes you interact with graphically i.e., opened software; and processes that are running tasks in the background, such as sending data over network connections, running backups, or scheduled auto-updates. IT and security teams can use osquery to view this list in order to detect suspicious activity that may be a threat to your system.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header8" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body8" aria-controls="accordion__body8">
-              Security configurations
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body8" class="collapse" aria-labelledby="accordion__header8">
-              Fleet can see information about the status of firewalls and other security software installed on your device.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header9" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body9" aria-controls="accordion__body9">
-              Connected hardware devices
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body9" class="collapse" aria-labelledby="accordion__header9">
-              Fleet can see information about connected hardware devices. This is typically limited to only the type of hardware connected, and not specific details about the device. E.g., connected smartphones, USB devices, network devices, audio/visual hardware. 
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header10" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body10" aria-controls="accordion__body10">
-              Device location
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body10" class="collapse" aria-labelledby="accordion__header10">
-              Fleet uses IP geolocation to provide an approximate location of your device. Accuracy of IP geolocation services vary depending on where you are, but can typically be pinpointed within the nearest state or city. Organizations typically use this feature to track stolen or misplaced devices, and in some cases to ensure the safety of employees.
-            </p>
-          </div>
-          <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-            <p id="accordion__header11" style="cursor: pointer;" class="accordion pt-3 mb-3" data-toggle="collapse" data-target="#accordion__body11" aria-controls="accordion__body11">
-              File contents
-              <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-            </p>
-            <p id="accordion__body11" class="collapse" aria-labelledby="accordion__header11">
-              In the case of a cyber attack, it is possible with Fleet to gain read access to files on your system. This is not a feature designed for privacy invasion, but rather a means for security teams to locate files on your device that may have been created or affected by a malicious virus.<br/><br/>
-              Additionally, Fleet can be configured to store disk encryption keys that can be used to recover encrypted data from a macOS device.
-            </p>
-          </div>
+    <div purpose="logos" class="mx-auto">
+      <logo-carousel></logo-carousel>
+    </div>
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0">
+      <h2 class="text-center">What personal information can Fleet see?</h2>
+      <p class="mb-0">Here’s what Fleet can manage on your computer:</p>
+      <div purpose="accordion-body" class="mx-auto">
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
+            On/off status
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body1" class="collapse" aria-labelledby="accordion__header1">
+            Fleet knows when your device is on or off. This is shown via the online/offline status in Fleet Desktop. This is useful for understanding the state of your device and for troubleshooting should a problem ever arise.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body2" aria-controls="accordion__body2">
+            Browser history
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
+            Fleet can see browser history to protect you in the rare event of bad actors gaining access to you device and personal information.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body3" aria-controls="accordion__body3">
+            System settings
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body3" class="collapse" aria-labelledby="accordion__header3">
+            Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your Mac up to date so you don’t have to.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body4" aria-controls="accordion__body4">
+            Remote actions
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body4" class="collapse" aria-labelledby="accordion__header4">
+            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted, locked or even wiped remotely by your administrator.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body5" aria-controls="accordion__body5">
+            Shell scripts
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body5" class="collapse" aria-labelledby="accordion__header5">
+            Fleet can run any shell script on your device remotely. This is useful for IT teams to help you troubleshoot remotely if you run into any issues with your device.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body6" aria-controls="accordion__body6">
+            User account logins
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body6" class="collapse" aria-labelledby="accordion__header6">
+            Fleet can see details about the user accounts associated with your device, including which accounts have logged in recently. This is useful for IT and security teams to identify logins from suspicious accounts.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body7" aria-controls="accordion__body7">
+            Device health & performance
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body7" class="collapse" aria-labelledby="accordion__header7">
+            Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body8" aria-controls="accordion__body8">
+            Software
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body8" class="collapse" aria-labelledby="accordion__header8">
+            Fleet can install software and access a detailed list of the software installed on your device. This enables IT teams to better manage software update schedules, and reduce disruption to your workflow. Additionally, security teams can use this data to check if any software has been compromised by referencing the version numbers against known vulnerable software databases.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header9" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body9" aria-controls="accordion__body9">
+            Running processes
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body9" class="collapse" aria-labelledby="accordion__header9">
+            Fleet can access a list of processes running on your device. These are processes you interact with graphically i.e., opened software; and processes that are running tasks in the background, such as sending data over network connections, running backups, or scheduled auto-updates. IT and security teams can use osquery to view this list in order to detect suspicious activity that may be a threat to your system.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header10" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body10" aria-controls="accordion__body10">
+            Security configurations
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body10" class="collapse" aria-labelledby="accordion__header10">
+            Fleet can see information about the status of firewalls and other security software installed on your device.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header11" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body11" aria-controls="accordion__body11">
+            Connected hardware devices
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body11" class="collapse" aria-labelledby="accordion__header11">
+            Fleet can see information about connected hardware devices. This is typically limited to only the type of hardware connected, and not specific details about the device. E.g., connected smartphones, USB devices, network devices, audio/visual hardware.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header12" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body12" aria-controls="accordion__body12">
+            Device location
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body12" class="collapse" aria-labelledby="accordion__header12">
+            Fleet uses IP geolocation to provide an approximate location of your device. Accuracy of IP geolocation services vary depending on where you are, but can typically be pinpointed within the nearest state or city. Organizations typically use this feature to track stolen or misplaced devices, and in some cases to ensure the safety of employees.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="accordion__header13" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body13" aria-controls="accordion__body13">
+            File contents
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="accordion__body13" class="collapse" aria-labelledby="accordion__header13">
+            In the case of a cyber attack, it is possible with Fleet to gain read access to files on your system. This is not a feature designed for privacy invasion, but rather a means for security teams to locate files on your device that may have been created or affected by a malicious virus.<br/><br/>
+            Additionally, Fleet can be configured to store disk encryption keys that can be used to recover encrypted data from a macOS device.
+          </p>
         </div>
       </div>
-    </div>
-    <div purpose="card" class="d-flex flex-column flex-md-row align-items-center py-5 mb-5">
-      <div class="d-flex align-items-start px-4 pb-4 pb-lg-0">
-        <img style="max-height: 92px; width: auto" alt="privacy icon" src="/images/privacy-80x92@2x.png"/>
-      </div>
-      <div class="text-center text-md-left px-4">
-        <p class="font-weight-bold">It’s important to be vigilant about the personal information you share on your devices.</p>
-        <p>If you are unsure, or still have concerns about your privacy, it’s a good idea to talk to your employer about your organization’s privacy policy, and how your personal information is handled.</p>
-        <a href="https://blog.fleetdm.com/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-10b7f25e92bb" target="_blank" class="d-inline-flex">Read about what to do, and not do on your work computer.</a>  
-      </div>
+      <p purpose="agents-note">Fleet can't guarantee that your personal data isn't being tracked by other common cybersecurity tools like Veriato, CrowdStrike, SentinelOne, and Sophos.</p>
     </div>
   </div>
-
+  <div purpose="secureframe-section" v-if="showSecureframeBanner">
+    <div purpose="secureframe-banner" class="d-flex flex-column">
+      <img alt="Secureframe logo" src="/images/logo-secureframe-46x48@2x.png">
+      <h2>Automate compliance. <br>Improve security. Reduce risk.</h2>
+      <p>Build trust with customers using automation backed by world-class experts</p>
+    <animated-arrow-button class="mx-auto" href="https://secureframe.com" target="_blank" text-color="#FFFFFF" arrow-color="#0FD082">Learn more</animated-arrow-button>
+    </div>
+  </div>
+  </div>
+    <div purpose="bottom-gradient">
+      <parallax-city></parallax-city>
+    </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

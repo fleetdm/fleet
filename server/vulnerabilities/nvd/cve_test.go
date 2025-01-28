@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed"
-	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
@@ -130,20 +131,22 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	nettest.Run(t)
-
-	tempDir := t.TempDir()
-
+	t.Parallel()
 	ctx := context.Background()
 
-	// download the CVEs once for all sub-tests, and then disable syncing
-	err := nettest.RunWithNetRetry(t, func() error {
-		// We use cveFeedPrefixURL="https://nvd.nist.gov/feeds/json/cve/1.1/" because a full sync
-		// with the NVD API 2.0 takes a long time (>15m). These feeds will be deprecated
-		// on December 15th and this test will start failing then.
-		return DownloadNVDCVEFeed(tempDir, "https://nvd.nist.gov/feeds/json/cve/1.1/", false, log.NewNopLogger())
-	})
-	require.NoError(t, err)
+	// NVD_TEST_VULNDB_DIR can be used to speed up development (sync vulnerability data only once).
+	tempDir := os.Getenv("NVD_TEST_VULNDB_DIR")
+	if tempDir == "" {
+		// download the CVEs once for all sub-tests, and then disable syncing
+		tempDir = t.TempDir()
+		err := nettest.RunWithNetRetry(t, func() error {
+			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
+		})
+		require.NoError(t, err)
+	} else {
+		require.DirExists(t, tempDir)
+		t.Logf("Using %s as database path", tempDir)
+	}
 
 	cveTests := map[string]struct {
 		cpe          string
@@ -260,6 +263,123 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2023-42919", resolvedInVersion: "14.2"},
 			},
 			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:windows_subsystem_for_linux:0.63.10:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2021-43907", resolvedInVersion: "0.63.11"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:github:pull_requests_and_issues:0.66.1:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-36867", resolvedInVersion: "0.66.2"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:microsoft:jupyter:2024.2.0:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs:      []cve{},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.0.0:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2020-1481", resolvedInVersion: "2.1.7"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
+				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
+				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+			},
+			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-44325"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:17.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-42852", resolvedInVersion: "17.1"},
+				{ID: "CVE-2023-42950", resolvedInVersion: "17.2"},
+				{ID: "CVE-2024-23273", resolvedInVersion: "17.4"},
+			},
+			excludedCVEs: []string{
+				"CVE-2023-28205", // This vulnerability is for Safari 16.4.0
+				"CVE-2024-23252", // Rejected CVE
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.4.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-28205", resolvedInVersion: "16.4.1"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-21402"},
+			},
+			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-4030"},
+			continuesToUpdate: true,
+		},
+		// Skipping test while troubleshooting https://github.com/fleetdm/fleet/issues/24286
+		//
+		// "cpe:2.3:a:python:python:3.9.6:*:*:*:*:windows:*:*": {
+		// 	includedCVEs: []cve{
+		// 		{ID: "CVE-2024-4030", resolvedInVersion: "3.9.20"},
+		// 	},
+		// 	continuesToUpdate: true,
+		// },
+		// Tests the expandCPEAliases rule for virtualbox on macOS
+		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-21989", resolvedInVersion: "7.0.8"},
+				{ID: "CVE-2024-21141", resolvedInVersion: "7.0.20"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10004"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:okta:verify:9.27.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10327"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: ""}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2024.3:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-37051"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		},
+		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
 		},
 	}
 
@@ -423,7 +543,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			}
 
 			for _, cve := range tc.excludedCVEs {
-				require.NotContains(t, cvesFound[cpe], cve, tc.cpe)
+				for _, cveFound := range cvesFound[cpe] {
+					require.NotEqual(t, cve, cveFound.ID, fmt.Sprintf("%s should not contain %s", cpe, cve))
+				}
 			}
 		}
 
@@ -503,7 +625,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),
@@ -590,6 +712,17 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			want:    "",
 			wantErr: false,
 		},
+		{
+			name: "Can compare 4th version part",
+			cve:  "CVE-2022-45889",
+			meta: &wfn.Attributes{
+				Vendor:  "planetestream",
+				Product: "planet_estream",
+				Version: "6.72.10.06",
+			},
+			want:    "6.72.10.07",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -600,7 +733,7 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getMatchingVersionEndExcluding() = %v, want %v", got, tt.want)
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -611,23 +744,24 @@ func TestPreprocessVersion(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"2.3.0.2", "2.3.0+2"},
+		{"2.3.0.2", "2.3.0-2"},
 		{"2.3.0+2", "2.3.0+2"},
-		{"v2.3.0+2", "v2.3.0+2"},
-		{"2.3.0.2.5", "2.3.0+2.5"},
+		{"v5.3.0.2", "v5.3.0-2"},
+		{"5.3.0-2", "5.3.0-2"},
+		{"2.3.0.2.5", "2.3.0-2.5"},
 		{"2.3.0", "2.3.0"},
 		{"2.3", "2.3"},
 		{"v2.3.0", "v2.3.0"},
 		{"notAVersion", "notAVersion"},
 		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
-		{"1.21.1ubuntu2", "1.21.1+ubuntu2"},
+		{"1.21.1ubuntu2", "1.21.1-ubuntu2"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
 			output := preprocessVersion(tc.input)
 			if output != tc.expected {
-				t.Fatalf("expected: %s, got: %s", tc.expected, output)
+				t.Fatalf("input: %s, expected: %s, got: %s", tc.input, tc.expected, output)
 			}
 		})
 	}
@@ -700,4 +834,71 @@ func loadDict(t *testing.T, path string) cvefeed.Dictionary {
 		t.Fatal(err)
 	}
 	return dict
+}
+
+func TestExpandCPEAliases(t *testing.T) {
+	firefox := &wfn.Attributes{
+		Vendor:  "mozilla",
+		Product: "firefox",
+		Version: "93.0.100",
+	}
+	chromePlugin := &wfn.Attributes{
+		Vendor:   "google",
+		Product:  "plugin foobar",
+		Version:  "93.0.100",
+		TargetSW: "chrome",
+	}
+
+	vsCodeExtension := &wfn.Attributes{
+		Vendor:   "Microsoft",
+		Product:  "foo.extension",
+		Version:  "2024.2.1",
+		TargetSW: "visual_studio_code",
+	}
+	vsCodeExtensionAlias := *vsCodeExtension
+	vsCodeExtensionAlias.TargetSW = "visual_studio"
+
+	pythonCodeExtension := &wfn.Attributes{
+		Vendor:   "microsoft",
+		Product:  "python_extension",
+		Version:  "2024.2.1",
+		TargetSW: "visual_studio_code",
+	}
+	pythonCodeExtensionAlias1 := *pythonCodeExtension
+	pythonCodeExtensionAlias1.TargetSW = "visual_studio"
+	pythonCodeExtensionAlias2 := *pythonCodeExtension
+	pythonCodeExtensionAlias2.Product = "visual_studio_code"
+	pythonCodeExtensionAlias2.TargetSW = "python"
+
+	for _, tc := range []struct {
+		name            string
+		cpeItem         *wfn.Attributes
+		expectedAliases []*wfn.Attributes
+	}{
+		{
+			name:            "no expansion without target_sw",
+			cpeItem:         firefox,
+			expectedAliases: []*wfn.Attributes{firefox},
+		},
+		{
+			name:            "no expansion with target_sw",
+			cpeItem:         chromePlugin,
+			expectedAliases: []*wfn.Attributes{chromePlugin},
+		},
+		{
+			name:            "visual studio code extension",
+			cpeItem:         vsCodeExtension,
+			expectedAliases: []*wfn.Attributes{vsCodeExtension, &vsCodeExtensionAlias},
+		},
+		{
+			name:            "python visual studio code extension",
+			cpeItem:         pythonCodeExtension,
+			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			aliases := expandCPEAliases(tc.cpeItem)
+			require.Equal(t, tc.expectedAliases, aliases)
+		})
+	}
 }

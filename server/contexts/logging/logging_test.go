@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -95,7 +95,7 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		id, _ := res.LastInsertId()
-		req.ID = uint(id)
+		req.ID = uint(id) //nolint:gosec // dismiss G115
 
 		found, err := ds.FindPasswordResetByToken(context.Background(), req.Token)
 

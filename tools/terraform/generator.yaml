@@ -1,0 +1,23 @@
+provider:
+  name: fleetdm_teams
+  schema_ref: '#/components/schemas/Team'
+
+resources:
+  team:
+    create:
+      path: /api/v1/fleet/teams
+      method: POST
+    read:
+      path: /api/v1/fleet/teams/{id}
+      method: GET
+    update:
+      path: /api/v1/fleet/teams/{id}
+      method: PUT
+    delete:
+      path: /api/v1/fleet/teams/{id}
+      method: DELETE
+    schema:
+      attributes:
+        overrides:
+          name:
+            description: Team name

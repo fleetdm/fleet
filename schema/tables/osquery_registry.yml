@@ -1,9 +1,7 @@
 name: osquery_registry
-examples: >-
+examples: |-
   See the list of tables available on this instance of osquery.
   
   ```
-  
   SELECT DISTINCT name FROM osquery_registry;
-  
   ```

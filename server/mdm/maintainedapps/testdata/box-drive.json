@@ -1,0 +1,102 @@
+{
+	"token": "box-drive",
+	"full_token": "box-drive",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Box Drive"
+	],
+	"desc": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage.",
+	"homepage": "https://www.box.com/drive",
+	"url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.40.345.pkg",
+	"url_specs": {
+		"verified": "e3.boxcdn.net/desktop/releases/mac/"
+	},
+	"version": "2.40.345",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "203493ec8aedce5502d36464e02665a1d9e01ad0aed3d86468b3df12280ffb1c",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": "com.box.desktop.helper",
+					"quit": [
+						"com.box.Box-Local-Com-Server",
+						"com.box.desktop",
+						"com.box.desktop.findersyncext",
+						"com.box.desktop.helper",
+						"com.box.desktop.ui"
+					],
+					"script": "/Library/Application Support/Box/uninstall_box_drive",
+					"pkgutil": "com.box.desktop.installer.*"
+				}
+			]
+		},
+		{
+			"pkg": [
+				"BoxDrive-2.40.345.pkg"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/.Box_*",
+						"~/Library/Application Support/Box/Box",
+						"~/Library/Application Support/FileProvider/com.box.desktop.boxfileprovider",
+						"~/Library/Containers/com.box.desktop.findersyncext",
+						"~/Library/Logs/Box/Box",
+						"~/Library/Preferences/com.box.desktop.plist",
+						"~/Library/Preferences/com.box.desktop.ui.plist"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.11"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"box-sync"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/b/box-drive.rb",
+	"ruby_source_checksum": {
+		"sha256": "8f773c3189e6f031e0f454c25943ce602bdc2a42dc891a1db7fe3b63e17be249"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"box-drive": 81
+			},
+			"90d": {
+				"box-drive": 209
+			},
+			"365d": {
+				"box-drive": 1066
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

@@ -33,7 +33,6 @@ const LinkCell = ({
 
   return tooltipContent ? (
     <TooltipWrapper
-      position="top-start"
       className="link-cell-tooltip-wrapper"
       tipContent={tooltipContent}
     >

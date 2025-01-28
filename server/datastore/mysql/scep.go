@@ -1,64 +1,55 @@
 package mysql
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
 	_ "embed"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
-	"github.com/micromdm/scep/v2/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
 // SCEPDepot is a MySQL-backed SCEP certificate depot.
 type SCEPDepot struct {
 	db *sql.DB
-
-	// caCrt holds the CA's certificate.
-	caCrt *x509.Certificate
-	// caKey holds the CA private key.
-	caKey *rsa.PrivateKey
+	ds fleet.Datastore
 }
 
 var _ depot.Depot = (*SCEPDepot)(nil)
 
 // newSCEPDepot creates and returns a *SCEPDepot.
-func newSCEPDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPDepot, error) {
+func newSCEPDepot(db *sql.DB, ds fleet.Datastore) (*SCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	caCrt, err := cryptoutil.DecodePEMCertificate(caCertPEM)
-	if err != nil {
-		return nil, err
-	}
-	caKey, err := decodeRSAKeyFromPEM(caKeyPEM)
-	if err != nil {
-		return nil, err
-	}
 	return &SCEPDepot{
-		db:    db,
-		caCrt: caCrt,
-		caKey: caKey,
+		db: db,
+		ds: ds,
 	}, nil
-}
-
-func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode(key)
-	if block.Type != "RSA PRIVATE KEY" {
-		return nil, errors.New("PEM type is not RSA PRIVATE KEY")
-	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 // CA returns the CA's certificate and private key.
 func (d *SCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
-	return []*x509.Certificate{d.caCrt}, d.caKey, nil
+	// TODO(roberto): nano interfaces doesn't receive a context for this method.
+	cert, err := assets.CAKeyPair(context.Background(), d.ds)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting assets: %w", err)
+	}
+
+	pk, ok := cert.PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil, nil, errors.New("private key not in RSA format")
+	}
+
+	return []*x509.Certificate{cert.Leaf}, pk, nil
 }
 
 // Serial allocates and returns a new (increasing) serial number.

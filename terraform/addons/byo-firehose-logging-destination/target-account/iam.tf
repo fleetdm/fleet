@@ -10,6 +10,14 @@ data "aws_iam_policy_document" "assume_role" {
       identifiers = [var.fleet_iam_role_arn]
       type        = "AWS"
     }
+    dynamic "condition" {
+      for_each = length(var.sts_external_id) > 0 ? [1] : []
+      content {
+        test     = "StringEquals"
+        variable = "sts:ExternalId"
+        values   = [var.sts_external_id]
+      }
+    }
   }
 }
 

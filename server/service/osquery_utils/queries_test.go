@@ -19,13 +19,14 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -51,6 +52,20 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "10.0.1.2", host.PrimaryIP)
 	assert.Equal(t, "bc:d0:74:4b:10:6d", host.PrimaryMac)
+
+	rows = make([]map[string]string, 1)
+	require.NoError(
+		t, json.Unmarshal(
+			[]byte(`
+[
+  {"address":"fd7a:115c:a1e0::d401:6637","mac":"b2:a2:e4:62:0f:1e"}
+]`),
+			&rows,
+		),
+	)
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "fd7a:115c:a1e0::d401:6637", host.PrimaryIP)
+	assert.Equal(t, "b2:a2:e4:62:0f:1e", host.PrimaryMac)
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
@@ -284,12 +299,15 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesWithoutWinOSVuln, 25)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
-	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
+	qs := baseQueries
+	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
+	qs = baseQueries
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
+		"software_chrome", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -307,7 +325,8 @@ func TestGetDetailQueries(t *testing.T) {
 	ac.MDM.EnabledAndConfigured = true
 	// windows mdm is disabled by default, windows mdm queries should not be present
 	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
-	wantQueries := append(baseQueries, mdmQueriesBase...)
+	wantQueries := baseQueries
+	wantQueries = append(wantQueries, mdmQueriesBase...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
 	// enable windows mdm, windows mdm queries should be present
@@ -487,6 +506,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 		got        map[string]string
 		wantParams []any
 		wantErr    string
+		enrollRef  string
 	}{
 		{
 			"empty server URL",
@@ -496,6 +516,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				"server_url":         "",
 			},
 			[]any{false, false, "", false, fleet.UnknownMDMName},
+			"",
 			"",
 		},
 		{
@@ -508,6 +529,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
 			"",
+			"",
 		},
 		{
 			"with a query string on the server URL",
@@ -517,6 +539,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				"server_url":         "https://jamf.com/1/some/path?one=1&two=2",
 			},
 			[]any{false, true, "https://jamf.com/1/some/path", true, fleet.WellKnownMDMJamf},
+			"",
 			"",
 		},
 		{
@@ -528,6 +551,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing installed_from_dep",
+			"",
 		},
 		{
 			"with invalid enrolled",
@@ -538,6 +562,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing enrolled",
+			"",
 		},
 		{
 			"with invalid server_url",
@@ -548,6 +573,19 @@ func TestDirectIngestMDMMac(t *testing.T) {
 			},
 			[]any{},
 			"parsing server_url",
+			"",
+		},
+		{
+			"with invalid enrollment reference",
+			map[string]string{
+				"enrolled":           "true",
+				"installed_from_dep": "true",
+				"server_url":         "https://test.example.com?enroll_reference=foobar",
+				"payload_identifier": apple_mdm.FleetPayloadIdentifier,
+			},
+			[]any{false, true, "https://test.example.com", true, fleet.WellKnownMDMFleet},
+			"",
+			"foobar",
 		},
 	}
 
@@ -559,11 +597,17 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
-				require.Empty(t, fleetEnrollmentRef)
+				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
 				return nil
 			}
 			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
+			}
+
+			if c.name == "with invalid enrollment reference" {
+				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+					return &nfe{}
+				}
 			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
@@ -575,7 +619,9 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
 				ds.SetOrUpdateMDMDataFuncInvoked = false
-				require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+				if c.name != "with invalid enrollment reference" {
+					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+				}
 			}
 		})
 	}
@@ -684,13 +730,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		wantInstalledFromDep bool
 		wantIsServer         bool
 		wantServerURL        string
+		wantMDMSolName       string
 	}{
 		{
 			name: "off empty server URL",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -701,7 +748,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
-			name: "off missing is_federated and server url",
+			name: "off missing aad_resource_id and server url",
 			data: []map[string]string{
 				{
 					"provider_id":       "Some_ID",
@@ -714,11 +761,19 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
+			name:                 "off no rows",
+			data:                 []map[string]string{},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
 			name: "on automatic",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Client",
 				},
@@ -733,7 +788,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "0",
+					"aad_resource_id":       "",
 					"provider_id":           "Local_Management",
 					"installation_type":     "Client",
 				},
@@ -744,7 +799,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "https://example.com",
 		},
 		{
-			name: "on manual missing is_federated",
+			name: "on manual missing aad_resource_id",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
@@ -762,7 +817,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
-					"is_federated":          "1",
+					"aad_resource_id":       "https://example.com",
 					"provider_id":           "Some_ID",
 					"installation_type":     "Windows SeRvEr 99.9",
 				},
@@ -771,6 +826,106 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantInstalledFromDep: true,
 			wantIsServer:         true,
 			wantServerURL:        "https://example.com",
+		},
+
+		// Test that names are being calculated correctly
+
+		{
+			name: "on manual jumpcloud",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://jumpcloud.com",
+					"aad_resource_id":       "",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://jumpcloud.com",
+			wantMDMSolName:       fleet.WellKnownMDMJumpCloud,
+		},
+		{
+			name: "on manual airwatch",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://airwatch.com",
+					"aad_resource_id":       "",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://airwatch.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual awmdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://awmdm.com",
+					"aad_resource_id":       "",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://awmdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual microsoft",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://microsoft.com",
+					"aad_resource_id":       "",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://microsoft.com",
+			wantMDMSolName:       fleet.WellKnownMDMIntune,
+		},
+		{
+			name: "on manual fleetdm cloud hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://fleetdm.com",
+					"aad_resource_id":       "",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
+
+		{
+			name: "on manual fleetdm self hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://myinstall.local",
+					"aad_resource_id":       "",
+					"provider_id":           "Fleet",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://myinstall.local",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
 		},
 	}
 
@@ -781,6 +936,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
@@ -822,26 +978,87 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 }
 
 func TestDirectIngestBattery(t *testing.T) {
-	ds := new(mock.Store)
-	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
-		require.Equal(t, mappings, []*fleet.HostBattery{
-			{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: "Good"},
-			{HostID: uint(1), SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 40)},
+	tests := []struct {
+		name            string
+		input           map[string]string
+		expectedBattery *fleet.HostBattery
+	}{
+		{
+			name:            "max_capacity >= 80%, cycleCount < 1000",
+			input:           map[string]string{"serial_number": "a", "cycle_count": "2", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: batteryStatusGood},
+		},
+		{
+			name:            "max_capacity < 50%",
+			input:           map[string]string{"serial_number": "b", "cycle_count": "3", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "b", CycleCount: 3, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "missing max_capacity",
+			input:           map[string]string{"serial_number": "c", "cycle_count": "4", "designed_capacity": "3000", "max_capacity": ""},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "c", CycleCount: 4, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "missing designed_capacity and max_capacity",
+			input:           map[string]string{"serial_number": "d", "cycle_count": "5", "designed_capacity": "", "max_capacity": ""},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "d", CycleCount: 5, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "missing designed_capacity",
+			input:           map[string]string{"serial_number": "e", "cycle_count": "6", "designed_capacity": "", "max_capacity": "2000"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "e", CycleCount: 6, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "invalid designed_capacity and max_capacity",
+			input:           map[string]string{"serial_number": "f", "cycle_count": "7", "designed_capacity": "foo", "max_capacity": "bar"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "f", CycleCount: 7, Health: batteryStatusUnknown},
+		},
+		{
+			name:            "cycleCount >= 1000",
+			input:           map[string]string{"serial_number": "g", "cycle_count": "1000", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "g", CycleCount: 1000, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "cycleCount >= 1000 with degraded health",
+			input:           map[string]string{"serial_number": "h", "cycle_count": "1001", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "h", CycleCount: 1001, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "missing cycle_count",
+			input:           map[string]string{"serial_number": "i", "cycle_count": "", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "i", CycleCount: 0, Health: batteryStatusGood},
+		},
+		{
+			name:            "missing cycle_count with degraded health",
+			input:           map[string]string{"serial_number": "j", "cycle_count": "", "designed_capacity": "3000", "max_capacity": "2399"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "j", CycleCount: 0, Health: batteryStatusDegraded},
+		},
+		{
+			name:            "invalid cycle_count",
+			input:           map[string]string{"serial_number": "k", "cycle_count": "foo", "designed_capacity": "3000", "max_capacity": "2400"},
+			expectedBattery: &fleet.HostBattery{HostID: uint(1), SerialNumber: "k", CycleCount: 0, Health: batteryStatusGood},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+				require.Len(t, mappings, 1)
+				require.Equal(t, tt.expectedBattery, mappings[0])
+				return nil
+			}
+
+			host := fleet.Host{
+				ID: 1,
+			}
+
+			err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{tt.input})
+			require.NoError(t, err)
+			require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 		})
-		return nil
 	}
-
-	host := fleet.Host{
-		ID: 1,
-	}
-
-	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
-		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
-	})
-
-	require.NoError(t, err)
-	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
 
 func TestDirectIngestOSWindows(t *testing.T) {
@@ -860,7 +1077,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				DisplayVersion: "21H2",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit"},
 			},
 		},
 		{
@@ -872,7 +1089,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				DisplayVersion: "",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763.2183"},
+				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763.2183", "arch": "64-bit"},
 			},
 		},
 	}
@@ -1026,12 +1243,13 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
-				require.Equal(t, uint(i), hostID)
+				require.Equal(t, uint(i), hostID) //nolint:gosec // dismiss G115
 				require.Equal(t, tc.expected, hostOS)
 				return nil
 			}
 
-			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data)
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, //nolint:gosec // dismiss G115
+				ds, tc.data)
 
 			require.NoError(t, err)
 			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
@@ -1120,7 +1338,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1311,11 +1529,12 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
+		decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
-		if host.ID != hostID {
+		if host.ID != incomingHost.ID {
 			return errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
@@ -1678,6 +1897,84 @@ func TestSanitizeSoftware(t *testing.T) {
 				Version: "1.6.00.34263",
 			},
 		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio with trailing garbage",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "JetBrains non-EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
@@ -1724,6 +2021,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 				result[p.Name] = p
 			}
 			return result, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
 		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
@@ -1775,3 +2075,108 @@ func TestShouldRemoveSoftware(t *testing.T) {
 		})
 	}
 }
+
+func TestIngestNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	// NOTE: It was decided that we should allow ingesting private IPs on the PublicIP field,
+	// see https://github.com/fleetdm/fleet/issues/11102.
+	for _, tc := range []struct {
+		name  string
+		ip    string
+		valid bool
+	}{
+		{"public IPv6", "598b:6910:e935:63ff:54db:1753:9c01:4c84", true},
+		{"private IPv6", "fd42:fdaa:1234:5678::1a2b", true},
+		{"public IPv4", "190.18.97.12", true},
+		{"private IPv4", "127.0.0.1", true},
+		{"IP could not be determined", "", true},
+		{"invalid value ends up in the context", "invalid-ip", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
+			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			require.NoError(t, err)
+			if tc.valid {
+				require.Equal(t, tc.ip, h.PublicIP)
+			} else {
+				require.Empty(t, h.PublicIP)
+			}
+		})
+	}
+
+	t.Run("primaryIP and primaryMAC", func(t *testing.T) {
+		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
+		ip := "10.0.0.1"
+		var b bytes.Buffer
+		logger := log.NewLogfmtLogger(&b)
+
+		// Happy path
+		rows := []map[string]string{
+			{"address": "address", "mac": "mac"},
+		}
+		err := ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Equal(t, "mac", h.PrimaryMac)
+		assert.Equal(t, "address", h.PrimaryIP)
+		assert.Empty(t, b.String())
+
+		// No rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, []map[string]string{})
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "did not find a private IP address")
+
+		// Too many rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		rows = []map[string]string{
+			{"address": "address", "mac": "mac"},
+			{"address": "address2", "mac": "mac2"},
+		}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "expected single result")
+	})
+}
+
+func TestGenerateSQLForAllExists(t *testing.T) {
+	// Combine two queries
+	query1 := "SELECT 1 WHERE foo = bar"
+	query2 := "SELECT 1 WHERE baz = qux"
+	sql := generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	// Default
+	sql = generateSQLForAllExists()
+	require.Equal(t, "SELECT 0 LIMIT 0", sql)
+
+	// sanitize semicolons from subqueries
+	query1 = "SELECT 1 WHERE foo = bar;"
+	query2 = "SELECT 1 WHERE baz = qux;"
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	// sanitize only trailing semicolons
+	query1 = "SELECT 1 WHERE foo = 'ba;r';"
+	query2 = "SELECT 1 WHERE baz = 'qu;x';;; "
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
+}
+
+type nfe struct{}
+
+func (e nfe) Error() string {
+	return "foobar"
+}
+
+func (e nfe) IsNotFound() bool { return true }

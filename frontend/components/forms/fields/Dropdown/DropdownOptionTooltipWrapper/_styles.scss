@@ -1,0 +1,25 @@
+// Used with old react-select dropdown and
+// New react-select-5: ActionsDropdown.tsx, DropdownWrapper.tsx
+.Select > .Select-menu-outer,
+.actions-dropdown,
+.react-select__option {
+  .is-disabled * {
+    color: $ui-fleet-black-50;
+  }
+  .dropdown-option-tooltip-wrapper {
+    width: 100%;
+  }
+  .dropdown-option-tooltip-wrapper__element {
+    // for broader tooltip activation area, equally increase padding and decrease margin
+    padding: 8px;
+    margin: -8px;
+    width: 100%;
+  }
+  .react-tooltip {
+    @include tooltip-text;
+    font-style: normal;
+    text-align: center;
+  }
+
+  @include tooltip5-arrow-styles;
+}

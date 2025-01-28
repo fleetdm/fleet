@@ -34,6 +34,7 @@
   &__section-title-group {
     display: flex;
     gap: 0.75rem;
+    align-items: baseline;
   }
 
   &__section-title-detail {
@@ -57,6 +58,7 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
+    gap: $pad-small;
 
     &:focus-visible {
       outline: 1px solid $core-vibrant-blue;
@@ -64,10 +66,5 @@
   }
   &__action-button-text {
     text-align: right;
-  }
-
-  .icon {
-    margin-left: $pad-small;
-    vertical-align: sub;
   }
 }

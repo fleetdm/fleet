@@ -1,2 +1,0 @@
-- Updated "Add hosts" modal UI to dynamically include the `--enable-scripts` flag unless scripts are
-  disabled in the server settings.

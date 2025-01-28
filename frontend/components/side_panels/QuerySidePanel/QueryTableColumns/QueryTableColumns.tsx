@@ -35,17 +35,15 @@ const baseClass = "query-table-columns";
 const QueryTableColumns = ({ columns }: IQueryTableColumnsProps) => {
   const { selectedOsqueryTable } = useContext(QueryContext);
 
-  const columnListItems = orderColumns(columns)
-    .filter((column) => !column.hidden)
-    .map((column) => {
-      return (
-        <ColumnListItem
-          key={column.name}
-          column={column}
-          selectedTableName={selectedOsqueryTable.name}
-        />
-      );
-    });
+  const columnListItems = orderColumns(columns).map((column) => {
+    return (
+      <ColumnListItem
+        key={column.name}
+        column={column}
+        selectedTableName={selectedOsqueryTable.name}
+      />
+    );
+  });
 
   return (
     <div className={baseClass}>

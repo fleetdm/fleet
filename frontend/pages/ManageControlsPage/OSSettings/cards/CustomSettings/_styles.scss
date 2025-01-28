@@ -1,67 +1,14 @@
 .custom-settings {
-  .section-header {
-    margin: 0;
-    padding: 0 0 12px 0;
-
-    h2 {
-      padding-bottom: 0;
-      border-bottom: none;
-      margin: 0;
-    }
-  }
-
   &__description {
     font-size: $x-small;
-    margin: $pad-large 0;
-  }
-
-  &__profiles-header {
-    padding: $pad-medium $pad-large;
-    display: flex;
-    justify-content: space-between;
-    font-size: $x-small;
-    font-weight: $bold;
-    border-bottom: 1px solid $ui-fleet-black-10;
-  }
-
-  &__profile-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+    margin-bottom: $pad-large;
+    @include grey-text;
   }
 
   &__pagination-controls {
     display: flex;
     justify-content: flex-end;
     margin: $pad-large 0;
-  }
-
-  &__file-uploader {
-    margin-top: $pad-xxlarge;
-  }
-
-  &__labels-list {
-    border-radius: 6px;
-    border: 1px solid $ui-fleet-black-10;
-
-    &--label {
-      display: flex;
-      height: 41px;
-      padding: 0 $pad-large;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid $ui-fleet-black-10;
-
-      .warning {
-        display: flex;
-        padding: 0;
-        gap: $pad-small;
-      }
-
-      &:last-of-type {
-        border-bottom: none;
-      }
-    }
   }
 
   .upload-list {
@@ -85,145 +32,15 @@
     }
   }
 
-  .add-profile {
-    &__card--content-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-medium;
-      padding: 28.5px 0;
-    }
-
-    &__modal-content-wrap {
-      margin-top: $pad-large;
-
-      .add-profile__file {
-        padding: $pad-medium $pad-large;
-      }
-    }
-
-    &__upload-button {
-      margin-top: 8px;
-      padding: 0;
-    }
-
-    &__file-chooser {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: $pad-medium;
-
-      input {
-        display: none;
-      }
-
-      &--button-wrap {
-        display: flex;
-        justify-content: center;
-        gap: $pad-small;
-        cursor: pointer;
-        height: 38px;
-        align-items: center;
-      }
-    }
-
-    &__selected-file {
-      display: flex;
-      gap: 16px;
-
-      &--details {
-        display: flex;
-        flex-direction: column;
-
-        &--name {
-          font-size: $x-small;
-          font-weight: $bold;
-        }
-        &--platform {
-          font-size: $xx-small;
-          color: $ui-fleet-black-75;
-        }
-      }
-    }
-
-    &__profile-graphic {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-small;
-    }
-
-    &__button-wrap {
-      display: flex;
-      justify-content: flex-end;
-      padding-top: $pad-medium;
-    }
-
-    &__target {
-      margin: $pad-large 0 $pad-small 0;
-    }
-
-    &__description {
-      margin: $pad-medium 0;
-    }
-
-    &__no-labels {
-      display: flex;
-      height: 187px;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-small;
-      justify-content: center;
-
-      span {
-        color: $ui-fleet-black-75;
-      }
-    }
-
-    &__checkboxes {
-      display: flex;
-      max-height: 187px;
-      flex-direction: column;
-      border-radius: $border-radius;
-      border: 1px solid $ui-fleet-black-10;
-      overflow-y: scroll;
-
-      .loading-spinner {
-        margin: 69.5px auto;
-      }
-    }
-
-    &__label {
-      width: 100%;
-      padding: $pad-small $pad-medium;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-
-      &:not(:last-child) {
-        border-bottom: 1px solid $ui-fleet-black-10;
-      }
-
-      .form-field--checkbox {
-        width: auto;
-      }
-    }
-
-    &__label-name {
-      padding-left: $pad-large;
-    }
-
-    .fleet-checkbox {
-      height: 20px;
-      display: flex;
-      align-items: center;
-
-      &__label {
-        width: 490px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
+  .turn-on-mdm-message {
+    border: px-to-rem(1);
+    border-color: $ui-fleet-black-10;
+    border-style: solid;
+    border-radius: px-to-rem(6);
+    padding-top: px-to-rem(64);
+    padding-bottom: px-to-rem(64);
+    width: 100%;
+    margin: px-to-rem(32) 0 0;
+    max-width: none;
   }
 }

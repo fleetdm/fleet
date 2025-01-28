@@ -60,8 +60,7 @@ func (p *Pack) Copy() *Pack {
 		return nil
 	}
 
-	var clone Pack
-	clone = *p
+	clone := *p
 	if p.Type != nil {
 		clone.Type = ptr.String(*p.Type)
 	}

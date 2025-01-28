@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Generate merged schema',
 
 
-  description: 'Merge the osquery schema from the osquery/osquery-site GitHub repo with Fleet\'s overrides (/schema/fleet_schema.json) and save the merged schema to /schema/osquery_fleet_schema.json',
+  description: 'Merge the osquery schema from the osquery/osquery-site GitHub repo with Fleet\'s overrides (/schema/tables/) and save the merged schema to /schema/osquery_fleet_schema.json',
 
 
 

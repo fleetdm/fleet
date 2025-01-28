@@ -1,0 +1,7 @@
+.mdm-settings-section {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+  }
+}

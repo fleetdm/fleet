@@ -47,9 +47,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/groob/plist"
+	"github.com/rs/zerolog"
 
 	howett "howett.net/plist"
 )
@@ -70,7 +69,7 @@ type Flattener struct {
 	expandNestedPlist bool
 	includeNestedRaw  bool
 	includeNils       bool
-	logger            log.Logger
+	logger            zerolog.Logger
 	query             []string
 	queryKeyDenoter   string
 	queryWildcard     string
@@ -95,11 +94,7 @@ func WithNestedPlist() FlattenOpts {
 }
 
 // WithLogger sets the logger to use
-func WithLogger(logger log.Logger) FlattenOpts {
-	if logger == nil {
-		return func(_ *Flattener) {}
-	}
-
+func WithLogger(logger zerolog.Logger) FlattenOpts {
 	return func(fl *Flattener) {
 		fl.logger = logger
 	}
@@ -119,7 +114,7 @@ func WithDebugLogging() FlattenOpts {
 // re-writing arrays into maps, and for filtering. See "Query
 // Specification" for docs.
 func WithQuery(q []string) FlattenOpts {
-	if q == nil || len(q) == 0 || (len(q) == 1 && q[0] == "") {
+	if len(q) == 0 || (len(q) == 1 && q[0] == "") {
 		return func(_ *Flattener) {}
 	}
 
@@ -132,7 +127,7 @@ func WithQuery(q []string) FlattenOpts {
 func Flatten(data interface{}, opts ...FlattenOpts) ([]Row, error) {
 	fl := &Flattener{
 		rows:            []Row{},
-		logger:          log.NewNopLogger(),
+		logger:          zerolog.Nop(),
 		queryWildcard:   `*`,
 		queryKeyDenoter: `#`,
 	}
@@ -142,7 +137,7 @@ func Flatten(data interface{}, opts ...FlattenOpts) ([]Row, error) {
 	}
 
 	if !fl.debugLogging {
-		fl.logger = level.NewFilter(fl.logger, level.AllowInfo())
+		fl.logger = fl.logger.Level(zerolog.InfoLevel)
 	}
 
 	if err := fl.descend([]string{}, data, 0); err != nil {
@@ -155,20 +150,19 @@ func Flatten(data interface{}, opts ...FlattenOpts) ([]Row, error) {
 // descend recurses through a given data structure flattening along the way.
 func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 	queryTerm, isQueryMatched := fl.queryAtDepth(depth)
-
-	logger := log.With(fl.logger,
-		"caller", "descend",
-		"depth", depth,
-		"rows-so-far", len(fl.rows),
-		"query", queryTerm,
-		"path", strings.Join(path, "/"),
-	)
+	logger := fl.logger.With().
+		Str("caller", "descend").
+		Int("depth", depth).
+		Int("rows-so-far", len(fl.rows)).
+		Str("query", queryTerm).
+		Str("path", strings.Join(path, "/")).
+		Logger()
 
 	switch v := data.(type) {
 	case []interface{}:
 		for i, e := range v {
 			pathKey := strconv.Itoa(i)
-			level.Debug(logger).Log("msg", "checking an array", "indexStr", pathKey)
+			logger.Debug().Str("indexStr", pathKey).Msg("checking an array")
 
 			// If the queryTerm starts with
 			// queryKeyDenoter, then we want to rewrite
@@ -184,25 +178,25 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 				keyQuery := strings.SplitN(strings.TrimPrefix(queryTerm, fl.queryKeyDenoter), "=>", 2)
 				keyName := keyQuery[0]
 
-				innerlogger := log.With(logger, "arraykeyname", keyName)
-				level.Debug(logger).Log("msg", "attempting to coerce array into map")
+				innerlogger := logger.With().Str("arraykeyname", keyName).Logger()
+				logger.Debug().Msg("attempting to coerce array into map")
 
 				e, ok := e.(map[string]interface{})
 				if !ok {
-					level.Debug(innerlogger).Log("msg", "can't coerce into map")
+					innerlogger.Debug().Msg("can't coerce into map")
 					continue
 				}
 
 				// Is keyName in this array?
 				val, ok := e[keyName]
 				if !ok {
-					level.Debug(innerlogger).Log("msg", "keyName not in map")
+					innerlogger.Debug().Msg("keyName not in map")
 					continue
 				}
 
 				pathKey, ok = val.(string)
 				if !ok {
-					level.Debug(innerlogger).Log("msg", "can't coerce pathKey val into string")
+					innerlogger.Debug().Msg("can't coerce pathKey val into string")
 					continue
 				}
 
@@ -210,7 +204,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 			}
 
 			if !(isQueryMatched || fl.queryMatchArrayElement(e, i, queryTerm)) {
-				level.Debug(logger).Log("msg", "query not matched")
+				logger.Debug().Msg("query not matched")
 				continue
 			}
 
@@ -219,7 +213,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 			}
 		}
 	case map[string]interface{}:
-		level.Debug(logger).Log("msg", "checking a map")
+		logger.Debug().Msg("checking a map")
 		for k, e := range v {
 			// Check that the key name matches. If not, skip this entire
 			// branch of the map
@@ -232,7 +226,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 			}
 		}
 	case []map[string]interface{}:
-		level.Debug(logger).Log("msg", "checking an array of maps")
+		logger.Debug().Msg("checking an array of maps")
 		for i, e := range v {
 			if err := fl.descend(append(path, strconv.Itoa(i)), e, depth+1); err != nil {
 				return fmt.Errorf("flattening array of maps: %w", err)
@@ -241,7 +235,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 	case nil:
 		// Because we want to filter nils out, we do _not_ examine isQueryMatched here
 		if !(fl.queryMatchNil(queryTerm)) {
-			level.Debug(logger).Log("msg", "query not matched")
+			logger.Debug().Msg("query not matched")
 			return nil
 		}
 		fl.rows = append(fl.rows, NewRow(path, ""))
@@ -261,7 +255,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 // handleStringLike is called when we finally have an object we think
 // can be converted to a string. It uses the depth to compare against
 // the query, and returns a stringify'ed value
-func (fl *Flattener) handleStringLike(logger log.Logger, path []string, v interface{}, depth int) error {
+func (fl *Flattener) handleStringLike(logger zerolog.Logger, path []string, v interface{}, depth int) error {
 	queryTerm, isQueryMatched := fl.queryAtDepth(depth)
 
 	stringValue, err := stringify(v)
@@ -270,7 +264,7 @@ func (fl *Flattener) handleStringLike(logger log.Logger, path []string, v interf
 	}
 
 	if !(isQueryMatched || fl.queryMatchString(stringValue, queryTerm)) {
-		level.Debug(logger).Log("msg", "query not matched")
+		logger.Debug().Msg("query not matched")
 		return nil
 	}
 
@@ -282,12 +276,12 @@ func (fl *Flattener) handleStringLike(logger log.Logger, path []string, v interf
 // embedded plist. In the case of failures, it falls back to treating
 // it like a plain string.
 func (fl *Flattener) descendMaybePlist(path []string, data []byte, depth int) error {
-	logger := log.With(fl.logger,
-		"caller", "descendMaybePlist",
-		"depth", depth,
-		"rows-so-far", len(fl.rows),
-		"path", strings.Join(path, "/"),
-	)
+	logger := fl.logger.With().
+		Str("caller", "descendMaybePlist").
+		Int("depth", depth).
+		Int("rows-so-far", len(fl.rows)).
+		Str("path", strings.Join(path, "/")).
+		Logger()
 
 	// Skip if we're not expanding nested plists
 	if !fl.expandNestedPlist {
@@ -300,19 +294,19 @@ func (fl *Flattener) descendMaybePlist(path []string, data []byte, depth int) er
 	}
 
 	// Looks like a plist. Try parsing it
-	level.Debug(logger).Log("msg", "Parsing inner plist")
+	logger.Debug().Msg("Parsing inner plist")
 
 	var innerData interface{}
 
 	if err := plist.Unmarshal(data, &innerData); err != nil {
-		level.Info(logger).Log("msg", "plist parsing failed", "err", err)
+		logger.Info().Err(err).Msg("plist parsing failed")
 		return fl.handleStringLike(logger, path, data, depth)
 	}
 
 	// have a parsed plist. Descend and return from here.
 	if fl.includeNestedRaw {
 		if err := fl.handleStringLike(logger, append(path, "_raw"), data, depth); err != nil {
-			level.Error(logger).Log("msg", "Failed to add _raw key", "err", err)
+			logger.Error().Err(err).Msg("Failed to add _raw key")
 		}
 	}
 
@@ -338,12 +332,12 @@ func (fl *Flattener) queryMatchNil(queryTerm string) bool {
 // We use `=>` as something that is reasonably intuitive, and not very
 // likely to occur on it's own. Unfortunately, `==` shows up in base64
 func (fl *Flattener) queryMatchArrayElement(data interface{}, arrIndex int, queryTerm string) bool {
-	logger := log.With(fl.logger,
-		"caller", "queryMatchArrayElement",
-		"rows-so-far", len(fl.rows),
-		"query", queryTerm,
-		"arrIndex", arrIndex,
-	)
+	logger := fl.logger.With().
+		Str("caller", "queryMatchArrayElement").
+		Int("rows-so-far", len(fl.rows)).
+		Str("query", queryTerm).
+		Int("arrIndex", arrIndex).
+		Logger()
 
 	// strip off the key re-write denotation before trying to match
 	queryTerm = strings.TrimPrefix(queryTerm, fl.queryKeyDenoter)
@@ -354,11 +348,11 @@ func (fl *Flattener) queryMatchArrayElement(data interface{}, arrIndex int, quer
 
 	// If the queryTerm is an int, then we expect to match the index
 	if queryIndex, err := strconv.Atoi(queryTerm); err == nil {
-		level.Debug(logger).Log("msg", "using numeric index comparison")
+		logger.Debug().Msg("using numeric index comparison")
 		return queryIndex == arrIndex
 	}
 
-	level.Debug(logger).Log("msg", "checking data type")
+	logger.Debug().Msg("checking data type")
 
 	switch dataCasted := data.(type) {
 	case []interface{}:
@@ -407,7 +401,6 @@ func (fl *Flattener) queryMatchStringify(data interface{}, queryTerm string) boo
 	}
 
 	return fl.queryMatchString(stringValue, queryTerm)
-
 }
 
 func (fl *Flattener) queryMatchString(v, queryTerm string) bool {

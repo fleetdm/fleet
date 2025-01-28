@@ -1,10 +1,4 @@
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 
 interface IAutoSizeInputFieldProps {
@@ -12,12 +6,12 @@ interface IAutoSizeInputFieldProps {
   placeholder: string;
   value: string;
   inputClassName?: string;
-  maxLength: string;
+  maxLength: number;
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
-  onFocus: () => void;
-  onBlur: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   onChange: (newSelectedValue: string) => void;
   onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
@@ -33,13 +27,11 @@ const AutoSizeInputField = ({
   hasError,
   isDisabled,
   isFocused,
-  onFocus,
-  onBlur,
+  onFocus = () => null,
+  onBlur = () => null,
   onChange,
   onKeyPress,
 }: IAutoSizeInputFieldProps): JSX.Element => {
-  const [inputValue, setInputValue] = useState(value);
-
   const inputClasses = classnames(baseClass, inputClassName, "no-hover", {
     [`${baseClass}--disabled`]: isDisabled,
     [`${baseClass}--error`]: hasError,
@@ -49,20 +41,12 @@ const AutoSizeInputField = ({
   const inputElement = useRef<any>(null);
 
   useEffect(() => {
-    onChange(inputValue);
-  }, [inputValue]);
-
-  useEffect(() => {
     if (isFocused && inputElement.current) {
       inputElement.current.focus();
-      inputElement.current.selectionStart = inputValue.length;
-      inputElement.current.selectionEnd = inputValue.length;
+      inputElement.current.selectionStart = value.length;
+      inputElement.current.selectionEnd = value.length;
     }
   }, [isFocused]);
-
-  const onInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(event.currentTarget.value);
-  };
 
   const onInputFocus = () => {
     isFocused = true;
@@ -78,18 +62,22 @@ const AutoSizeInputField = ({
     onKeyPress(event);
   };
 
+  const onInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(event.target.value);
+  };
+
   return (
     <div className={baseClass}>
-      <label className="input-sizer" data-value={inputValue} htmlFor={name}>
+      <label className="input-sizer" data-value={value} htmlFor={name}>
         <textarea
           name={name}
           id={name}
           onChange={onInputChange}
           placeholder={placeholder}
-          value={inputValue}
-          maxLength={parseInt(maxLength, 10)}
+          value={value}
+          maxLength={maxLength}
           className={inputClasses}
-          cols={value ? value.length : placeholder.length - 2}
+          cols={1}
           rows={1}
           tabIndex={0}
           onFocus={onInputFocus}

@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
+import { ApplePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -13,13 +14,13 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
-import NudgePreview from "./components/NudgePreview";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
-import { generateKey } from "./components/TargetSection/TargetSection";
+import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
 
-export type OSUpdatesSupportedPlatform = "darwin" | "windows";
+export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
 const baseClass = "os-updates";
 
@@ -38,28 +39,27 @@ const getSelectedPlatform = (
 
 interface IOSUpdates {
   router: InjectedRouter;
-  teamIdForApi?: number;
+  teamIdForApi: number;
+  queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
 }
 
-const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const [
     selectedPlatformTab,
     setSelectedPlatformTab,
   ] = useState<OSUpdatesSupportedPlatform | null>(null);
 
-  // FIXME: We're calling this endpoint twice on mount because it also gets called in App.tsx
-  // whenever the pathname changes. We should find a way to avoid this.
   const {
-    data: config,
     isError: isErrorConfig,
     isFetching: isFetchingConfig,
     isLoading: isLoadingConfig,
     refetch: refetchAppConfig,
   } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
     refetchOnWindowFocus: false,
-    onSuccess: (data) => setConfig(data), // update the app context with the fetched config
+    onSuccess: (data) => setConfig(data), // update the app context with the refetched config
+    enabled: false, // this is disabled as the config is already fetched in App.tsx
   });
 
   const {
@@ -87,14 +87,12 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     );
   }
 
-  // FIXME: Are these checks still necessary?
-  if (config === null || teamIdForApi === undefined) return null;
-
   if (isLoadingConfig || isLoadingTeam) return <Spinner />;
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
+
   if (
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
@@ -114,15 +112,15 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
       </p>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__current-version-container`}>
-          <CurrentVersionSection currentTeamId={teamIdForApi} />
+          <CurrentVersionSection
+            router={router}
+            currentTeamId={teamIdForApi}
+            queryParams={queryParams}
+          />
         </div>
-        <div className={`${baseClass}__taget-container`}>
+        <div className={`${baseClass}__target-container`}>
           <TargetSection
-            key={generateKey({
-              currentTeamId: teamIdForApi,
-              appConfig: config,
-              teamConfig,
-            })} // FIXME: Find a better way to trigger re-rendering if these change (see FIXME above regarding refetching)
+            key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
             currentTeamId={teamIdForApi}
             isFetching={isFetchingConfig || isFetchingTeamConfig}
@@ -134,7 +132,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
           />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview platform={selectedPlatform} />
+          <EndUserOSRequirementPreview platform={selectedPlatform} />
         </div>
       </div>
     </div>

@@ -59,6 +59,38 @@ func TestOvalParser(t *testing.T) {
            </criteria>
         </definition>
 	</definitions>
+	<definition id="oval:com.ubuntu.jammy:def:55441000000" version="1" class="patch">
+		<metadata>
+			<title>USN-5544-1 -- Linux kernel vulnerabilities</title>
+			<affected family="unix">
+				<platform>Ubuntu 22.04 LTS</platform>
+			</affected>
+			<reference source="USN" ref_id="USN-5544-1" ref_url="https://ubuntu.com/security/notices/USN-5544-1"/>
+			<reference source="CVE" ref_id="CVE-2022-1652" ref_url="https://ubuntu.com/security/CVE-2022-1652"/>
+			<reference source="CVE" ref_id="CVE-2022-1679" ref_url="https://ubuntu.com/security/CVE-2022-1679"/>
+			<reference source="CVE" ref_id="CVE-2022-28893" ref_url="https://ubuntu.com/security/CVE-2022-28893"/>
+			<reference source="CVE" ref_id="CVE-2022-34918" ref_url="https://ubuntu.com/security/CVE-2022-34918"/>
+			<description>Some long description</description>
+			<advisory from="security@ubuntu.com">
+				<severity>High</severity>
+				<issued date="2022-08-02"/>
+				<cve href="https://ubuntu.com/security/CVE-2022-1652" priority="medium" public="20220602" cvss_score="7.8" cvss_vector="CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H" cvss_severity="high" usns="5500-1,5505-1,5513-1,5529-1,5544-1,5560-1,5560-2,5562-1,5564-1,5566-1,5582-1">CVE-2022-1652</cve>
+				<cve href="https://ubuntu.com/security/CVE-2022-1679" priority="medium" public="20220516" cvss_score="7.8" cvss_vector="CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H" cvss_severity="high" usns="5500-1,5505-1,5513-1,5529-1,5517-1,5544-1,5560-1,5560-2,5562-1,5564-1,5566-1,5582-1">CVE-2022-1679</cve>
+				<cve href="https://ubuntu.com/security/CVE-2022-28893" priority="medium" public="20220411" cvss_score="7.8" cvss_vector="CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H" cvss_severity="high" usns="5544-1,5562-1,5564-1,5566-1,5582-1">CVE-2022-28893</cve>
+				<cve href="https://ubuntu.com/security/CVE-2022-34918" priority="high" public="20220704" cvss_score="7.8" cvss_vector="CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H" cvss_severity="high" usns="5540-1,5544-1,5545-1,5560-1,5560-2,5562-1,5564-1,5566-1,5582-1">CVE-2022-34918</cve>
+				
+			</advisory>
+		</metadata>
+		<criteria>
+			<extend_definition definition_ref="oval:com.ubuntu.jammy:def:100" comment="Ubuntu 22.04 LTS (jammy) is installed." applicability_check="true" />
+			<criteria operator="OR">
+				<criteria operator="AND">
+					<criterion test_ref="oval:com.ubuntu.jammy:tst:554410000000" comment="Long Term Support" />
+					<criterion test_ref="oval:com.ubuntu.jammy:tst:554410000010" comment="Long Term Support" />
+				</criteria>
+			</criteria>
+		</criteria>
+	</definition>
 	<tests>
 		<linux:dpkginfo_test id="oval:com.ubuntu.jammy:tst:540210000000" version="1" check_existence="at_least_one_exists" check="at least one" comment="Long Term Support">
            <linux:object object_ref="oval:com.ubuntu.jammy:obj:540210000000"/>
@@ -68,7 +100,15 @@ func TestOvalParser(t *testing.T) {
            <linux:object object_ref="oval:com.ubuntu.jammy:obj:542910000000"/>
            <linux:state state_ref="oval:com.ubuntu.jammy:ste:542910000000"/>
         </linux:dpkginfo_test>
+		<ind:variable_test id="oval:com.ubuntu.jammy:tst:554410000010" version="1" check="all" check_existence="all_exist" comment="kernel version comparison">
+            <ind:object object_ref="oval:com.ubuntu.jammy:obj:554410000010"/>
+            <ind:state state_ref="oval:com.ubuntu.jammy:ste:554410000010"/>
+        </ind:variable_test>
 	</tests>
+	<unix:uname_test check="at least one" comment="Is kernel 5.15.0-\d+(-generic|-generic-64k|-generic-lpae|-lowlatency|-lowlatency-64k) currently running?" id="oval:com.ubuntu.jammy:tst:554410000000" version="1">
+            <unix:object object_ref="oval:com.ubuntu.jammy:obj:554410000000"/>
+            <unix:state state_ref="oval:com.ubuntu.jammy:ste:554410000000"/>
+	</unix:uname_test>
 	<objects>
 		<linux:dpkginfo_object id="oval:com.ubuntu.jammy:obj:540210000000" version="1" comment="Long Term Support">
            <linux:name var_ref="oval:com.ubuntu.jammy:var:540210000000" var_check="at least one" />
@@ -76,6 +116,10 @@ func TestOvalParser(t *testing.T) {
 		<linux:dpkginfo_object id="oval:com.ubuntu.jammy:obj:542910000000" version="1" comment="Long Term Support">
            <linux:name var_ref="oval:com.ubuntu.jammy:var:542910000000" var_check="at least one" />
         </linux:dpkginfo_object>
+		<unix:uname_object id="oval:com.ubuntu.jammy:obj:554410000000" version="1"/>
+		<ind:variable_object id="oval:com.ubuntu.jammy:obj:554410000010" version="1">
+            <ind:var_ref>oval:com.ubuntu.jammy:var:554410000000</ind:var_ref>
+        </ind:variable_object>
 	</objects>
 	<states>
 		<linux:dpkginfo_state id="oval:com.ubuntu.jammy:ste:540210000000" version="1" comment="Long Term Support">
@@ -84,6 +128,12 @@ func TestOvalParser(t *testing.T) {
 		<linux:dpkginfo_state id="oval:com.ubuntu.jammy:ste:542910000000" version="1" comment="Long Term Support">
            <linux:evr datatype="evr_string" operation="less than">1:9.18.1-1ubuntu1.1</linux:evr>
         </linux:dpkginfo_state>
+		<unix:uname_state id="oval:com.ubuntu.jammy:ste:554410000000" version="1">
+            <unix:os_release operation="pattern match">5.15.0-\d+(-generic|-generic-64k|-generic-lpae|-lowlatency|-lowlatency-64k)</unix:os_release>
+        </unix:uname_state>
+		<ind:variable_state id="oval:com.ubuntu.jammy:ste:554410000010" version="1">
+            <ind:value datatype="debian_evr_string" operation="less than">0:5.15.0-43</ind:value>
+        </ind:variable_state>
 	</states>
 	<variables>
 		<constant_variable id="oval:com.ubuntu.jammy:var:540210000000" version="1" datatype="string" comment="Long Term Support">
@@ -351,14 +401,8 @@ func TestOvalParser(t *testing.T) {
 		require.NoError(t, err)
 
 		var expectedVulns []string
-		var expectedTestIds []int
 
 		for _, d := range xmlResult.Definitions {
-			for _, c := range d.Criteria.Criteriums {
-				tstId, err := extractId(c.TestId)
-				require.NoError(t, err)
-				expectedTestIds = append(expectedTestIds, tstId)
-			}
 			for _, v := range d.Vulnerabilities {
 				expectedVulns = append(expectedVulns, v.Id)
 			}
@@ -373,6 +417,8 @@ func TestOvalParser(t *testing.T) {
 		}
 
 		require.Equal(t, expectedVulns, actualVulns)
+
+		expectedTestIds := []int{540210000000, 542910000000, 554410000000, 554410000010}
 		require.ElementsMatch(t, expectedTestIds, actualTestIds)
 
 		require.Len(t, result.PackageTests, 2)
@@ -399,6 +445,13 @@ func TestOvalParser(t *testing.T) {
 			"bind9-dnsutils",
 			"bind9-host",
 		})
+
+		require.Len(t, result.UnameTests, 2)
+		matchState := []oval_parsed.ObjectStateString{"pattern match|5.15.0-\\d+(-generic|-generic-64k|-generic-lpae|-lowlatency|-lowlatency-64k)"}
+		require.ElementsMatch(t, result.UnameTests[554410000000].States, matchState)
+
+		variableState := []oval_parsed.ObjectStateString{"less than|0:5.15.0-43"}
+		require.ElementsMatch(t, result.UnameTests[554410000010].States, variableState)
 	})
 
 	t.Run("#parseRhelXML", func(t *testing.T) {

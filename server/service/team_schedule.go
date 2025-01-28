@@ -47,7 +47,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if teamID != 0 {
 		teamID_ = &teamID
 	}
-	queries, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true))
+	queries, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	if v == nil {
 		return nil
 	}
-	return ptr.Uint(uint(v.ValueOrZero()))
+	return ptr.Uint(uint(v.ValueOrZero())) //nolint:gosec // dismiss G115
 }
 
 func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {

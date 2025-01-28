@@ -58,7 +58,7 @@ const BootstrapPackageTable = ({
         disableCount
         emptyComponent={() => (
           <EmptyTable
-            header="No Bootstrap Package Status"
+            header="No bootstrap package status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."
           />

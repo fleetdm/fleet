@@ -1,0 +1,32 @@
+name: "☁️ Servers"
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+  secrets:
+    - secret: $DOGFOOD_SERVERS_ENROLL_SECRET
+agent_options:
+  path: ../lib/all/agent-options/servers.agent-options.yml
+controls:
+  enable_disk_encryption: false
+  macos_settings:
+    custom_settings:
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_settings:
+    custom_settings: null
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+  scripts:
+policies:
+queries:
+software:

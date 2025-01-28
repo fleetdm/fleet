@@ -1,0 +1,186 @@
+name: Verify fleetd-base files at https://download.fleetdm.com
+
+on:
+  workflow_dispatch: # Manual
+    inputs:
+      base-url:
+        description: "The base URL to download the files from"
+        required: false
+        default: "https://download.fleetdm.com"
+        type: string
+  workflow_call:
+    inputs:
+      base-url:
+        description: "The base URL to download the files from"
+        required: false
+        default: "https://download.fleetdm.com"
+        type: string
+  schedule:
+    - cron: "0 5 * * *" # Nightly 5AM UTC, not at the same time as release-fleetd-base workflow
+
+# This workflow is called by release-fleetd-base workflow, so it does not have its own concurrency group.
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  verify-checksums:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Verify checksums
+        run: |
+          curl -O ${{ env.BASE_URL }}/stable/meta.json
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
+          fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)
+          if [ "$(jq --raw-output '.fleetd_base_msi_sha256' meta.json)" != "$fleetd_base_msi_sha256" ]; then
+            echo "Checksum mismatch for fleetd-base.msi"
+            exit 1
+          else
+            echo "Checksum matches for fleetd-base.msi"
+          fi
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
+          fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)
+          if [ "$(jq --raw-output '.fleetd_base_pkg_sha256' meta.json)" != "$fleetd_base_pkg_sha256" ]; then
+              echo "Checksum mismatch for fleetd-base.pkg"
+              exit 1
+          else
+              echo "Checksum matches for fleetd-base.pkg"
+          fi
+          : # Check the files at the permalinks
+          curl -o fleetd-base-permalink.msi "$(jq --raw-output '.fleetd_base_msi_url' meta.json)"
+          diff fleetd-base.msi fleetd-base-permalink.msi
+          curl -o fleetd-base-permalink.pkg "$(jq --raw-output '.fleetd_base_pkg_url' meta.json)"
+          diff fleetd-base.pkg fleetd-base-permalink.pkg
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  verify-fleetd-base-msi:
+    runs-on: windows-latest
+    env:
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download fleetd-base.msi
+        shell: powershell
+        run: |
+          Invoke-WebRequest "${{ env.BASE_URL }}/stable/fleetd-base.msi" -OutFile "fleetd-base.msi"
+          if (! $?) { exit 1 }
+          Get-ChildItem
+
+      - name: Install fleetd-base.msi
+        shell: powershell
+        run: |
+          Start-Process msiexec "/i fleetd-base.msi /qn FLEET_URL='https://fleet.example.com' FLEET_SECRET='insecure'" -Wait
+          if (! $?) { exit 1 }
+          Start-Sleep -Seconds 5
+          cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
+          Get-ChildItem
+          if (!(Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf)) { exit 1 }
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  verify-fleetd-base-pkg:
+    runs-on: macos-latest
+    env:
+      BASE_URL: ${{ inputs.base-url || 'https://download.fleetdm.com' }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download fleetd-base.pkg
+        run: |
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
+
+      - name: Install fleetd-base.pkg
+        run: |
+          sudo installer -pkg fleetd-base.pkg -target /
+
+      - name: Slack Notification
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Verify fleetd-base files > ${{ github.job}} result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{
+                    github.run_id }}\n${{ github.event.pull_request.html_url ||
+                    github.event.head.html_url }}"
+                  }
+                }
+              ]
+            }
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

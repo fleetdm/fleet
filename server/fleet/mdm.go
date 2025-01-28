@@ -7,11 +7,22 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
+
+	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
+	// RefetchCriticalQueriesUntil field when migrating a device from a
+	// third-party MDM solution to Fleet.
+	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 )
 
 type AppleMDM struct {
@@ -37,6 +48,42 @@ func (a AppleBM) AuthzType() string {
 	return "mdm_apple"
 }
 
+// TODO: during API implementation, remove AppleBM above or reconciliate those
+// two types. We'll likely need a new authz type for the ABM token.
+type ABMToken struct {
+	ID                  uint      `db:"id" json:"id"`
+	AppleID             string    `db:"apple_id" json:"apple_id"`
+	OrganizationName    string    `db:"organization_name" json:"org_name"`
+	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
+	EncryptedToken      []byte    `db:"token" json:"-"`
+
+	// MDMServerURL is not a database field, it is computed from the AppConfig's
+	// Server URL and the static path to the MDM endpoint (using
+	// apple_mdm.ResolveAppleMDMURL).
+	MDMServerURL string `db:"-" json:"mdm_server_url"`
+
+	// the following fields are not in the abm_tokens table, they must be queried
+	// by a LEFT JOIN on the corresponding team, coalesced to "No team" if
+	// null (no team).
+	MacOSTeamName  string `db:"macos_team" json:"-"`
+	IOSTeamName    string `db:"ios_team" json:"-"`
+	IPadOSTeamName string `db:"ipados_team" json:"-"`
+
+	// These fields are composed of the ID and name fields above, and are used in API responses.
+	MacOSTeam  ABMTokenTeam `json:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+}
+
+type ABMTokenTeam struct {
+	Name string `json:"name"`
+	ID   uint   `json:"team_id"`
+}
+
 type AppleCSR struct {
 	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
 	APNsKey  []byte `json:"apns_key"`
@@ -48,13 +95,15 @@ func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
-// AppConfigUpdated is the minimal interface required to get and update the
-// AppConfig, as required to handle the DEP API errors to flag that Apple's
-// terms have changed and must be accepted. The Fleet Datastore satisfies
-// this interface.
-type AppConfigUpdater interface {
+// ABMTermsUpdater is the minimal interface required to get and update the
+// AppConfig, and set an ABM token's terms_expired flag as required to handle
+// the DEP API errors to indicate that Apple's terms have changed and must be
+// accepted. The Fleet Datastore satisfies this interface.
+type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
+	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
+	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -123,6 +172,8 @@ type ExpectedMDMProfile struct {
 	CountProfileLabels uint `db:"count_profile_labels"`
 	// CountHostLabels is used to enable queries that filter based on profile <-> label mappings.
 	CountHostLabels uint `db:"count_host_labels"`
+	// CountNonBrokenLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountNonBrokenLabels uint `db:"count_non_broken_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -165,6 +216,8 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
+	// Current possible values are "darwin" or "windows".
+	// Here "darwin" means "Apple" devices (iOS/iPadOS/macOS).
 	Platform string `json:"platform"`
 }
 
@@ -192,7 +245,8 @@ type MDMCommandResult struct {
 	HostUUID string `json:"host_uuid" db:"host_uuid"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	// Status is the command status. One of Acknowledged, Error, or NotNow for
+	// Apple, or 200, 400, etc for Windows.
 	Status string `json:"status" db:"status"`
 	// UpdatedAt is the last update timestamp of the command result.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
@@ -238,11 +292,18 @@ type MDMCommand struct {
 // https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
 type MDMCommandListOptions struct {
 	ListOptions
+	Filters MDMCommandFilters
+}
+
+type MDMCommandFilters struct {
+	HostIdentifier string
+	RequestType    string
 }
 
 type MDMPlatformsCounts struct {
 	MacOS   uint `db:"macos" json:"macos"`
 	Windows uint `db:"windows" json:"windows"`
+	Linux   uint `db:"linux" json:"linux"`
 }
 
 type MDMDiskEncryptionSummary struct {
@@ -254,8 +315,8 @@ type MDMDiskEncryptionSummary struct {
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
 }
 
-// MDMProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// MDMProfilesSummary reports the number of hosts being managed with configuration
+// profiles and/or disk encryption. Each host may be counted in only one of four mutually-exclusive categories:
 // Failed, Pending, Verifying, or Verified.
 type MDMProfilesSummary struct {
 	// Verified includes each host where Fleet has verified the installation of all of the
@@ -301,12 +362,8 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     the failed state being applied and no retry. We should probably support
-//     some retries for such failures, and determine a maximum number of retries
-//     before giving up (either as a count of attempts - which would require
-//     storing somewhere - or as a time period, which we could determine based on
-//     the timestamps, e.g. time since created_at, if we added them to
-//     host_mdm_apple_profiles).
+//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
 //     independently verified the status. This is a terminal state.
@@ -359,23 +416,36 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID string                      `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint                       `json:"team_id" db:"team_id"` // null for no-team
-	Name        string                      `json:"name" db:"name"`
-	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
-	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
-	UploadedAt  time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
-	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
+	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
+	Name        string `json:"name" db:"name"`
+	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	// Checksum is the following
+	// - for Apple configuration profiles: the MD5 checksum of the profile contents
+	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
+	// - for Windows: always empty
+	Checksum         []byte                      `json:"checksum,omitempty" db:"checksum"`
+	CreatedAt        time.Time                   `json:"created_at" db:"created_at"`
+	UploadedAt       time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
+	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
+	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string   `json:"name,omitempty"`
-	Contents []byte   `json:"contents,omitempty"`
-	Labels   []string `json:"labels,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Contents []byte `json:"contents,omitempty"`
+
+	// Deprecated: Labels is the backwards-compatible way of specifying
+	// LabelsIncludeAll.
+	Labels           []string   `json:"labels,omitempty"`
+	LabelsIncludeAll []string   `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
+	SecretsUpdatedAt *time.Time `json:"-"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -384,13 +454,15 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID: cp.ProfileUUID,
-		TeamID:      tid,
-		Name:        cp.Name,
-		Platform:    "windows",
-		CreatedAt:   cp.CreatedAt,
-		UploadedAt:  cp.UploadedAt,
-		Labels:      cp.Labels,
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Platform:         "windows",
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
 
@@ -400,23 +472,62 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID: cp.ProfileUUID,
-		TeamID:      tid,
-		Name:        cp.Name,
-		Identifier:  cp.Identifier,
-		Platform:    "darwin",
-		Checksum:    cp.Checksum,
-		CreatedAt:   cp.CreatedAt,
-		UploadedAt:  cp.UploadedAt,
-		Labels:      cp.Labels,
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Identifier:       cp.Identifier,
+		Platform:         "darwin",
+		Checksum:         cp.Checksum,
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
+	}
+}
+
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID:      decl.DeclarationUUID,
+		TeamID:           tid,
+		Name:             decl.Name,
+		Identifier:       decl.Identifier,
+		Platform:         "darwin",
+		Checksum:         []byte(decl.Token),
+		CreatedAt:        decl.CreatedAt,
+		UploadedAt:       decl.UploadedAt,
+		LabelsIncludeAll: decl.LabelsIncludeAll,
+		LabelsIncludeAny: decl.LabelsIncludeAny,
+		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
 
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path   string   `json:"path,omitempty"`
+	Path string `json:"path,omitempty"`
+
+	// Deprecated: the Labels field is now deprecated, it is superseded by
+	// LabelsIncludeAll, so any value set via this field will be transferred to
+	// LabelsIncludeAll.
 	Labels []string `json:"labels,omitempty"`
+
+	// LabelsIncludeAll is a list of label names that the host must be a member
+	// of in order to receive the profile. It must be a member of all listed
+	// labels.
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	// LabelsIncludeAny is a list of label names that the host must be a member
+	// of in order to receive the profile. It may be a member of
+	// any listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	// LabelsExcludeAll is a list of label names that the host must not be a
+	// member of in order to receive the profile. It must not be a member of any
+	// of the listed labels.
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to add backwards
@@ -425,26 +536,30 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-
 	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
 		var backwardsCompat string
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
 		p.Path = backwardsCompat
+
+		// FIXME: equivalent of no label condition, should clear all labels slice?
+		// p.Labels = nil
+		// p.LabelsIncludeAll = nil
+		// p.LabelsIncludeAny = nil
+		// p.LabelsExcludeAny = nil
 		return nil
 	}
 
 	// use an alias type to avoid recursively calling this function forever.
 	type Alias MDMProfileSpec
-	aliasData := struct {
-		*Alias
-	}{
-		Alias: (*Alias)(p),
-	}
+	var aliasData Alias
 	if err := json.Unmarshal(data, &aliasData); err != nil {
 		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
 	}
+	// NOTE: we always want the newly unmarshaled profile spec to completely replace the old one
+	// (rather than merging the new data into the old one).
+	*p = MDMProfileSpec(aliasData)
 	return nil
 }
 
@@ -457,12 +572,23 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 		return nil
 	}
 
-	var clone MDMProfileSpec
-	clone = *p
+	clone := *p
 
 	if len(p.Labels) > 0 {
 		clone.Labels = make([]string, len(p.Labels))
 		copy(clone.Labels, p.Labels)
+	}
+	if len(p.LabelsIncludeAll) > 0 {
+		clone.LabelsIncludeAll = make([]string, len(p.LabelsIncludeAll))
+		copy(clone.LabelsIncludeAll, p.LabelsIncludeAll)
+	}
+	if len(p.LabelsIncludeAny) > 0 {
+		clone.LabelsIncludeAny = make([]string, len(p.LabelsIncludeAny))
+		copy(clone.LabelsIncludeAny, p.LabelsIncludeAny)
+	}
+	if len(p.LabelsExcludeAny) > 0 {
+		clone.LabelsExcludeAny = make([]string, len(p.LabelsExcludeAny))
+		copy(clone.LabelsExcludeAny, p.LabelsExcludeAny)
 	}
 
 	return &clone
@@ -483,33 +609,319 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
-	pathLabelCounts := make(map[string]map[string]int)
+	pathLabelIncludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
-		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+		// the deprecated Labels field is only relevant if LabelsIncludeAll is
+		// empty.
+		if len(v.LabelsIncludeAll) > 0 {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
+		}
+	}
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
+	}
+	pathLabelExcludeCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
 	}
 
 	for _, v := range b {
-		labels, ok := pathLabelCounts[v.Path]
-		if !ok {
+		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
+		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
+		if !okIncl || !okExcl || !okInclAny {
 			return false
 		}
 
-		bLabelCounts := labelCountMap(v.Labels)
-		for label, count := range bLabelCounts {
-			if labels[label] != count {
+		var bLabelIncludeCounts map[string]int
+		if len(v.LabelsIncludeAll) > 0 {
+			bLabelIncludeCounts = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			bLabelIncludeCounts = labelCountMap(v.Labels)
+		}
+		for label, count := range bLabelIncludeCounts {
+			if includeLabels[label] != count {
 				return false
 			}
-			labels[label] -= count
+			includeLabels[label] -= count
 		}
-
-		for _, count := range labels {
+		for _, count := range includeLabels {
 			if count != 0 {
 				return false
 			}
 		}
 
-		delete(pathLabelCounts, v.Path)
+		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
+		for label, count := range bLabelIncludeAnyCounts {
+			if includeAnyLabels[label] != count {
+				return false
+			}
+			includeAnyLabels[label] -= count
+		}
+		for _, count := range includeAnyLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
+		for label, count := range bLabelExcludeCounts {
+			if excludeLabels[label] != count {
+				return false
+			}
+			excludeLabels[label] -= count
+		}
+		for _, count := range excludeLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelsIncludeAnyCounts, v.Path)
+		delete(pathLabelExcludeCounts, v.Path)
 	}
 
-	return len(pathLabelCounts) == 0
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
+}
+
+type MDMLabelsMode string
+
+const (
+	LabelsIncludeAll MDMLabelsMode = "labels_include_all"
+	LabelsIncludeAny MDMLabelsMode = "labels_include_any"
+	LabelsExcludeAny MDMLabelsMode = "labels_exclude_any"
+)
+
+type MDMAssetName string
+
+const (
+	// MDMAssetCACert is the name of the root CA certificate used by MDM, for
+	// Apple this is the SCEP certificate, for Windows the WSTEP certificate
+	MDMAssetCACert MDMAssetName = "ca_cert"
+	// MDMAssetCAKey is the name of the root CA private key used by MDM, for
+	// Apple this is the SCEP key, for Windows the WSTEP key
+	MDMAssetCAKey MDMAssetName = "ca_key"
+	// MDMAssetAPNSKey is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSKey MDMAssetName = "apns_key"
+	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSCert MDMAssetName = "apns_cert"
+	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// private key used to decrypt MDMAssetABMToken
+	MDMAssetABMKey MDMAssetName = "abm_key"
+	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// private key used to encrypt MDMAssetABMToken
+	MDMAssetABMCert MDMAssetName = "abm_cert"
+	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API.
+	// Deprecated: ABM tokens are now stored in the abm_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
+	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
+	// certificatges to Apple devices.
+	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
+	// MDMAssetVPPTokenDeprecated is the name of the token used by MDM to
+	// authenticate to Apple's VPP service.
+	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
+	// not in mdm_config_assets anymore.
+	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
+	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
+	// NDES SCEP server. It is used by Fleet's SCEP proxy.
+	MDMAssetNDESPassword MDMAssetName = "ndes_password"
+)
+
+type MDMConfigAsset struct {
+	Name        MDMAssetName `db:"name"`
+	Value       []byte       `db:"value"`
+	MD5Checksum string       `db:"md5_checksum"`
+}
+
+func (m MDMConfigAsset) Clone() (Cloner, error) {
+	return m.Copy(), nil
+}
+
+func (m MDMConfigAsset) Copy() MDMConfigAsset {
+	var clone MDMConfigAsset
+
+	clone.Name = m.Name
+	clone.MD5Checksum = m.MD5Checksum
+
+	if len(m.Value) > 0 {
+		clone.Value = make([]byte, len(m.Value))
+		copy(clone.Value, m.Value)
+	}
+
+	return clone
+}
+
+// MDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field).
+//
+// Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
+// to keep backwards compatibility throughout the app).
+func MDMPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case "darwin", "ios", "ipados":
+		return "darwin"
+	case "windows":
+		return "windows"
+	}
+	return ""
+}
+
+// MDMSupported returns whether MDM is supported for a given host platform.
+func MDMSupported(hostPlatform string) bool {
+	return MDMPlatform(hostPlatform) != ""
+}
+
+// FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
+// if the profile target's platform is ios/ipados.
+func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	i := 0
+	for _, profilePayload := range profiles {
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
+				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
+			continue
+		}
+		profiles[i] = profilePayload
+		i++
+	}
+	return profiles[:i]
+}
+
+// RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
+const (
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+)
+
+// VPPTokenInfo is the representation of the VPP token that we send out via API.
+type VPPTokenInfo struct {
+	OrgName   string `json:"org_name"`
+	RenewDate string `json:"renew_date"`
+	Location  string `json:"location"`
+}
+
+// VPPTokenRaw is the representation of the decoded JSON object that is downloaded from ABM.
+type VPPTokenRaw struct {
+	OrgName string `json:"orgName"`
+	Token   string `json:"token"`
+	ExpDate string `json:"expDate"`
+}
+
+// VPPTokenData is the VPP data we store in the DB.
+type VPPTokenData struct {
+	// Location comes from an Apple API:
+	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
+	// the "library" of apps in ABM that is associated with this VPP token.
+	Location string `json:"location"`
+
+	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
+	// structure of `VPPTokenRaw`.
+	Token string `json:"token"`
+}
+
+const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
+
+// VPPTokenDB represents a VPP token record in the DB
+type VPPTokenDB struct {
+	ID        uint      `db:"id" json:"id"`
+	OrgName   string    `db:"organization_name" json:"org_name"`
+	Location  string    `db:"location" json:"location"`
+	RenewDate time.Time `db:"renew_at" json:"renew_date"`
+	// Token is the token dowloaded from ABM. It is the base64 encoded
+	// JSON object with the structure of `VPPTokenRaw`
+	Token string      `db:"token" json:"-"`
+	Teams []TeamTuple `json:"teams"`
+	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type TeamTuple struct {
+	ID   uint   `json:"team_id"`
+	Name string `json:"name"`
+}
+
+type NullTeamType string
+
+const (
+	// VPP token is inactive, only valid option if teamID is set.
+	NullTeamNone NullTeamType = "none"
+	// VPP token is available for all teams.
+	NullTeamAllTeams NullTeamType = "allteams"
+	// VPP token is available only for "No team" team.
+	NullTeamNoTeam NullTeamType = "noteam"
+)
+
+func (n NullTeamType) PrettyName() string {
+	switch n {
+	case NullTeamAllTeams:
+		return ReservedNameAllTeams
+	case NullTeamNoTeam:
+		return ReservedNameNoTeam
+	default:
+		return string(n)
+	}
+}
+
+type AppleDevice int
+
+const (
+	MacOS AppleDevice = iota
+	IOS
+	IPadOS
+)
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
+)
+
+var VPPAppsPlatforms = []AppleDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+
+type AppleDevicesToRefetch struct {
+	HostID              uint                   `db:"host_id"`
+	UUID                string                 `db:"uuid"`
+	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
+}
+
+type MDMCommandsAlreadySent []string
+
+func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+
+	raw, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("unexpected type for MDMCommandsAlreadySent: %T", src)
+	}
+	// Filter out [null] command types which MySQL returns when there are no commands_already_sent.
+	// For details, see: https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html#function_json-arrayagg
+	if string(raw) == "[null]" {
+		*c = nil
+		return nil
+	}
+
+	var commands MDMCommandsAlreadySent
+	if err := json.Unmarshal(raw, &commands); err != nil {
+		return err
+	}
+	*c = commands
+	return nil
+}
+
+type HostMDMCommand struct {
+	HostID      uint   `db:"host_id"`
+	CommandType string `db:"command_type"`
 }

@@ -121,7 +121,7 @@ func extractFixtures(
 	extract(srcCvesPath, dstCvesPath, t)
 }
 
-func withTestFixutre(
+func withTestFixture(
 	version fleet.OSVersion,
 	ovalFixtureDir string,
 	softwareFixtureDir string,
@@ -170,7 +170,7 @@ func assertVulns(
 			continue
 		}
 
-		if len(row) > 1 && row[1] == "#ignore:" || strings.Index(row[0], "ignore") != -1 {
+		if len(row) > 1 && row[1] == "#ignore:" || strings.Contains(row[0], "ignore") {
 			continue
 		}
 
@@ -218,7 +218,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 
 		for _, v := range systems {
 			b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
-				withTestFixutre(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+				withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						_, err := Analyze(context.Background(), ds, v, vulnPath, true)
@@ -269,7 +269,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 
 		for _, v := range systems {
 			b.Run(fmt.Sprintf("for %s %s", v.version.Platform, v.version.Name), func(b *testing.B) {
-				withTestFixutre(v.version, v.ovalFixtureDir, v.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+				withTestFixture(v.version, v.ovalFixtureDir, v.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						_, err := Analyze(context.Background(), ds, v.version, vulnPath, true)
@@ -323,7 +323,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		}
 
 		for _, s := range systems {
-			withTestFixutre(s.version, s.ovalFixtureDir, s.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+			withTestFixture(s.version, s.ovalFixtureDir, s.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 				_, err := Analyze(ctx, ds, s.version, vulnPath, true)
 				require.NoError(t, err)
 				p := NewPlatform(s.version.Platform, s.version.Name)
@@ -355,7 +355,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		ovalFixtureDir := "ubuntu"
 		softwareFixtureDir := filepath.Join("ubuntu", "software")
 		for _, v := range systems {
-			withTestFixutre(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+			withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 				_, err := Analyze(ctx, ds, v, vulnPath, true)
 				require.NoError(t, err)
 

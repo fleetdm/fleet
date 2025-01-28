@@ -1,0 +1,211 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
+    <title>Fleet</title>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        font-weight: 400;
+        src: url("../assets/fonts/inter/Inter-Regular.woff2") format("woff2"),
+          url("../assets/fonts/inter/Inter-Regular.woff") format("woff");
+      }
+      @font-face {
+        font-family: "Inter";
+        font-weight: 700;
+        src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
+          url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
+      }
+
+      html {
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+        color: #192147;
+      }
+
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+
+      body,
+      h1,
+      p {
+        margin: 0;
+      }
+
+      .download-link {
+        color: #fff;
+        background-color: #6a67fe;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 14px;
+        width: 100px;
+        line-height: 21px;
+      }
+
+      header {
+        background-color: #192147;
+        padding: 13px 20px;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+      }
+
+      p {
+        font-size: 14px;
+      }
+
+      ol {
+        display: flex;
+        flex-direction: column;
+        gap: 48px;
+        list-style: none;
+        padding: 0;
+      }
+
+      li {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .page-description {
+        font-size: 16px;
+        margin-bottom: 48px;
+      }
+
+      .profile-downloaded-container,
+      .install-profile-container {
+        width: 100%;
+        background-color: #f9fafc;
+        text-align: center;
+      }
+
+      .profile-downloaded-img,
+      .install-profile-img {
+        max-width: 100%;
+      }
+
+      .profile-downloaded-img {
+        max-height: 150px;
+      }
+
+      .install-profile-img {
+        max-height: 118px;
+      }
+
+      #main-content {
+        padding: 48px 24px;
+      }
+
+      .device-enroll-message {
+        margin-top: 48px;
+        display: flex;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
+    </header>
+    <section id="main-content">
+      <h1>
+        Enroll your
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+        Fleet
+      </h1>
+      <p class="page-description">
+        On your
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span>, follow
+        the instructions below to download and install the Fleet profile.
+      </p>
+      <ol>
+        <li>
+          <p>
+            <span>1.</span>
+            <span>
+              <b>Download</b> the Fleet profile and select <b>Allow</b> in the
+              pop-up.
+            </span>
+          </p>
+          <a class="download-link" href="{{.EnrollURL}}">Download</a>
+        </li>
+        <li>
+          <p>
+            <span>2.</span>
+            <span>
+              Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.
+            </span>
+          </p>
+          <div class="profile-downloaded-container">
+            <img
+              class="profile-downloaded-img"
+              src=""
+              alt="select profile downloaded in settings"
+            />
+          </div>
+        </li>
+        <li>
+          <p>
+            <span>3.</span>
+            <span>Select <b>Install</b>.</span>
+          </p>
+          <div class="install-profile-container">
+            <img class="install-profile-img" src="" alt="select install" />
+          </div>
+          <p>
+            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
+            MANAGEMENT warning. Click <b>Install</b> again for each warning.
+            When you see a <b>Remote Management</b> prompt, click
+            <b>Trust</b> to complete enrollment.
+          </p>
+        </li>
+      </ol>
+      <p class="device-enroll-message">
+        <img src="{{.URLPrefix}}/assets/images/check.svg" />
+        Your device will now be enrolled in Fleet.
+      </p>
+    </section>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const userAgent = navigator.userAgent;
+        const isIPhone = /iPhone/.test(userAgent);
+        const isIPad =
+          /iPad/.test(userAgent) ||
+          (/Macintosh/i.test(navigator.userAgent) &&
+            navigator.maxTouchPoints &&
+            navigator.maxTouchPoints > 1);
+
+        // update text content for device type
+        let deviceType = "iPhone or iPad";
+        if (isIPhone) {
+          deviceType = "iPhone";
+        } else if (isIPad) {
+          deviceType = "iPad";
+        }
+        document
+          .querySelectorAll('[data-attribute="dynamic-device-type"]')
+          .forEach((el) => {
+            el.textContent = deviceType;
+          });
+
+        // update image src based on OS
+        const osImagePrefix = isIPhone ? "ios" : "iPadOS";
+        document.querySelector(
+          ".profile-downloaded-img"
+        ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-profile-downloaded.png`;
+        document.querySelector(
+          ".install-profile-img"
+        ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
+      });
+    </script>
+  </body>
+</html>

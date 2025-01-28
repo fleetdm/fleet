@@ -1,13 +1,7 @@
 .software-title-details-table {
-
-  .hosts-cell__wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    .hosts-cell__link {
-      display: flex;
-      white-space: nowrap;
+  .data-table {
+    .hosts_count__header {
+      border-right: 0;
     }
   }
 }

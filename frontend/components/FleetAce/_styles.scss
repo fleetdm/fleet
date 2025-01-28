@@ -4,13 +4,15 @@
     font-weight: $bold;
 
     &--error {
-      color: $ui-error;
+      color: $core-vibrant-red;
     }
     &--with-action {
+      display: flex;
       justify-content: space-between;
 
       button {
-        height: 36px; // aligning space between label and textarea
+        height: initial; // aligning space between label and textarea
+        animation: fade-in 250ms ease-out;
       }
     }
   }
@@ -18,9 +20,19 @@
   &__wrapper {
     &--error {
       .ace-fleet {
-        border: 1px solid $ui-error;
+        border: 1px solid $core-vibrant-red;
       }
     }
+  }
+
+  .ace_content {
+    padding-left: 4px;
+  }
+
+  .ace_placeholder {
+    font-family: "SourceCodePro", $monospace;
+    margin: initial;
+    font-size: 15px;
   }
 
   &__help-text {

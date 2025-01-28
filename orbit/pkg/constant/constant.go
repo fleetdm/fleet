@@ -17,16 +17,17 @@ const (
 	// We use fleet-desktop as name to properly identify the process when listing
 	// running processes/tasks.
 	DesktopAppExecName = "fleet-desktop"
+	// DesktopTokenFileName is the filename on disk (in the orbit base dir) where we store the Fleet Desktop auth token
+	DesktopTokenFileName = "identifier"
 	// OrbitNodeKeyFileName is the filename on disk where we write the orbit node key to
 	OrbitNodeKeyFileName = "secret-orbit-node-key.txt"
-	// OrbitEnrollMaxRetries is the max retries when doing an enroll request
-	OrbitEnrollMaxRetries = 3
-	// OrbitEnrollRetrySleep is the time duration to sleep between retries
-	OrbitEnrollRetrySleep = 5 * time.Second
-	// OsquerydName is the name of osqueryd binary
-	// We use osqueryd as name to properly identify the process when listing
-	// running processes/tasks.
-	OsquerydName = "osqueryd"
+	// OrbitEnrollMaxRetries is the max number of retries when doing an enroll request.
+	// We set it to 6 to allow the retry backoff to take effect.
+	OrbitEnrollMaxRetries = 6
+	// OrbitEnrollBackoffMultiplier is the multiplier to use for backing off between enroll retries.
+	OrbitEnrollBackoffMultiplier = 2
+	// OrbitEnrollRetrySleep is the duration to sleep between enroll retries.
+	OrbitEnrollRetrySleep = 10 * time.Second
 	// OsqueryPidfile is the file containing the PID of the running osqueryd process
 	OsqueryPidfile = "osquery.pid"
 	// OsqueryEnrollSecretFileName is the filename on disk where we write
@@ -52,4 +53,26 @@ const (
 	// ServerOverridesFileName is the name of the file in the root directory
 	// that specifies the override configuration fetched from the server.
 	ServerOverridesFileName = "server-overrides.json"
+	// MigrationFileName is the name of the file used by fleetd to determine if the host is
+	// partially through an MDM migration.
+	MigrationFileName = "mdm_migration.txt"
+	// MDMMigrationTypeManual indicates that the MDM migration is for a manually enrolled host.
+	MDMMigrationTypeManual = "manual"
+	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
+	MDMMigrationTypeADE = "ade"
+	// MDMMigrationTypePreSonoma indicates that the MDM migration is for a host on a macOS version < 14.
+	MDMMigrationTypePreSonoma = "pre-sonoma"
+	// MDMMigrationOfflineWatcherInterval is the interval at which the offline watcher checks for
+	// the presence of the migration file.
+	MDMMigrationOfflineWatcherInterval = 3 * time.Minute
+	SonomaMajorVersion                 = 14
+
+	// OrbitTUFTargetName is the target name of the orbit component of fleetd in TUF.
+	OrbitTUFTargetName = "orbit"
+	// OsqueryTUFTargetName is the target name of the osquery component of fleetd in TUF.
+	OsqueryTUFTargetName = "osqueryd"
+	// DesktopTUFTargetName is the target name of the Fleet Desktop component of fleetd in TUF.
+	DesktopTUFTargetName = "desktop"
+	// FleetURLFileName is the file where Fleet URL is stored after being read from Apple config profile.
+	FleetURLFileName = "fleet_url.txt"
 )

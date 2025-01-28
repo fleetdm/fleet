@@ -1,0 +1,23 @@
+<% /* Default layout for email templates */ %>
+<div style="width: 100%; max-width: 600px; font-family: 'Inter','Helvetica','arial', sans-serif; box-sizing: border-box; padding: 0; margin: auto; border-radius: 8px; border: 1px solid #E2E4EA; background: #FFF;">
+    <div style="background: transparent; text-align: left;">
+      <a href="https://fleetdm.com"><img style="display: inline-block; width: 100%; max-width: 100%; border-top-left-radius: 8px; border-top-right-radius: 8px;" alt="Logo" src="<%= url.resolve(sails.config.custom.baseUrl,'images/email-header-959x452@2x.png')%>"/></a>
+    </div>
+  <div style="color: #192147; font-size: 16px; box-sizing: border-box; padding: 32px; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div>
+      <%- body %>
+      <hr style="color: #E2E4EA;"/>
+      <div style="display:  inline-flex; padding-top: 32px;">
+        <a href="https://fleetdm.com/slack" target="_blank"><img style="height: 20px; width: 20px; margin-right: 24px;" alt="Join the osquery Slack community" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-slack-dark-20x20@2x.png')%>"></a>
+        <a href="https://github.com/fleetdm/fleet" target="_blank"><img style="height: 20px; width: 20px; margin-right: 24px;" alt="View Fleet's GitHub repo" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-github-dark-24x24@2x.png')%>"></a>
+        <a href="https://fleetdm.com/slack" target="_blank"><img style="height: 20px; width: 20px; margin-right: 24px;" alt="Conenct with Fleet on LinkedIn" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-linkedin-24x24@2x.png')%>"></a>
+        <a href="https://twitter.com/fleetctl" target="_blank"><img style="height: 20px; width: 24px; margin-right: 24px;" alt="Follow Fleet on Twitter" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-x-24x24@2x.png')%>"></a>
+        <a href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" target="_blank"><img style="width: 20px; margin-top: 3px; margin-right: 24px;" alt="Watch Fleet's Youtube videos" src="<%= url.resolve(sails.config.custom.baseUrl,'images/logo-youtube-29x20@2x.png')%>"></a>
+      </div>
+      <div style="text-align: left; padding-top: 15px; font-size: 12px; color: #3E4771;">
+        <p>© <%= (new Date()).getFullYear() %> Fleet Inc.<br> All trademarks are the property of their respective owners.</p>
+      </div>
+    </div>
+    <a style="font-size: 12px; color: #3E4771;" href="<%= url.resolve(sails.config.custom.baseUrl, '/unsubscribe?emailAddress='+encodeURIComponent(emailAddress)) %>">Unsubscribe</a>
+  </div>
+</div>

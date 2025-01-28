@@ -1,0 +1,56 @@
+.os-settings-error-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $pad-small;
+
+  &__failed-message {
+    min-width: 168px; // Aligns resend button to right end
+
+    .data-table__tooltip-truncated-text--cell {
+      // for some reason this is need to vertically align the text and
+      // the resend button
+      display: block;
+    }
+  }
+
+  &__resend-button {
+    width: 106px;
+    display: flex;
+
+    .children-wrapper {
+      display: flex;
+
+      .icon {
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+    }
+  }
+
+  &__resending {
+    color: $core-vibrant-blue;
+    cursor: default;
+    font-size: $x-small;
+    height: 38px;
+    opacity: 50%;
+    filter: saturate(100%);
+
+    .icon {
+      vertical-align: middle;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+        transform-origin: center center;
+      }
+
+      100% {
+        transform: rotate(360deg);
+        transform-origin: center center;
+      }
+    }
+  }
+}

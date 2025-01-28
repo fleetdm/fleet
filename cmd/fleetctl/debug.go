@@ -12,9 +12,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -447,10 +449,37 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 				cc.Address = "https://" + cc.Address
 			}
 
-			if certPath := getFleetCertificate(c); certPath != "" {
-				// if a certificate is provided, use it as root CA
-				cc.RootCA = certPath
-				cc.TLSSkipVerify = false
+			usingHTTPS := strings.HasPrefix(cc.Address, "https://")
+
+			//
+			// Scenarios:
+			// 	- If a --fleet-certificate is provided, use it as root CA.
+			// 	- If a --fleet-certificate is not provided, but a cc.RootCA is set in the configuration, use it as root CA.
+			// 	- If a --fleet-certificate is not provided and there isn't a cc.RootCA set in the configuration, use the embedded certs as root CA.
+			//
+			usingEmbeddedCA := false
+			if usingHTTPS {
+				certPath := getFleetCertificate(c)
+				if certPath != "" {
+					// if a certificate is provided, use it as root CA
+					cc.RootCA = certPath
+					cc.TLSSkipVerify = false
+				} else if cc.RootCA == "" { // --fleet-certificate is not set
+					// If a certificate is not provided and a cc.RootCA is not set in the configuration,
+					// then use the embedded root CA which is used by osquery to connect to Fleet.
+					usingEmbeddedCA = true
+					tmpDir, err := os.MkdirTemp("", "")
+					if err != nil {
+						return fmt.Errorf("failed to create temporary directory: %w", err)
+					}
+					certPath := filepath.Join(tmpDir, "certs.pem")
+					if err := os.WriteFile(certPath, packaging.OsqueryCerts, 0o600); err != nil {
+						return fmt.Errorf("failed to create temporary certs.pem file: %s", err)
+					}
+					defer os.RemoveAll(certPath)
+					cc.RootCA = certPath
+					cc.TLSSkipVerify = false
+				}
 			}
 
 			cli, baseURL, err := rawHTTPClientFromConfig(cc)
@@ -460,16 +489,20 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 
 			// print a summary of the address and TLS context that is investigated
 			fmt.Fprintf(c.App.Writer, "Debugging connection to %s; Configuration context: %s; ", baseURL.Hostname(), configContext)
-			rootCA := "(system)"
-			if cc.RootCA != "" {
-				rootCA = cc.RootCA
+
+			if usingHTTPS {
+				rootCA := cc.RootCA
+				if usingEmbeddedCA {
+					rootCA += " (embedded certs used by default to generate fleetd packages)"
+				}
+				fmt.Fprintf(c.App.Writer, "Root CA: %s; ", rootCA)
+
+				tlsMode := "secure"
+				if cc.TLSSkipVerify {
+					tlsMode = "insecure"
+				}
+				fmt.Fprintf(c.App.Writer, "TLS: %s.\n", tlsMode)
 			}
-			fmt.Fprintf(c.App.Writer, "Root CA: %s; ", rootCA)
-			tlsMode := "secure"
-			if cc.TLSSkipVerify {
-				tlsMode = "insecure"
-			}
-			fmt.Fprintf(c.App.Writer, "TLS: %s.\n", tlsMode)
 
 			// Check that the url's host resolves to an IP address or is otherwise
 			// a valid IP address directly.
@@ -479,14 +512,19 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			fmt.Fprintf(c.App.Writer, "Success: can resolve host %s.\n", baseURL.Hostname())
 
 			// Attempt a raw TCP connection to host:port.
-			if err := dialHostPort(c.Context, timeoutPerCheck, baseURL.Host); err != nil {
+			dialURL := baseURL.Host
+			if baseURL.Port() == "" {
+				fmt.Fprintf(c.App.Writer, "Assumming port 443.\n")
+				dialURL += ":443"
+			}
+			if err := dialHostPort(c.Context, timeoutPerCheck, dialURL); err != nil {
 				return fmt.Errorf("Fail: dial server: %w", err)
 			}
 			fmt.Fprintf(c.App.Writer, "Success: can dial server at %s.\n", baseURL.Host)
 
-			if cert := getFleetCertificate(c); cert != "" {
-				// Run some validations on the TLS certificate.
-				if err := checkFleetCert(c.Context, timeoutPerCheck, cert, baseURL.Host); err != nil {
+			// Run some validations on the TLS certificate.
+			if usingHTTPS {
+				if err := checkFleetCert(c.Context, timeoutPerCheck, cc.RootCA, baseURL.Host); err != nil {
 					return fmt.Errorf("Fail: certificate: %w", err)
 				}
 				fmt.Fprintln(c.App.Writer, "Success: TLS certificate seems valid.")

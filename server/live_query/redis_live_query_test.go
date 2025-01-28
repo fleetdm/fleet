@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestRedisLiveQuery(t *testing.T) {
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
 	pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
-	return NewRedisLiveQuery(pool)
+	return NewRedisLiveQuery(pool, log.NewNopLogger(), 0)
 }
 
 func TestMapBitfield(t *testing.T) {

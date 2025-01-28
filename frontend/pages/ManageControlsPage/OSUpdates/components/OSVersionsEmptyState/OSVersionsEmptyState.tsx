@@ -8,7 +8,7 @@ const OSVersionsEmptyState = () => {
   return (
     <EmptyTable
       className={`${baseClass}__empty-table`}
-      header="No OS versions detected."
+      header="No OS versions detected"
       info={
         <span>
           This report is updated every hour to protect

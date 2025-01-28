@@ -275,7 +275,7 @@ func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uin
 
 	if p.Shard != nil {
 		if p.Shard.Valid {
-			val := uint(p.Shard.Int64)
+			val := uint(p.Shard.Int64) //nolint:gosec // dismiss G115
 			sq.Shard = &val
 		} else {
 			sq.Shard = nil

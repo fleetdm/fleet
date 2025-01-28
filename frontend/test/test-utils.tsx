@@ -1,4 +1,5 @@
 import React from "react";
+import { InjectedRouter } from "react-router";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
 import userEvent from "@testing-library/user-event";
@@ -47,15 +48,6 @@ interface ICustomRenderOptions {
   withBackendMock?: boolean;
 }
 
-// TODO: types
-// type RenderOptionsWithoutUserEvents = ICustomRenderOptions & {
-//   withUserEvents: false;
-// };
-
-// type RenderOptionsWithUserEvents = ICustomRenderOptions & {
-//   withUserEvents: true;
-// };
-
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
   notification: NotificationContext,
@@ -70,8 +62,8 @@ interface IWrapperComponentProps {
 }
 
 const createWrapperComponent = (
-  CurrentWrapper: React.FC<any>, // TODO: types
-  WrapperComponent: React.FC<any>, // TODO: types
+  CurrentWrapper: React.FC<React.PropsWithChildren<any>>, // TODO: types
+  WrapperComponent: React.FC<React.PropsWithChildren<any>>, // TODO: types
   props: IWrapperComponentProps
 ) => {
   return ({ children }: IChildrenProp) => (
@@ -159,4 +151,37 @@ export const renderWithSetup = (component: JSX.Element) => {
     user: userEvent.setup(),
     ...render(component),
   };
+};
+
+const DEFAULT_MOCK_ROUTER: InjectedRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  goBack: jest.fn(),
+  goForward: jest.fn(),
+  go: jest.fn(),
+  setRouteLeaveHook: jest.fn(),
+  isActive: jest.fn(),
+  createHref: jest.fn(),
+  createPath: jest.fn(),
+};
+
+export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
+  return {
+    ...DEFAULT_MOCK_ROUTER,
+    ...overrides,
+  };
+};
+
+/** helper method to generate a date "x" days ago. */
+export const getPastDate = (days: number) => {
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() - days);
+  return targetDate.toISOString();
+};
+
+/** helper method to generate a date "x" days from now */
+export const getFutureDate = (days: number) => {
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + days);
+  return targetDate.toISOString();
 };

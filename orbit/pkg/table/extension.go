@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -23,10 +25,12 @@ import (
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	executeDone     chan struct{}
 
-	// mu protects access to srv and cancel in Execute and Interrupt.
+	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
 	mu     sync.Mutex
 	srv    *osquery.ExtensionManagerServer
+	ctx    context.Context
 	cancel func()
 }
 
@@ -43,8 +47,10 @@ type Extension interface {
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
 
-// Logger for osquery tables
-var osqueryLogger *Logger
+// PluginOpts provides options required by some tables.
+type PluginOpts struct {
+	Socket string
+}
 
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
@@ -55,7 +61,10 @@ func WithExtension(t Extension) Opt {
 
 // NewRunner creates an extension runner.
 func NewRunner(socket string, opts ...Opt) *Runner {
-	r := &Runner{socket: socket}
+	r := &Runner{
+		socket:      socket,
+		executeDone: make(chan struct{}),
+	}
 	for _, fn := range opts {
 		fn(r)
 	}
@@ -64,16 +73,13 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
-	log.Debug().Msg("start osquery extension")
-
-	osqueryLogger = NewOsqueryLogger()
+	defer close(r.executeDone)
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	r.setCancel(cancel)
+	ctx, _ := r.getContextAndCancel()
 
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
@@ -103,7 +109,13 @@ func (r *Runner) Execute() error {
 
 	plugins := OrbitDefaultTables()
 
-	plugins = append(plugins, PlatformTables()...)
+	opts := PluginOpts{Socket: r.socket}
+	platformTables, err := PlatformTables(opts)
+	if err != nil {
+		return fmt.Errorf("populating platform tables: %w", err)
+	}
+
+	plugins = append(plugins, platformTables...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),
@@ -131,19 +143,30 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+		fleetd_logs.TablePlugin(),
 
-		firefox_preferences.TablePlugin(osqueryLogger),
-		cryptoinfotable.TablePlugin(osqueryLogger),
+		// Note: the logger passed here and to all other tables is the global logger from zerolog.
+		// This logger has already been configured with some required settings in
+		// orbit/cmd/orbit/orbit.go.
+		firefox_preferences.TablePlugin(log.Logger),
+		cryptoinfotable.TablePlugin(log.Logger),
+
+		// Additional data format tables
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.IniType),   // table name is "parse_ini"
+
 	}
 	return plugins
 }
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt osquery extension")
-	if cancel := r.getCancel(); cancel != nil {
+	if _, cancel := r.getContextAndCancel(); cancel != nil {
 		cancel()
 	}
+	<-r.executeDone
 	if srv := r.getSrv(); srv != nil {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Debug().Err(err).Msg("shutdown extension")
@@ -231,13 +254,6 @@ func (r *Runner) setSrv(s *osquery.ExtensionManagerServer) {
 	r.srv = s
 }
 
-func (r *Runner) setCancel(c func()) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.cancel = c
-}
-
 func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -245,9 +261,15 @@ func (r *Runner) getSrv() *osquery.ExtensionManagerServer {
 	return r.srv
 }
 
-func (r *Runner) getCancel() func() {
+func (r *Runner) getContextAndCancel() (context.Context, func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.cancel
+	if r.ctx != nil {
+		return r.ctx, r.cancel
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.ctx = ctx
+	r.cancel = cancel
+	return r.ctx, r.cancel
 }

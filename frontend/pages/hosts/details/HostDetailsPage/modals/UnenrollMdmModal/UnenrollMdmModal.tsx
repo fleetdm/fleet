@@ -25,11 +25,15 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
     setRequestState("unenrolling");
     try {
       await mdmAPI.unenrollHostFromMdm(hostId, 5000);
-      renderFlash("success", "Successfully turned off MDM.");
+      renderFlash(
+        "success",
+        "Turning off MDM or will turn off when the host comes online."
+      );
       onClose();
     } catch (unenrollMdmError: unknown) {
+      renderFlash("error", "Couldn't turn off MDM. Please try again.");
       console.log(unenrollMdmError);
-      setRequestState("error");
+      onClose();
     }
   };
 

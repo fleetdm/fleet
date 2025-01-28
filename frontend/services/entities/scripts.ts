@@ -39,6 +39,7 @@ export interface IScriptResultResponse {
   message: string;
   runtime: number;
   host_timeout: boolean;
+  created_at: string;
 }
 
 /**

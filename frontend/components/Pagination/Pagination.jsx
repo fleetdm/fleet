@@ -25,6 +25,10 @@ class Pagination extends PureComponent {
   };
 
   disableNext = () => {
+    // NOTE: Disable next page is passed through from api metadata
+    if (this.props.disableNextPage !== undefined) {
+      return this.props.disableNextPage;
+    }
     // NOTE: not sure why resultsOnCurrentPage is getting assigned undefined.
     // but this seems to work when there is no data in the table.
     return (

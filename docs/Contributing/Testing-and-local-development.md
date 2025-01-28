@@ -31,6 +31,7 @@
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
   - [Fleetd Chrome extension](#fleetd-chrome-extension)
+  - [fleetd-base installers](#fleetd-base-installers)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -69,13 +70,23 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
 
 ```sh
 REDIS_TEST=1 MYSQL_TEST=1 make test
+```
+
+The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
+
+The MDM integration tests are run with a random selection of software installer storage backends (local filesystem or S3/minio), and similar for the bootstrap packages storage (DB or S3/minio). You can force usage of the S3 backend by setting `FLEET_INTEGRATION_TESTS_SOFTWARE_INSTALLER_STORE=s3`. Note that `MINIO_STORAGE_TEST=1` must also be set for the S3 backend to be used.
+
+When the S3 backend is used, this line will be printed in the tests' output (as this could be relevant to understand and debug the test failure):
+
+```
+    integration_mdm_test.go:196: >>> using S3/minio software installer store
 ```
 
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
@@ -256,7 +267,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
-Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
+Then, in the "SMTP options" section, set:
+- "Sender address" to any email address. Note that you may use any active or inactive sender address.
+- "SMTP server" to `localhost` on port `1025`.
+- "Use SSL/TLS to connect (recommended)" to unchecked. 
+- "Authentication type" to `None`.
 
 Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
 
@@ -264,9 +279,11 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
-- "Authentication type" to `Plain`.
-- "SMTP username" to `mailpit-username`.
-- "SMTP password" to `mailpit-password`.
+- "Use SSL/TLS to connect (recommended)" to unchecked.
+- "Authentication type" to `Username and Password`
+- "SMTP username" to `mailpit-username`
+- "SMTP password" to `mailpit-password`
+- "Auth method" to `Plain`
 - Note that you may use any active or inactive sender address.
 
 Visit [localhost:8026](http://localhost:8026) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
@@ -328,7 +345,7 @@ Configure SSO on the Organization Settings page with the following:
 ```
 Identity Provider Name: SimpleSAML
 Entity ID: https://localhost:8080
-Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
+Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
 The identity provider is configured with four users:
@@ -478,7 +495,9 @@ FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
 secret from the `fleetctl package` command used to build the installers.
 
-MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
+MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`. When starting the
+Fleet server up with `--dev` the server will look for installers in the `software-installers-dev` MinIO bucket. You can
+create this bucket via the MinIO web UI (it is *not* created by default when setting up the docker-compose environment).
 
 ## Telemetry
 
@@ -492,6 +511,145 @@ Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/too
 
 View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
 
+## fleetd-base installers
+
+"fleetd-base" installers are pre-built `pkg` and `msi` installers that do not contain hardcoded `--fleet-url` and `--enroll-secret` values.
+
+Anyone can build a base installer, but Fleet provides a public repository of signed base installers at:
+
+- [Production Usage](https://download.fleetdm.com)
+- [Development Usage](https://download-testing.fleetdm.com)
+
+The workflow that builds and releases the installers is defined in `.github/workflows/release-fleetd-base.yml`.
+
+The base installers are used:
+
+- By Fleet MDM to automatically install `fleetd` when a host enables MDM features.
+- By customers deploying `fleetd` using third-party tools (e.g., Puppet or Chef).
+
+The Fleet server uses the production server by default, but you can change this during development
+using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+
+
+### Building your own non-signed fleetd-base installer
+
+Due to historical reasons, each type of installer has its own peculiarities:
+
+- `pkg` installers require an extra `--use-system-configuration` flag.
+- `pkg` installers read configuration values from a configuration profile.
+- `msi` installers need dummy configuration values.
+- `msi` installers read configuration values at installation time.
+
+```sh
+# Build a fleetd-base.pkg installer
+$ fleetctl package --type=pkg --use-system-configuration
+
+# Build a fleetd-base.msi installer, using dummy values to avoid errors
+$ fleetctl package --type=msi --fleet-url=dummy --enroll-secret=dummy
+
+# Install a fleetd-base.msi installer
+$ msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
+
+**Note:** a non-signed base installer _cannot_ be installed on a macOS host during the ADE MDM enrollment
+flow. Apple requires that applications installed via an `InstallEnterpriseApplication` command be
+signed with a development certificate.
+
+### Building and serving your own signed fleetd-base.pkg installer for macOS
+
+Only signed fleetd installers can be used during the ADE MDM enrollment flow. If you are
+developing/testing logic that needs to run during that flow, you will need to build and serve a
+signed fleetd-base.pkg installer.
+
+You will also need to serve the manifest for the fleetd-base installer. This manifest is used as
+part of the `InstallEnterpriseApplication` command that installs fleetd; it contains a checksum of
+the fleetd-base installer file, as well as the URL at which the MDM protocol can download the actual
+installer file.
+
+#### Pre-requisites
+
+- An ngrok URL for serving the `fleetd-base.pkg` installer and the manifest `.plist` file
+
+#### Building a signed fleetd-base installer from `edge`
+
+We have a [GitHub workflow](../../.github/workflows/build-fleetd-base-pkg.yml) that can build a signed
+fleetd-base installer using fleetd components from any of the release channels we support. You'll
+most likely use `edge` since we release fleetd components built from an RC branch to `edge` for
+QA before an official release.
+
+To use the workflow, follow these steps:
+
+1. Trigger the build and codesign fleetd-base.pkg workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-pkg.yml.
+2. Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
+  from the "Pre-requisites" above in the last field.
+3. Click the Run workflow button. This will generate two files:
+  - `fleet-base-manifest.plist`
+  - `fleet-base.pkg`
+4. Download them to your workstation.
+
+#### Serving the signed fleetd-base.pkg installer
+
+1. Create a directory named `fleetd-base-dir` and a subdirectory named `stable`. Tip: we have the `$FLEET_REPO_ROOT_DIR/tmp`
+   directory gitignored, so that's a convenient place to create the directories:
+```sh
+# From the Fleet repo root dir
+mkdir -p ./tmp/fleetd-base-dir/stable
+```
+2. Move `fleet-base.pkg` to `./tmp/fleetd-base-dir`.
+3. Move `fleet-base-manifest.plist` to `./tmp/fleetd-base-dir/stable`.
+4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
+5. Start your second ngrok tunnel and forward to http://localhost:8085.
+	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
+6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
+7. Enroll your mac with ADE. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+
+### Building and serving your own signed fleetd-base.msi installer for Windows
+
+Only signed fleetd installers can be used during the Autopilot MDM enrollment flow. If you are
+developing/testing logic that needs to run during that flow, you will need to build and serve a
+signed fleetd-base.msi installer.
+
+You will also need to serve the `meta.json` for the fleetd-base.msi installer. 
+
+#### Pre-requisites
+
+- An ngrok URL for serving the `fleetd-base.msi` installer and the `meta.json` file under the `stable/` path.
+
+#### Building a signed fleetd-base.msi installer from `edge`
+
+We have a [GitHub workflow](../../.github/workflows/build-fleetd-base-msi.yml) that can build a signed
+fleetd-base installer using fleetd components from any of the release channels we support. You'll
+most likely use `edge` since we release fleetd components built from an RC branch to `edge` for
+QA before an official release.
+
+To use the workflow, follow these steps:
+
+1. Trigger the build and codesign fleetd-base.msi workflow at https://github.com/fleetdm/fleet/actions/workflows/build-fleetd-base-msi.yml.
+2. Click the run workflow drop down and fill in `"edge"` for the first 3 fields. Fill in the ngrok URL
+  from the "Pre-requisites" above in the last field.
+3. Click the Run workflow button. This will generate two files:
+  - `meta.json`
+  - `fleet-base.msi`
+4. Download them to your workstation.
+
+#### Serving the signed fleetd-base.msi installer
+
+1. Create a directory named `fleetd-base-dir` and a subdirectory named `stable`. Tip: we have the `$FLEET_REPO_ROOT_DIR/tmp`
+   directory gitignored, so that's a convenient place to create the directories:
+```sh
+# From the Fleet repo root dir
+mkdir -p ./tmp/fleetd-base-dir/stable
+```
+2. Move `fleet-base.msi` to `./tmp/fleetd-base-dir/stable`.
+3. Move `meta.json` to `./tmp/fleetd-base-dir/stable`.
+4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
+5. Start your second ngrok tunnel and forward to http://localhost:8085.
+	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
+6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
+7. Enroll your Windows device with Autopilot. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+
 ## MDM setup and testing
 
 To run your local server with the MDM features enabled, you need to get certificates and keys.
@@ -503,67 +661,24 @@ To run your local server with the MDM features enabled, you need to get certific
 
 ### ABM setup
 
-To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#dep-device-enrollment-program) enrollment flow, the Fleet server needs three things:
+To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#dep-device-enrollment-program) enrollment flow, the Fleet server needs an encrypted token generated by Apple.
 
-1. A private key.
-1. A certificate.
-1. An encrypted token generated by Apple.
+First ask @lukeheath to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-#### Private key, certificate, and encrypted token
-
-First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
-
-Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) to get and upload the encrypted token.
 
 ### APNs and SCEP setup
 
-The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
+The server also needs a certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers.
 
-To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns).
+To get a certificate and upload it, [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns).
 
 Note that:
 
-1. Fleet must be running to generate the certificates and keys.
+1. Fleet must be running to generate the token and certificate.
 2. You must be logged in to Fleet as a global admin. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
 3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
-4. Save all the certificates and keys in a safe place.
-
-Another option, if for some reason, generating the certificates and keys fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
-
-```sh
-$ openssl genrsa -out fleet-mdm-apple-scep.key 4096
-
-$ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826 -out fleet-mdm-apple-scep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet DM.'
-```
-
-### Running the server
-
-Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
-
-```sh
-FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
-FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
-FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
-FLEET_MDM_APPLE_BM_SERVER_TOKEN=/path/to/dep_encrypted_token.p7m \
-FLEET_MDM_APPLE_BM_CERT=/path/to/fleet-apple-mdm-bm-public-key.crt \
-FLEET_MDM_APPLE_BM_KEY=/path/to/fleet-apple-mdm-bm-private.key \
-FLEET_MDM_APPLE_APNS_CERT=/path/to/mdmcert.download.push.pem \
-FLEET_MDM_APPLE_APNS_KEY=/path/to/mdmcert.download.push.key \
- ./build/fleet serve --dev --dev_license --logging_debug
-```
-
-Note: if you need to enroll VMs using MDM, the server needs to run behind TLS with a valid certificate. In a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
-
-```sh
-ngrok http https://localhost:8080
-```
-
-> NOTE: If this is your first time using ngrok this command will fail and you will see a message
-> about signing up. Open the sign up link and complete the sign up flow. You can rerun the same command
-> and ngrok should work this time. After this open the forwarding link, you will be asked to confirm that you'd like
-> to be forwarded to your local server and should accept.
-
-Don't forget to edit your Fleet server settings (through the UI or `fleetctl`) to use the URL `ngrok` provides to you. You need to do this whenever you restart `ngrok`.
+4. Save the token and certificate in a safe place.
 
 ### Testing MDM
 

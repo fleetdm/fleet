@@ -13,6 +13,7 @@ import {
   BootstrapPackageStatus,
   DiskEncryptionStatus,
 } from "./mdm";
+import { HostPlatform } from "./platform";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -29,6 +30,8 @@ export default PropTypes.shape({
   uuid: PropTypes.string,
   platform: PropTypes.string,
   osquery_version: PropTypes.string,
+  orbit_version: PropTypes.string,
+  fleet_desktop_version: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -116,7 +119,10 @@ export const mapDeviceUsersForDisplay = (
         idpUser = d;
         break;
       case "custom":
-        customUser = d;
+        // exclude custom user without email
+        if (d.email) {
+          customUser = d;
+        }
         break;
       default:
         newDeviceMapping.push(getDeviceUserForDisplay(d));
@@ -137,7 +143,7 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
 export interface IOSSettings {
   disk_encryption: {
@@ -157,12 +163,13 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
-export type HostMdmDeviceStatus = "unlocked" | "locked";
-export type HostMdmPendingAction = "unlock" | "lock" | "";
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  dep_profile_error?: boolean;
   name?: string;
   id?: number;
   server_url: string | null;
@@ -172,6 +179,12 @@ export interface IHostMdmData {
   macos_setup?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
+  connected_to_fleet?: boolean;
+}
+
+export interface IHostMaintenanceWindow {
+  starts_at: string; // e.g. "2024-06-18T13:27:18−07:00"
+  timezone: string | null; // e.g. "America/Los_Angeles"
 }
 
 export interface IMunkiIssue {
@@ -203,7 +216,7 @@ export interface IPackStats {
   type: string;
 }
 
-export interface IHostPolicyQuery {
+export interface IPolicyHostResponse {
   id: number;
   display_name: string;
   query_results?: unknown[];
@@ -232,9 +245,11 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_contact_url: string;
   disk_encryption_enabled?: boolean;
-  platform?: string;
+  platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;
+  self_service: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {
@@ -245,9 +260,16 @@ export interface IHostEncrpytionKeyResponse {
   };
 }
 
+export interface IHostIssues {
+  total_issues_count: number;
+  critical_vulnerabilities_count?: number; // Premium
+  failing_policies_count: number;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
+  software_updated_at?: string;
   id: number;
   detail_updated_at: string;
   last_restarted_at: string;
@@ -259,8 +281,10 @@ export interface IHost {
   refetch_critical_queries_until: string | null;
   hostname: string;
   uuid: string;
-  platform: string;
+  platform: HostPlatform;
   osquery_version: string;
+  orbit_version: string | null;
+  fleet_desktop_version: string | null;
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -291,24 +315,24 @@ export interface IHost {
   gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
-  software: ISoftware[];
-  issues: {
-    total_issues_count: number;
-    failing_policies_count: number;
-  };
+  software?: ISoftware[];
+  issues: IHostIssues;
   status: HostStatus;
   display_text: string;
   display_name: string;
   target_type?: string;
+  scripts_enabled: boolean | null;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
+  maintenance_window?: IHostMaintenanceWindow;
   mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
+  device_mapping: IDeviceUser[] | null;
 }
 
 /*

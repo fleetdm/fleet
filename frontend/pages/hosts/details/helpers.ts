@@ -1,35 +1,64 @@
 /** Helpers used across the host details and my device pages and components. */
-import { is } from "date-fns/locale";
 import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
 import {
   IHostMdmProfile,
-  IWindowsDiskEncryptionStatus,
+  WindowsDiskEncryptionStatus,
   MdmProfileStatus,
+  LinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
 
-const convertWinDiskEncryptionStatusToProfileStatus = (
-  diskEncryptionStatus: IWindowsDiskEncryptionStatus
+const convertWinDiskEncryptionStatusToSettingStatus = (
+  diskEncryptionStatus: WindowsDiskEncryptionStatus
 ): MdmProfileStatus => {
   return diskEncryptionStatus === "enforcing"
     ? "pending"
     : diskEncryptionStatus;
 };
 
+const generateWindowsDiskEncryptionMessage = (
+  status: WindowsDiskEncryptionStatus,
+  detail: string
+) => {
+  if (status === "failed") {
+    detail += ". Fleet will retry automatically.";
+  }
+  return detail;
+};
+
 /**
- * Manually generates a profile for the windows disk encryption status. We need
+ * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
-// eslint-disable-next-line import/prefer-default-export
-export const generateWinDiskEncryptionProfile = (
-  diskEncryptionStatus: IWindowsDiskEncryptionStatus,
+export const generateWinDiskEncryptionSetting = (
+  diskEncryptionStatus: WindowsDiskEncryptionStatus,
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This s the only type of profile that can have this value
+    profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "windows",
     name: "Disk Encryption",
-    status: convertWinDiskEncryptionStatusToProfileStatus(diskEncryptionStatus),
+    status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
+    detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
+    operation_type: null,
+  };
+};
+
+/**
+ * Manually generates a setting for the linux disk encryption status. We need
+ * this as we don't have a linux disk encryption setting in the `profiles`
+ * attribute coming back from the GET /hosts/:id API response.
+ */
+// eslint-disable-next-line import/prefer-default-export
+export const generateLinuxDiskEncryptionSetting = (
+  diskEncryptionStatus: LinuxDiskEncryptionStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: "0", // This is the only type of profile that can have this value
+    platform: "linux",
+    name: "Disk Encryption",
+    status: diskEncryptionStatus,
     detail,
     operation_type: null,
   };
@@ -39,7 +68,9 @@ export type HostMdmDeviceStatusUIState =
   | "unlocked"
   | "locked"
   | "unlocking"
-  | "locking";
+  | "locking"
+  | "wiped"
+  | "wiping";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -51,9 +82,11 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   locked: "locked",
   unlock: "unlocking",
   lock: "locking",
+  wiped: "wiped",
+  wipe: "wiping",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking"] as const;
+const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what
@@ -74,7 +107,7 @@ export const getHostDeviceStatusUIState = (
 };
 
 /**
- * Helps check if our device status UI state is in an updating state.
+ * Checks if our device status UI state is in an updating state.
  */
 export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState

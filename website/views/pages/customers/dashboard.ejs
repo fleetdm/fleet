@@ -42,7 +42,7 @@
             <p><js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
           </div>
           <div class="col-12 col-lg-4 pt-3 pt-lg-0">
-            <strong>License key</strong><img class="d-inline-block ml-2" style="width: 15px; height: 16px; cursor: pointer;" src="/images/icon-copy-15x16@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">License key copied!</span>
+            <strong>License key</strong><img class="d-inline-block ml-2" style="height: 14px; cursor: pointer;" src="/images/icon-copy-14x14@2x.png" alt="click here to copy your license key" @click="clickCopyLicenseKey()"><span purpose="copied-notification">License key copied!</span>
             <p><span purpose="license-key" @click="clickExpandLicenseKey()">{{thisSubscription.fleetLicenseKey}}</span></p>
           </div>
         </div>
@@ -52,32 +52,32 @@
     <div class="row pb-4">
       <div class="col-12 col-lg-6 pb-4 pb-lg-0">
       <h3 class="pt-2 pt-sm-3">Your details</h3>
-        <div purpose="details-card" class="card card-body justify-content-top">
+        <div purpose="details-card" class="card card-body justify-content-start">
           <div class="row">
             <div class="col-sm-4 col-12 pb-2 pb-sm-0">Organization:</div>
             <div class="col-sm-8 col-12 text-left text-sm-right">
-              <strong>{{me.organization}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+              <strong>{{me.organization}}</strong><img purpose="edit-button" src="/images/icon-pencil-12x12@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
             <div class="col-sm-3 col-12 pb-2 pb-sm-0">Name:</div>
             <div class="col-sm-9 col-12 text-left text-sm-right">
-              <strong>{{me.firstName}} {{me.lastName}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+              <strong>{{me.firstName}} {{me.lastName}}</strong><img purpose="edit-button" src="/images/icon-pencil-12x12@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
             <div class="col-sm-3 col-12 pb-2 pb-sm-0">Email:</div>
             <div class="col-sm-9 col-12 text-left text-sm-right">
-              <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
+              <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong><img purpose="edit-button" src="/images/icon-pencil-12x12@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickEditButton()">
             </div>
           </div>
           <hr/>
           <div class="row">
             <div class="col-sm-4 col-12 pb-2 pb-sm-0">Password:</div>
             <div class="col-sm-8 col-12 text-left text-sm-right">
-              <strong>••••••••</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickChangePassword()">
+              <strong>••••••••</strong><img purpose="edit-button" src="/images/icon-pencil-12x12@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickChangePassword()">
             </div>
           </div>
         </div>
@@ -85,19 +85,14 @@
 
       <div class="col-12 col-lg-6">
         <h3 class="pt-2 pt-sm-3">Billing and payment</h3>
-        <div purpose="billing-card" class="card card-body justify-content-center">
-          <div class="row pb-3 mx-0">
-            <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A credit card Icon"></div>
-            <div class="col pl-3">
-              <p>{{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong><img purpose="edit-button" src="/images/icon-pencil-24x24@2x.png" alt="A pencil icon indicating that this information can be editted" @click="clickUpdateBillingCardButton()"></p>
-            </div>
-          </div>
+        <div purpose="billing-card" class="card card-body justify-content-start" v-if="!subscriptionIsExpired">
           <div class="row pb-3 mx-0">
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
             <div class="col pl-3">
               <p>{{thisSubscription.numberOfHosts}} devices @ ${{thisSubscription.subscriptionPrice / thisSubscription.numberOfHosts / 12}}.00/device/month</p>
               <p>Billed annually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
-              <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+              <p v-if="willSubscriptionRenew">Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+              <p v-else>Your subscription will expire on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
             <div purpose="contact">
@@ -106,22 +101,30 @@
                 <img style="display: inline-block; height: 16px; width: 16px; margin-top: -3px;" src="/images/info-16x16@2x.png" alt="An icon indicating that this section has important information">
               </div>
               <div class="col ml-1 pl-1 small">
-                <p class="small"><a href="/contact" target="_blank">Contact us</a> to change your number of devices, or to <strong>cancel</strong> your subscription.</p>
+                <p class="small"><a href="/customers/update-subscription">Click here</a> to change your number of devices, or to cancel your subscription.</p>
               </div>
+            </div>
+          </div>
+        </div>
+        <div purpose="billing-card" class="card card-body justify-content-start" v-else>
+          <div class="row">
+            <div style="max-width: 32px;" class="col-1 pr-0">
+              <img style="display: inline-block; height: 16px; width: 16px; " src="/images/icon-info-grey-16x16@2x.png" alt="An icon indicating that this section has important information">
+            </div>
+            <div class="col ml-1 pl-1 small">
+              <p class="small">Your subscription ended on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>
           </div>
         </div>
       </div>
 
     </div>
-    <div class="d-flex flex-md-row flex-column pt-3">
-        <a class="btn btn-info btn-sm btn-md-block mr-md-3 mb-3 mb-md-0" purpose="deploy-button" href="/docs/deploying/introduction">
+    <div class="d-flex flex-md-row flex-column pt-3 align-items-center justify-content-md-start justify-content-center">
+        <a class="btn btn-primary btn-sm btn-md-block mb-3 mb-md-0" purpose="deploy-button" href="/docs/deploying/introduction">
           How to deploy Fleet
         </a>
-        <a class="btn btn-outline-secondary btn-sm btn-md-block" purpose="slack-button" href="/slack" target="_blank">
-          <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-          Ask for help on Slack
-        </a>
+        <animated-arrow-button href="/support" target="_blank">Support
+        </animated-arrow-button>
     </div>
 
   </div>
@@ -160,6 +163,8 @@
             <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address.</div>
           </div>
         </div>
+        <cloud-error class="mt-0" v-if="cloudError === 'emailAlreadyInUse'">That email is already linked to another Fleet account.</cloud-error>
+        <cloud-error class="mt-0" v-else-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>

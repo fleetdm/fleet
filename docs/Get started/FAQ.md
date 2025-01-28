@@ -4,17 +4,17 @@
 
 Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
 
-> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
+> While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, today we are only currently able to provide fully-managed hosting for deployments larger than 300 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
 Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 ## What is the easiest way to deploy Fleet?
 
-Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+Take a look at [Deploying Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for guides on Render or deploy for scale with AWS Terraform. You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc. As of [Fleet v4.53.0](https://fleetdm.com/releases/fleet-4.53.0), when Fleet's MDM is enabled for MacOS, fleetd is installed as part of the bootstrap.
 
-By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [Simple upgrade process](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
@@ -45,9 +45,96 @@ When you collect data with Fleet, the [performance impact](https://fleetdm.com/r
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
+## What browsers does Fleet support?
+
+Fleet supports the latest, stable releases of all major browsers and platforms.
+
+We test each browser on Windows whenever possible, because our engineering team primarily uses macOS.
+
+**Note:** This information also applies to [fleetdm.com](https://www.fleetdm.com).
+
+### Desktop
+
+- Chrome
+- Firefox
+- Edge
+- Safari (macOS only)
+
+### Mobile
+
+- Mobile Safari on iOS
+- Mobile Chrome on Android
+
+### Note
+> - Mobile web is not yet supported in the Fleet product.
+> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
+
+## What host operating systems does Fleet support?
+
+Fleet supports the following operating system versions on hosts. 
+
+| OS         | Supported version(s)                    |
+| :--------- | :-------------------------------------- |
+| macOS      | 13+ (Ventura)                           |
+| iOS/iPadOS | 17+                                     |
+| Windows    | Pro and Enterprise 10+, Server 2012+    |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Debian 11+ |
+| ChromeOS   | 112.0.5615.134+                        |
+
+While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
+
+## Some notes on compatibility
+
+### Tables
+Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
+
+If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
+
+### Linux
+
+Fleet Desktop is supported on Ubuntu and Fedora.
+
+Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+
+Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+
+On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
+
 ## Is Fleet MIT licensed?
 
-We have different licenses for portions of our software which are noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
+
+## How do I contact Fleet for support?
+
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs) or [guides](https://fleetdm.com/guides).
+
+To get help from the community, visit https://fleetdm.com/support.
+
+If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
+
+## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
+
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
+
+## Where's the data stored?
+
+Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
+
+## Can I fork Fleet's source code and build upon it myself to create my own features?
+
+Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
+
+Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
+
+
+## Can I buy support or services separate from Fleet Premium?
+
+The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
+
+## How can I uninstall fleetd?
+To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 ## What is your commitment to open source stewardship?
 
@@ -69,59 +156,9 @@ We have different licenses for portions of our software which are noted in the [
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
-## How do I contact Fleet for support?
-
-For community support, visit https://fleetdm.com/support.
-
-If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
-
-## What if we choose not to renew?
-
-If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
-
-## Can we buy a license to access premium features with reduced support for a reduced cost?
-
-We aren’t able to sell licenses and support separately.
-
-## Do you offer pricing for ephemeral hosts which may scale up or down?
-
-For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
-
-## When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
-
-Like any modern application, Fleet scales horizontally. The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when testing. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
-
-## Where's the data stored?
-
-Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere). That's done using a MySQL database, but the bulk of the data flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
-
-## Can I fork Fleet's source code and build upon it myself to create my own features?
-
-Potentially! Fleet is open core with a [source code license](https://github.com/fleetdm/fleet/blob/main/LICENSE) similar to GitLab's.
-
-Anyone is free to contribute to the free or paid features of the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can. 
-
-
-## Can I buy support or services separate from Fleet Premium?
-
-The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
-
-## How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your operating system.
-
-#### MacOS
-Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
-
-#### Windows
-Use the "Add or remove programs" dialog to remove Orbit.
-
-#### Ubuntu
-Run `sudo apt remove fleet-osquery -y`
-
-#### CentOS
-Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
-
 <!--
+Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
+
 ## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
@@ -458,7 +495,7 @@ Read more about osquery packs and Fleet's commitment to supporting them [here](h
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
@@ -590,7 +627,7 @@ This could be caused by a mismatched connection limit between the Fleet server a
 
 ### Why am I receiving a database connection error when attempting to "prepare" the database?
 
-First, check if you have a version of MySQL installed that is at least 5.7. Then, make sure that you currently have a MySQL server running.
+First, check if you have a version of MySQL installed that is at least 8.0. Then, make sure that you currently have a MySQL server running.
 
 The next step is to make sure the credentials for the database match what is expected. Test your ability to connect to the database with `mysql -u<username> -h<hostname_or_ip> -P<port> -D<database_name> -p`.
 
@@ -610,7 +647,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36, 8.4.3, and 9.1.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -673,7 +710,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 5.7.
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36 and 8.4.2](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

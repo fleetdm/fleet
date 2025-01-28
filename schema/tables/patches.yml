@@ -1,0 +1,23 @@
+name: patches
+description: |- # (required) string - The description for this table. Note: this field supports Markdown
+  The `patches` osquery table lists Windows security patch updates.
+examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
+  Basic query:
+
+  ```
+  SELECT * FROM patches;
+  ```
+  
+  This query determines if a specific hotfix patch is installed:
+
+  ```
+  SELECT * FROM patches WHERE hotfix_id='kb5037663';
+  ```
+notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
+  Microsoft creates a support page per hotfix patch. Support pages can be discovered by doing a web browser search for the hotfix ID string (e.g., KB5037663).
+
+  Microsoft documentation for [KB5037663](https://support.microsoft.com/en-us/topic/may-29-2024-kb5037853-os-builds-22621-3672-and-22631-3672-preview-dcf14fd8-84d6-4234-9d5b-784c319cd7cf)
+
+  The `patches` table does not include updates that are applied via Windows Installer / Microsoft Standard Installer packages (.msi) or updates downloaded directly from Windows Update (e.g., Service Packs).
+
+  [Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)

@@ -1,0 +1,40 @@
+.fleet-maintained-app-details-page {
+  &__data-error {
+    margin-top: $pad-xxlarge;
+  }
+
+  &__back-to-add-software {
+    margin-bottom: $pad-medium;
+  }
+
+  h1 {
+    margin-bottom: $pad-large;
+  }
+
+  &__page-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__fleet-app-summary {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  &__fleet-app-summary--left {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__fleet-app-summary--title {
+    font-weight: $bold;
+    font-size: $small;
+  }
+
+  &__fleet-app-summary--info {
+    font-size: $x-small;
+    display: flex;
+    gap: $pad-xsmall;
+  }
+}

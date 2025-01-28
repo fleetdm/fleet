@@ -120,7 +120,7 @@ class RegistrationForm extends Component {
       <div className={baseClass}>
         <div className={formSectionClasses}>
           <div className={adminDetailsContainerClass}>
-            <h2>Setup user</h2>
+            <h2>Set up user</h2>
             <AdminDetails
               formData={formData}
               handleSubmit={onPageFormSubmit}

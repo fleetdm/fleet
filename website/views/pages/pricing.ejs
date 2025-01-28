@@ -8,58 +8,82 @@
       </div>
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
         <%// Fleet Free tier card %>
-        <div purpose="free-tier-card" class="card d-flex flex-column">
+        <div purpose="pricing-card">
+        <div purpose="free-tier-card" class="card d-flex flex-column h-100  justify-content-between">
           <div purpose="pricing-tier-title">
-            <div class="d-flex flex-row justify-content-center">
-              <div class="d-flex flex-column justify-content-center">
+            <div class="d-flex flex-row justify-content-start">
+              <div class="d-flex flex-column justify-content-between">
                 <h2>Free</h2>
                 <h3>Unlimited hosts</h3>
-                <div class="d-flex flex-row align-items-center">
+                <div purpose="tier-price" class="d-flex flex-row align-items-center">
                   <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                 </div>
               </div>
             </div>
           </div>
-          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" target="_blank" href="https://github.com/fleetdm/fleet">View source code</a>
+          <div purpose="button-container" class="d-flex flex-row align-items-center">
+            <animated-arrow-button href="/docs">
+              Read the docs
+            </animated-arrow-button>
+          </div>
+        </div>
         </div>
         <%// Fleet Premium tier card %>
-        <div purpose="premium-card" class="d-flex flex-column justify-content-center">
-          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column">
+        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
+          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column justify-content-between">
             <div purpose="pricing-tier-title">
               <div class="d-flex flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-center">
+                <div class="d-flex flex-column justify-content-start">
                   <h2>Premium</h2>
                   <h3>Unlimited baselines</h3>
-                  <div class="d-flex flex-row align-items-center justify-content-center">
-                    <h4>From </h4><h1 class="mb-2"><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                  <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
+                    <h1><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                   </div>
                 </div>
               </div>
             </div>
             <div>
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" @click="clickOpenChatWidget()">Show me</a>
-              <p purpose="contact-sales-link">Have a large deployment? <a @click="clickOpenChatWidget()">Start here</a>.</p>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/register">Get started</a>
+            </div>
+          </div>
+        </div>
+        <%//  Custom tier card %>
+        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
+          <div purpose="custom-tier-card" class="card d-flex h-100 flex-column justify-content-between">
+            <div purpose="pricing-tier-title">
+              <div class="d-flex flex-column justify-content-between">
+                <div class="d-flex flex-column justify-content-center">
+                  <h2>Custom</h2>
+                  <h3>For teams who can move quickly with extremely large deployments.</h3>
+                </div>
+              </div>
+            </div>
+            <div>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact">Talk to an engineer</a>
             </div>
           </div>
         </div>
       </div>
+      <div purpose="logos-container" class="flex-column flex-wrap align-items-center w-100">
+        <logo-carousel></logo-carousel>
+      </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
-        <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="pricingMode = 'all'">All features</div>
-        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="pricingMode = 'Security'">For security engineers</div>
-        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="pricingMode = 'IT'">For IT admins</div>
+        <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
+        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
     <%// All features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="pricingMode === 'all'">
-      <div class="d-flex flex-column justify-content-center p-0">
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0 " :class="[[pricingMode === 'all' ? 'show' : 'hide']]">
+      <div class="d-flex flex-column p-0" :class="[showExpandedTable ? '' : 'truncated']">
         <%// Desktop features tables %>
         <div class="d-none d-md-block">
           <% for(let category of pricingTable) {%>
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
+                  <td><h5><%- category.categoryName %></h5></td>
                   <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
                     <strong>Free</strong>
@@ -79,7 +103,13 @@
               <tbody>
                 <% for( let feature of category.features){ %>
                   <tr>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <%if(feature.description && feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <% } else if(feature.description) {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <% } %>
                     <%if(feature.tier === 'Free') {%>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <%} else {%>
@@ -94,248 +124,272 @@
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
         <%// Mobile features tables %>
-        <% for(let category of pricingTable) {%>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
-            <h4><%- category.categoryName %></h4>
-            <% for( let feature of category.features){ %>
-              <div purpose="mobile-features-table" class="d-flex flex-column">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
-                </div>
-                <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
-                <%if(feature.tier === 'Free') {%>
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <% } %>
-                </div>
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  Premium
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                </div>
-              </div>
-            <% }%>
+        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
+          <h5>{{category.categoryName}}</h5>
+          <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+              <strong class="d-block">
+                {{feature.name}}{{feature.comingSoon ? '*' : ''}}
+              </strong>
+              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+            </div>
+            <div class="d-flex flex-row justify-content-between align-items-center">
+              Free
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
+            </div>
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+              Premium
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+            </div>
           </div>
-        <% }%>
-          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        </div>
+        <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        <div purpose="truncated-features-fade">
+        </div>
       </div>
+      <div class="d-flex flex-row justify-content-center"><a :class="[showExpandedTable ? 'expanded' : '']" @click="showExpandedTable = !showExpandedTable" purpose="show-all-features-button">Show all features<span></span></a></div>
     </div>
     <%// Filtered features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'Security'">
-      <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop filtered features tables %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'IT' ? 'show' : 'hide']]">
+      <div class="d-flex flex-column p-0" :class="[showExpandedTable ? '' : 'truncated']">
+        <%// Desktop features tables %>
         <div class="d-none d-md-block">
-          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForSecurity">
-           <thead>
-              <tr>
-                <td><h4>{{category.categoryName}}</h4></td>
-                <td class="text-center" v-if="index === 0">
-                  <strong>Free</strong>
-                </td>
-                <td v-else></td>
-                <td class="text-center" v-if="index === 0">
-                  <strong>Premium</strong>
-                </td>
-                <td v-else></td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="feature in category.features">
-                <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
-                  <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                  <td purpose="table-checkmark" v-else></td>
-                <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-              </tr>
-            </tbody>
-          </table>
+          <% for(let category of pricingTableForIt) {%>
+            <table purpose="pricing-categories-table" class="table">
+             <thead>
+                <tr>
+                  <td><h5><%- category.categoryName %></h5></td>
+                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Free</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Premium</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                </tr>
+              </thead>
+              <tbody>
+                <% for( let feature of category.features){ %>
+                  <tr>
+                    <%if(feature.description && feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <% } else if(feature.description) {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <% } %>
+                    <%if(feature.tier === 'Free') {%>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <%} else {%>
+                      <td purpose="table-checkmark"></td>
+                    <%}%>
+                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  </tr>
+                <% }%>
+              </tbody>
+            </table>
+          <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile filtered features tables %>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
-            <h4>{{category.categoryName}}</h4>
-              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
-                  <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
-                </div>
-                <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-                </div>
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  Premium
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                </div>
-              </div>
+        <%// Mobile features tables %>
+        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
+          <h5>{{category.categoryName}}</h5>
+          <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
+              <strong class="d-block">
+                {{feature.name}}{{feature.comingSoon ? '*' : ''}}
+                <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+              </strong>
+            </div>
+            <div class="d-flex flex-row justify-content-between align-items-center">
+              Free
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
+            </div>
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+              Premium
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+            </div>
           </div>
-          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        </div>
+        <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        <div purpose="truncated-features-fade"></div>
       </div>
+      <div class="d-flex flex-row justify-content-center"><a :class="[showExpandedTable ? 'expanded' : '']" @click="showExpandedTable = !showExpandedTable" purpose="show-all-features-button">Show all features<span></span></a></div>
     </div>
-    <%// IT features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'IT'">
-      <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop filtered features tables %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'Security' ? 'show' : 'hide']]">
+      <div class="d-flex flex-column p-0" :class="[showExpandedTable ? '' : 'truncated']">
+        <%// Desktop features tables %>
         <div class="d-none d-md-block">
-          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForIt">
-           <thead>
-              <tr>
-                <td><h4>{{category.categoryName}}</h4></td>
-                <td class="text-center" v-if="index === 0">
-                  <strong>Free</strong>
-                </td>
-                <td v-else></td>
-                <td class="text-center" v-if="index === 0">
-                  <strong>Premium</strong>
-                </td>
-                <td v-else></td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="feature in category.features">
-                <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
-                  <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                  <td purpose="table-checkmark" v-else></td>
-                <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-              </tr>
-            </tbody>
-          </table>
+          <% for(let category of pricingTableForSecurity) {%>
+            <table purpose="pricing-categories-table" class="table">
+             <thead>
+                <tr>
+                  <td><h5><%- category.categoryName %></h5></td>
+                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Free</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Premium</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                </tr>
+              </thead>
+              <tbody>
+                <% for( let feature of category.features){ %>
+                  <tr>
+                    <%if(feature.description && feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <% } else if(feature.description) {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <% } %>
+                    <%if(feature.tier === 'Free') {%>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <%} else {%>
+                      <td purpose="table-checkmark"></td>
+                    <%}%>
+                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  </tr>
+                <% }%>
+              </tbody>
+            </table>
+          <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile filtered features tables %>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
-            <h4>{{category.categoryName}}</h4>
-              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
-                  <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
-                </div>
-                <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-                </div>
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  Premium
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                </div>
-              </div>
+        <%// Mobile features tables %>
+        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
+          <h5>{{category.categoryName}}</h5>
+          <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+              <strong class="d-block">
+                {{feature.name}}{{feature.comingSoon ? '*' : ''}}
+              </strong>
+              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+            </div>
+            <div class="d-flex flex-row justify-content-between align-items-center">
+              Free
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
+            </div>
+            <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+              Premium
+              <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+            </div>
           </div>
-          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        </div>
+        <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+        <div purpose="truncated-features-fade"></div>
       </div>
+      <div class="d-flex flex-row justify-content-center"><a :class="[showExpandedTable ? 'expanded' : '']" @click="showExpandedTable = !showExpandedTable" purpose="show-all-features-button">Show all features<span></span></a></div>
     </div>
-    <!-- <%// FAQ %>
-    <div style="color: #192147;" class="d-flex flex-column justify-content-center pt-5 px-0 mx-auto">
-      <h2 class="text-center mb-4">FAQ</h2>
-      <div style="max-width: 800px;" class="px-0 d-flex flex-column justify-content-center mb-5 mx-auto">
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question1" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
-            Is Fleet MIT licensed?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer1" class="collapse" aria-labelledby="faq__question1">
-            We have different licenses for portions of our software which are noted in the LICENSE file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question2" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
-            What is your commitment to open source stewardship?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <ol id="faq__answer2" purpose="faq-list" class="collapse" aria-labelledby="faq__question2">
-            <li>When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.</li>
-            <li>The majority of new capabilities added to Fleet will benefit all users, not just customers.</li>
-            <li>We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.</li>
-            <li>We will always release and open source all tests that we have for any open source feature.</li>
-            <li>The free version of Fleet is enterprise ready.</li>
-            <li>The open source codebase will not contain any artificial limits on the number of hosts, users, size, or performance.</li>
-            <li>The majority of new features contributed by Fleet Device Management Inc will be open source.</li>
-            <li>The product will be available for download without leaving an email address or logging in.</li>
-            <li>We will always allow you to benchmark the performance of Fleet.  (Fleet also <a href="https://fleetdm.com/handbook/engineering#rituals" target="_blank">load tests the platform before every release</a>, with increasingly ambitious targets.  The scale of realtime reporting supported by Fleet has increased 5,000% since 2019.  Today, Fleet deployments supports 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)</li>
-          </ol>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question3" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
-            How do I contact Fleet for support?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer3" class="collapse" aria-labelledby="faq__question3">
-            Find out how to contact support in <a href="/handbook/customers#contacting-fleet">our handbook</a>.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question4" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer3">
-            What if we choose not to renew?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-            If you opt not to renew Fleet Premium, you can continue using Fleet Free (same code base, just unconfigure the license key.)
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question5" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer4">
-            Can we buy a licence to access premium features with reduced support for a reduced cost?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer5" class="collapse" aria-labelledby="faq__question5">
-            We aren’t able to sell licenses and support separately.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question6" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer5">
-            Do you offer pricing for ephemeral hosts which may scale up or down?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer6" class="collapse" aria-labelledby="faq__question6">
-            For now, the number of hosts is the maximum cap of distinct agents enrolled at any given time.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question7" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer7" aria-controls="faq__answer8">
-            When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer7" class="collapse" aria-labelledby="faq__question7">
-            Like any modern application, Fleet scales horizontally.  The biggest potential bottleneck for Fleet is the number of hosts being monitored, so that's where we've devoted the most attention when <a href="https://github.com/fleetdm/fleet/blob/19816cee1a261589c54f50e7b965c12e2186ae48/docs/infrastructure/faq.md#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle">testing</a>. The largest number of hosts we've had a customer ask about was 350,000, for all of the production servers and employee laptops of a publicly traded company.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question8" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer8" aria-controls="faq__answer10">
-            Where's the data stored?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer8" class="collapse" aria-labelledby="faq__question8">
-            Since Fleet is self-managed, some metadata is stored wherever it is deployed (e.g. Amazon, Azure, Google, your own data center, hybrid cloud, anywhere).  That's done using a MySQL database, but the bulk of the data is not stored there — instead, it flows directly into a tool like Splunk or ElasticSearch. You can send that information to any of Fleet's supported log destinations.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question9" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer9" aria-controls="faq__answer11">
-            Can I fork Fleet's source code and build upon it myself to create my own features?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer9" class="collapse" aria-labelledby="faq__question9">
-            Anyone is free to fork the project. We are always interested to hear feedback, and we are happy to take pull requests and ideas upstream any time we can.
-          </p>
-        </div>
-        <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-          <p id="faq__question10" style="cursor: pointer;" class="pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer10" aria-controls="faq__answer12">
-            Can I buy support or services separate from Fleet Premium?
-            <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
-          </p>
-          <p id="faq__answer10" class="collapse" aria-labelledby="faq__question10">
-            The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
-          </p>
-        </div>
-      </div>
-    </div> -->
     <%// Bottom call to action %>
-    <div purpose="bottom-cta" class="d-block mx-auto">
-      <h2 class="text-center">Questions?</h2>
-      <p class="text-center">We have answers to the most <a href="https://fleetdm.com/docs/get-started/faq">commonly asked questions</a>.</p>
-      <div class="d-flex flex-column flex-sm-row flex-nowrap btn-toolbar justify-content-center" style="text-align: center" >
-        <a purpose="chat-button" style="max-width: 250px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary my-3 mx-sm-2" href="https://fleetdm.com/company/contact">
-          Ask us anything
-        </a>
-        <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="cta-button" @click="clickOpenChatWidget()">
-          Call us
-        </a>
+    <div purpose="faq" class="d-flex flex-column flex-md-row justify-content-center">
+      <div purpose="faq-header">
+        <h2>Frequently <br>asked questions</h2>
+      </div>
+      <div purpose="accordion" class="d-flex flex-column justify-content-start">
+        <div purpose="accordion-body">
+          <div purpose="accordion-item" class="mt-md-0">
+            <p purpose="accordion-header" id="accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
+              <%
+              //  ███████╗ █████╗  ██████╗      ██████╗  ██╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔═══██╗███║
+              //  █████╗  ███████║██║   ██║    ██║   ██║╚██║
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██║▄▄ ██║ ██║
+              //  ██║     ██║  ██║╚██████╔╝    ╚██████╔╝ ██║
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝      ╚══▀▀═╝  ╚═╝
+              %>
+              Parts of the UI are unfamiliar to us. Is this too far out of my team's comfort zone?
+              <span class="fa fa-angle-down"></span>
+            </p>
+            <p purpose="faq-answer" id="accordion__body1" class="collapse" aria-labelledby="accordion__header1">
+              <%
+              //  ███████╗ █████╗  ██████╗      █████╗  ██╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔══██╗███║
+              //  █████╗  ███████║██║   ██║    ███████║╚██║
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██╔══██║ ██║
+              //  ██║     ██║  ██║╚██████╔╝    ██║  ██║ ██║
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝ ╚═╝
+              %>
+              You already know how to manage the operating system. In Fleet, you can focus on managing Apple, Windows and Linux; not Intune, Omnissa, and your anxiety.
+            </p>
+          </div>
+          <div purpose="accordion-item">
+            <p purpose="accordion-header" id="accordion__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body2" aria-controls="accordion__body2">
+              <%
+              //  ███████╗ █████╗  ██████╗      ██████╗ ██████╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔═══██╗╚════██╗
+              //  █████╗  ███████║██║   ██║    ██║   ██║ █████╔╝
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██║▄▄ ██║██╔═══╝
+              //  ██║     ██║  ██║╚██████╔╝    ╚██████╔╝███████╗
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝      ╚══▀▀═╝ ╚══════╝
+              %>
+              Fleet is perfect, it's just missing this one feature...
+              <span class="fa fa-angle-down"></span>
+            </p>
+            <p purpose="faq-answer" id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
+              <%
+              //  ███████╗ █████╗  ██████╗      █████╗ ██████╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔══██╗╚════██╗
+              //  █████╗  ███████║██║   ██║    ███████║ █████╔╝
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██╔══██║██╔═══╝
+              //  ██║     ██║  ██║╚██████╔╝    ██║  ██║███████╗
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚══════╝
+              %>
+              We're moving pretty fast, and we have every incentive to listen. At Fleet, everyone can contribute. We also regularly deliver customer promises, and all the code is 100% source-available.
+            </p>
+          </div>
+          <div purpose="accordion-item">
+            <p purpose="accordion-header" id="accordion__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body3" aria-controls="accordion__body3">
+              <%
+              //  ███████╗ █████╗  ██████╗      ██████╗ ██████╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔═══██╗╚════██╗
+              //  █████╗  ███████║██║   ██║    ██║   ██║ █████╔╝
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██║▄▄ ██║ ╚═══██╗
+              //  ██║     ██║  ██║╚██████╔╝    ╚██████╔╝██████╔╝
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝      ╚══▀▀═╝ ╚═════╝
+              %>
+              What actually is Fleet? Was it purpose built for this kind of thing?
+              <span class="fa fa-angle-down"></span>
+            </p>
+            <p purpose="faq-answer" id="accordion__body3" class="collapse" aria-labelledby="accordion__header3">
+              <%
+              //  ███████╗ █████╗  ██████╗      █████╗ ██████╗
+              //  ██╔════╝██╔══██╗██╔═══██╗    ██╔══██╗╚════██╗
+              //  █████╗  ███████║██║   ██║    ███████║ █████╔╝
+              //  ██╔══╝  ██╔══██║██║▄▄ ██║    ██╔══██║ ╚═══██╗
+              //  ██║     ██║  ██║╚██████╔╝    ██║  ██║██████╔╝
+              //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚═════╝
+              %>
+              Fleet <a href="https://fleetdm.com/handbook/company#history">started as an osquery management server</a>. After 10 years of production osquery use at scale in huge organizations, Fleet added "write" and "execute" device management capabilities, with all the necessary integrations to be comparable with other device management platforms like Omnissa (fka WS1, fka Airwatch), Jamf, Intune, and more. Today, Fleet is actively used as the next-gen MDM in homelabs all over the world, and at larger fleets at Epic Games, Cisco, Stripe, Fastly, Lear, and more.
+            </p>
+          </div>
+        </div>
+        <div class="d-flex flex-row justify-content-start">
+          <p purpose="contact-note">Couldn’t find an answer? <a href="/contact">Talk to an engineer</a>.</p>
+        </div>
       </div>
     </div>
   </div>
+  <modal purpose="mobile-tooltip" v-if="modal === 'mobileTooltip'" @close="closeModal()">
+    <div>
+      <p class="mb-0">{{selectedFeature.description}}</p>
+      <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl">Learn more</a>
+    </div>
+  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

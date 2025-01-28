@@ -1,0 +1,14 @@
+.turn-off-apple-mdm-modal {
+  &__info-header {
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+
+    .renew-cert-modal__submit-button.uploading.button--disabled {
+      opacity: 1;
+    }
+  }
+}

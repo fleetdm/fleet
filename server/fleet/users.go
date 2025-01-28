@@ -24,12 +24,33 @@ type User struct {
 	GravatarURL              string `json:"gravatar_url" db:"gravatar_url"`
 	Position                 string `json:"position,omitempty"` // job role
 	// SSOEnabled if true, the user may only log in via SSO
-	SSOEnabled bool    `json:"sso_enabled" db:"sso_enabled"`
+	SSOEnabled bool `json:"sso_enabled" db:"sso_enabled"`
+	// MFAEnabled if true, the user (if non-SSO) must click a magic link via email to complete login
+	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
+
+	Settings *UserSettings `json:"settings,omitempty"`
+}
+
+type UserSettings struct {
+	HiddenHostColumns []string `json:"hidden_host_columns"`
+}
+
+// Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
+// custom Go type (UserSettings).
+func (us *UserSettings) Scan(val interface{}) error {
+	switch v := val.(type) {
+	case []byte:
+		return json.Unmarshal(v, us)
+	case string:
+		return json.Unmarshal([]byte(v), us)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
 }
 
 // IsGlobalObserver returns true if user is either a Global Observer or a Global Observer+
@@ -147,19 +168,21 @@ type UserListOptions struct {
 
 // UserPayload is used to modify an existing user
 type UserPayload struct {
-	Name                     *string     `json:"name,omitempty"`
-	Email                    *string     `json:"email,omitempty"`
-	Password                 *string     `json:"password,omitempty"`
-	GravatarURL              *string     `json:"gravatar_url,omitempty"`
-	Position                 *string     `json:"position,omitempty"`
-	InviteToken              *string     `json:"invite_token,omitempty"`
-	SSOInvite                *bool       `json:"sso_invite,omitempty"`
-	SSOEnabled               *bool       `json:"sso_enabled,omitempty"`
-	GlobalRole               *string     `json:"global_role,omitempty"`
-	AdminForcedPasswordReset *bool       `json:"admin_forced_password_reset,omitempty"`
-	APIOnly                  *bool       `json:"api_only,omitempty"`
-	Teams                    *[]UserTeam `json:"teams,omitempty"`
-	NewPassword              *string     `json:"new_password,omitempty"`
+	Name                     *string       `json:"name,omitempty"`
+	Email                    *string       `json:"email,omitempty"`
+	Password                 *string       `json:"password,omitempty"`
+	GravatarURL              *string       `json:"gravatar_url,omitempty"`
+	Position                 *string       `json:"position,omitempty"`
+	InviteToken              *string       `json:"invite_token,omitempty"`
+	SSOInvite                *bool         `json:"sso_invite,omitempty"`
+	MFAEnabled               *bool         `json:"mfa_enabled,omitempty"`
+	SSOEnabled               *bool         `json:"sso_enabled,omitempty"`
+	GlobalRole               *string       `json:"global_role,omitempty"`
+	AdminForcedPasswordReset *bool         `json:"admin_forced_password_reset,omitempty"`
+	APIOnly                  *bool         `json:"api_only,omitempty"`
+	Teams                    *[]UserTeam   `json:"teams,omitempty"`
+	NewPassword              *string       `json:"new_password,omitempty"`
+	Settings                 *UserSettings `json:"settings,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -210,8 +233,13 @@ func (p *UserPayload) verifyCreateShared(invalid *InvalidArgumentError) {
 		}
 	}
 
-	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
-		invalid.Append("password", "not allowed for SSO users")
+	if p.SSOEnabled != nil && *p.SSOEnabled {
+		if p.Password != nil && len(*p.Password) > 0 {
+			invalid.Append("password", "not allowed for SSO users")
+		}
+		if p.MFAEnabled != nil && *p.MFAEnabled {
+			invalid.Append("mfa_enabled", "not applicable for SSO users")
+		}
 	}
 
 	if p.Email == nil {
@@ -276,6 +304,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		err := user.SetPassword(*p.Password, keySize, cost)
 		if err != nil {
 			return nil, err
+		}
+		if p.MFAEnabled != nil {
+			user.MFAEnabled = *p.MFAEnabled
 		}
 	}
 
@@ -404,6 +435,7 @@ func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte
 		return nil, "", err
 	}
 
+	salt = salt[:keySize]
 	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
 	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
 	if err != nil {

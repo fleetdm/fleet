@@ -13,40 +13,39 @@ on:
       - '.github/workflows/generate-desktop-targets.yml'
   workflow_dispatch:
 
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
-  cancel-in-progress: true
-
 defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.21.0
+  FLEET_DESKTOP_VERSION: 1.38.0
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
+  attestations: write
+  packages: write
 
 jobs:
   desktop-macos:
-    # Set macOS version to '12' (current equivalent to macos-latest) for
+    # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
     # building the binary. This ensures compatibility with macOS version 13 and
     # later, avoiding runtime errors on systems using macOS 13 or newer.
-    #
-    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
-    # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
-
-      - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+          go-version-file: 'go.mod'
 
       - name: Import signing keys
         env:
@@ -78,8 +77,14 @@ jobs:
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-app-tar-gz
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "desktop.app.tar.gz"
+
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -87,45 +92,111 @@ jobs:
   desktop-windows:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
-
-      - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+          go-version-file: 'go.mod'
 
       - name: Generate fleet-desktop.exe
         run: |
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-windows
 
-      - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          name: fleet-desktop.exe
+          subject-path: "fleet-desktop.exe"
+
+      - name: Upload fleet-desktop.exe
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: unsigned-windows
           path: fleet-desktop.exe
+
+  code-sign-windows:
+    needs: desktop-windows
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleet-desktop.exe
+      upload_name: fleet-desktop.exe
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-linux:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
-
-      - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+          go-version-file: 'go.mod'
 
       - name: Generate desktop.tar.gz
         run: |
           FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
           make desktop-linux
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "desktop.tar.gz"
+
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.tar.gz
+          path: desktop.tar.gz
+
+  desktop-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Generate desktop.tar.gz
+        run: |
+          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          make desktop-linux-arm64
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: 'desktop.tar.gz'
+
+      - name: Upload desktop.tar.gz
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: desktop-arm64.tar.gz
           path: desktop.tar.gz

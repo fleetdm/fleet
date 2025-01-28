@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,9 +122,10 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "created_at": "0001-01-01T00:00:00Z",
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
-        "failing_host_count": 0,
+        "failing_host_count": 2,
         "host_count_updated_at": null,
-		"critical": true
+		"critical": true,
+		"calendar_events_enabled": false
     },
     "hosts": [
         {
@@ -183,16 +184,17 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	policiesByID := map[uint]*fleet.Policy{
 		1: {
 			PolicyData: fleet.PolicyData{
-				ID:          1,
-				Name:        "policy1",
-				Query:       "select 1",
-				Description: "policy1 description",
-				AuthorID:    ptr.Uint(1),
-				AuthorName:  "Alice",
-				AuthorEmail: "alice@example.com",
-				TeamID:      &teamID,
-				Resolution:  ptr.String("policy1 resolution"),
-				Platform:    "darwin",
+				ID:                    1,
+				Name:                  "policy1",
+				Query:                 "select 1",
+				Description:           "policy1 description",
+				AuthorID:              ptr.Uint(1),
+				AuthorName:            "Alice",
+				AuthorEmail:           "alice@example.com",
+				TeamID:                &teamID,
+				Resolution:            ptr.String("policy1 resolution"),
+				Platform:              "darwin",
+				CalendarEventsEnabled: true,
 			},
 		},
 		2: {
@@ -307,9 +309,10 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "created_at": "0001-01-01T00:00:00Z",
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
-        "failing_host_count": 0,
+        "failing_host_count": 1,
         "host_count_updated_at": null,
-		"critical": false
+		"critical": false,
+		"calendar_events_enabled": true
     },
     "hosts": [
         {
@@ -379,7 +382,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 		hosts := make([]fleet.PolicySetHost, c)
 		for i := 0; i < len(hosts); i++ {
 			hosts[i] = fleet.PolicySetHost{
-				ID:       uint(i + 1),
+				ID:       uint(i + 1), //nolint:gosec // dismiss G115
 				Hostname: fmt.Sprintf("hostname-%d", i+1),
 			}
 		}

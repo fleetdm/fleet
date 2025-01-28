@@ -1,1 +1,0 @@
-* Renamed the `mdm_windows_configuration_profiles` and `mdm_apple_configuration_profiles` `updated_at` field to `uploaded_at` and removed the automatic setting of the value, set explicity instead.

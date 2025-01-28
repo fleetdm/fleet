@@ -3,7 +3,7 @@ name: goreleaser
 on:
   push:
     tags:
-      - 'fleet-*'
+      - "fleet-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -20,11 +20,19 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04-4-cores
     environment: Docker Hub
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
@@ -39,7 +47,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: "go.mod"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version-file: package.json
 
       - name: Install JS Dependencies
         run: make deps-js
@@ -47,15 +60,70 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Install macOS signing + notarization tools
+        run: |
+          pushd /tmp
+          readonly version="0.27.0"
+          readonly codesign_package="apple-codesign-${version}-x86_64-unknown-linux-musl.tar.gz"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}.sha256"
+          echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
+          tar --extract --strip-components 1 --file "$codesign_package"
+          mkdir -p $HOME/.bin
+          mv rcodesign $HOME/.bin/
+          echo "$HOME/.bin" >> $GITHUB_PATH
+          popd
+
       - name: Run GoReleaser
+        id: goreleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: latest
-          args: release --rm-dist -f .goreleaser.yml
+          version: "~> 2"
+          args: release --clean -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          APPLE_APP_STORE_CONNECT_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY }}
+          APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
+          APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+
+      - name: Attest binaries and archives
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/**"
+
+      # Get the commit hash so we can get image digests
+      - name: Get the short commit hash
+        id: commit
+        run: echo "short_commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Get the image digests from the goreleaser artifacts
+      # Adapted from https://github.com/goreleaser/goreleaser/issues/4852#issuecomment-2122790132
+      - name: Get image digests
+        continue-on-error: true
+        id: image_digests
+        run: |
+          echo "digest_fleet=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+          echo "digest_fleetctl=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.commit.outputs.short_commit }}"))) | select(. != null)|.extra.Digest')" >> "$GITHUB_OUTPUT"
+
+      - name: Attest Fleet image
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        continue-on-error: true
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
+          subject-name: "fleetdm/fleet"
+          push-to-registry: true
+
+      - name: Attest FleetCtl image
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        continue-on-error: true
+        with:
+          subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
+          subject-name: "fleetdm/fleetctl"
+          push-to-registry: true
 
       - name: Get tag
         run: |

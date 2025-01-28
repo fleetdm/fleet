@@ -118,7 +118,7 @@ func TestAuthenticate(t *testing.T) {
 
 	for _, tt := range loginTests {
 		t.Run(tt.email, func(st *testing.T) {
-			loggedIn, token, err := svc.Login(test.UserContext(ctx, test.UserAdmin), tt.email, tt.password)
+			loggedIn, token, err := svc.Login(test.UserContext(ctx, test.UserAdmin), tt.email, tt.password, false)
 			require.Nil(st, err, "login unsuccessful")
 			assert.Equal(st, tt.email, loggedIn.Email)
 			assert.NotEmpty(st, token)
@@ -132,6 +132,65 @@ func TestAuthenticate(t *testing.T) {
 				"access time should be set with current time at session creation")
 		})
 	}
+}
+
+func TestMFA(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	user := &fleet.User{MFAEnabled: true, Name: "Bob Smith", Email: "foo@example.com"}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return user, nil
+	}
+	_, _, err := svc.Login(ctx, "foo@example.com", test.GoodPassword, false)
+	require.Equal(t, err, mfaNotSupportedForClient)
+
+	var sentMail fleet.Email
+	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error {
+		sentMail = e
+		return nil
+	}}
+	mfaToken := "foovalidate"
+	ds.NewMFATokenFunc = func(ctx context.Context, userID uint) (string, error) {
+		return mfaToken, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	svcForMailing := validationMiddleware{&Service{
+		ds:          ds,
+		config:      config.TestConfig(),
+		mailService: mailer,
+	}, ds, nil}
+	_, _, err = svcForMailing.Login(ctx, "foo@example.com", test.GoodPassword, true)
+	require.Equal(t, err, sendingMFAEmail)
+	require.Equal(t, "foo@example.com", sentMail.To[0])
+	require.Equal(t, "Log in to Fleet", sentMail.Subject)
+
+	var session *fleet.Session
+	var mfaUser *fleet.User
+	ds.SessionByMFATokenFunc = func(ctx context.Context, token string, sessionKeySize int) (*fleet.Session, *fleet.User, error) {
+		if token == mfaToken {
+			return session, mfaUser, nil
+		}
+		return nil, nil, notFoundErr{}
+	}
+	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
+	require.NoError(t, err)
+	require.NotNil(t, resp.error())
+
+	session = &fleet.Session{}
+	mfaUser = user
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		require.Equal(t, mfaUser, user)
+		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
+		return nil
+	}
+	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
+	require.NoError(t, err)
+	require.Nil(t, resp.error())
+	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestGetSessionByKey(t *testing.T) {
@@ -219,7 +278,9 @@ func TestGetSSOUser(t *testing.T) {
 		},
 	})
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 

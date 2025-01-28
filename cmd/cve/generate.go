@@ -1,20 +1,22 @@
 package main
 
 import (
-	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -27,6 +29,8 @@ const emptyData = `{
   "CVE_data_timestamp" : "2023-11-17T19:00Z",
   "CVE_Items" : [ ]
 }`
+
+var cleanEnvVar = "VULNERABILITIES_CLEAN"
 
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
@@ -44,9 +48,33 @@ func main() {
 		panic(err)
 	}
 
+	if os.Getenv(cleanEnvVar) == "false" {
+		logger.Log("msg", "Downloading latest release")
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			err := downloadLatestRelease(*dbDir, *debug, logger)
+			if err == nil {
+				break
+			}
+
+			if i == maxRetries-1 {
+				logger.Log("msg", "Failed to download latest release. Continuing with full NVD Sync", "err", err)
+				break
+			}
+
+			logger.Log("msg", "Failed to download latest release. Retrying in 30 seconds", "err", err)
+			time.Sleep(30 * time.Second)
+		}
+	}
+
 	// Sync the CVE files
-	if err := nvd.DownloadNVDCVEFeed(*dbDir, "", *debug, logger); err != nil {
+	if err := nvd.GenerateCVEFeeds(*dbDir, *debug, logger); err != nil {
 		panic(err)
+	}
+
+	// Remove Vulncheck archive
+	if err := os.RemoveAll(filepath.Join(*dbDir, "vulncheck.zip")); err != nil {
+		logger.Log("msg", "Failed to remove vulncheck.zip", "err", err)
 	}
 
 	// Read in every cpe file and create a corresponding metadata file
@@ -64,7 +92,15 @@ func main() {
 		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))
 		fileName := filepath.Join(*dbDir, fileFmt(suffix, "json", "gz"))
 		metaName := filepath.Join(*dbDir, fileFmt(suffix, "meta", ""))
-		compressFile(fileNameRaw, fileName)
+		// skip if file does not exist
+		if _, err := os.Stat(fileNameRaw); os.IsNotExist(err) {
+			logger.Log("msg", "Skipping metadata generation for missing file", "file", fileNameRaw)
+			continue
+		}
+		err := nvdsync.CompressFile(fileNameRaw, fileName)
+		if err != nil {
+			panic(err)
+		}
 		createMetadata(fileName, metaName)
 	}
 
@@ -73,35 +109,65 @@ func main() {
 	createEmptyFiles(*dbDir, "recent")
 }
 
-func compressFile(fileName string, newFileName string) {
-	// Read old file
-	file, err := os.Open(fileName)
+func downloadLatestRelease(dbDir string, debug bool, logger log.Logger) error {
+	// Download the latest release
+	err := nvd.DownloadCVEFeed(dbDir, "", debug, logger)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("download cve feed: %w", err)
 	}
-	read := bufio.NewReader(file)
-	data, err := io.ReadAll(read)
-	if err != nil {
-		panic(err)
-	}
-	file.Close()
 
-	// Write new file
-	newFile, err := os.Create(newFileName)
+	// gunzip json files
+	files, err := filepath.Glob(filepath.Join(dbDir, "nvdcve-1.1-*.json.gz"))
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("glob json files: %w", err)
 	}
-	writer := gzip.NewWriter(newFile)
-	if _, err = writer.Write(data); err != nil {
-		panic(err)
+	for _, file := range files {
+		err = gunzipFileToDisk(file, dbDir)
+		if err != nil {
+			return fmt.Errorf("gunzip file %s to disk: %w", file, err)
+		}
 	}
-	writer.Close()
-	newFile.Close()
 
-	// Remove old file
-	if err = os.Remove(fileName); err != nil {
-		panic(err)
+	// Download the last mod start date
+	err = downloadLatestGitHubAsset(dbDir, "last_mod_start_date.txt")
+	if err != nil {
+		return fmt.Errorf("downloading last_mod_start_date asset: %w", err)
 	}
+
+	return nil
+}
+
+// downloadAsset downloads the asset from the latest release and writes it to a file
+func downloadLatestGitHubAsset(dbDir, fileName string) error {
+	assetPath, err := nvd.GetGitHubCVEAssetPath()
+	if err != nil {
+		return fmt.Errorf("get github cve asset path: %w", err)
+	}
+
+	client := fleethttp.NewClient()
+	resp, err := client.Get(assetPath + fileName)
+	if err != nil {
+		return fmt.Errorf("get last mod start date: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("get last mod start date: %w", fmt.Errorf("unexpected status code %d", resp.StatusCode))
+	}
+
+	lastModStartDate, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read last mod start date: %w", err)
+	}
+
+	// Write the last mod start date to a file
+	lastModStartDateFile := filepath.Join(dbDir, fileName)
+	err = os.WriteFile(lastModStartDateFile, lastModStartDate, 0o644)
+	if err != nil {
+		return fmt.Errorf("write last mod start date: %w", err)
+	}
+
+	return nil
 }
 
 func createMetadata(fileName string, metaName string) {
@@ -179,4 +245,36 @@ func gunzipFileAndComputeSHA256(filename string) (string, error) {
 	}
 	defer f.Close()
 	return gunzipAndComputeSHA256(f)
+}
+
+func gunzipFileToDisk(filename, dbpath string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("new gzip reader: %w", err)
+	}
+	defer gz.Close()
+
+	filepath := filepath.Join(dbpath, strings.TrimSuffix(filepath.Base(filename), ".gz"))
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer out.Close()
+
+	// Using a maxBytes limit to prevent decompression bombs: gosec G110
+	maxBytes := 200 * 1024 * 1024 // 200MB
+	_, err = io.CopyN(out, gz, int64(maxBytes))
+	if err != nil && err != io.EOF {
+		msg := fmt.Sprintf("error copying file %s: %v", f.Name(), err)
+		panic(msg)
+	}
+
+	return nil
 }

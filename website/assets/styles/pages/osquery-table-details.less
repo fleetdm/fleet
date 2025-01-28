@@ -134,7 +134,6 @@
     max-width: 250px;
     padding-top: 24px;
     height: 100%;
-    padding-right: 16px;
     margin-right: 16px;
     h4 {
       line-height: 24px;
@@ -179,6 +178,7 @@
   }
   [purpose='table-container'] {
     height: min-content;
+    max-width: 860px;
   }
 
   [purpose='overflow-shadow'] {
@@ -245,16 +245,18 @@
       color: @core-vibrant-blue;
       padding-right: 7px;
     }
-    a:not(.markdown-link):not([purpose='evented-table-label']):after {
-      background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
-      background-size: 7px 7px;
-      display: inline-block;
-      position: relative;
-      top: -4px;
-      left: 4px;
-      width: 7px;
-      height: 7px;
-      content: '';
+    a:not(.markdown-link):not([purpose='evented-table-label']) {
+      &:after {
+        background-image: url('/images/icon-arrow-upper-right-7x7@2x.png');
+        background-size: 7px 7px;
+        display: inline-block;
+        position: relative;
+        top: -4px;
+        left: 4px;
+        width: 7px;
+        height: 7px;
+        content: '';
+      }
     }
     pre {
       width: 100%;
@@ -276,25 +278,31 @@
           .hljs-keyword {
             color: #FFF;
           }
+          .hljs-string { // For words wrapped in quotation marks
+            color: #FFF;
+          }
           color: #FFF;
           background-color: #AE6DDF;
-          border-radius: 4px;
-          padding: 4px 4px 4px 4px;
+          border-radius: 3px;
           white-space: pre;
           vertical-align: baseline;
-          line-height: 16px;
           span {
             padding: 0;
           }
         }
+        .hljs-number {
+          color: #f5871f;
+        }
         .hljs-string { // For words wrapped in quotation marks
-          color: #3DB67B;
-          white-space: pre;
+          color: #4fd061;
+          .hljs-keyword {
+            color: #4fd061;
+          }
         }
         background-color: @ui-off-white;
         border: none;
         word-break: break-word;
-        white-space: normal;
+        text-wrap: wrap;
         padding: 0;
         font-size: 13px;
         line-height: 24px;
@@ -407,7 +415,9 @@
   }
 
   @media (max-width: 991px) {
-
+    [purpose='table-container'] {
+      max-width: unset;
+    }
     [purpose='schema-table'] {
       padding-top: 40px;
       [purpose='platform-logos'] {

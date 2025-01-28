@@ -9,9 +9,17 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_updates:
+        minimum_version: null
+        deadline: null
+      ios_updates:
+        minimum_version: null
+        deadline: null
+      ipados_updates:
         minimum_version: null
         deadline: null
       windows_updates:
@@ -24,8 +32,14 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_release_device_manually: false
         macos_setup_assistant:
+        script:
+        software:
     scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
     name: team1
 ---
 apiVersion: v1
@@ -47,11 +61,19 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_updates:
         minimum_version: "12.3.1"
         deadline: "2021-12-14"
+      ios_updates:
+        minimum_version: "17.5"
+        deadline: "2022-11-15"
+      macos_updates:
+        minimum_version: "18.0"
+        deadline: "2023-01-01"
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
@@ -62,6 +84,11 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_release_device_manually: false
         macos_setup_assistant:
+        script:
+        software:
     scripts: null
+    webhook_settings:
+      host_status_webhook: null
     name: team2

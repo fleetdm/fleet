@@ -1,0 +1,156 @@
+- 
+  task: "Communicate the status of customer financial actions" 
+  startedOn: "2024-02-12" 
+  frequency: "Weekly"
+  description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report findings to in the `#g-sales` channel." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#communicate-the-status-of-customer-financial-actions"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "AP invoice monitoring"
+  startedOn: "2024-04-01" 
+  frequency: "Weekly"
+  description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#process-a-new-vendor-invoice"
+  dri: "ireedy"
+  
+-
+  task: "Complete Finance KPI inputs" 
+  startedOn: "2024-02-16" 
+  frequency: "Weekly"
+  description: "Create the weekly team KPI issue, complete the finance update." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#update-weekly-kpis"
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Key review prep"
+  startedOn: "2024-02-14"
+  frequency: "Triweekly"
+  description: "Prepare for this sprint's Key review meeting."
+  moreInfoUrl: "https://fleetdm.com/handbook/company/leadership#key-reviews"
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Prioritize for next sprint" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "ireedy" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-finance" ] # label to be applied to issue
+    repo: "confidential" # The GitHub repo that issues will be created in
+-
+  task: "Reconcile monthly recurring expenses" 
+  startedOn: "2024-02-28" 
+  frequency: "Monthly"
+  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#reconcile-monthly-recurring-expenses"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Monthly accounting"
+  startedOn: "2024-02-28" 
+  frequency: "Monthly"
+  description: "Create the monthly close GitHub issue and walk through the steps. This process includes fulfilling the monthly reporting requirement for SVB." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#process-monthly-accounting"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Run regular payroll" 
+  startedOn: "2024-02-24" 
+  frequency: "Monthly" 
+  description: "Verify auto-populated payroll for all full time employees is accurate, and approve for processing." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-payroll"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential" 
+-
+  task: "Monthly mail review" # TODO tie this to a responsibility
+  startedOn: "2024-04-15" 
+  frequency: "Monthly"
+  description: "Review and clear mail incurring storage fees" 
+  moreInfoUrl: null 
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Run US contractor payroll" 
+  startedOn: "2024-02-27" 
+  frequency: "Monthly"
+  description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential" 
+-
+  task: "Run US commission payroll" 
+  startedOn: "2024-01-31" 
+  frequency: "Monthly"
+  description: "Verify closed-won deal amounts, use commission calculators to determine commissions owed, and process payroll." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll"
+  dri: "ireedy" 
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Run bonus payroll" 
+  startedOn: "2024-01-31" 
+  frequency: "Quarterly"
+  description: "Verify completion of any objective or outcome based bonus plans, and process payroll." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
+  dri: "ireedy" 
+-
+  task: "Review state filings for the previous quarter"
+  startedOn: "2024-07-19" 
+  frequency: "Quarterly"
+  description: "Verify that state filings have been successfully submitted for the previous quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#review-state-employment-tax-filings-for-the-previous-quarter"
+  dri: "ireedy" 
+-
+  task: "Investor reporting" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Provide updated metrics for CRV in Chronograph." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#report-quarterly-numbers-in-chronograph"
+  dri: "ireedy"
+-
+  task: "Quartlery finance check" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up with accounting providers for any quirks found." 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#check-finances-for-quirks"
+  dri: "ireedy"
+-
+  task: "Deliver annual report for venture line" 
+  startedOn: "2024-12-01" 
+  frequency: "Annually"
+  description: "Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year" 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#deliver-annual-report-for-venture-line"
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"
+-
+  task: "Tax preparation" # TODO tie this to a responsibility
+  startedOn: "2024-02-01" 
+  frequency: "Annually"
+  description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
+  moreInfoUrl: 
+  dri: "ireedy"
+  autoIssue:   
+    labels: [ "#g-finance" ] 
+    repo: "confidential"

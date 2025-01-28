@@ -1,0 +1,4 @@
+url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-4.41.105-0.1.el8.x86_64.rpm
+self-service: true
+labels_include_any:
+  - "RPM-based Linux hosts"

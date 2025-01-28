@@ -23,7 +23,7 @@
   align-items: center;
   justify-content: center;
 
-  &:hover {
+  &:not(.dup-org-logo):hover {
     background-color: $site-nav-on-hover;
   }
 
@@ -75,6 +75,11 @@
     // Prevents user menu from overlapping with nav bar buttons
     @media (max-width: 825px) {
       padding: 15px 18px;
+    }
+
+    &:focus-visible {
+      outline-offset: -3px; // Cleaner when tabbing
+      border-radius: $border-radius-medium;
     }
   }
 

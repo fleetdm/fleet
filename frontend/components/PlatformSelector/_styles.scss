@@ -2,9 +2,23 @@
   // override global form-field width: 100%
   width: auto;
 
-  span {
+  &__checkboxes {
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+
+  .form-field__label--disabled {
+    color: $ui-fleet-black-50;
+  }
+
+  &__platform-checkbox-wrapper {
+    width: auto;
+  }
+
+  .form-field__help-text {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 }

@@ -4,30 +4,11 @@
   flex-direction: column;
   gap: $pad-medium;
 
-  &__versions-section {
-    background-color: $core-white;
-    padding: $pad-xxlarge;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius-xxlarge;
-    box-shadow: $box-shadow;
-
-    h2 {
-      margin: 0;
-      font-size: $medium;
-    }
+  .team-dropdown-wrapper {
+    @include normalize-team-header;
   }
 
-  // for showing and hiding software link on hover
-  tr {
-    .software-link {
-      opacity: 0;
-      transition: opacity 250ms;
-    }
-
-    &:hover {
-      .software-link {
-        opacity: 1;
-      }
-    }
+  h2 {
+    font-size: $small;
   }
 }

@@ -1,0 +1,48 @@
+.account-page {
+  &__sandboxMode {
+    margin-top: 70px;
+  }
+
+  h1 {
+    margin: 0 0 $pad-xlarge;
+  }
+
+  h2 {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__manage {
+    flex-grow: 1;
+  }
+
+  .info-banner {
+    margin-bottom: 24px;
+    p {
+      margin: 0;
+    }
+  }
+
+  .token-message {
+    @include help-text;
+    .custom-link {
+      font-size: inherit;
+      .icon {
+        scale: 0.88;
+      }
+      &__no-wrap {
+        // adjust for multi-line custom links
+        .icon {
+          padding-left: 4px;
+          position: relative;
+          top: 2px;
+        }
+      }
+    }
+    margin-bottom: 2rem;
+  }
+
+  .button-wrap {
+    justify-content: flex-end;
+  }
+}

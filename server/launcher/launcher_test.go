@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"

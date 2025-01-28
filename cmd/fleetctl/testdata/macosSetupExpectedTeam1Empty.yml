@@ -9,6 +9,8 @@ spec:
     features:
       enable_host_users: false
       enable_software_inventory: false
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_settings:
@@ -17,7 +19,16 @@ spec:
         bootstrap_package: null
         enable_end_user_authentication: false
         macos_setup_assistant: null
+        enable_release_device_manually: false
+        script: null
+        software: null
       macos_updates:
+        deadline: null
+        minimum_version: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+      ipados_updates:
         deadline: null
         minimum_version: null
       windows_updates:
@@ -26,5 +37,7 @@ spec:
       windows_settings:
         custom_settings: null
     scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
     name: tm1
-

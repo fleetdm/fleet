@@ -4,7 +4,7 @@ package health
 import (
 	"net/http"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 // Checker returns an error indicating if a service is in an unhealthy state.

@@ -13,7 +13,7 @@ export type ButtonVariant =
   | "warning"
   | "link"
   | "label"
-  | "text-link"
+  | "text-link" // Underlines on hover
   | "text-icon"
   | "icon" // Buttons without text
   | "small-icon" // Buttons without text
@@ -35,11 +35,17 @@ export interface IButtonProps {
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
   title?: string;
+  /** Default: "brand" */
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
-    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+    | ((
+        evt:
+          | React.MouseEvent<HTMLButtonElement>
+          | React.KeyboardEvent<HTMLButtonElement>
+      ) => void);
   isLoading?: boolean;
+  customOnKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -53,7 +59,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     size: "",
     type: "button",
-    variant: "default",
+    variant: "brand",
   };
 
   componentDidMount(): void {
@@ -75,22 +81,32 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   inputs: Inputs = {};
 
-  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): boolean => {
+  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): void => {
     const { disabled, onClick } = this.props;
 
     if (disabled) {
-      return false;
+      return;
     }
 
     if (onClick) {
       onClick(evt);
     }
+  };
 
-    return false;
+  handleKeyDown = (evt: React.KeyboardEvent<HTMLButtonElement>): void => {
+    const { disabled, onClick } = this.props;
+
+    if (disabled || evt.key !== "Enter") {
+      return;
+    }
+
+    if (onClick) {
+      onClick(evt as any);
+    }
   };
 
   render(): JSX.Element {
-    const { handleClick, setRef } = this;
+    const { handleClick, handleKeyDown, setRef } = this;
     const {
       children,
       className,
@@ -101,6 +117,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       title,
       variant,
       isLoading,
+      customOnKeyDown,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -122,6 +139,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
+        onKeyDown={customOnKeyDown || handleKeyDown}
         tabIndex={tabIndex}
         type={type}
         title={title}

@@ -1,10 +1,13 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import scriptAPI from "services/entities/scripts";
 import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { AxiosResponse } from "axios";
+import { IApiError } from "../../../../../interfaces/errors";
+import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "delete-script-modal";
 
@@ -13,6 +16,7 @@ interface IDeleteScriptModalProps {
   scriptId: number;
   onCancel: () => void;
   onDone: () => void;
+  isHidden?: boolean;
 }
 
 const DeleteScriptModal = ({
@@ -20,31 +24,45 @@ const DeleteScriptModal = ({
   scriptId,
   onCancel,
   onDone,
+  isHidden = false,
 }: IDeleteScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const onClickDelete = async (id: number) => {
+    setIsDeleting(true);
     try {
       await scriptAPI.deleteScript(id);
       renderFlash("success", "Successfully deleted!");
-    } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+    } catch (e) {
+      const error = e as AxiosResponse<IApiError>;
+      const apiErrMessage = getErrorMessage(error);
+      renderFlash(
+        "error",
+        apiErrMessage.includes("Policy automation")
+          ? apiErrMessage
+          : "Couldn’t delete. Please try again."
+      );
     }
+    setIsDeleting(false);
     onDone();
   };
 
   return (
     <Modal
       className={baseClass}
-      title={"Delete script"}
+      title="Delete script"
       onExit={onCancel}
       onEnter={() => onClickDelete(scriptId)}
+      isHidden={isHidden}
+      isContentDisabled={isDeleting}
     >
       <>
         <p>
-          This action will cancel script{" "}
-          <span className={`${baseClass}__script-name`}>{scriptName}</span> from
-          running on macOS hosts on which the script hasn&apos;t run yet.
+          The script{" "}
+          <span className={`${baseClass}__script-name`}>{scriptName}</span> will
+          run on pending hosts. After the script runs, its output and exit code
+          will appear in the activity feed.
         </p>
         <div className="modal-cta-wrap">
           <Button
@@ -52,6 +70,7 @@ const DeleteScriptModal = ({
             onClick={() => onClickDelete(scriptId)}
             variant="alert"
             className="delete-loading"
+            isLoading={isDeleting}
           >
             Delete
           </Button>

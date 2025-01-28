@@ -40,7 +40,7 @@ const PreviewTicketModal = ({
 
   return (
     <Modal
-      title={"Example ticket"}
+      title="Example ticket"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

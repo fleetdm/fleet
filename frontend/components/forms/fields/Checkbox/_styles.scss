@@ -4,79 +4,50 @@
   display: flex;
   align-items: center;
 
-  &__input {
-    opacity: 0;
-    width: 16px;
-    height: 16px;
-    margin: 2px;
-
-    &:focus + .fleet-checkbox__tick {
-      &::after {
-        border-color: $core-vibrant-blue;
+  &:hover:not(.fleet-checkbox__label--disabled) {
+    svg {
+      .checkbox-state {
+        stroke: $core-vibrant-blue-over;
+        fill: $core-vibrant-blue-over;
       }
-    }
-
-    &:checked + .fleet-checkbox__tick {
-      &::after {
-        background-color: $core-vibrant-blue;
-        border: solid 2px $core-vibrant-blue;
-      }
-
-      &::before {
-        @include position(absolute, 50% null null 50%);
-        transform: rotate(45deg);
-        box-sizing: border-box;
-        display: block;
-        width: 7px;
-        height: 13px;
-        margin: -8px 0 0 -3px;
-        border: 2px solid $core-white;
-        border-top: 0;
-        border-left: 0;
-        content: "";
+      .checkbox-unchecked-state {
+        stroke: $core-vibrant-blue-over;
       }
     }
   }
 
-  &__tick {
-    @include size(20px);
-    @include position(absolute, 0 null null 0);
-    display: inline-block;
+  // During click only
+  &:active:not(.fleet-checkbox__label--disabled) {
+    svg {
+      .checkbox-state {
+        stroke: $core-vibrant-blue-down;
+        fill: $core-vibrant-blue-down;
+      }
+      .checkbox-unchecked-state {
+        stroke: $core-vibrant-blue-down;
+      }
+    }
+  }
 
-    &::after {
-      @include size(20px);
-      transition: border 75ms ease-in-out, background 75ms ease-in-out;
+  // When tabbing
+  &:focus-visible:not(.fleet-checkbox__label--disabled) {
+    outline: none;
+
+    svg {
+      outline: 2px solid $ui-vibrant-blue-25;
+      outline-offset: 1px;
       border-radius: $border-radius;
-      border: solid 2px $ui-fleet-black-25;
-      content: "";
-      box-sizing: border-box;
-      display: block;
-      background-color: $core-white;
-      visibility: visible;
     }
+  }
 
-    &--disabled {
-      &::after {
-        background-color: $ui-fleet-black-25;
+  &--disabled {
+    svg {
+      .checkbox-state {
+        stroke: $ui-fleet-black-25;
+        fill: $ui-fleet-black-25;
       }
-    }
-
-    &--indeterminate {
-      &::after {
-        background-color: $core-vibrant-blue;
-        border: solid 1px $core-vibrant-blue;
-      }
-
-      &::before {
-        @include position(absolute, 50% null null 50%);
-        box-sizing: border-box;
-        display: block;
-        width: 10px;
-        margin: -1px 0 0 -5px;
-        border: 2px solid $core-white;
-        border-top: 0;
-        border-left: 0;
-        content: "";
+      .checkbox-unchecked-state {
+        stroke: $ui-fleet-black-25;
       }
     }
   }
@@ -86,6 +57,21 @@
     padding-left: $pad-small;
     display: inline-block;
     vertical-align: top;
+
+    &--disabled {
+      color: $ui-fleet-black-50;
+
+      svg {
+        .checkbox-state {
+          stroke: $ui-fleet-black-25;
+          fill: $ui-fleet-black-25;
+        }
+        .checkbox-unchecked-state {
+          stroke: $ui-fleet-black-25;
+          fill: $ui-fleet-black-25;
+        }
+      }
+    }
   }
 
   &__label-tooltip {
@@ -104,13 +90,8 @@
   flex-direction: row-reverse; // Switches the text to the left side of checkbox as all checkboxes are now display flex
 
   .fleet-checkbox {
-    &__input {
-      float: right;
-    }
-
-    &__tick {
-      left: initial;
-      right: -8px;
+    &__icon {
+      padding-left: $pad-small;
     }
 
     &__label {

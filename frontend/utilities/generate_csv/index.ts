@@ -15,10 +15,10 @@ export const generateCSVFilename = (descriptor: string) => {
 };
 
 // Live query results, live query errors, and query report
-export const generateCSVQueryResults = (
+export const generateCSVQueryResults = <T extends object>(
   rows: Row[],
   filename: string,
-  tableHeaders: Column[] | string[],
+  tableHeaders: Column<T>[] | string[],
   omitHostDisplayName?: boolean
 ) => {
   return new global.window.File(

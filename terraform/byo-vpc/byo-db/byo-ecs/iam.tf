@@ -1,3 +1,32 @@
+data "aws_iam_policy_document" "software_installers" {
+  count = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  statement {
+    actions = [
+      "s3:GetObject*",
+      "s3:PutObject*",
+      "s3:ListBucket*",
+      "s3:ListMultipartUploadParts*",
+      "s3:DeleteObject",
+      "s3:CreateMultipartUpload",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
+      "s3:GetBucketLocation"
+    ]
+    resources = [aws_s3_bucket.software_installers[0].arn, "${aws_s3_bucket.software_installers[0].arn}/*"]
+  }
+}
+
+resource "aws_iam_policy" "software_installers" {
+  count  = var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  policy = data.aws_iam_policy_document.software_installers[count.index].json
+}
+
+resource "aws_iam_role_policy_attachment" "software_installers" {
+  count      = var.fleet_config.iam_role_arn == null && var.fleet_config.software_installers.create_bucket == true ? 1 : 0
+  policy_arn = aws_iam_policy.software_installers[0].arn
+  role       = aws_iam_role.main[0].name
+}
+
 data "aws_iam_policy_document" "fleet" {
   statement {
     effect    = "Allow"
@@ -21,9 +50,12 @@ data "aws_iam_policy_document" "assume_role" {
 data "aws_iam_policy_document" "fleet-execution" {
   // allow fleet application to obtain the database password from secrets manager
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.fleet_config.database.password_secret_arn]
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      var.fleet_config.database.password_secret_arn,
+      aws_secretsmanager_secret.fleet_server_private_key.arn
+    ]
   }
 }
 

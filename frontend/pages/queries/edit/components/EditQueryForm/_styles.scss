@@ -9,6 +9,7 @@
   &__title-bar {
     display: flex;
     justify-content: space-between;
+    gap: 1.5rem;
 
     .form-field {
       margin-bottom: 0px;
@@ -32,27 +33,30 @@
       scrollbar-width: none; /* Firefox */
     }
 
-    .edit-link {
-      margin: 0; // override margin intended for buttons being used as form-fields, which these are not
-      cursor: pointer;
-      padding-left: $pad-small;
-      height: 18px;
-    }
-
     .name-description {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
 
-      .query-name-wrapper {
+      .query-name-wrapper,
+      .query-description-wrapper {
         display: flex;
-        align-items: center;
-
+        align-items: baseline;
+        gap: 0.5rem;
+        width: fit-content;
         &:not(.edit-query-form--editing) {
-          textarea:hover {
+          &:hover {
             cursor: pointer;
-            color: $core-vibrant-blue;
+            * {
+              color: $core-vibrant-blue;
+              cursor: pointer;
+            }
           }
+        }
+      }
+      .query-name-wrapper {
+        .no-value {
+          min-width: 168px;
         }
         .edit-query-form__query-name,
         .input-sizer::after {
@@ -64,17 +68,12 @@
         }
       }
       .query-description-wrapper {
-        display: flex;
-        &:not(.edit-query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
+        .no-value {
+          min-width: 144px;
         }
       }
       .edit-icon {
-        width: 14px;
-        height: 14px;
+        align-self: initial;
         opacity: 1;
         transition: opacity 0.2s;
         &.hide {
@@ -115,13 +114,8 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
-    &:hover:not(.focus-visible):not(.no-hover) {
-      color: $core-vibrant-blue;
-      cursor: pointer;
-    }
     &.focus-visible {
       outline: 0;
-      cursor: text;
     }
   }
 

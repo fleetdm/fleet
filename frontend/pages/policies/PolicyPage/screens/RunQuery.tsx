@@ -15,7 +15,7 @@ import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 
-import QueryResults from "../components/QueryResults";
+import PolicyResults from "../components/PolicyResults";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;
@@ -198,7 +198,7 @@ const RunQuery = ({
   const { campaign } = campaignState;
 
   return (
-    <QueryResults
+    <PolicyResults
       campaign={campaign}
       isQueryFinished={isQueryFinished}
       onRunQuery={onRunQuery}

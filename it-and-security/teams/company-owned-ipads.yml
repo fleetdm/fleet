@@ -1,0 +1,28 @@
+name: 🔳🏢 Company-owned iPads
+team_settings:
+  features:
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: false
+agent_options:
+controls:
+  ipados_updates:
+    deadline: "2025-01-06"
+    minimum_version: "18.2"
+  macos_settings:
+    custom_settings:
+      - path: ../lib/ipados/declaration-profiles/software-update-settings.json
+      - path: ../lib/ipados/declaration-profiles/passcode-settings.json
+      - path: ../lib/ipados/configuration-profiles/lock-screen-message.mobileconfig
+  scripts:
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: '618783545' # Slack
+    - app_store_id: '546505307' # Zoom

@@ -1,9 +1,11 @@
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { size } from "lodash";
 import classnames from "classnames";
 import { ILoginUserData } from "interfaces/user";
 
+import Icon from "components/Icon";
+import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
@@ -17,6 +19,8 @@ const baseClass = "login-form";
 interface ILoginFormProps {
   baseError?: string;
   handleSubmit: (formData: ILoginUserData) => Promise<false | void>;
+  isSubmitting: boolean;
+  pendingEmail: boolean;
   ssoSettings?: ISSOSettings;
   handleSSOSignOn?: () => void;
 }
@@ -24,6 +28,8 @@ interface ILoginFormProps {
 const LoginForm = ({
   baseError,
   handleSubmit,
+  isSubmitting,
+  pendingEmail,
   ssoSettings,
   handleSSOSignOn,
 }: ILoginFormProps): JSX.Element => {
@@ -40,6 +46,11 @@ const LoginForm = ({
     email: "",
     password: "",
   });
+  const [showPendingEmail, setShowPendingEmail] = useState(pendingEmail);
+
+  useEffect(() => {
+    setShowPendingEmail(pendingEmail);
+  }, [pendingEmail]);
 
   const validate = () => {
     const { password, email } = formData;
@@ -122,6 +133,28 @@ const LoginForm = ({
     };
   };
 
+  if (showPendingEmail) {
+    return (
+      <StackedWhiteBoxes className="two-factor-check-email">
+        <>
+          <Button
+            onClick={() => setShowPendingEmail(false)}
+            variant="text-icon"
+            className="back-link"
+          >
+            <Icon name="chevron-left" color="core-fleet-blue" />
+            Back to login
+          </Button>
+          <h1>Check your email</h1>
+          <p className={`${baseClass}__text`}>
+            We sent an email to you at <b>{formData.email}</b>. <br />
+            Please click the magic link in the email to sign in.
+          </p>
+        </>
+      </StackedWhiteBoxes>
+    );
+  }
+
   return (
     <form onSubmit={onFormSubmit} className={loginFormClass}>
       {baseError && <div className="form__base-error">{baseError}</div>}
@@ -141,18 +174,28 @@ const LoginForm = ({
         value={formData.password}
         onChange={onInputChange("password")}
       />
-      <div className={`${baseClass}__forgot-wrap`}>
-        <Link
-          className={`${baseClass}__forgot-link`}
-          to={paths.FORGOT_PASSWORD}
-        >
-          Forgot password?
-        </Link>
+      {/* Actions displayed using CSS column-reverse to preserve tab order */}
+      <div className={`${baseClass}__actions`}>
+        <div className={`${baseClass}__login-actions`}>
+          <Button
+            className="login-btn"
+            isLoading={isSubmitting}
+            type="submit"
+            variant="brand"
+          >
+            Log in
+          </Button>
+          {ssoEnabled && renderSingleSignOnButton()}
+        </div>
+        <div className={`${baseClass}__forgot-wrap`}>
+          <Link
+            className={`${baseClass}__forgot-link`}
+            to={paths.FORGOT_PASSWORD}
+          >
+            Forgot password?
+          </Link>
+        </div>
       </div>
-      <Button className={`login-btn button button--brand`} type="submit">
-        Login
-      </Button>
-      {ssoEnabled && renderSingleSignOnButton()}
     </form>
   );
 };

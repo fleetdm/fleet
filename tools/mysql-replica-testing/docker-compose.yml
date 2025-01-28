@@ -2,8 +2,8 @@
 version: "2"
 services:
   mysql_main:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
-    platform: linux/x86_64
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume-replica-main:/tmp
     command:
@@ -13,7 +13,9 @@ services:
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
-        "--server-id=1"
+        "--server-id=1",
+        # Required for storage of Apple MDM bootstrap packages.
+        "--max_allowed_packet=536870912"
       ]
     environment:
       &mysql-default-environment
@@ -25,8 +27,8 @@ services:
       - "3308:3306"
 
   mysql_read_replica:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
-    platform: linux/x86_64
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume-replica-read:/tmp
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
@@ -41,7 +43,9 @@ services:
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
-        "--server-id=2"
+        "--server-id=2",
+        # Required for storage of Apple MDM bootstrap packages.
+        "--max_allowed_packet=536870912"
       ]
     environment: *mysql-default-environment
     ports:

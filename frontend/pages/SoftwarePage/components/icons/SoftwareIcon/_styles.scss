@@ -1,3 +1,59 @@
 .software-icon {
   flex-shrink: 0;
+
+  &__small {
+    border-radius: $border-radius;
+  }
+
+  &__medium {
+    border-radius: $border-radius-xlarge;
+  }
+
+  &__large {
+    border-radius: $border-radius-xxlarge;
+  }
+
+  &__xlarge {
+    border-radius: $border-radius-xxlarge;
+  }
+
+  &__software-img {
+    display: block;
+  }
+
+  // These following classs are when a software icon is passed a url prop. In
+  // this case we need to add custom width,height, and padding to show these
+  // icons correctly.
+
+  // we use this selector to give higher specifity than the selector
+  // ".core-wrapper a img" which is in /styles/global/_styles.scss
+  // TODO: we should change ".core-wrapper a img" selector in that file
+  // as it too generic and can affect other parts of the app.
+  > img.software-icon__software-img-small {
+    width: 24px;
+    height: 24px;
+    border-radius: $border-radius-small;
+    margin-left: 0;
+  }
+
+  > img.software-icon__software-img-medium {
+    width: 40px;
+    height: 40px;
+    border-radius: $border-radius-xlarge;
+    margin-left: 0;
+  }
+
+  > img.software-icon__software-img-large {
+    width: 64px;
+    height: 64px;
+    border-radius: $border-radius-xxlarge;
+    margin-left: 0;
+  }
+
+  > img.software-icon__software-img-xlarge {
+    width: 96px;
+    height: 96px;
+    border-radius: $border-radius-xxlarge;
+    margin-left: 0;
+  }
 }

@@ -11,6 +11,13 @@
 
   &__link {
     @include table-link;
+
+    &:focus-visible {
+      .report-updated-cell__link-text {
+        opacity: 1; // Text visible when tabbing through app
+        transition: opacity 250ms;
+      }
+    }
   }
 
   &__link-text {

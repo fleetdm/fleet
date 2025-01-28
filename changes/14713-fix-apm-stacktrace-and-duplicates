@@ -1,1 +1,0 @@
-* Fixed how errors are sent to APM (Elastic) to avoid duplicates, cover more errors in background tasks (cron and worker jobs) and fix the reported stack trace.

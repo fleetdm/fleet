@@ -33,17 +33,24 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 			continue
 		}
 
-		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(product), os.DisplayVersion) != -1 {
+		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Contains(string(product), os.DisplayVersion) {
 			dvMatch = pID
 			break
 		}
 
-		// Ensure a match against an unknown or blank os.DisplayVersion to
-		// a MSRC product that does not have a display version (eg. The initial release
-		// of Windows 11 is 21H2, which does not appear in the MSRC data)
+		// If os.DisplayVersion is empty, we need to confirm that the product
+		// matches the correct build number. This is necessary to avoid false
+		// positives when vulnerability scans have run before the host has been
+		// updated after an upgrade to fleet v4.44.0 or later
 		if !product.HasDisplayVersion() {
-			noDvMatch = pID
-			continue
+			var build string
+			parts := strings.Split(os.KernelVersion, ".")
+			if len(parts) > 3 {
+				build = parts[2]
+			}
+			if build == "22000" || build == "10240" {
+				noDvMatch = pID
+			}
 		}
 	}
 
@@ -59,7 +66,53 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 }
 
 func NewProductFromFullName(fullName string) Product {
-	return Product(fullName)
+	// If the full name includes a version, return it as-is.
+	p := Product(fullName)
+	if p.HasDisplayVersion() {
+		return p
+	}
+
+	// Several Windows products listed in MSRC bulletins don't include the OS version number.
+	// We need this to match the product with a host's OS, so we'll add them here.
+	versionString := ""
+	switch {
+	case strings.Contains(fullName, "Windows Server 2022"):
+		versionString = "21H2"
+
+	case strings.Contains(fullName, "Windows Server 2016"):
+		versionString = "1607"
+
+	case strings.Contains(fullName, "Windows Server 2019"):
+		versionString = "1809"
+
+	case strings.Contains(fullName, "Windows 8.1"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows RT 8.1"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows Server 2012 R2"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows Server 2012"):
+		versionString = "6.2 / NT 6.2"
+
+	case strings.Contains(fullName, "Windows Server 2008 R2"):
+		versionString = "6.1 / NT 6.1"
+
+	case strings.Contains(fullName, "Windows 7"):
+		versionString = "6.1 / NT 6.1"
+
+	case strings.Contains(fullName, "Windows Server 2008"):
+		versionString = "6.0 / NT 6.0"
+	}
+
+	finalName := fullName
+	if versionString != "" {
+		finalName += (" Version " + versionString)
+	}
+
+	return Product(finalName)
 }
 
 func NewProductFromOS(os fleet.OperatingSystem) Product {
@@ -74,17 +127,17 @@ func NewProductFromOS(os fleet.OperatingSystem) Product {
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
-	case strings.Index(val, "ARM 64-bit") != -1 ||
-		strings.Index(val, "ARM64") != -1:
+	case strings.Contains(val, "ARM 64-bit") ||
+		strings.Contains(val, "ARM64"):
 		return "arm64"
-	case strings.Index(val, "x64") != -1 ||
-		strings.Index(val, "64-bit") != -1 ||
-		strings.Index(val, "x86_64") != -1:
+	case strings.Contains(val, "x64") ||
+		strings.Contains(val, "64-bit") ||
+		strings.Contains(val, "x86_64"):
 		return "64-bit"
-	case strings.Index(val, "32-bit") != -1 ||
-		strings.Index(val, "x86") != -1:
+	case strings.Contains(val, "32-bit") ||
+		strings.Contains(val, "x86"):
 		return "32-bit"
-	case strings.Index(val, "Itanium-Based") != -1:
+	case strings.Contains(val, "Itanium-Based"):
 		return "itanium"
 	default:
 		return "all"
@@ -100,7 +153,7 @@ func (p Product) Arch() string {
 func (p Product) HasDisplayVersion() bool {
 	keywords := []string{"version", "edition"}
 	for _, k := range keywords {
-		if strings.Index(strings.ToLower(string(p)), k) != -1 {
+		if strings.Contains(strings.ToLower(string(p)), k) {
 			return true
 		}
 	}
@@ -116,34 +169,34 @@ func (p Product) Name() string {
 	val := string(p)
 	switch {
 	// Desktop versions
-	case strings.Index(val, "Windows 7") != -1:
+	case strings.Contains(val, "Windows 7"):
 		return "Windows 7"
-	case strings.Index(val, "Windows 8.1") != -1:
+	case strings.Contains(val, "Windows 8.1"):
 		return "Windows 8.1"
-	case strings.Index(val, "Windows RT 8.1") != -1:
+	case strings.Contains(val, "Windows RT 8.1"):
 		return "Windows RT 8.1"
-	case strings.Index(val, "Windows 10") != -1:
+	case strings.Contains(val, "Windows 10"):
 		return "Windows 10"
-	case strings.Index(val, "Windows 11") != -1:
+	case strings.Contains(val, "Windows 11"):
 		return "Windows 11"
 
 	// Server versions
-	case strings.Index(val, "Windows Server 2008 R2") != -1:
+	case strings.Contains(val, "Windows Server 2008 R2"):
 		return "Windows Server 2008 R2"
-	case strings.Index(val, "Windows Server 2012 R2") != -1:
+	case strings.Contains(val, "Windows Server 2012 R2"):
 		return "Windows Server 2012 R2"
 
-	case strings.Index(val, "Windows Server 2008") != -1:
+	case strings.Contains(val, "Windows Server 2008"):
 		return "Windows Server 2008"
-	case strings.Index(val, "Windows Server 2012") != -1:
+	case strings.Contains(val, "Windows Server 2012"):
 		return "Windows Server 2012"
-	case strings.Index(val, "Windows Server 2016") != -1:
+	case strings.Contains(val, "Windows Server 2016"):
 		return "Windows Server 2016"
-	case strings.Index(val, "Windows Server 2019") != -1:
+	case strings.Contains(val, "Windows Server 2019"):
 		return "Windows Server 2019"
-	case strings.Index(val, "Windows Server 2022") != -1:
+	case strings.Contains(val, "Windows Server 2022"):
 		return "Windows Server 2022"
-	case strings.Index(val, "Windows Server,") != -1:
+	case strings.Contains(val, "Windows Server,"):
 		return "Windows Server"
 
 	default:

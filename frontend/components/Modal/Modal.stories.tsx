@@ -1,13 +1,12 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import Modal from ".";
-import { IModalProps } from "./Modal";
 
 import "../../index.scss";
 
-export default {
+const meta: Meta<typeof Modal> = {
   component: Modal,
   title: "Components/Modal",
   args: {
@@ -15,12 +14,21 @@ export default {
     className: "",
     onExit: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IModalProps> = (props) => (
-  <Modal {...props}>
-    <div>This is a test description with lots of information.</div>
-  </Modal>
-);
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof Modal>;
+
+export const Default: Story = {
+  decorators: [
+    (Story) => (
+      <div style={{ height: "300px" }}>
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    children: <div>This is a test description with lots of information.</div>,
+  },
+};

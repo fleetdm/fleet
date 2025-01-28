@@ -33,8 +33,10 @@ module.exports = {
     let daysSinceReleasedBugsWereOpened = [];
     let allBugsWithUnreleasedLabel = [];
     let allBugsWithReleasedLabel = [];
+    let allBugs32DaysOrOlder = [];
     let allBugsCreatedInPastWeek = [];
     let allBugsClosedInPastWeek = [];
+    let allBugsReportedByCustomersInPastWeek = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -44,7 +46,7 @@ module.exports = {
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
 
-    // Product group KPIS
+
 
     // Endpoint operations
     let allBugsCreatedInPastWeekEndpointOps = [];
@@ -103,8 +105,16 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          if (timeOpenInDays >= 32) {
+            allBugs32DaysOrOlder.push(issue);
+          }
           if (timeOpenInDays <= 7) {
+            // All bugs in past week
             allBugsCreatedInPastWeek.push(issue);
+            // Customer-reported bugs
+            if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
+              allBugsReportedByCustomersInPastWeek.push(issue);
+            }
             // Get Endpoint Ops KPIs
             if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
               allBugsCreatedInPastWeekEndpointOps.push(issue);
@@ -132,6 +142,7 @@ module.exports = {
               }
             }
           }
+
           daysSinceBugsWereOpened.push(timeOpenInDays);
           // Send to released or unreleased bugs array
           if (issue.labels.some(label => label.name === '~unreleased bug')) {
@@ -299,7 +310,7 @@ module.exports = {
           }
           // If not a draft, not a bot, not a PR labeled with #handbook
           // Track as a contributor PR and include in contributor PR KPI
-          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '#g-ceo' || label.name === ':improve documentation')) {
+          if (!pullRequest.draft && pullRequest.user.type !== 'Bot' && !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '~ceo' || label.name === ':improve documentation')) {
             daysSinceContributorPullRequestsWereOpened.push(timeOpenInDays);
             contributorPullRequests.push(pullRequest);
           }
@@ -316,8 +327,8 @@ module.exports = {
       //
       async()=>{
 
-        // Fetch confidential and classified PRs (current open, and recent closed)
-        for (let repoName of ['classified', 'confidential']) {
+        // Fetch confidential PRs (current open, and recent closed)
+        for (let repoName of ['confidential']) {
           // [?] https://docs.github.com/en/free-pro-team@latest/rest/pulls/pulls#list-pull-requests
           let openPrs = await sails.helpers.http.get(`https://api.github.com/repos/fleetdm/${encodeURIComponent(repoName)}/pulls`, {
             state: 'open',
@@ -350,88 +361,105 @@ module.exports = {
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
     let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
     let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
-    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
 
-    // Compute CEO-dependent PR KPIs, which are slightly simpler.
+    // Compute Handbook PR KPIs, which are slightly simpler.
     // FUTURE: Refactor this to be less messy.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    let ceoDependentOpenPrs = [];
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
-    ceoDependentOpenPrs = ceoDependentOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    let handbookOpenPrs = [];
+    handbookOpenPrs = handbookOpenPrs.concat(allPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    handbookOpenPrs = handbookOpenPrs.concat(allNonPublicOpenPrs.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
-    let ceoDependentPrsMergedRecently = [];
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
-    ceoDependentPrsMergedRecently = ceoDependentPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#g-ceo')));
+    let handbookPrsMergedRecently = [];
+    handbookPrsMergedRecently = handbookPrsMergedRecently.concat(publicPrsMergedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
+    handbookPrsMergedRecently = handbookPrsMergedRecently.concat(nonPublicPrsClosedInThePastThreeWeeks.filter((pr) => !pr.draft && _.pluck(pr.labels, 'name').includes('#handbook')));
 
-    let ceoDependentPrOpenTime = ceoDependentPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
+    let handbookPrOpenTime = handbookPrsMergedRecently.reduce((avgDaysOpen, pr)=>{
       let openedAt = new Date(pr.created_at).getTime();
       let closedAt = new Date(pr.closed_at).getTime();
       let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
-      avgDaysOpen = avgDaysOpen + (daysOpen / ceoDependentPrsMergedRecently.length);
+      avgDaysOpen = avgDaysOpen + (daysOpen / handbookPrsMergedRecently.length);
       sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
       return avgDaysOpen;
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    const kpiResults = [];
+
+    // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
+    kpiResults.push(
+      averageDaysContributorPullRequestsAreOpenFor,
+      allBugs32DaysOrOlder.length,
+      allBugsReportedByCustomersInPastWeek.length,
+      averageNumberOfDaysReleasedBugsAreOpenFor,
+      averageNumberOfDaysUnreleasedBugsAreOpenFor,
+      allBugsCreatedInPastWeek.length,
+      allBugsClosedInPastWeek.length,);
+
     // Log the results
     sails.log(`
+
+    CSV for copy-pasting into KPI spreadsheet:
+    ---------------------------
+    ${kpiResults.join(',')}
+
+    Note: Copy the values above, then paste into Google KPI sheet and select "Split text to columns" to split the values into separate columns.
+
+    Pull requests:
+    ---------------------------
+    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+
+    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
+
+    Average open time (all PRs): ${averageDaysPullRequestsAreOpenFor} days.
+
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
+
     Bugs:
     ---------------------------
-    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
-    Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
+    Average open time (released bugs): ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
 
-    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
-    Average open time: ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
+    Average open time (unreleased bugs): ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
 
-    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
-    Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+
+    Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
 
     Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
 
-    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
+
+    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
+
+    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
 
     Endpoint Operations:
     ---------------------------
     Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
 
-    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
+    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
 
     Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
 
-    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
+    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
 
     MDM:
     ---------------------------
     Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
 
-    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
-
-    Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
-
     Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
 
-    Closed pull requests:
-    ---------------------------
-    Number of pull requests merged in the past three weeks in fleetdm/fleet: ${commitToMergeTimesInDays.length}
-    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
+    Number of issues with the "#g-mdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
 
+    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
 
-    Open pull requests
-    ---------------------------
-    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
-    Average open time: ${averageDaysPullRequestsAreOpenFor} days.
-
-    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
-    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
-
-
-    Pull requests requiring CEO review
+    Handbook Pull requests
     ---------------------------------------
-    Number of open #g-ceo pull requests in the fleetdm Github org: ${ceoDependentOpenPrs.length}
-    Average open time (#g-ceo PRs): ${Math.round(ceoDependentPrOpenTime*100)/100} days.
+    Number of open #handbook pull requests in the fleetdm Github org: ${handbookOpenPrs.length}
+
+    Average open time (#handbook PRs): ${Math.round(handbookPrOpenTime*100)/100} days.
     `);
 
   }

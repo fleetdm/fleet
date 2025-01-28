@@ -62,6 +62,21 @@
             ]
         },
         {
+            "name": "Fleet vuln_processing (licensed)",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "buildFlags": "-tags='full,fts5'",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/fleet",
+            "args": [
+                "vuln_processing",
+                "--dev",
+                "--logging_debug",
+                "--dev_license",
+            ]
+        },
+        {
             "name": "Attach to a running Fleet server",
             "type": "go",
             "request": "attach",

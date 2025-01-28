@@ -1,4 +1,10 @@
+version: 2
+
 project_name: orbit
+
+#################################################################################################
+# If this is updated make sure to update the "How to build from source" section in the README.md.
+#################################################################################################
 
 builds:
   - id: orbit
@@ -30,7 +36,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ .Tag }}-untagged"
+  version_template: "{{ .Tag }}-untagged"
 
 changelog:
-  skip: true
+  disable: true

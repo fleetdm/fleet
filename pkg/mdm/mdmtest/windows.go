@@ -22,8 +22,8 @@ import (
 type TestWindowsMDMClient struct {
 	// DeviceID identifies a MDM enrollment, sent and managed by the device.
 	DeviceID string
-	// hardwareID identifies a device.
-	hardwareID string
+	// HardwareID identifies a device.
+	HardwareID string
 	// fleetServerURL is the URL of the Fleet server, used to ping the MDM endpoints.
 	fleetServerURL string
 	// debug enables debug logging of request/responses.
@@ -31,8 +31,8 @@ type TestWindowsMDMClient struct {
 	// enrollmentType is used to simulate different Windows enrollment
 	// types (programatic, automatic.)
 	enrollmentType fleet.WindowsMDMEnrollmentType
-	// tokenIdentifier is used for authentication during the programmatic enrollment.
-	tokenIdentifier string
+	// TokenIdentifier is used for authentication during the programmatic enrollment.
+	TokenIdentifier string
 	// lastManagementResp tracks the last response we received from the server.
 	lastManagementResp *fleet.SyncML
 	// queuedCommandResponses tracks the commands that will be sent next
@@ -57,8 +57,8 @@ func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, o
 		fleetServerURL:  serverURL,
 		DeviceID:        uuid.NewString(),
 		enrollmentType:  fleet.WindowsMDMProgrammaticEnrollmentType,
-		tokenIdentifier: orbitNodeKey,
-		hardwareID:      uuid.NewString(),
+		TokenIdentifier: orbitNodeKey,
+		HardwareID:      uuid.NewString(),
 	}
 	for _, fn := range opts {
 		fn(&c)
@@ -71,8 +71,8 @@ func NewTestMDMClientWindowsAutomatic(serverURL string, email string, opts ...Te
 		fleetServerURL:  serverURL,
 		DeviceID:        uuid.NewString(),
 		enrollmentType:  fleet.WindowsMDMAutomaticEnrollmentType,
-		tokenIdentifier: email,
-		hardwareID:      uuid.NewString(),
+		TokenIdentifier: email,
+		HardwareID:      uuid.NewString(),
 	}
 	for _, fn := range opts {
 		fn(&c)
@@ -98,7 +98,7 @@ func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoC
 <SyncHdr>
 	<VerDTD>1.2</VerDTD>
 	<VerProto>DM/1.2</VerProto>
-	<SessionID>` + fmt.Sprint(sessionIDInt+1) + `</SessionID>
+	<SessionID>` + fmt.Sprint(sessionIDInt) + `</SessionID>
 	<MsgID>1</MsgID>
 	<Target>
 	<LocURI>` + c.fleetServerURL + microsoft_mdm.MDE2ManagementPath + `</LocURI>
@@ -319,7 +319,7 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
                     <ac:Value>false</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="HWDevID">
-                    <ac:Value>` + c.hardwareID + `</ac:Value>
+                    <ac:Value>` + c.HardwareID + `</ac:Value>
                 </ac:ContextItem>
                 <ac:ContextItem Name="Locale">
                     <ac:Value>en-US</ac:Value>
@@ -487,7 +487,7 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 	switch c.enrollmentType {
 	case fleet.WindowsMDMAutomaticEnrollmentType:
 		claims := &jwt.MapClaims{
-			"upn":         c.tokenIdentifier,
+			"upn":         c.TokenIdentifier,
 			"tid":         "tenant_id",
 			"unique_name": "foo_bar",
 			"scp":         "mdm_delegation",
@@ -504,7 +504,7 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 	case fleet.WindowsMDMProgrammaticEnrollmentType:
 		var err error
 		tokenValueType = syncml.BinarySecurityDeviceEnroll
-		binarySecToken, err = fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.tokenIdentifier)
+		binarySecToken, err = fleet.GetEncodedBinarySecurityToken(c.enrollmentType, c.TokenIdentifier)
 		if err != nil {
 			return "", "", fmt.Errorf("generating encoded security token: %w", err)
 		}

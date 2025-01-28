@@ -10,9 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -47,7 +46,6 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf co
 func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(ctx, err)
 	}
 
@@ -143,7 +141,8 @@ func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]h
 			return nil, fmt.Errorf("convert scan results: %w", err)
 		}
 		for i := 0; i < len(hostVals); i += 2 {
-			hosts = append(hosts, hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])})
+			hosts = append(hosts,
+				hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])}) //nolint:gosec // dismiss G115
 		}
 
 		if cursor == 0 {

@@ -1,6 +1,10 @@
 package useraction
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"context"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 // MDMMigrator represents the minimum set of methods a migration must implement
 // in order to be used by Fleet Desktop.
@@ -19,6 +23,12 @@ type MDMMigrator interface {
 	ShowInterval() error
 	// Exit tries to stop any processes started by the migrator.
 	Exit()
+	// MigrationInProgress checks if the MDM migration is still in progress (i.e. the host is not
+	// yet fully enrolled in Fleet MDM). It returns the type of migration that is in progress, if any.
+	MigrationInProgress() (string, error)
+	// MarkMigrationCompleted marks the migration as completed. This is currently done by removing
+	// the migration file.
+	MarkMigrationCompleted() error
 }
 
 // MDMMigratorProps are props required to display the dialog. It's akin to the
@@ -26,10 +36,16 @@ type MDMMigrator interface {
 type MDMMigratorProps struct {
 	OrgInfo     fleet.DesktopOrgInfo
 	IsUnmanaged bool
+	// DisableTakeover is used to disable the blur and always on top features of the dialog.
+	DisableTakeover bool
 }
 
 // MDMMigratorHandler handles remote actions/callbacks that the migrator calls.
 type MDMMigratorHandler interface {
 	NotifyRemote() error
 	ShowInstructions() error
+}
+
+type MDMOfflineWatcher interface {
+	ShowIfOffline(ctx context.Context) bool
 }

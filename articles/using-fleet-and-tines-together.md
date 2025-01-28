@@ -74,8 +74,6 @@ The final email with the above definition looks like this:
 
 The Fleet API is very flexible, but with the addition of Tines, the options for data transformation are endless. In the above example, we easily connected to the Fleet API and transformed the data response with a single Tines Transform function, and allowed the end user to receive a customized report of vulnerable software on an individual host.
 
-<call-to-action preset="premium-upgrade"></call-to-action>
-
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Dave Herder">
 <meta name="authorGitHubUsername" value="dherder">

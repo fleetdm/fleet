@@ -1,0 +1,47 @@
+name: R2 upload
+description: Upload files to R2, keeping the directory structure intact
+# Schema: https://json.schemastore.org/github-action.json
+
+# This action expects the following env vars to be set:
+# - R2_ENDPOINT: The endpoint of the R2 instance to upload to
+# - R2_ACCESS_KEY_ID: The access key ID to use for R2
+# - R2_ACCESS_KEY_SECRET: The access key secret to use for R2
+# - R2_BUCKET: The bucket to upload to
+
+inputs:
+  working-directory:
+    description: 'The working directory, relative to which the files will be uploaded.'
+    default: './'
+    required: false
+  filenames:
+    description: 'Comma-delimited names of the file(s) to upload. For example: file1,manifest.json,file with spaces.txt'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Upload file to R2
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        sudo ${{ github.workspace }}/.github/scripts/rclone-install.sh
+        mkdir -p ~/.config/rclone
+        echo "[r2]
+        type = s3
+        provider = Cloudflare
+        region = auto
+        no_check_bucket = true
+        access_key_id = ${{ env.R2_ACCESS_KEY_ID }}
+        secret_access_key = ${{ env.R2_ACCESS_KEY_SECRET }}
+        endpoint = ${{ env.R2_ENDPOINT }}
+        " > ~/.config/rclone/rclone.conf
+        : # Loop over each filename in the array of filenames and upload each one.
+        IFS=$'\n'
+        for filename in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
+          upload_dir=${{ env.R2_BUCKET }}
+          dirname=$(dirname "$filename")
+          if [ "$dirname" != "" ] && [ "$dirname" != "." ]; then
+            upload_dir="$upload_dir"/"$dirname"
+          fi
+          rclone copy --verbose "$filename" r2:"$upload_dir"
+        done

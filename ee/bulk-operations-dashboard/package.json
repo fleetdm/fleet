@@ -1,0 +1,49 @@
+{
+  "name": "bulk-operations-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "description": "a Sails application",
+  "keywords": [],
+  "dependencies": {
+    "@azure/msal-node": "2.16.2",
+    "@sailshq/connect-redis": "^6.1.3",
+    "@sailshq/lodash": "^3.10.6",
+    "@sailshq/socket.io-redis": "^6.1.2",
+    "axios": "1.7.7",
+    "form-data": "4.0.1",
+    "jsonwebtoken": "9.0.2",
+    "sails": "^1.5.11",
+    "sails-hook-apianalytics": "^2.0.6",
+    "sails-hook-organics": "^2.2.2",
+    "sails-hook-orm": "^4.0.3",
+    "sails-hook-sockets": "^3.0.0",
+    "sails-hook-uploads": "^0.4.3",
+    "sails-postgresql": "^5.0.1",
+    "skipper-s3": "^0.6.0"
+  },
+  "devDependencies": {
+    "eslint": "5.16.0",
+    "grunt": "1.5.3",
+    "htmlhint": "0.11.0",
+    "lesshint": "6.3.6",
+    "sails-hook-grunt": "^5.0.0"
+  },
+  "scripts": {
+    "start": "NODE_ENV=production node app.js",
+    "test": "npm run lint && npm run custom-tests && echo 'Done.'",
+    "lint": "./node_modules/eslint/bin/eslint.js . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look so good.' && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/**/**/**/*.ejs && ./node_modules/htmlhint/bin/htmlhint -c ./.htmlhintrc views/**/**/**/**/**/**/*.ejs && echo '✔  So do your .ejs files.' && ./node_modules/lesshint/bin/lesshint assets/styles/ --max-warnings=0 && echo '✔  Your .less files look good, too.'",
+    "custom-tests": "echo \"(No other custom tests yet.)\" && echo",
+    "deploy": "echo 'This script assumes a dead-simple, opinionated setup on Heroku.' && echo 'But, of course, you can deploy your app anywhere you like.' && echo '(Node.js/Sails.js apps are supported on all modern hosting platforms.)' && echo && echo 'Warning: Specifically, this script assumes you are on the master branch, and that your app can be deployed simply by force-pushing on top of the *deploy* branch.  It will also temporarily use a local *predeploy* branch for preparing assets, that it will delete after it finishes.  Please make sure there is nothing you care about on either of these two branches!!!' && echo '' && echo '' && echo 'Preparing to deploy...' && echo '--' && git status && echo '' && echo '--' && echo 'I hope you are on the master branch and have everything committed/pulled/pushed and are completely up to date and stuff.' && echo '********************************************'  && echo '** IF NOT THEN PLEASE PRESS <CTRL+C> NOW! **' && echo '********************************************' && echo 'Press CTRL+C to cancel.' && echo '(you have five seconds)' && sleep 1 && echo '...4' && sleep 1 && echo '...3' && sleep 1 && echo '...2' && sleep 1 && echo '...1' && sleep 1  && echo '' && echo 'Alright, here we go.  No turning back now!' && echo 'Trying to switch to master branch...' && git checkout master && echo && echo 'OK.  Now wiping node_modules/ and running npm install...' && rm -rf node_modules && rm -rf package-lock.json && npm install && (git add package-lock.json && git commit -am 'AUTOMATED COMMIT: Did fresh npm install before deploying, and it caused something relevant (probably the package-lock.json file) to change!  This commit tracks that change.' || true) && echo 'Deploying as version:' && npm version patch && echo '' && git push origin master && git push --tags && (git branch -D predeploy > /dev/null 2>&1 || true) && git checkout -b predeploy && (echo 'Now building+minifying assets for production...' && echo '(Hang tight, this could take a while.)' && echo && node node_modules/grunt/bin/grunt buildProd || (echo && echo '------------------------------------------' && echo 'IMPORTANT!  IMPORTANT!  IMPORTANT!' && echo 'ERROR: Could not compile assets for production!' && echo && echo 'Attempting to recover automatically by stashing, ' && echo 'switching back to the master branch, and then ' && echo 'deleting the predeploy branch... ' && echo && echo 'After this, please fix the issues logged above' && echo 'and push that up.  Then, try deploying again.' && echo '------------------------------------------' && echo && echo 'Staging, deleting the predeploy branch, and switching back to master...' && git stash && git checkout master && git branch -D predeploy && false)) && mv www .www && git add .www && node -e 'sailsrc = JSON.parse(require(\"fs\").readFileSync(\"./.sailsrc\", \"utf8\"));  if (sailsrc.paths&&sailsrc.paths.public !== undefined || sailsrc.hooks&&sailsrc.hooks.grunt !== undefined) { throw new Error(\"Cannot complete deployment script: .sailsrc file has conflicting contents!  Please throw away this midway-complete deployment, switch back to your original branch (master), remove the conflicting stuff from .sailsrc, then commit and push that up.\"); }  sailsrc.paths = sailsrc.paths || {};  sailsrc.paths.public = \"./.www\";   sailsrc.hooks = sailsrc.hooks || {};  sailsrc.hooks.grunt = false;  require(\"fs\").writeFileSync(\"./.sailsrc\", JSON.stringify(sailsrc))' && git commit -am 'AUTOMATED COMMIT: Automatically bundling compiled assets as part of deploy, updating the EJS layout and .sailsrc file accordingly.' && git push origin predeploy && git checkout master && git push origin +predeploy:deploy && git push --tags && git branch -D predeploy && git push origin :predeploy && echo '' && echo '--' && echo 'OK, done.  It should be live momentarily on your staging environment.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo 'Staging environment:' && echo ' 🌐–•  https://staging.example.com' && echo '       (hold ⌘ and click to open links in the terminal)' && echo && echo 'Please review that to make sure it looks good.' && echo 'When you are ready to go to production, visit your pipeline on Heroku and press the PROMOTE TO PRODUCTION button.'",
+    "build-for-prod": "echo 'Now building+minifying assets for production...' && echo '(Hang tight, this could take a while.)' && echo && node node_modules/grunt/bin/grunt buildProd || (echo && echo '------------------------------------------' && echo 'IMPORTANT!  IMPORTANT!  IMPORTANT!' && echo 'ERROR: Could not compile assets for production!' && echo && echo 'Please fix the issues logged above' && echo 'and push that up.  Then, try deploying again.' && echo '------------------------------------------' && echo) && mv www .www && node -e 'sailsrc = JSON.parse(require(\"fs\").readFileSync(\"./.sailsrc\", \"utf8\"));  if (sailsrc.paths&&sailsrc.paths.public !== undefined || sailsrc.hooks&&sailsrc.hooks.grunt !== undefined) { throw new Error(\"Cannot complete deployment script: .sailsrc file has conflicting contents!  Please remove the conflicting stuff from .sailsrc, then commit and push that up.\"); }  sailsrc.paths = sailsrc.paths || {};  sailsrc.paths.public = \"./.www\";   sailsrc.hooks = sailsrc.hooks || {};  sailsrc.hooks.grunt = false;  require(\"fs\").writeFileSync(\"./.sailsrc\", JSON.stringify(sailsrc))' && echo 'Build is complete.  Ready to deploy.'"
+  },
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/eashaw/bulk-operations-dashboard.git"
+  },
+  "author": "eashaw",
+  "license": "",
+  "engines": {
+    "node": "^18.18"
+  }
+}

@@ -1,0 +1,165 @@
+<div id="scripts" v-cloak>
+    <div purpose="page-content" class="container-fluid">
+      <div class="d-flex flex-column">
+        <div class="pb-4 d-flex flex-row justify-content-between">
+          <div>
+          <h3 purpose="page-heading" @click="clickChangeTeamFilter(9)">Scripts</h3>
+          </div>
+          <div class="d-flex flex-row align-items-center">
+            <p class="mb-0 mr-2">Team:</p>
+            <select class="custom-select team-select" v-model="teamFilter" @change="changeTeamFilter()">
+              <option :value="undefined" selected>All teams</option>
+              <option v-for="team of teams" :value="team.fleetApid">{{team.teamName}}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex flex-row justify-content-between pb-3">
+        <div>
+          <p><strong>Scripts</strong></p>
+        </div>
+        <div>
+          <p style="color: #6A67FE; cursor: pointer;" @click="clickOpenAddScriptModal()">+ Add script</p>
+        </div>
+      </div>
+      <div style="overflow-y: visible;" class="mb-4 border rounded table-responsive-md" v-if="scriptsToDisplay.length > 0">
+        <table class="table my-0">
+          <thead>
+            <tr>
+              <th class="sortable" :class="sortDirection === 'ASC' ? 'ascending' : sortDirection === 'DESC' ? 'descending' : ''" @click="clickChangeSortDirection()">
+                <div style="cursor: pointer;" class="d-flex flex-row align-items-center pointer">
+                  <small><strong>Name</strong></small>
+                  <div class="sort-arrows">
+                    <span class="ascending-arrow"></span>
+                    <span class="descending-arrow"></span>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <small><strong>Platform</strong></small>
+              </th>
+              <th v-if="teamFilter === undefined">
+                <span><small><strong>Team</strong></small></span>
+              </th>
+              <th>
+                <span><small><strong>Upload date</strong></small></span>
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="script in scriptsToDisplay" :key="script.name">
+              <td class="name-column">{{script.name}}</td>
+              <td>{{script.platform}}</td>
+              <td v-if="teamFilter === undefined">
+                <a class="affected-teams-link" v-if="script.teams && script.teams.length > 0">
+                  <span class="truncated-affected-teams" v-if="script.teams.length > 1">
+                    {{script.teams.length}} teams
+                    <div class="teams-tooltip">
+                      <p v-for="team in script.teams" @click="clickChangeTeamFilter(team.fleetApid)">{{team.teamName}}</p>
+                    </div>
+                  </span>
+                  <span v-else @click="clickChangeTeamFilter(script.teams[0].fleetApid)">
+                    {{script.teams[0].teamName}}
+                  </span>
+                </a>
+                <span v-else>---</span>
+              </td>
+              <td>
+                <js-timestamp :at="script.createdAt" format="timeago"></js-timestamp>
+              </td>
+              <td>
+                <div class="d-flex flex-row align-items-start justify-content-end">
+                  <img style="height: 16px; margin-right: 24px;" alt="download" class="pointer" src="/images/download-16x16@2x.png" @click="clickDownloadScript(script)">
+                  <img style="height: 16px; margin-right: 24px;" alt="edit" class="pointer" src="/images/edit-pencil-16x21@2x.png" @click="clickOpenEditModal(script)">
+                  <img style="height: 16px" alt="delete" class="pointer" src="/images/delete-16x21@2x.png" @click="clickOpenDeleteModal(script)">
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else>
+        <h3 class="px-3 text-center mx-auto pt-5">No scripts matching the selected filters were found.</h3>
+      </div>
+    </div>
+  <%//  ╔═╗╔╦╗╦╔╦╗  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗
+    //  ║╣  ║║║ ║   ╚═╗║  ╠╦╝║╠═╝ ║
+    //  ╚═╝═╩╝╩ ╩   ╚═╝╚═╝╩╚═╩╩   ╩ %>
+    <modal v-if="modal === 'edit-script'" hide-close-button="true" @close="closeModal()">
+      <div>
+        <div class="d-flex flex-row justify-content-between">
+          <h3 class="mb-4">Edit script</h3>
+          <div class="pointer" @click="closeModal()">&times;</div>
+        </div>
+        <ajax-form action="editScript" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
+          <div purpose="script-information" v-if="!formData.newScripts">
+            <div class="d-flex flex-row justify-content-start">
+              <img style="height: 40px; width: 34px;" alt="Windows script" src="/images/script-icon-ps1-34x40@2x.png" v-if="scriptToEdit.platform === 'Windows'">
+              <img style="height: 40px; width: 34px;" alt="macOs and Linux script" src="/images/script-icon-sh-34x40@2x.png" v-else>
+              <div class="d-flex flex-column">
+                <p><strong>{{scriptToEdit.name}}</strong></p>
+                <p class="muted">{{scriptToEdit.platform}}</p>
+              </div>
+            </div>
+          </div>
+          <file-upload id="edit-file-upload" mode="scripts" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newScript"></file-upload>
+          <div purpose="teams-picker" class="mt-4">
+            <p class="mb-2"><strong>Teams</strong></p>
+            <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          </div>
+          <cloud-error v-if="cloudError === 'scriptNameDoesNotMatch'">The new scripts file name identifier must match the old scripts’ file name.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
+          <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
+            <ajax-button :syncing.sync="syncing" purpose="modal-button" type="submit">Save</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+    </modal>
+    <%//  ╔╦╗╔═╗╦  ╔═╗╔╦╗╔═╗  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗
+      //   ║║║╣ ║  ║╣  ║ ║╣   ╚═╗║  ╠╦╝║╠═╝ ║
+      //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  ╚═╝╚═╝╩╚═╩╩   ╩ %>
+    <modal v-if="modal === 'delete-script'" hide-close-button="true" @close="closeModal()">
+      <div class="d-flex flex-row justify-content-between">
+        <h3 class="mb-4">Delete script</h3>
+        <div class="pointer" @click="closeModal()">&times;</div>
+      </div>
+      <p class="mb-2">Delete this script from all teams.</p>
+      <p>This will cancel the script from running.</p>
+      <ajax-form :handle-submitting="handleSubmittingDeleteScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editScriptFormRules" @submitted="submittedForm()">
+        <cloud-error v-if="cloudError"></cloud-error>
+      <div class="d-flex flex-row justify-content-end align-items-center">
+        <a class="mr-3" style="color: #D66C7B; cursor: pointer;" @click="closeModal()">Cancel</a>
+        <ajax-button class="btn" purpose="delete-button" :syncing.sync="syncing">Delete</ajax-button>
+      </div>
+      </ajax-form>
+    </modal>
+    <%//  ╔═╗╔╦╗╔╦╗  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗
+      //  ╠═╣ ║║ ║║  ╚═╗║  ╠╦╝║╠═╝ ║
+      //  ╩ ╩═╩╝═╩╝  ╚═╝╚═╝╩╚═╩╩   ╩ %>
+    <modal v-if="modal === 'add-script'" hide-close-button="true" @close="closeModal()">
+      <div>
+        <div class="d-flex flex-row justify-content-between">
+          <h3 class="mb-4">Add script</h3>
+          <div class="pointer" @click="closeModal()">&times;</div>
+        </div>
+        <ajax-form :handle-submitting="handleSubmittingAddScriptForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addScriptFormRules" @submitted="submittedForm()">
+          <file-upload id="file-upload" :class="[formErrors.newScript ? 'is-invalid' : '']"  mode="scripts" :disabled="syncing" v-model="formData.newScript"></file-upload>
+          <div class="invalid-feedback text-center" v-if="formErrors.newScript">Please upload a new script.</div>
+          <div purpose="teams-picker" class="mt-4">
+            <p class="mb-2"><strong>Teams</strong></p>
+            <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          </div>
+          <div class="invalid-feedback text-center" v-if="formErrors.teams">Please select the teams you want to deploy this script to.</div>
+          <cloud-error v-if="cloudError && cloudError === 'scriptWithThisNameAlreadyExists'">A script with the same name as the uploaded script already exists on one or more of the selected teams.</cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
+          <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
+            <a purpose="cancel-button" @click="closeModal()">Cancel</a>
+            <ajax-button :syncing.sync="syncing" purpose="modal-button" :disabled="!formData.newScript"  type="submit">Add</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+    </modal>
+    <ajax-overlay :syncing-message="syncingMessage" :syncing="overlaySyncing"></ajax-overlay>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

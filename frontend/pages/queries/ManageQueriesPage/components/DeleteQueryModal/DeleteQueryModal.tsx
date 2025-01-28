@@ -18,7 +18,7 @@ const DeleteQueryModal = ({
 }: IDeleteQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Delete query"}
+      title="Delete query"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

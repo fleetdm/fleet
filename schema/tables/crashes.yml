@@ -1,13 +1,8 @@
 name: crashes
-examples: >-
-  See software responsible for crashes. This can be useful to detect what the
-  most problematic software in your environment is.
-
+examples: |-
   ```
-
-  SELECT crash_path, identifier, responsible, exception_type FROM crashes;
-
+  SELECT * FROM users CROSS JOIN crashes USING (uid);
   ```
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:
   - name: uid
-    requires_user_context: true

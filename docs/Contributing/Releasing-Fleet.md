@@ -1,6 +1,14 @@
 # Releasing Fleet
 
-This section outlines the release process at Fleet. The current release cadence is once every three weeks. Patch versions are released as needed.
+This section outlines the release process at Fleet. The current release cadence is one minor and one patch release every three weeks.
+
+## Script release
+
+All Fleet releases are completed using the [Fleet releaser script](https://github.com/fleetdm/fleet/blob/main/tools/release/README.md).
+
+## Manual release
+
+If necessary, manual release instructions are preserved below. 
 
 ### Prepare a new version of Fleet
 
@@ -13,8 +21,10 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 - [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
 - [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
 - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
-- [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploying-Fleet-on-Kubernetes.md)
+- [Kubernetes `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml)
 - All Terraform (*.tf) files referencing the previous version of Fleet.
+- The full list can be found by using git grep:
+    % git grep "4\.3\.0"
 
 Commit these changes via Pull Request and pull the changes on the `main` branch locally.
 
@@ -57,20 +67,20 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 We issue scheduled patch releases every Monday between minor releases if any bug fixes have merged. We issue patches immediately for critical bugs as defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
-1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
-
-2. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
+1. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
    
 ```sh
 git checkout fleet-v4.3.0
 git checkout --branch patch-fleet-v4.3.1
 ```
 
-3. Cherry picks the necessary commits from `main` into the new branch:
+2. Cherry picks the necessary commits from `main` into the new branch:
   
 ```sh
 git cherry-pick d34db33f
 ```
+
+3. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
 > Commits must be cherry-picked in the order they appear on `main` to avoid conflicts. Make sure to also cherry-pick the commit containing changelog and version number updates.
 
@@ -111,7 +121,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 2. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
-3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
+3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
 4. Notify QA that the release candidate is ready for (release QA)[#complete-release-qa].
 
@@ -143,6 +153,17 @@ Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fle
 
 Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
 
+### Fleet's agent
+
+The following version of Fleet's agent (`fleetd`) support the latest changes to Fleet:
+
+<UPDATE VERSIONS AND LINKS BELOW>
+1. [orbit-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/orbit-v1.x.x)
+2. `fleet-desktop-v1.x.x` (included with Orbit)
+3. [fleetd-chrome-v1.x.x](https://github.com/fleetdm/fleet/releases/tag/fleetd-chrome-v1.x.x)
+
+> While newer versions of `fleetd` still function with older versions of the Fleet server (and vice versa), Fleet does not actively test these scenarios and some newer features won't be available.
+
 ### Binary Checksum
 
 **SHA256**
@@ -163,6 +184,3 @@ When editing is complete, publish the release.
 5. Announce the release in the #fleet channel of [osquery Slack](https://fleetdm.com/slack) by updating the channel topic with the link to this release. 
 
 6. Announce the release in the #general channel by copying and pasting the osquery Slack channel topic.
-
-<meta name="pageOrderInSection" value="500">
-<meta name="description" value="Learn how new versions of Fleet are created, tested, and released.">

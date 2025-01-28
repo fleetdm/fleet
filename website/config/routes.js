@@ -17,23 +17,24 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
-      pageTitleForMeta: 'Fleet | Open-source device management',
-      pageDescriptionForMeta: 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'
     }
   },
 
-  'GET /company/contact': {
+  'GET /contact': {
     action: 'view-contact',
     locals: {
-      pageTitleForMeta: 'Contact us | Fleet',
-      pageDescriptionForMeta: 'Get in touch with our team.'
+      pageTitleForMeta: 'Contact us',
+      pageDescriptionForMeta: 'Get in touch with our team.',
+      hideFooterLinks: true,
     }
   },
 
-  'GET /try-fleet/fleetctl-preview': {
+  'GET /try-fleet': {
     action: 'view-fleetctl-preview',
     locals: {
-      pageTitleForMeta: 'fleetctl preview | Fleet',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
+      pageTitleForMeta: 'fleetctl preview',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   },
@@ -42,7 +43,7 @@ module.exports.routes = {
     action: 'view-pricing',
     locals: {
       currentSection: 'pricing',
-      pageTitleForMeta: 'Pricing | Fleet',
+      pageTitleForMeta: 'Pricing',
       pageDescriptionForMeta: 'Use Fleet for free or get started with Fleet Premium (self-hosted or managed cloud). Have a large deployment? We\'ve got you covered.'
     }
   },
@@ -50,7 +51,7 @@ module.exports.routes = {
   'GET /logos': {
     action: 'view-press-kit',
     locals: {
-      pageTitleForMeta: 'Logos | Fleet',
+      pageTitleForMeta: 'Logos',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
@@ -59,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Queries | Fleet',
-      pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Queries',
+      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
@@ -68,24 +69,173 @@ module.exports.routes = {
     action: 'view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
-      // Note: this page's meta title and description are set in the page's view action
     }
   },
 
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
-    skipAssets: false,
-    action: 'articles/view-basic-article',// Meta title and description set in view action
-  },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
+  'GET /vitals/:slug': {
+    action: 'view-vital-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
 
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'GET /policies': {
+    action: 'view-policy-library',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'Policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+    }
+  },
+  'GET /policies/:slug': {
+    action: 'view-policy-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
-  },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /success-stories': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /success-stories/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /success-stores/foo
+
+  'GET /securing': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /securing/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /securing/foo
+
+  'GET /releases': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /releases/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },// handles /releases/foo
+
+  'GET /guides': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /guides/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },// handles /guides/foo
+
+  'GET /announcements': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /announcements/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /announcements/foo
+
+  'GET /podcasts': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /podcasts/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /podcasts/foo
+
+  'GET /engineering': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /engineering/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /engineering/foo
+
+  'GET /report': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
+  'GET /report/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },// handles /engineering/foo
+
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
+      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -98,38 +248,30 @@ module.exports.routes = {
     }
   },// handles /handbook and /handbook/foo/bar
 
-  'GET /transparency': {
-    action: 'view-transparency',
-    locals: {
-      pageTitleForMeta: 'Transparency | Fleet',
-      pageDescriptionForMeta: 'Learn what data osquery can see.',
-    }
-  },
-  'GET /customers/new-license': {
+  'GET /new-license': {
     action: 'customers/view-new-license',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Get Fleet Premium | Fleet',
+      hideStartCTA: true,
+      pageTitleForMeta: 'Get Fleet Premium',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
   },
-  'GET /customers/register': {
+  'GET /register': {
     action: 'entrance/view-signup',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Sign up | Fleet',
-      pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
+      pageTitleForMeta: 'Sign up',
+      pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
   },
-  'GET /customers/login': {
+  'GET /login': {
     action: 'entrance/view-login',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Log in | Fleet',
-      pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
+      pageTitleForMeta: 'Log in',
+      pageDescriptionForMeta: 'Log in to Fleet.',
     }
   },
   'GET /customers/dashboard': {
@@ -137,16 +279,19 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Customer dashboard | Fleet',
+      hideStartCTA: true,
+      pageTitleForMeta: 'Customer dashboard',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
+  'GET /customers/update-subscription': { action: 'customers/redirect-to-stripe-billing-portal' },
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Forgot password | Fleet',
+      hideStartCTA: true,
+      pageTitleForMeta: 'Forgot password',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
   },
@@ -155,7 +300,8 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'New password | Fleet',
+      hideStartCTA: true,
+      pageTitleForMeta: 'New password',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
   },
@@ -163,42 +309,8 @@ module.exports.routes = {
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
-      pageTitleForMeta: 'State of device management | Fleet',
+      pageTitleForMeta: 'State of device management',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
-    }
-  },
-
-  'GET /try-fleet/register': {
-    action: 'try-fleet/view-register',
-    locals: {
-      hideFooterLinks: true,
-      pageTitleForMeta: 'Try Fleet | Fleet',
-      pageDescriptionForMeta: 'Get up and running in minutes to try out Fleet.',
-    }
-  },
-
-  'GET /try-fleet/login': {
-    action: 'try-fleet/view-sandbox-login',
-    locals: {
-      hideFooterLinks: true,
-      pageTitleForMeta: 'Sign in | Fleet',
-      pageDescriptionForMeta: 'Log in to Fleet.',
-    }
-  },
-
-  'GET /try-fleet/explore-data': {
-    action: 'try-fleet/view-explore-data',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
-    }
-  },
-
-  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {// [?]: https://github.com/fleetdm/fleet/blob/97a0d419e1a25d2155606c09b9c483ae5067544e/website/api/controllers/try-fleet/view-query-report.js#L16
-    action: 'try-fleet/view-query-report',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
     }
   },
 
@@ -207,6 +319,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -216,6 +329,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -224,6 +338,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -239,6 +354,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     }
   },
 
@@ -254,41 +370,35 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-device-management',
     locals: {
-      pageTitleForMeta: 'Device management (MDM) | Fleet',
-      pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
+      pageTitleForMeta: 'Device management (MDM)',
+      pageDescriptionForMeta: 'Manage your devices in any browser or use git to make changes as code.',
       currentSection: 'platform',
     }
   },
 
-  'GET /upgrade': {
-    action: 'view-upgrade',
+  'GET /orchestration': {
+    action: 'view-observability',
     locals: {
-      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet',
-      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+      pageTitleForMeta: 'Orchestration',
+      pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      currentSection: 'platform',
     }
   },
 
-  'GET /endpoint-ops': {
-    action: 'view-endpoint-ops',
+  'GET /software-management': {
+    action: 'view-software-management',
     locals: {
-      pageTitleForMeta: 'Endpoint ops | Fleet',
-      pageDescriptionForMeta: 'Simplify your security tooling, ship data to any platform, and pulse check anything with Fleet.',
-    }
-  },
-
-  'GET /vulnerability-management': {
-    action: 'view-vulnerability-management',
-    locals: {
-      pageTitleForMeta: 'Vulnerability management | Fleet',
-      pageDescriptionForMeta: 'Instant, lightweight visibility down to the chipset of any endpoint. Consolidate your security stack and build the vulnerability program you actually want with Fleet.',
+      pageTitleForMeta: 'Software management',
+      pageDescriptionForMeta: 'Pick from a curated app library or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.',
+      currentSection: 'platform',
     }
   },
 
   'GET /support': {
     action: 'view-support',
     locals: {
-      pageTitleForMeta: 'Support | Fleet',
-      pageDescriptionForMeta: 'Ask a question, chat with other engineers, or get in touch with the Fleet team.',
+      pageTitleForMeta: 'Support',
+      pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
       currentSection: 'documentation',
     }
   },
@@ -296,43 +406,73 @@ module.exports.routes = {
   'GET /integrations': {
     action: 'view-integrations',
     locals: {
-      pageTitleForMeta: 'Integrations | Fleet',
+      pageTitleForMeta: 'Integrations',
       pageDescriptionForMeta: 'Integrate IT ticketing systems, SIEM and SOAR platforms, custom IT workflows, and more.',
       currentSection: 'platform'
     }
   },
 
+  'GET /start': {
+    action: 'view-start',
+    locals: {
+      hideFooterLinks: true,
+      hideGetStartedButton: true,
+      hideStartCTA: true,
+      pageTitleForMeta: 'Start',
+      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
+    }
+  },
 
-  //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
-  //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
-  //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
-  'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
-  'GET /imagine/higher-education': {
-    action: 'imagine/view-higher-education',
+  'GET /better': {
+    action: 'view-transparency',
     locals: {
-      pageTitleForMeta: 'Fleet for higher education',
-      pageDescriptionForMeta: 'Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.',
+      pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
+      pageTitleForMeta: 'Better with Fleet'
     }
   },
-  'GET /imagine/rapid-7-alternative': {
-    action: 'imagine/view-rapid-7-alternative',
+
+  'GET /deals': {
+    action: 'view-deals',
     locals: {
-      pageTitleForMeta: 'An open-source alternative to Rapid7',
-      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+      pageTitleForMeta: 'Deal registration',
+      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
+      hideFooterLinks: true,
+      hideStartCTA: true,
     }
   },
-  'GET /imagine/defcon-31': {
-    action: 'imagine/view-defcon-31',
+
+  'GET /testimonials': {
+    action: 'view-testimonials',
     locals: {
-      pageTitleForMeta: 'Fleet at DefCon 31',
-      pageDescriptionForMeta: 'Find Fleet at DefCon and get a custom tee shirt.',
+      pageTitleForMeta: 'What people are saying',
+      pageDescriptionForMeta: 'See what people are saying about Fleet.'
     }
   },
-  'GET /imagine/jamf-alternative': {
-    action: 'imagine/view-jamf-alternative',
+
+  'GET /app-library': {
+    action: 'view-app-library',
     locals: {
-      pageTitleForMeta: 'An open-source alternative to Jamf',
-      pageDescriptionForMeta: 'Simplify vulnerability management with Fleet, an open-source platform with superior visibility.',
+      pageTitleForMeta: 'App library',
+      pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
+    }
+  },
+
+  'GET /app-library/:appIdentifier': {
+    action: 'view-app-details',// Meta title and description set in view action
+  },
+
+  'GET /meetups': {
+    action: 'view-meetups',
+    locals: {
+      pageTitleForMeta: 'Meetups',
+      pageDescriptionForMeta: 'See upcoming meetup locations.',
+    }
+  },
+
+  'GET /query-generator': {
+    action: 'query-generator/view-query-generator',
+    locals: {
+      showAdminLinks: true,
     }
   },
 
@@ -354,13 +494,12 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
-  'GET /try-fleet':                  '/get-started',
+  'GET /customer-stories': '/testimonials',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /handbook/brand': '/handbook/digital-experience',
   'GET /guides/deploying-fleet-on-aws-with-terraform': '/deploy/deploying-fleet-on-aws-with-terraform',
-  'GET /guides/deploy-fleet-on-hetzner-cloud':'/deploy/deploy-fleet-on-hetzner-cloud',
   'GET /guides/deploying-fleet-on-render': '/deploy/deploying-fleet-on-render',
   'GET /use-cases/correlate-network-connections-with-community-id-in-osquery': '/guides/correlate-network-connections-with-community-id-in-osquery',
   'GET /use-cases/converting-unix-timestamps-with-osquery': '/guides/converting-unix-timestamps-with-osquery',
@@ -370,6 +509,7 @@ module.exports.routes = {
   'GET /use-cases/get-and-stay-compliant-across-your-devices-with-fleet': '/securing/get-and-stay-compliant-across-your-devices-with-fleet',
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
+  'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
@@ -377,7 +517,6 @@ module.exports.routes = {
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
   'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
-  'GET /handbook/people': '/handbook/business-operations',
   'GET /handbook/people/ceo-handbook': '/handbook/ceo',
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
@@ -397,12 +536,16 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
-  'GET /handbook/security': '/handbook/business-operations/security',
-  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/security': '/handbook/digital-experience/security',
+  'GET /handbook/security/security-policies':'/handbook/digital-experience/security',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/business-operations/security-policies':'/handbook/digital-experience/security',
+  'GET /handbook/business-operations/application-security': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/security-audits': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/security': '/handbook/digital-experience/security',
+  'GET /handbook/business-operations/vendor-questionnaires': '/handbook/digital-experience/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
   'GET /handbook/company/development-groups': '/handbook/company/product-groups',
   'GET /docs/using-fleet/mdm-macos-settings': '/docs/using-fleet/mdm-custom-macos-settings',
-  'GET /docs/using-fleet/mdm-setup': '/docs/using-fleet/mdm-macos-setup',
   'GET /platform': '/',
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
@@ -410,11 +553,11 @@ module.exports.routes = {
   'GET /handbook/marketing': '/handbook/demand/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
+  'GET /handbook/business-operations': '/handbook/finance',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
   'GET /docs/rest-api': '/docs/rest-api/rest-api',
-  'GET /docs/using-fleet': '/docs/using-fleet/fleet-ui',
   'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
   'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
   'GET /docs/deploy': '/docs/deploy/introduction',
@@ -427,8 +570,8 @@ module.exports.routes = {
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
   'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
-  'GET /docs/using-fleet/application-security': '/handbook/business-operations/application-security',
-  'GET /docs/using-fleet/security-audits': '/handbook/business-operations/security-audits',
+  'GET /docs/using-fleet/application-security': '/handbook/digital-experience/application-security',
+  'GET /docs/using-fleet/security-audits': '/handbook/digital-experience/security-audits',
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
@@ -436,7 +579,8 @@ module.exports.routes = {
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
-  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures ',
+  'GET /docs/deploy/introduction': '/docs/deploy/deploy-fleet',
+  'GET /docs/deploying/reference-architectures': '/docs/deploy/reference-architectures',
   'GET /docs/deploying/upgrading-fleet': '/docs/deploy/upgrading-fleet',
   'GET /docs/deploying/server-installation': '/docs/deploy/server-installation',
   'GET /docs/deploying/cloudgov': '/docs/deploy/cloudgov',
@@ -467,8 +611,145 @@ module.exports.routes = {
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
   'GET /osquery-management': '/endpoint-ops',
   'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://github.com/fleetdm/fleet-gitops',
+  'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
+  'GET /customers/login': '/login',
+  'GET /customers/register': '/register',
+  'GET /try-fleet/login': '/login',
+  'GET /try-fleet/register': '/register',
+  'GET /customers/new-license': '/new-license',
+  'GET /try-fleet/fleetctl-preview': '/try-fleet',
+  'GET /upgrade': '/pricing',
+  'GET /docs/deploy/system-d': '/docs/deploy/reference-architectures#systemd',
+  'GET /docs/deploy/proxies': '/docs/deploy/reference-architectures#using-a-proxy',
+  'GET /docs/deploy/public-ip': '/docs/deploy/reference-architectures#public-ips-of-devices',
+  'GET /docs/deploy/monitoring-fleet': '/docs/deploy/reference-architectures#monitoring-fleet',
+  'GET /docs/deploy/deploy-fleet-on-aws-ecs': '/guides/deploy-fleet-on-aws-ecs',
+  'GET /docs/deploy/deploy-fleet-on-centos': '/guides/deploy-fleet-on-centos',
+  'GET /docs/deploy/cloudgov': '/guides/deploy-fleet-on-cloudgov',
+  'GET /docs/deploy/deploy-on-aws-with-terraform': '/guides/deploy-fleet-on-aws-with-terraform',
+  'GET /docs/deploy/deploy-on-hetzner-cloud': '/guides/deploy-fleet-on-hetzner-cloud',
+  'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
+  'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
+  'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
+  'GET /transparency': '/better',
+  'GET /docs/configuration/configuration-files': '/docs/using-fleet/gitops',
+  'GET /try-fleet/explore-data': '/tables/account_policy_data',
+  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
+    fn: (req, res)=>{
+      return res.redirect('/tables/'+req.param('tableName'));
+    }
+  },
+  'GET /docs/using-fleet/fleet-ui': (req,res)=> { return res.redirect(301, '/guides/queries');},
+  'GET /docs/using-fleet/learn-how-to-use-fleet': (req,res)=> { return res.redirect(301, '/guides/queries');},
+  'GET /docs/using-fleet/fleetctl-cli': (req,res)=> { return res.redirect(301, '/guides/fleetctl');},
+  'GET /docs/using-fleet/fleet-desktop': (req,res)=> { return res.redirect(301, '/guides/fleet-desktop');},
+  'GET /docs/using-fleet/enroll-hosts': (req,res)=> { return res.redirect(301, '/guides/enroll-hosts');},
+  'GET /docs/using-fleet/manage-access': (req,res)=> { return res.redirect(301, '/guides/role-based-access');},
+  'GET /docs/using-fleet/segment-hosts': (req,res)=> { return res.redirect(301, '/guides/teams');},
+  'GET /docs/using-fleet/supported-browsers': (req,res)=> { return res.redirect(301, '/docs/get-started/faq');},
+  'GET /docs/using-fleet/supported-host-operating-systems': (req,res)=> { return res.redirect(301, '/docs/get-started/faq');},
+  'GET /docs/using-fleet/gitops': (req,res)=> { return res.redirect(301, '/docs/configuration/yaml-files');},
+  'GET /docs/using-fleet/mdm-setup': (req,res)=> { return res.redirect(301, '/guides/macos-mdm-setup');},
+  'GET /docs/using-fleet/mdm-migration-guide': (req,res)=> { return res.redirect(301, '/guides/mdm-migration');},
+  'GET /docs/using-fleet/mdm-os-updates': (req,res)=> { return res.redirect(301, '/guides/enforce-os-updates');},
+  'GET /docs/using-fleet/mdm-disk-encryption': (req,res)=> { return res.redirect(301, '/guides/enforce-disk-encryption');},
+  'GET /docs/using-fleet/mdm-custom-os-settings': (req,res)=> { return res.redirect(301, '/guides/custom-os-settings');},
+  'GET /docs/using-fleet/mdm-macos-setup-experience': (req,res)=> { return res.redirect(301, '/guides/macos-setup-experience');},
+  'GET /docs/using-fleet/scripts': (req,res)=> { return res.redirect(301, '/guides/scripts');},
+  'GET /docs/using-fleet/automations': (req,res)=> { return res.redirect(301, '/guides/automations');},
+  'GET /docs/using-fleet/puppet-module': (req,res)=> { return res.redirect(301, '/guides/puppet-module');},
+  'GET /docs/using-fleet/vulnerability-processing': (req,res)=> { return res.redirect(301, '/guides/vulnerability-processing');},
+  'GET /docs/using-fleet/cis-benchmarks': (req,res)=> { return res.redirect(301, '/guides/cis-benchmarks');},
+  'GET /docs/using-fleet/osquery-process': (req,res)=> { return res.redirect(301, '/guides/osquery-watchdog');},
+  'GET /docs/using-fleet/update-agents': (req,res)=> { return res.redirect(301, '/guides/fleetd-updates');},
+  'GET /docs/using-fleet/usage-statistics': (req,res)=> { return res.redirect(301, '/guides/fleet-usage-statistics');},
+  'GET /docs/using-fleet/downgrading-fleet': (req,res)=> { return res.redirect(301, '/guides/downgrade-fleet');},
+  'GET /docs/using-fleet/enroll-chromebooks': (req,res)=> { return res.redirect(301, '/guides/chrome-os');},
+  'GET /docs/using-fleet/audit-logs': (req,res)=> { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Audit-logs.md');},
+  'GET /docs/using-fleet/understanding-host-vitals': (req,res)=> { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Understanding-host-vitals.md');},
+  'GET /docs/using-fleet/standard-query-library': (req,res)=> { return res.redirect(301, '/guides/standard-query-library');},
+  'GET /docs/using-fleet/mdm-commands': (req,res)=> { return res.redirect(301, '/guides/mdm-commands');},
+  'GET /docs/using-fleet/log-destinations': (req,res)=> { return res.redirect(301, '/guides/log-destinations');},
+  'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
+  'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
+  'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
+
+  // Release note article redirects.
+  'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
+  'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
+  'GET /releases/fleet-3.13.0': '/releases/fleet-3-13-0',
+  'GET /releases/fleet-3.5.0': '/releases/fleet-3-5-0',
+  'GET /releases/fleet-3.6.0': '/releases/fleet-3-6-0',
+  'GET /releases/fleet-3.7.1': '/releases/fleet-3-7-1',
+  'GET /releases/fleet-3.8.0': '/releases/fleet-3-8-0',
+  'GET /releases/fleet-3.9.0': '/releases/fleet-3-9-0',
+  'GET /releases/fleet-4.0.0': '/releases/fleet-4-0-0',
+  'GET /releases/fleet-4.1.0': '/releases/fleet-4-1-0',
+  'GET /releases/fleet-4.10.0': '/releases/fleet-4-10-0',
+  'GET /releases/fleet-4.12.0': '/releases/fleet-4-12-0',
+  'GET /releases/fleet-4.11.0': '/releases/fleet-4-11-0',
+  'GET /releases/fleet-4.13.0': '/releases/fleet-4-13-0',
+  'GET /releases/fleet-4.15.0': '/releases/fleet-4-15-0',
+  'GET /releases/fleet-3.11.0': '/releases/fleet-3-11-0',
+  'GET /releases/fleet-4.16.0': '/releases/fleet-4-16-0',
+  'GET /releases/fleet-4.17.0': '/releases/fleet-4-17-0',
+  'GET /releases/fleet-4.18.0': '/releases/fleet-4-18-0',
+  'GET /releases/fleet-4.19.0': '/releases/fleet-4-19-0',
+  'GET /releases/fleet-4.2.0': '/releases/fleet-4-2-0',
+  'GET /releases/fleet-4.21.0': '/releases/fleet-4-21-0',
+  'GET /releases/fleet-4.14.0': '/releases/fleet-4-14-0',
+  'GET /releases/fleet-4.22.0': '/releases/fleet-4-22-0',
+  'GET /releases/fleet-4.20.0': '/releases/fleet-4-20-0',
+  'GET /releases/fleet-4.23.0': '/releases/fleet-4-23-0',
+  'GET /releases/fleet-4.24.0': '/releases/fleet-4-24-0',
+  'GET /releases/fleet-4.25.0': '/releases/fleet-4-25-0',
+  'GET /releases/fleet-4.27.0': '/releases/fleet-4-27-0',
+  'GET /releases/fleet-4.26.0': '/releases/fleet-4-26-0',
+  'GET /releases/fleet-4.28.0': '/releases/fleet-4-28-0',
+  'GET /releases/fleet-4.29.0': '/releases/fleet-4-29-0',
+  'GET /releases/fleet-4.30.0': '/releases/fleet-4-30-0',
+  'GET /releases/fleet-4.31.0': '/releases/fleet-4-31-0',
+  'GET /releases/fleet-4.3.0': '/releases/fleet-4-3-0',
+  'GET /releases/fleet-4.32.0': '/releases/fleet-4-32-0',
+  'GET /releases/fleet-4.33.0': '/releases/fleet-4-33-0',
+  'GET /releases/fleet-4.34.0': '/releases/fleet-4-34-0',
+  'GET /releases/fleet-4.36.0': '/releases/fleet-4-36-0',
+  'GET /releases/fleet-4.38.0': '/releases/fleet-4-38-0',
+  'GET /releases/fleet-4.39.0': '/releases/fleet-4-39-0',
+  'GET /releases/fleet-4.35.0': '/releases/fleet-4-35-0',
+  'GET /releases/fleet-4.4.0': '/releases/fleet-4-4-0',
+  'GET /releases/fleet-4.37.0': '/releases/fleet-4-37-0',
+  'GET /releases/fleet-4.40.0': '/releases/fleet-4-40-0',
+  'GET /releases/fleet-4.42.0': '/releases/fleet-4-42-0',
+  'GET /releases/fleet-4.43.0': '/releases/fleet-4-43-0',
+  'GET /releases/fleet-4.44.0': '/releases/fleet-4-44-0',
+  'GET /releases/fleet-4.41.0': '/releases/fleet-4-41-0',
+  'GET /releases/fleet-4.45.0': '/releases/fleet-4-45-0',
+  'GET /releases/fleet-4.46.0': '/releases/fleet-4-46-0',
+  'GET /releases/fleet-4.47.0': '/releases/fleet-4-47-0',
+  'GET /releases/fleet-4.49.0': '/releases/fleet-4-49-0',
+  'GET /releases/fleet-4.5.0': '/releases/fleet-4-5-0',
+  'GET /releases/fleet-4.50.0': '/releases/fleet-4-50-0',
+  'GET /releases/fleet-4.51.0': '/releases/fleet-4-51-0',
+  'GET /releases/fleet-4.48.0': '/releases/fleet-4-48-0',
+  'GET /releases/fleet-4.53.0': '/releases/fleet-4-53-0',
+  'GET /releases/fleet-4.55.0': '/releases/fleet-4-55-0',
+  'GET /releases/fleet-4.56.0': '/releases/fleet-4-56-0',
+  'GET /releases/fleet-4.54.0': '/releases/fleet-4-54-0',
+  'GET /releases/fleet-4.58.0': '/releases/fleet-4-58-0',
+  'GET /releases/fleet-4.59.0': '/releases/fleet-4-59-0',
+  'GET /releases/fleet-4.57.0': '/releases/fleet-4-57-0',
+  'GET /releases/fleet-4.6.0': '/releases/fleet-4-6-0',
+  'GET /releases/fleet-4.60.0': '/releases/fleet-4-60-0',
+  'GET /releases/fleet-4.7.0': '/releases/fleet-4-7-0',
+  'GET /releases/fleet-4.8.0': '/releases/fleet-4-8-0',
+  'GET /releases/fleet-4.61.0': '/releases/fleet-4-61-0',
+  'GET /releases/fleet-4.9.0': '/releases/fleet-4-9-0',
+  'GET /announcements/nvd-api-2.0': '/announcements/nvd-api-2-0',
+  'GET /releases/osquery-5.11.0': '/releases/osquery-5-11-0',
+  'GET /releases/osquery-5.8.1': '/releases/osquery-5-8-1',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -480,44 +761,105 @@ module.exports.routes = {
   //
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
+  'GET /admin':                      '/admin/email-preview',
   'GET /renew':                      'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /contact':                    '/company/contact',
+  'GET /company/contact':            '/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',// Note: This redirect is used on error pages and email templates in the Fleet UI.
+  'GET /slack':                      '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet/explore-data',
+  'GET /get-started':            '/try-fleet',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
-  'GET /test-fleet-sandbox':     '/try-fleet/register',
-  'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
+  'GET /test-fleet-sandbox':     '/register',
+  'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
+  'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /vitals':                 '/vitals/battery',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
-  'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
-  'GET /mdm': '/device-management',// « alias for radio ad
+  'GET /fleetctl-preview':   '/try-fleet',
+  'GET /try-fleet/sandbox-expired':   '/try-fleet',
+  'GET /try-fleet/sandbox':   '/try-fleet',
+  'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
+  'GET /example-dep-profile': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/enrollment-profiles/automatic-enrollment.dep.json',
+  'GET /vulnerability-management': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/software-management'+originalQueryString);},
+  'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+  'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
+
+  // Shortlinks for texting friends, radio ads, etc
+  'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
+  'GET /it': '/observability?utm_content=eo-it',
+  'GET /seceng': '/observability?utm_content=eo-security',
+  'GET /vm': '/software-management?utm_content=vm',
 
   // Fleet UI
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+  'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
+  'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
-  'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
+  'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
+  'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
+  'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
+  'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
+  'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
+  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
+  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/scripts/macos-install-wine.sh',
+  'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
+  'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
+  'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
+  'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
+  'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
+  'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
+  'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetctl-apply.md#rotating-enroll-secrets',
+  'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
+  'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
+  'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
+  'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
+  'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
+  'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
+  'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
+  'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
+  'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
+  'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
+  'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-manager-abm-tokens',
+  'GET /learn-more-about/apple-business-manager-teams-api': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#update-abm-tokens-teams',
+  'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business-manager',
+  'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
+  'GET /learn-more-about/available-os-update-versions': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
+  'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
+  'GET /learn-more-about/query-templates-for-automatic-software-install': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
+  'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
+  'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
+  'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/package-metadata-extraction': '/guides/deploy-software-packages#package-metadata-extraction',
+  'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#package-metadata-extraction',
+  'GET /learn-more-about/fleetctl': '/guides/fleetctl',
+  'GET /feature-request': 'https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=',
+  'GET /learn-more-about/policy-automation-run-script': '/guides/policy-automation-run-script',
+  'GET /learn-more-about/installing-fleetctl': '/guides/fleetctl#installing-fleetctl',
+  'GET /learn-more-about/mdm-disk-encryption': '/guides/enforce-disk-encryption',
+  'GET /learn-more-about/encrypt-linux-device': '/guides/linux-disk-encryption-end-user',
+  'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
+  'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
 
   // Sitemap
   // =============================================================================================================
@@ -546,7 +888,13 @@ module.exports.routes = {
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+  'GET /community':              'https://join.slack.com/t/osquery/shared_invite/zt-2op37v6qp-aVPivU5xB_FwuYElN0Z1lw',
+
+  // Temporary redirects
+  // =============================================================================================================
+  // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
+  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
+  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -555,7 +903,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
-  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false},
+  'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
@@ -577,11 +925,19 @@ module.exports.routes = {
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
-  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request'},
+  'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
+  'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
-  'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
-  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
+  'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
+  'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
+  'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
+  'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
+  '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
+  'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
+  '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
 };

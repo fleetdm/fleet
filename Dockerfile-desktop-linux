@@ -1,11 +1,5 @@
-FROM --platform=linux/amd64 golang:1.21.6-bullseye@sha256:fa52abd182d334cfcdffdcc934e21fcfbc71c3cde568e606193ae7db045b1b8d
+FROM --platform=linux/amd64 golang:1.23.4-bullseye@sha256:c046c91923e7285772f902b98b01f96f7d37387c6a4d5cdd353abc7cf74d2a2b
 LABEL maintainer="Fleet Developers"
-
-RUN apt-get update && apt-get install -y \
-	gcc \
-	libgtk-3-dev \
-	libayatana-appindicator3-dev \
-	&& rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /usr/src/fleet
 RUN mkdir -p /output

@@ -1,11 +1,9 @@
 name: usb_devices
-examples: >-
+examples: |-
   Identify Yubikeys currently connected. The model field contains information
   about what authentication protocols the keys are configured to support. This
   table can be used to track any type of USB device.
 
   ```
-
   SELECT model, vendor, version FROM usb_devices WHERE vendor='Yubico';
-
   ```

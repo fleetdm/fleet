@@ -1,24 +1,22 @@
 ---
-version: "2"
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
   # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume:/tmp
-    command:
-      [
+    command: [
         "mysqld",
         "--datadir=/tmp/mysqldata",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
         "--server-id=master-01",
-        # Required for storage of Apple MDM installers.
-        "--max_allowed_packet=536870912"
+        # Required for storage of Apple MDM bootstrap packages.
+        "--max_allowed_packet=536870912",
       ]
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
@@ -31,11 +29,10 @@ services:
       - "3306:3306"
 
   mysql_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
-    command:
-      [
+    command: [
         "mysqld",
         "--datadir=/tmpfs",
         "--slow_query_log=1",
@@ -46,13 +43,40 @@ services:
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
-        "--server-id=master-01",
-        # Required for storage of Apple MDM installers.
-        "--max_allowed_packet=536870912"
+        "--server-id=1",
+        # Required for storage of Apple MDM bootstrap packages.
+        "--max_allowed_packet=536870912",
       ]
     environment: *mysql-default-environment
     ports:
       - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid
+      - /tmpfs
+
+  mysql_replica_test:
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    # innodb-file-per-table=OFF gives ~20% speedup for test runs.
+    command: [
+        "mysqld",
+        "--datadir=/tmpfs",
+        "--slow_query_log=1",
+        "--log_output=TABLE",
+        "--log-queries-not-using-indexes",
+        "--innodb-file-per-table=OFF",
+        "--table-definition-cache=8192",
+        # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
+        "--enforce-gtid-consistency=ON",
+        "--log-bin=bin.log",
+        "--server-id=2",
+        # Required for storage of Apple MDM bootstrap packages.
+        "--max_allowed_packet=536870912",
+      ]
+    environment: *mysql-default-environment
+    ports:
+      # ports 3308 and 3309 are used by the main and replica MySQL containers in tools/mysql-replica-testing/docker-compose.yml
+      - "3310:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
@@ -72,11 +96,7 @@ services:
       - "1026:1025"
     volumes:
       - ./tools/mailpit/auth.txt:/auth.txt
-    command:
-      [
-        "--smtp-auth-file=/auth.txt",
-        "--smtp-auth-allow-insecure=true"
-      ]
+    command: ["--smtp-auth-file=/auth.txt", "--smtp-auth-allow-insecure=true"]
 
   # SMTP server with TLS
   smtp4dev_test:
@@ -108,7 +128,7 @@ services:
   # CAdvisor container allows monitoring other containers. Useful for
   # development.
   cadvisor:
-    image: google/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:latest
     ports:
       - "5678:8080"
     volumes:
@@ -146,14 +166,6 @@ services:
     volumes:
       - data-minio:/data
 
-  toxiproxy:
-    image: shopify/toxiproxy
-    ports:
-      - "22220:22220"
-      - "8474:8474"
-
 volumes:
   mysql-persistent-volume:
   data-minio:
-
-

@@ -1,6 +1,6 @@
 {
   "name": "fleetctl",
-  "version": "v4.44.1",
+  "version": "v4.62.2",
   "description": "Installer for the fleetctl CLI tool",
   "bin": {
     "fleetctl": "./run.js"
@@ -16,9 +16,9 @@
   },
   "homepage": "https://fleetdm.com",
   "dependencies": {
-    "axios": "^0.21.2",
-    "rimraf": "3.0.2",
-    "tar": "^6.1.9"
+    "axios": "1.7.9",
+    "rimraf": "6.0.1",
+    "tar": "7.4.3"
   },
   "keywords": [
     "osquery",

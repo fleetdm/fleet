@@ -57,6 +57,11 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 
 	for _, q := range detailQueries {
 		fmt.Fprintf(&b, "## %s\n\n", q.name)
+
+		if q.detailQuery.Description != "" {
+			fmt.Fprintf(&b, "- Description: %s\n\n", q.detailQuery.Description)
+		}
+
 		platforms := strings.Join(q.detailQuery.Platforms, ", ")
 		if len(q.detailQuery.Platforms) == 0 {
 			platforms = "all"
@@ -67,6 +72,10 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		}
 		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", strings.TrimSpace(q.detailQuery.Query))
 	}
+
+	// Footnotes
+	fmt.Fprint(&b, `<br /><br />`)
+	fmt.Fprintf(&b, "[^1]: Software override queries write over the default queries. They are used to populate the software inventory.")
 
 	b.WriteString(`
 <meta name="navSection" value="Dig deeper">

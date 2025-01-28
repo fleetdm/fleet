@@ -38,39 +38,17 @@ $shadow-transition-width: 10px;
       // End shadow
     }
 
+    // applied to same element as data-table__table while loading
+    &__no-rows {
+      min-height: 272px;
+    }
+
     &__table {
       position: relative;
       width: 100%;
       border-collapse: collapse;
       color: $core-fleet-black;
       font-size: $x-small;
-    }
-
-    tbody {
-      .component__tooltip-wrapper {
-        margin: 10px 0; // vertical padding multiline text with tooltip
-      }
-
-      .component__tooltip-wrapper__element {
-        white-space: initial; // wraps long text with tooltip
-      }
-
-      tr,
-      .single-row {
-        transition: background-color 150ms ease-out;
-        &:hover {
-          background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
-        }
-      }
-
-      .single-row {
-        &:hover {
-          cursor: pointer;
-        }
-        &:active {
-          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
-        }
-      }
     }
 
     tr {
@@ -89,6 +67,12 @@ $shadow-transition-width: 10px;
         .fleet-checkbox__label {
           padding-left: 0;
         }
+      }
+
+      // Cleaner when tabbing
+      a:focus-visible {
+        outline-offset: 0;
+        border-radius: $border-radius-medium;
       }
     }
 
@@ -117,11 +101,12 @@ $shadow-transition-width: 10px;
       th {
         padding: $pad-medium $pad-large;
         white-space: nowrap;
-        border-right: 1px solid $ui-fleet-black-10;
+        border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
 
         &:first-child {
           border-top-left-radius: 6px;
+          border-left: none;
         }
 
         &.selection__header {
@@ -130,8 +115,21 @@ $shadow-transition-width: 10px;
         }
 
         &:last-child {
-          border-right: none;
           border-top-right-radius: 6px;
+        }
+
+        &.actions__header,
+        &.id__header, // Same as actions__header on some pages
+        {
+          border-left: none;
+          width: 99px;
+        }
+
+        &.linkToFilteredHosts__header,
+        &.view-all-hosts__header // Same as linkToFilteredHosts__header on some pages
+        {
+          border-left: none;
+          max-width: 120px;
         }
 
         .column-header {
@@ -205,11 +203,55 @@ $shadow-transition-width: 10px;
     }
 
     tbody {
+      .component__tooltip-wrapper {
+        margin: 10px 0; // vertical padding multiline text with tooltip
+      }
+
+      .component__tooltip-wrapper__element {
+        white-space: initial; // wraps long text with tooltip
+      }
+
+      tr,
+      .single-row {
+        transition: background-color 150ms ease-out;
+        &:hover {
+          background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
+        }
+        &:focus-visible {
+          outline: 2px solid $ui-vibrant-blue-25;
+          background: $ui-off-white;
+        }
+      }
+
+      .single-row {
+        &:hover {
+          cursor: pointer;
+        }
+        &:active {
+          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+        }
+      }
+
       td {
         height: 40px;
         padding: 0 $pad-large;
         max-width: 500px;
         word-wrap: break-word;
+
+        &.actions__cell,
+        &.id__cell // Same as actions__cell on some pages
+        {
+          display: flex;
+          justify-content: end; // Aligns actions dropdown to right of table
+          max-width: 99px;
+        }
+
+        &.linkToFilteredHosts__cell,
+        &.view-all-hosts__cell // Same as linkToFilteredHosts__cell on some pages
+        {
+          text-align: right;
+          max-width: 140px;
+        }
 
         &.selection__cell {
           width: 0px;
@@ -272,12 +314,14 @@ $shadow-transition-width: 10px;
           min-width: 100%;
           text-align: left;
         }
-        .grey-cell {
-          color: $ui-fleet-black-50;
+        .italic-cell {
           font-style: italic;
           .__react_component_tooltip {
             font-style: normal;
           }
+        }
+        .grey-cell {
+          color: $ui-fleet-black-50;
         }
       }
 
@@ -355,7 +399,7 @@ $shadow-transition-width: 10px;
     align-items: center;
   }
 
-  &__footer-text {
+  &__table-help-text {
     font-size: $x-small;
 
     display: flex;

@@ -76,16 +76,16 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	h6 := initHost(mockClock.Now().Add(thirtyDaysAndAMinuteAgo*time.Minute), 3600, 3600, nil)
 
 	l1 := fleet.LabelSpec{
-		ID:    1,
 		Name:  "label foo",
 		Query: "query foo",
 	}
 	l2 := fleet.LabelSpec{
-		ID:    2,
 		Name:  "label bar",
 		Query: "query bar",
 	}
 	require.NoError(t, ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
+	l1.ID = labelIDFromName(t, ds, l1.Name)
+	l2.ID = labelIDFromName(t, ds, l2.Name)
 
 	for _, h := range []*fleet.Host{h1, h2, h3, h6} {
 		err = ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{l1.ID: ptr.Bool(true)}, mockClock.Now(), false)
@@ -152,6 +152,23 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.OnlineHosts)
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
+
+	// Get 'No team' hosts
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{0}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(2), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(
+		context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID, 0}}, mockClock.Now(),
+	)
+	require.Nil(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
+	assert.Equal(t, uint(2), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
 
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID}}, mockClock.Now())
 	require.Nil(t, err)
@@ -364,19 +381,19 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	h6 := initHost(nil, "darwin")
 
 	// Load and record results for builtin labels.
-	allHosts, err := ds.Label(context.Background(), 6)
+	allHosts, _, err := ds.Label(context.Background(), 6, filter)
 	require.NoError(t, err)
-	macOS, err := ds.Label(context.Background(), 7)
+	macOS, _, err := ds.Label(context.Background(), 7, filter)
 	require.NoError(t, err)
-	ubuntuLinux, err := ds.Label(context.Background(), 8)
+	ubuntuLinux, _, err := ds.Label(context.Background(), 8, filter)
 	require.NoError(t, err)
-	centOSLinux, err := ds.Label(context.Background(), 9)
+	centOSLinux, _, err := ds.Label(context.Background(), 9, filter)
 	require.NoError(t, err)
-	msWindows, err := ds.Label(context.Background(), 10)
+	msWindows, _, err := ds.Label(context.Background(), 10, filter)
 	require.NoError(t, err)
-	redHatLinux, err := ds.Label(context.Background(), 11)
+	redHatLinux, _, err := ds.Label(context.Background(), 11, filter)
 	require.NoError(t, err)
-	allLinux, err := ds.Label(context.Background(), 12)
+	allLinux, _, err := ds.Label(context.Background(), 12, filter)
 	require.NoError(t, err)
 
 	allBuiltIn := []*fleet.Label{
@@ -594,6 +611,16 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 			expectedHostIDs: []uint{},
 		},
 		{
+			name:            "'No Team' team selection",
+			targetTeamIDs:   []uint{0},
+			expectedHostIDs: []uint{h5.ID, h6.ID},
+		},
+		{
+			name:            "'No Team' team, one team, and an empty team selection",
+			targetTeamIDs:   []uint{t1.ID, 0, t3.ID},
+			expectedHostIDs: []uint{h1.ID, h5.ID, h6.ID},
+		},
+		{
 			name:          "One team and an empty team selection",
 			targetTeamIDs: []uint{t1.ID, t3.ID},
 
@@ -703,7 +730,7 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 
 			metrics, err := ds.CountHostsInTargets(context.Background(), filter, targets, time.Now())
 			require.NoError(t, err)
-			require.Len(t, tc.expectedHostIDs, int(metrics.TotalHosts))
+			require.Len(t, tc.expectedHostIDs, int(metrics.TotalHosts)) //nolint:gosec // dismiss G115
 		})
 	}
 

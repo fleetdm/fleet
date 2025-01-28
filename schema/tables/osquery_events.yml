@@ -1,9 +1,7 @@
 name: osquery_events
-examples: >-
+examples: |-
   Identify osquery event types which have no subscriber.
   
   ```
-  
   SELECT * from osquery_events WHERE subscriptions='0';
-  
   ```

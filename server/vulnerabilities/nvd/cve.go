@@ -15,18 +15,24 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/facebookincubator/nvdtools/cvefeed"
-	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/providers/nvd"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-github/v37/github"
+)
+
+const (
+	vulnRepo = "vulnerabilities"
 )
 
 // Define a regex pattern for semver (simplified)
@@ -35,14 +41,10 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads CVEs information from a CVE source.
-// If cveFeedPrefixURL is not set, the NVD API 2.0 is used to download CVE information to vulnPath.
-// If cveFeedPrefixURL is set, the CVE information will be downloaded assuming NVD's legacy feed format.
-func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
-	if cveFeedPrefixURL != "" {
-		return downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
-	}
-
+// DownloadNVDCVEFeed downloads CVEs information from the NVD 2.0 API
+// and supplements the data with CPE information from the Vulncheck API.
+// This is used to download CVE information to vulnPath.
+func GenerateCVEFeeds(vulnPath string, debug bool, logger log.Logger) error {
 	cveSyncer, err := nvdsync.NewCVE(
 		vulnPath,
 		nvdsync.WithLogger(logger),
@@ -56,7 +58,69 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, lo
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
+	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
 	return nil
+}
+
+func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
+	var err error
+
+	if cveFeedPrefixURL == "" {
+		cveFeedPrefixURL, err = GetGitHubCVEAssetPath()
+		if err != nil {
+			return fmt.Errorf("get cve asset path: %w", err)
+		}
+	}
+
+	err = downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
+	if err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
+}
+
+func GetGitHubCVEAssetPath() (string, error) {
+	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
+	if vulnOwner == "" {
+		vulnOwner = owner
+	}
+
+	ghClient := github.NewClient(fleethttp.NewGithubClient())
+
+	releases, _, err := ghClient.Repositories.ListReleases(
+		context.Background(),
+		vulnOwner,
+		vulnRepo,
+		&github.ListOptions{Page: 0, PerPage: 10},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	nvdregex := regexp.MustCompile(`cve-\d+`)
+	var found string
+
+	for _, release := range releases {
+		// Skip draft releases
+		if release.GetDraft() {
+			continue
+		}
+
+		if nvdregex.MatchString(release.GetTagName()) {
+			found = release.GetTagName()
+			break
+		}
+	}
+
+	if found == "" {
+		return "", errors.New("no CVE feed found")
+	}
+
+	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", vulnOwner, vulnRepo, found), nil
 }
 
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
@@ -225,11 +289,9 @@ func TranslateCPEToCVE(
 
 		foundSoftwareVulns, foundOSVulns, err := checkCVEs(
 			ctx,
-			ds,
 			logger,
 			interfaceParsed,
 			file,
-			collectVulns,
 			knownNVDBugRules,
 		)
 		if err != nil {
@@ -339,11 +401,9 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 
 func checkCVEs(
 	ctx context.Context,
-	ds fleet.Datastore,
 	logger kitlog.Logger,
-	CPEItems []itemWithNVDMeta,
+	cpeItems []itemWithNVDMeta,
 	jsonFile string,
-	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
@@ -351,9 +411,30 @@ func checkCVEs(
 		return nil, nil, err
 	}
 
-	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
-	// This index consumes too much RAM
-	// cache.Idx = cvefeed.NewIndex(dict)
+	// Group dictionary by vendor using a map.
+	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
+	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
+	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
+	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
+	// Further optimization can be done by also using a map for product name comparison.
+	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
+	for key, vuln := range dict {
+		attrsArray := vuln.Config()
+		for _, attrs := range attrsArray {
+			subDict, ok := dictGrouped[attrs.Vendor]
+			if !ok {
+				subDict = make(cvefeed.Dictionary, 1)
+				dictGrouped[attrs.Vendor] = subDict
+			}
+			subDict[key] = vuln
+		}
+	}
+
+	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
+	for vendor, subDict := range dictGrouped {
+		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cacheGrouped[vendor] = cache
+	}
 
 	CPEItemCh := make(chan itemWithNVDMeta)
 	var foundSoftwareVulns []fleet.SoftwareVulnerability
@@ -382,66 +463,74 @@ func checkCVEs(
 						return
 					}
 
-					cacheHits := cache.Get([]*wfn.Attributes{CPEItem.GetMeta()})
-					for _, matches := range cacheHits {
-						if len(matches.CPEs) == 0 {
-							continue
-						}
+					cache, ok := cacheGrouped[CPEItem.GetMeta().Vendor]
+					if !ok {
+						// No such vendor in the Vulnerability dictionary
+						continue
+					}
 
-						if rule, ok := knownNVDBugRules.FindMatch(
-							matches.CVE.ID(),
-						); ok {
-							if !rule.CPEMatches(CPEItem.GetMeta()) {
+					cpeItemsWithAliases := expandCPEAliases(CPEItem.GetMeta())
+					for _, cpeItem := range cpeItemsWithAliases {
+						cacheHits := cache.Get([]*wfn.Attributes{cpeItem})
+						for _, matches := range cacheHits {
+							if len(matches.CPEs) == 0 {
 								continue
 							}
-						}
 
-						// For chrome/firefox extensions we only want to match vulnerabilities
-						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
-						//
-						// Why? In many ocassions the NVD dataset reports vulnerabilities in client applications
-						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
-						// Such rules we want to ignore here to prevent many false positives that do not apply to the
-						// Chrome or Firefox environment.
-						if CPEItem.GetMeta().TargetSW == "chrome" || CPEItem.GetMeta().TargetSW == "firefox" {
-							if !matchesExactTargetSW(
-								CPEItem.GetMeta().TargetSW,
-								[]string{"chrome", "firefox"},
-								matches.CVE.Config(),
-							) {
-								continue
-							}
-						}
-
-						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), CPEItem.GetMeta(), dict, logger)
-						if err != nil {
-							level.Debug(logger).Log("err", err)
-						}
-
-						if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
-
-							vuln := fleet.SoftwareVulnerability{
-								SoftwareID:        CPEItem.GetID(),
-								CVE:               matches.CVE.ID(),
-								ResolvedInVersion: ptr.String(resolvedVersion),
+							if rule, ok := knownNVDBugRules.FindMatch(
+								matches.CVE.ID(),
+							); ok {
+								if !rule.CPEMatches(cpeItem) {
+									continue
+								}
 							}
 
-							softwareMu.Lock()
-							foundSoftwareVulns = append(foundSoftwareVulns, vuln)
-							softwareMu.Unlock()
-						} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
-
-							vuln := fleet.OSVulnerability{
-								OSID:              CPEItem.GetID(),
-								CVE:               matches.CVE.ID(),
-								ResolvedInVersion: ptr.String(resolvedVersion),
+							// For chrome/firefox extensions we only want to match vulnerabilities
+							// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
+							//
+							// Why? In many occasions the NVD dataset reports vulnerabilities in client applications
+							// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+							// Such rules we want to ignore here to prevent many false positives that do not apply to the
+							// Chrome or Firefox environment.
+							if cpeItem.TargetSW == "chrome" || cpeItem.TargetSW == "firefox" {
+								if !matchesExactTargetSW(
+									cpeItem.TargetSW,
+									[]string{"chrome", "firefox"},
+									matches.CVE.Config(),
+								) {
+									continue
+								}
 							}
 
-							osMu.Lock()
-							foundOSVulns = append(foundOSVulns, vuln)
-							osMu.Unlock()
-						}
+							resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), cpeItem, dict, logger)
+							if err != nil {
+								level.Debug(logger).Log("err", err)
+							}
 
+							if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
+								vuln := fleet.SoftwareVulnerability{
+									SoftwareID:        CPEItem.GetID(),
+									CVE:               matches.CVE.ID(),
+									ResolvedInVersion: ptr.String(resolvedVersion),
+								}
+
+								softwareMu.Lock()
+								foundSoftwareVulns = append(foundSoftwareVulns, vuln)
+								softwareMu.Unlock()
+							} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
+
+								vuln := fleet.OSVulnerability{
+									OSID:              CPEItem.GetID(),
+									CVE:               matches.CVE.ID(),
+									ResolvedInVersion: ptr.String(resolvedVersion),
+								}
+
+								osMu.Lock()
+								foundOSVulns = append(foundOSVulns, vuln)
+								osMu.Unlock()
+							}
+
+						}
 					}
 				case <-ctx.Done():
 					level.Debug(logger).Log("msg", "quitting")
@@ -453,7 +542,7 @@ func checkCVEs(
 
 	level.Debug(logger).Log("msg", "pushing cpes")
 
-	for _, cpe := range CPEItems {
+	for _, cpe := range cpeItems {
 		CPEItemCh <- cpe
 	}
 	close(CPEItemCh)
@@ -461,6 +550,53 @@ func checkCVEs(
 	wg.Wait()
 
 	return foundSoftwareVulns, foundOSVulns, nil
+}
+
+// expandCPEAliases will generate new *wfn.Attributes from the given cpeItem.
+// It returns a slice with the given cpeItem plus the generated *wfn.Attributes.
+//
+// We need this because entries in the CPE database are not consistent.
+// E.g. some Visual Studio Code extensions are defined with target_sw=visual_studio_code
+// and others are defined with target_sw=visual_studio.
+// E.g. The python extension for Visual Studio Code is defined with
+// product=python_extension,target_sw=visual_studio_code and with
+// product=visual_studio_code,target_sw=python.
+func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
+	cpeItems := []*wfn.Attributes{cpeItem}
+
+	// Some VSCode extensions are defined with target_sw=visual_studio_code
+	// and others are defined with target_sw=visual_studio.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.TargetSW == "visual_studio_code" {
+			cpeItem2 := *cpeItem
+			cpeItem2.TargetSW = "visual_studio"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// The python extension is defined in two ways in the CPE database:
+	// 	cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*
+	//	cpe:2.3:a:microsoft:visual_studio_code:2024.2.1:*:*:*:*:python:*:*
+	for _, cpeItem := range cpeItems {
+		if cpeItem.TargetSW == "visual_studio_code" &&
+			cpeItem.Vendor == "microsoft" &&
+			cpeItem.Product == "python_extension" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "visual_studio_code"
+			cpeItem2.TargetSW = "python"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "oracle" && cpeItem.Product == "virtualbox" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "vm_virtualbox"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	return cpeItems
 }
 
 // Returns the versionEndExcluding string for the given CVE and host software meta
@@ -590,13 +726,20 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 }
 
 // Products using 4 part versioning scheme (ie. docker desktop)
-// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
+// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0-3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	// If "+" is already present, validate the part before "+" as a semver
-	if strings.Contains(version, "+") {
-		parts := strings.Split(version, "+")
+	// If "-" is already present, validate the part before "-" as a semver
+	if strings.Contains(version, "-") {
+		parts := strings.Split(version, "-")
 		if semverPattern.MatchString(parts[0]) {
+			return version
+		}
+	}
+
+	if strings.Contains(version, "+") {
+		part := strings.Split(version, "+")[0]
+		if semverPattern.MatchString(part) {
 			return version
 		}
 	}
@@ -604,15 +747,15 @@ func preprocessVersion(version string) string {
 	// If the version string contains more than 3 parts, convert it to 3 parts
 	parts := strings.Split(version, ".")
 	if len(parts) > 3 {
-		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + strings.Join(parts[3:], ".")
+		return parts[0] + "." + parts[1] + "." + parts[2] + "-" + strings.Join(parts[3:], ".")
 	}
 
 	// If the version string ends with a non-numeric character (like '1.0.0b'), replace
-	// it with '+<char>' (like '1.0.0+b')
+	// it with '-<char>' (like '1.0.0-b')
 	if len(parts) == 3 {
 		matches := nonNumericPartRegex.FindStringSubmatch(parts[2])
 		if len(matches) > 2 {
-			parts[2] = matches[1] + "+" + matches[2]
+			parts[2] = matches[1] + "-" + matches[2]
 		}
 	}
 

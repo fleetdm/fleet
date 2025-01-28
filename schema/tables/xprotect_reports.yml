@@ -1,12 +1,10 @@
 name: xprotect_reports
-examples: >-
+examples: |-
   See all Xprotect activity reports, if any are present. This indicates
   potentially malicious software was blocked by Xprotect.
 
   ```
-
   SELECT * FROM xprotect_reports;
-
   ```
-notes: |
+notes: |-
   - In [very specific circumstances](https://github.com/osquery/osquery/issues/6588#issuecomment-1410934706) this table will return empty because xprotect will detect and remediate without generating an eicar file. 

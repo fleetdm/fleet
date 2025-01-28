@@ -16,6 +16,7 @@ columns:
     type: text
     required: false
     description: IPv6 address (only available to extensions force-installed by enterprise policy)
-notes: |
+notes: |-
   - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+  
   - Requires that the fleetd extension is force-installed by enterprise policy

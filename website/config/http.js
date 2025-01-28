@@ -29,16 +29,17 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // order: [
-    //   'cookieParser',
-    //   'session',
-    //   'bodyParser',
-    //   'compress',
-    //   'poweredBy',
-    //   'router',
-    //   'www',
-    //   'favicon',
-    // ],
+    order: [
+      'cookieParser',
+      'session',
+      'bodyParser',
+      'compress',
+      'poweredBy',
+      'router',
+      'www',
+      'favicon',
+      'middlewareErrorHandler'
+    ],
 
 
     /***************************************************************************
@@ -53,7 +54,7 @@ module.exports.http = {
       var skipper = require('skipper');
       var middlewareFn = skipper({
         strict: true,
-        limit: '2MB',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
+        limit: '10MB',// [?] https://github.com/expressjs/body-parser/tree/ee91374eae1555af679550b1d2fb5697d9924109#limit-1
         onBodyParserError: (err, req, res)=>{
           // If an error occurs while parsing an incoming request body, we'll return a badRequest response if error.statusCode is between 400-500
           if (_.isNumber(err.statusCode) && err.statusCode >= 400 && err.statusCode < 500) {
@@ -66,6 +67,16 @@ module.exports.http = {
       });
       return middlewareFn;
     })(),
+
+    // Note: this middleware function will run for every HTTP request, but will only handle errors thrown by the serve-static middleware if a user requests an invalid byte range of a static asset.
+    middlewareErrorHandler: function(err, req, res, next) {
+      // If this is a 'RangeNotSatisfiableError' error, respond with a 416 status code.
+      if (err.message === 'Range Not Satisfiable') {
+        return res.status(416).send();
+      } else {
+        return next(err);
+      }
+    },
 
   },
 

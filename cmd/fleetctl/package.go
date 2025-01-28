@@ -13,6 +13,7 @@ import (
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/filepath_windows"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
@@ -30,13 +31,19 @@ func packageCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "package",
 		Aliases:     nil,
-		Usage:       "Create an Orbit installer package",
+		Usage:       "Create a fleetd agent",
 		Description: "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "type",
 				Usage:    "Type of package to build",
 				Required: true,
+			},
+			&cli.StringFlag{
+				Name:        "arch",
+				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb or rpm)",
+				Destination: &opt.Architecture,
+				Value:       "amd64",
 			},
 			&cli.StringFlag{
 				Name:        "enroll-secret",
@@ -73,11 +80,6 @@ func packageCommand() *cli.Command {
 				Usage:       "Identifier for package product",
 				Value:       "com.fleetdm.orbit",
 				Destination: &opt.Identifier,
-			},
-			&cli.StringFlag{
-				Name:        "version",
-				Usage:       "Version for package product",
-				Destination: &opt.Version,
 			},
 			&cli.BoolFlag{
 				Name:        "insecure",
@@ -126,7 +128,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",
-				Value:       "https://tuf.fleetctl.com",
+				Value:       update.DefaultURL,
 				Destination: &opt.UpdateURL,
 			},
 			&cli.StringFlag{
@@ -231,8 +233,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "end-user-email",
-				Hidden:      true, // experimental feature, we don't want to show it for now
-				Usage:       "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+				Usage:       "End user's email that populates human to host mapping in Fleet (only available on Windows and Linux)",
 				EnvVars:     []string{"FLEETCTL_END_USER_EMAIL"},
 				Destination: &opt.EndUserEmail,
 			},
@@ -306,12 +307,16 @@ func packageCommand() *cli.Command {
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
-			if opt.EndUserEmail != "" && c.String("type") != "msi" {
-				return errors.New("Can only set --end-user-email when building an MSI package.")
-			}
 			if opt.EndUserEmail != "" {
 				if !fleet.IsLooseEmail(opt.EndUserEmail) {
 					return errors.New("Invalid email address specified for --end-user-email.")
+				}
+
+				switch c.String("type") {
+				case "msi", "deb", "rpm":
+					// ok
+				default:
+					return errors.New("Can only set --end-user-email when building an MSI, DEB, or RPM package.")
 				}
 			}
 
@@ -331,6 +336,20 @@ func packageCommand() *cli.Command {
 
 			if opt.UseSystemConfiguration && c.String("type") != "pkg" {
 				return errors.New("--use-system-configuration is only available for pkg installers")
+			}
+
+			linuxPackage := false
+			switch c.String("type") {
+			case "deb", "rpm":
+				linuxPackage = true
+			}
+
+			if opt.Architecture != packaging.ArchAmd64 && !linuxPackage {
+				return fmt.Errorf("can't use '--arch' with '--type %s'", c.String("type"))
+			}
+
+			if opt.Architecture != packaging.ArchAmd64 && opt.Architecture != packaging.ArchArm64 {
+				return errors.New("arch must be one of ('amd64', 'arm64')")
 			}
 
 			var buildFunc func(packaging.Options) (string, error)
@@ -359,13 +378,33 @@ func packageCommand() *cli.Command {
 			}
 
 			path, _ = filepath.Abs(path)
+			pathBase := filepath.Base(path)
+			var installInstructions = "double-clicking the installer"
+			var deviceType string
+			switch c.String("type") {
+			case "pkg":
+				installInstructions += fmt.Sprintf(" or running the command `sudo installer -pkg \"%s\" -target /`", pathBase)
+				deviceType = "macOS"
+			case "deb":
+				installInstructions += fmt.Sprintf(" or running the command `sudo apt install \"%s\"`", pathBase)
+				deviceType = "Debian-based Linux"
+			case "rpm":
+				installInstructions += fmt.Sprintf(" or running the command `sudo dnf install \"%s\"`", pathBase)
+				deviceType = "RPM-based Linux"
+			case "msi":
+				installInstructions += fmt.Sprintf(" or running the command `msiexec /i \"%s\"` as administrator", pathBase)
+				deviceType = "Windows"
+			}
+
 			fmt.Printf(`
 Success! You generated fleetd at %s
 
-To add this device to Fleet, double-click to install fleetd.
+To add a new %s device to Fleet, install fleetd by %s.
+
+Learn more: https://fleetdm.com/guides/enroll-hosts
 
 To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
-`, path)
+`, path, deviceType, installInstructions)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck
 			}

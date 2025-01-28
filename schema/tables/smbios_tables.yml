@@ -1,11 +1,9 @@
 name: smbios_tables
 notes: This table requires an Intel compatible system.
-examples: >-
+examples: |-
   SMBIOS tables are used to deliver information from the BIOS to the operating system. Use the *md5*
   field to compare systems and see if their hardware is configured identically.
 
   ```
-
   SELECT * FROM smbios_tables WHERE md5='dd66d84ec724d35db011883052973eae'
-
   ```

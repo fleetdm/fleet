@@ -1,10 +1,8 @@
 name: virtual_memory_info
-examples: >-
+examples: |-
   Identify systems where memory swapping is occuring. These systems might
   benefit from more RAM.
 
   ```
-
   SELECT * FROM virtual_memory_info WHERE swap_ins>'0';
-
   ```

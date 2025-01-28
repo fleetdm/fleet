@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,8 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
 
@@ -45,6 +47,7 @@ type statsTracker struct {
 	saveStats         bool
 	aggregationNeeded bool
 	stats             []statsToSave
+	lastStatsEntry    *fleet.LiveQueryStats
 }
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
@@ -67,10 +70,41 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 
-	// Find the campaign and ensure it is active
-	campaign, err := svc.ds.DistributedQueryCampaign(ctx, campaignID)
-	if err != nil {
-		conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+	// Find the campaign and ensure it is active.
+	// Since we are reading from the replica DB, the campaign may not be found until it is replicated from the master.
+	done := make(chan error, 1)
+	stop := make(chan struct{}, 1)
+	var campaign *fleet.DistributedQueryCampaign
+	go func() {
+		var err error
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				campaign, err = svc.ds.DistributedQueryCampaign(ctx, campaignID)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						time.Sleep(30 * time.Millisecond) // We see the replication time less than 30 ms in production.
+						continue
+					}
+					done <- err
+					return
+				}
+				done <- nil
+				return
+			}
+		}
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			_ = conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+			return
+		}
+	case <-time.After(5 * time.Second):
+		stop <- struct{}{}
+		_ = conn.WriteJSONError(fmt.Sprintf("timeout: cannot find campaign for ID %d", campaignID)) //nolint:errcheck
 		return
 	}
 
@@ -97,7 +131,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+	defer func() {
+		// We do not want to use the outer `ctx` because we want to make sure
+		// to cleanup the campaign.
+		ctx := context.WithoutCancel(ctx)
+		if err := svc.CompleteCampaign(ctx, campaign); err != nil {
+			level.Error(logger).Log("msg", "complete campaign (async)", "err", err)
+		}
+	}()
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -266,7 +307,7 @@ func (svc Service) addLiveQueryActivity(
 			activityData.Stats = &q.AggregatedStats
 		}
 	}
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		activityData,
@@ -290,6 +331,10 @@ func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQ
 	}
 	return outputSize
 }
+
+// overwriteLastExecuted is used for testing purposes to overwrite the last executed time of the live query stats.
+var overwriteLastExecuted = false
+var overwriteLastExecutedTime time.Time
 
 func (svc Service) updateStats(
 	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
@@ -320,6 +365,12 @@ func (svc Service) updateStats(
 		}
 
 		// Update stats
+		// We round to the nearest second because MySQL default precision of TIMESTAMP is 1 second.
+		// We could alter the table to increase precision. However, this precision granularity is sufficient for the live query stats use case.
+		lastExecuted := time.Now().Round(time.Second)
+		if overwriteLastExecuted {
+			lastExecuted = overwriteLastExecutedTime
+		}
 		for _, gatheredStats := range tracker.stats {
 			stats, ok := statsMap[gatheredStats.hostID]
 			if !ok {
@@ -331,16 +382,18 @@ func (svc Service) updateStats(
 					UserTime:      gatheredStats.UserTime,
 					WallTime:      gatheredStats.WallTimeMs,
 					OutputSize:    gatheredStats.outputSize,
+					LastExecuted:  lastExecuted,
 				}
 				currentStats = append(currentStats, &newStats)
 			} else {
 				// Combine old and new stats.
 				stats.AverageMemory = (stats.AverageMemory*stats.Executions + gatheredStats.Memory) / (stats.Executions + 1)
-				stats.Executions = stats.Executions + 1
-				stats.SystemTime = stats.SystemTime + gatheredStats.SystemTime
-				stats.UserTime = stats.UserTime + gatheredStats.UserTime
-				stats.WallTime = stats.WallTime + gatheredStats.WallTimeMs
-				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
+				stats.Executions++
+				stats.SystemTime += gatheredStats.SystemTime
+				stats.UserTime += gatheredStats.UserTime
+				stats.WallTime += gatheredStats.WallTimeMs
+				stats.OutputSize += gatheredStats.outputSize
+				stats.LastExecuted = lastExecuted
 			}
 		}
 
@@ -352,12 +405,58 @@ func (svc Service) updateStats(
 			return
 		}
 
+		if len(currentStats) > 0 {
+			tracker.lastStatsEntry = currentStats[0]
+		}
 		tracker.aggregationNeeded = true
 		tracker.stats = nil
 	}
 
 	// Do aggregation
 	if aggregateStats && tracker.aggregationNeeded {
+		// Since we just wrote new stats, we need the write data to sync to the replica before calculating aggregated stats.
+		// The calculations are done on the replica to reduce the load on the master.
+		// Although this check is not necessary if replica is not used, we leave it in for consistency and to ensure the code is exercised in dev/test environments.
+		// To sync with the replica, we read the last stats entry from the replica and compare the timestamp to what was written on the master.
+		if tracker.lastStatsEntry != nil { // This check is just to be safe. It should never be nil.
+			done := make(chan error, 1)
+			stop := make(chan struct{}, 1)
+			go func() {
+				var stats []*fleet.LiveQueryStats
+				var err error
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+						stats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{tracker.lastStatsEntry.HostID})
+						if err != nil {
+							done <- err
+							return
+						}
+						if !(len(stats) == 0 || stats[0].LastExecuted.Before(tracker.lastStatsEntry.LastExecuted)) {
+							// Replica is in sync with the last query stats update
+							done <- nil
+							return
+						}
+						time.Sleep(30 * time.Millisecond) // We see the replication time less than 30 ms in production.
+					}
+				}
+			}()
+			select {
+			case err := <-done:
+				if err != nil {
+					level.Error(logger).Log("msg", "error syncing replica to master", "err", err)
+					tracker.saveStats = false
+					return
+				}
+			case <-time.After(5 * time.Second):
+				stop <- struct{}{}
+				level.Error(logger).Log("msg", "replica sync timeout: replica did not catch up to the master in 5 seconds")
+				// We proceed with the aggregation even if the replica is not in sync.
+			}
+		}
+
 		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
 		if err != nil {
 			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
@@ -366,5 +465,4 @@ func (svc Service) updateStats(
 		}
 		tracker.aggregationNeeded = false
 	}
-	return
 }

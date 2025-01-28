@@ -3,8 +3,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 96px auto $pad-large; // 96px to top of div
-    max-width: 450px; // standard empty state width
+    margin: 96px auto; // 96px to top of div
+    max-width: 500px; // standard empty state width
     gap: $pad-medium; // 16px between image, text, and buttons
   }
 
@@ -39,10 +39,9 @@
 
   &__info,
   &__additional-info {
+    @include help-text;
     line-height: 1.5;
     text-align: center;
-    color: $core-fleet-blue;
-    font-size: $x-small;
     margin: 0;
   }
 
@@ -61,7 +60,6 @@
       justify-content: center;
       margin-bottom: 20px;
       min-height: 155px;
-      max-width: none;
     }
   }
 }

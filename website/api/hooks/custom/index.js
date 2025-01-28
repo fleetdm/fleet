@@ -70,11 +70,6 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
-
-      // Override the default sails.LOOKS_LIKE_ASSET_RX with a regex that does not match paths starting with '/release/'.
-      // Otherwise, our release blog posts are treated as assets because they contain periods in their URL (e.g., fleetdm.com/releases/fleet-4.29.0)
-      sails.LOOKS_LIKE_ASSET_RX = /^(?!\/releases\/.*$)[^?]*\/[^?\/]+\.[^?\/]+(\?.*)?$/;
-
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
       sails.after('hook:organics:loaded', ()=>{
@@ -89,7 +84,22 @@ will be disabled and/or hidden in the UI.
           fromName: sails.config.custom.fromName,
         });
 
-        if(sails.config.environment === 'production'){
+        // Validate all values in the githubRepoDRIByPath config variable.
+        if(sails.config.custom.githubRepoDRIByPath) {
+          if(!_.isObject(sails.config.custom.githubRepoDRIByPath)) {
+            throw new Error(`Invalid configuration! An invalid "sails.config.custom.githubRepoDRIByPath" value was provided. If set, this value should be a dictionary, where each key is a path in the GitHub repo, and each value is a GitHub username. Please change this value to be a dictionary and try running this script again.`);
+          }
+          for(let path in sails.config.custom.githubRepoDRIByPath) {
+            if(typeof sails.config.custom.githubRepoDRIByPath[path] !== 'string') {
+              throw new Error(`Invalid configuration! A path (${path}) in the "sails.config.custom.githubRepoDRIByPath" config value contains a DRI value that is not a string (type: ${typeof sails.config.custom.githubRepoDRIByPath[path]}). Please change the DRI for this path to be a string containing a single GitHub username and try running this script again.`);
+            }
+          }
+        }
+
+        // Send a request to our Algolia crawler to reindex the website.
+        // FUTURE: If this breaks again, use the Platform model to store when the website was last crawled
+        // (platform.algoliaLastCrawledWebsiteAt), and then only send a request if it was <30m ago, then remove dyno check.
+        if(sails.config.environment === 'production' && process.env.DYNO === 'web.1'){
           sails.helpers.http.post.with({
             url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
             headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
@@ -123,9 +133,9 @@ will be disabled and/or hidden in the UI.
 
             var url = require('url');
 
-            // First, if this is a GET request (and thus potentially a view),
+            // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
-            if (req.method === 'GET') {
+            if (req.method === 'GET' || req.method === 'HEAD') {
 
               // The  `_environment` local lets us do a little workaround to make Vue.js
               // run in "production mode" without unnecessarily involving complexities
@@ -143,6 +153,37 @@ will be disabled and/or hidden in the UI.
                 throw new Error('Cannot attach view local `me`, because this view local already exists!  (Is it being attached somewhere else?)');
               }
               res.locals.me = undefined;
+            }//ﬁ
+
+            // Check for query parameters set by ad clicks.
+            // This is used to track the reason behind a psychological stage change.
+            // If the user performs any action that causes a stage change
+            // within 30 minutes of visiting the website from an ad, their psychological
+            // stage change will be attributed to the ad campaign that brought them here.
+            if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
+              req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
+              // Example adAttributionString: Linkedin - 1245983829 - 41u3985237
+              req.session.visitedSiteFromAdAt = Date.now();
+            }
+
+            // Check for website personalization parameter, and if valid, absorb it in the session.
+            // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
+            // [?] https://en.wikipedia.org/wiki/UTM_parameters
+            // e.g.
+            //   https://fleetdm.com/device-management?utm_content=mdm
+            if (['clear','eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
+              req.session.primaryBuyingSituation = req.param('utm_content') === 'clear' ? undefined : req.param('utm_content');
+              // FUTURE: reimplement the following (auto-redirect without querystring to make it prettier in the URL bar), but do it in the client-side JS
+              // using whatever that poppushstateblah thing is that makes it so you can change the URL bar from the browser-side code without screwing up
+              // the history stack (i.e. back button)
+              // ```
+              // return res.redirect(req.path);
+              // ```
+            }//ﬁ
+
+            if (req.method === 'GET' || req.method === 'HEAD') {
+              // Include information about the primary buying situation for use in the HTML layout, views, and page scripts.
+              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
             }//ﬁ
 
             // Next, if we're running in our actual "production" or "staging" Sails
@@ -233,7 +274,6 @@ will be disabled and/or hidden in the UI.
               });//_∏_  (Meanwhile...)
             }//ﬁ
 
-
             // If this is a GET request, then also expose an extra view local (`<%= me %>`).
             // > Note that we make sure a local named `me` doesn't already exist first.
             // > Also note that we strip off any properties that correspond with protected attributes.
@@ -254,12 +294,89 @@ will be disabled and/or hidden in the UI.
               }//ﬁ
 
               res.locals.me = sanitizedUser;
+              // Create a timestamp of thirty seconds ago. We'll use this to check the age of the user account before creating a fleetwebsite page view record in Salesforce.
+              let thirtySecondsAgoAt = Date.now() - (1000 * 30);
+              // Start tracking a website page view in the CRM for logged-in users:
+              res.once('finish', function onceFinish() {
+                // Only track a page view if the requested URL is not a redirect and if this user record is over 30 seconds old (To give time for the background task queued by the signup action to create the initial contact record.
+                if(res.statusCode === 200 && sanitizedUser.createdAt < thirtySecondsAgoAt){
+                  sails.helpers.flow.build(async ()=>{
+                    if(sails.config.environment !== 'production') {
+                      sails.log.verbose('Skipping Salesforce integration...');
+                      return;
+                    }
+                    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+                      emailAddress: sanitizedUser.emailAddress,
+                      firstName: sanitizedUser.firstName,
+                      lastName: sanitizedUser.lastName,
+                      organization: sanitizedUser.organization,
+                      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+                    });
+                    let jsforce = require('jsforce');
+                    // login to Salesforce
+                    let salesforceConnection = new jsforce.Connection({
+                      loginUrl : 'https://fleetdm.my.salesforce.com'
+                    });
+                    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+                    let today = new Date();
+                    let nowOn = today.toISOString().replace('Z', '+0000');
+                    let websiteVisitReason;
+                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                      let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+                      // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
+                      if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+                        websiteVisitReason = this.req.session.adAttributionString;
+                      }
+                    }
+                    // Create the new Fleet website page view record.
+                    return await sails.helpers.flow.build(async ()=>{
+                      return await salesforceConnection.sobject('fleet_website_page_views__c')
+                      .create({
+                        Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
+                        Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
+                        Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
+                        Visited_on__c: nowOn,// eslint-disable-line camelcase
+                        Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
+                      });
+                    }).intercept((err)=>{
+                      return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
+                    });
+                  })
+                  .exec((err)=>{
+                    if(err && typeof err.errorCode !== 'undefined' && err.errorCode === 'DUPLICATES_DETECTED') {
+                      // Swallow errors related to duplicate records.
+                      sails.log.verbose(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                    } else if(err){
+                      sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                    }
+                    return;
+                  });//_∏_
+                }
+              });
 
               // Include information on the locals as to whether billing features
               // are enabled for this app, and whether email verification is required.
               res.locals.isBillingEnabled = sails.config.custom.enableBillingFeatures;
               res.locals.isEmailVerificationRequired = sails.config.custom.verifyEmailAddresses;
 
+              // Include information about the primary buying situation
+              // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
+              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+              // FUTURE: Only show this CTA to users who are below psyStage 6.
+              // > The code below is so we don't bother users who have completed the questionnaire
+
+              // Show this logged-in user a CTA to bring them to the /start questionnaire if they do not have billing information saved.
+              res.locals.showStartCta = !req.me.hasBillingCard;
+              //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+              // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
+              } else {
+                res.locals.collapseStartCta = false;
+              }
             }//ﬁ
 
             return next();

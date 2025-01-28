@@ -1,154 +1,131 @@
 import React from "react";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import {
   formatSoftwareType,
   ISoftwareVersion,
   ISoftwareVulnerability,
 } from "interfaces/software";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
-import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-interface ICellProps {
-  cell: {
-    value: number | string | ISoftwareVulnerability[];
-  };
-  row: {
-    original: ISoftwareVersion;
-  };
-}
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
 
-interface IVersionCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
+type ISoftwareVersionsTableConfig = Column<ISoftwareVersion>;
+type ITableStringCellProps = IStringCellProps<ISoftwareVersion>;
+type IVulnerabilitiesCellProps = CellProps<
+  ISoftwareVersion,
+  ISoftwareVulnerability[] | null
+>;
+type IHostCountCellProps = CellProps<ISoftwareVersion, number | undefined>;
 
-interface INumberCellProps extends ICellProps {
-  cell: {
-    value: number;
-  };
-}
-
-interface IVulnCellProps extends ICellProps {
-  cell: {
-    value: ISoftwareVulnerability[];
-  };
-}
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
+type ITableHeaderProps = IHeaderProps<ISoftwareVersion>;
 
 const generateTableHeaders = (
   router: InjectedRouter,
   teamId?: number
-): Column[] => {
-  const softwareTableHeaders = [
+): ISoftwareVersionsTableConfig[] => {
+  const softwareTableHeaders: ISoftwareVersionsTableConfig[] = [
     {
-      title: "Name",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       disableSortBy: false,
       accessor: "name",
-      Cell: (cellProps: IStringCellProps): JSX.Element => {
+      Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source } = cellProps.row.original;
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
-        };
+        const teamQueryParam = buildQueryStringFromParams({
+          team_id: teamId,
+        });
+        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
 
         return (
-          <LinkCell
-            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+          <SoftwareNameCell
+            name={name}
+            source={source}
+            path={softwareVersionDetailsPath}
+            router={router}
           />
         );
       },
       sortType: "caseInsensitive",
     },
     {
-      title: "Version",
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
-      Cell: (cellProps: IVersionCellProps): JSX.Element => (
+      Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
-      title: "Type",
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ICellProps): JSX.Element => (
+      Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
       ),
     },
     {
-      title: "Vulnerabilities",
       Header: "Vulnerabilities",
       disableSortBy: true,
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnCellProps): JSX.Element => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      },
     },
     {
-      title: "Hosts",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
+      Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
-          value={cellProps.column.title}
+          value="Hosts"
           disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       disableSortBy: false,
       accessor: "hosts_count",
-      Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_version_id: cellProps.row.original.id,
-                team_id: teamId, // TODO: do we need team id here?
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+      Cell: (cellProps: IHostCountCellProps) => (
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      Header: "",
+      id: "view-all-hosts",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                  team_id: teamId, // TODO: do we need team id here?
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
     },
   ];
 

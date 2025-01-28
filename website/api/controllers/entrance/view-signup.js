@@ -6,6 +6,7 @@ module.exports = {
 
   description: 'Display "Signup" page.',
 
+  inputs: {},
 
   exits: {
 
@@ -24,10 +25,10 @@ module.exports = {
   fn: async function () {
 
     if (this.req.me) {
-      throw {redirect: '/customers/new-license'};
+      throw {redirect: '/start'};
     }
 
-    return {};
+    return;
 
   }
 

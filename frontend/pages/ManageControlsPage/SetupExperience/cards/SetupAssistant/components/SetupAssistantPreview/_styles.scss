@@ -1,0 +1,16 @@
+.setup-assistant-preview {
+  font-size: $x-small;
+
+  h3 {
+    margin: 0;
+    font-size: $small;
+    font-weight: normal;
+  }
+
+  &__preview-img {
+    width: 100%;
+    display: block;
+    margin: $pad-xxlarge auto 0;
+    border-radius: $border-radius-large;
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -439,4 +440,46 @@ func TestSliceWithinStruct(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestAny(t *testing.T) {
+	t.Parallel()
+	type Item struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	SetItem := func(item Item) Any[Item] {
+		return Any[Item]{Set: true, Valid: true, Value: item}
+	}
+
+	cases := []struct {
+		data      string
+		wantErr   string
+		wantRes   Any[Item]
+		marshalAs string
+	}{
+		{data: `{ "id": 1, "name": "bozo" }`, wantErr: "", wantRes: SetItem(Item{ID: 1, Name: "bozo"}),
+			marshalAs: `{"id":1,"name":"bozo"}`},
+		{data: `null`, wantErr: "", wantRes: Any[Item]{Set: true, Valid: false}, marshalAs: `null`},
+		{data: `[]`, wantErr: "cannot unmarshal array", wantRes: Any[Item]{Set: true, Valid: false, Value: Item{}}, marshalAs: `null`},
+	}
+
+	for _, c := range cases {
+		t.Run(c.data, func(t *testing.T) {
+			var s Any[Item]
+			err := json.Unmarshal([]byte(c.data), &s)
+
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, c.wantRes, s)
+
+			b, err := json.Marshal(s)
+			require.NoError(t, err)
+			require.Equal(t, c.marshalAs, string(b))
+		})
+	}
 }

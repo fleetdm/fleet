@@ -7,13 +7,65 @@ Orbit is the recommended agent for Fleet. But Orbit can be used with or without 
 # Documentation
 
 - [Releasing Orbit](docs/Releasing-Orbit.md)
+
+## How to build from source
+
+To build orbit we use [goreleaser](https://goreleaser.com/).
+
+For reference, here are the build configuration files:
+- [Goreleaser github workflow](../.github/workflows/goreleaser-orbit.yaml)
+- Goreleaser configuration file for each platform:
+    - [goreleaser-linux.yml](./goreleaser-linux.yml)
+    - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)
+    - [goreleaser-macos.yml](./goreleaser-macos.yml)
+    - [goreleaser-windows.yml](./goreleaser-windows.yml)
+
+Following are the commands to build in case you can't use goreleaser.
+
+> IMPORTANT: We recommend you build orbit natively and not cross compile to avoid any build or runtime errors.
+
+### macOS
+```sh
+CGO_ENABLED=1 \
+CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
+ORBIT_VERSION=$VERSION \
+ORBIT_BINARY_PATH=./orbit-macos \
+go run ./orbit/tools/build/build.go
+```
+
+### Windows
+```sh
+CGO_ENABLED=0 \
+GOOS=windows \
+GOARCH=amd64 \
+go build \
+-trimpath \
+-ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
+-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$COMMIT \
+-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=$DATE" \
+-o ./orbit.exe ./orbit/cmd/orbit
+```
+
+### Linux
+```sorbit/README.mdh
+CGO_ENABLED=1 \
+GOOS=linux \
+GOARCH=amd64 \
+go build \
+-trimpath \
+-ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
+-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$COMMIT \
+-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=$DATE" \
+-o ./orbit-linux ./orbit/cmd/orbit
+```
+
 ## Bugs
 
 To report a bug or request a feature, [click here](https://github.com/fleetdm/fleet/issues).
 
-#### Orbit Development
+## Orbit Development
 
-##### Run Orbit From Source
+### Run Orbit From Source
 
 To execute orbit from source directly, run the following command:
 
@@ -37,11 +89,12 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --flagfile=flagfile.txt --verbose
 ```
 
-##### Generate Installer Packages from Orbit Source
+### Generate Installer Packages from Orbit Source
 
 The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
 To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
 The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
+
 ## FAQs
 
 ### How does Orbit compare with Kolide Launcher?
@@ -71,7 +124,7 @@ Orbit uses a configurable update server. We expect that many folks will just use
 
 ## Community
 
-#### Chat
+### Chat
 
 Please join us in the #fleet channel on [osquery Slack](https://fleetdm.com/slack).
 

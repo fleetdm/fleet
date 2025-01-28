@@ -30,7 +30,7 @@ func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronSt
 	return 0, nil
 }
 
-func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	return nil
 }
 
@@ -64,7 +64,7 @@ func (ml *MockLock) Lock(ctx context.Context, name string, owner string, expirat
 	if ml.owner == owner || now.After(ml.expiresAt) {
 		ml.owner = owner
 		ml.expiresAt = now.Add(expiration)
-		ml.LockCount = ml.LockCount + 1
+		ml.LockCount++
 		if ml.Locked != nil {
 			ml.Locked <- struct{}{}
 		}
@@ -84,7 +84,7 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	if owner != ml.owner {
 		return errors.New("owner doesn't match")
 	}
-	ml.UnlockCount = ml.UnlockCount + 1
+	ml.UnlockCount++
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
 	}
@@ -179,7 +179,7 @@ func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.Cr
 	return id, nil
 }
 
-func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	m.Lock()
 	defer m.Unlock()
 

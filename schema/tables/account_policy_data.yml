@@ -1,19 +1,23 @@
 name: account_policy_data
-examples: >-
-  Query the creation date of user accounts. You could also query the date of the
-  last failed login attempt or password change.
+description: Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory), the identity provider used by Apple.
+columns:
+  - name: uid
+    description: "[User ID](https://superuser.com/a/1108201)"
+    type: BIGINT
+    required: false
+notes: |-
+  - The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)
+  - To determine who is logged in to the Mac, or for example, to check the record name versus the computer's "short name", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).
+  - Many installers incorporate scripts due to actions that are handled by pre or post-scripts vs installer package payloads. These script actions aren't tracked in the "bill of materials" (.bom) file. So, don't blindly trust the "bill of materials" (.bom) file as the source of truth on what has or hasn't been installed.
+examples: |-
+  Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.
 
   ```
-
   SELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;
-
   ```
-
 
   See each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.
 
   ```
-
-  SELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;
-
+  SELECT u.username, u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;
   ```

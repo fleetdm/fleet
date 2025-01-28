@@ -1,9 +1,7 @@
 name: kernel_info
-examples: >-
+examples: |-
   See the kernel version running
   
   ```
-  
   SELECT version FROM kernel_info;
-  
   ```

@@ -1,0 +1,114 @@
+<?xml version="1.0" ?><installer-gui-script minSpecVersion="2">
+    <!-- product (for app-store) -->
+    <domains enable_localSystem="true"/>
+    <title>Adobe Acrobat Reader (Continuous)</title>
+    <!-- welcome file="Welcome.rtf" mime-type="text/rtf" / -->
+    <!--    <readme file="ReadMe.html" mime-type="text/html"/>-->
+    <background alignment="center" file="ReaderBackgroundDarkMode.png" mime-type="image/png" scaling="tofit"/>
+    <background-darkAqua alignment="center" file="ReaderBackgroundDarkMode_copy.png" mime-type="image/png" scaling="tofit"/>
+    <options hostArchitectures="x86_64,arm64" rootVolumeOnly="true"/>
+    <!-- choice customLocation="/Applications" customLocationAllowAlternateVolumes="true" description="Reader APPLICATION" description-mime-type="text/plain" enabled="false" id="com.adobe.acrobat.reader.DC.reader.app.pkg" start_enabled="false" start_visible="true" start_selected="true" title="Core Application" -->
+    <choice id="EntryPackage" start_visible="false" title="EntryPackage">
+        <pkg-ref id="com.adobe.acrobat.DC.reader.entryPackage.pkg.MUI" onConclusion="none" version="24.002.20857">entryPackage.pkg</pkg-ref>
+    </choice>
+    <choice id="AcroPython" start_visible="false" title="AcroPython">
+        <pkg-ref id="com.adobe.acrobat.reader.DC.reader.acropython3.pkg.MUI" onConclusion="none" version="24.002.20857">acropython3.pkg</pkg-ref>
+    </choice>
+    <choice description="DESCRIPTION_APPLICATION" description-mime-type="text/plain" enabled="false" id="CoreApp" start_enabled="false" start_selected="true" start_visible="true" title="CoreApplication">
+        <!-- pkg-ref id="com.adobe.acrobat.reader.DC.reader.app.pkg"/ -->
+        <pkg-ref id="com.adobe.acrobat.reader.DC.reader.app.pkg.MUI" installKBytes="405567" onConclusion="none" version="24.002.20857">application.pkg</pkg-ref>
+    </choice>
+    <!-- <choice description="DESCRIPTION_BROWSER" description-mime-type="text/plain" id="BrowserPlugIn" title="AcroBrowserPlugIn">
+        pkg-ref id="com.adobe.acrobat.reader.DC.reader.browser.pkg"/
+        <pkg-ref id="com.adobe.acrobat.reader.DC.reader.browser.pkg" onConclusion="none" version="24.002.20857">browser.pkg</pkg-ref>
+    </choice> -->
+    <choice description="App Support" description-mime-type="text/plain" id="AppSupport" start_selected="true" start_visible="false" title="Application Support">
+        <!-- pkg-ref id="com.adobe.acrobat.reader.DC.reader.appsupport.pkg"/ -->
+        <pkg-ref id="com.adobe.acrobat.reader.DC.reader.appsupport.pkg.MUI" onConclusion="none" version="24.002.20857">support.pkg</pkg-ref>
+    </choice>
+    <choice id="RdrServicesUpdater" start_visible="false" title="Reader Services Updater">
+        <pkg-ref id="com.adobe.RdrServicesUpdater" onConclusion="none" version="12.0.00">RdrServicesUpdater.pkg</pkg-ref>
+    </choice>
+    <choice description="ARM Agent" description-mime-type="text/plain" id="ARMAgent" start_visible="false" title="ARM Agent">
+        <!-- pkg-ref id="com.adobe.acrobat.reader.DC.reader.appsupport.pkg"/ -->
+        <pkg-ref id="com.adobe.armdc.app.pkg.MUI" onConclusion="none" version="1.0.0">armagent.pkg</pkg-ref>
+    </choice>
+    <choice id="ExitPackage" start_visible="false" title="ExitPackage">
+        <pkg-ref id="com.adobe.acrobat.DC.reader.exitPackage.pkg.MUI" onConclusion="none" version="24.002.20857">exitPackage.pkg</pkg-ref>
+    </choice>
+    <choices-outline>
+        <line choice="EntryPackage"/>
+        <line choice="AcroPython"/>
+        <line choice="CoreApp"/>
+        <!-- <line choice="BrowserPlugIn"/> -->
+        <line choice="AppSupport"/>
+        <line choice="RdrServicesUpdater"/>
+        <line choice="ARMAgent"/>
+        <line choice="ExitPackage"/>
+    </choices-outline>
+    <installation-check script="InstallationCheck()">
+        <ram min-gb="1"/>
+    </installation-check>
+    <volume-check script="VolumeCheck()">
+        <allowed-os-versions>
+            <os-version min="10.15"/>
+        </allowed-os-versions>
+    </volume-check>
+    <script><![CDATA[
+        var gOSMinimumVersion = '10.15';
+
+        function InstallationCheck()
+        {
+            if(system.compareVersions(system.version.ProductVersion, gOSMinimumVersion) == -1)
+            {
+                my.result.title = system.localizedString('ERROR_SYSTEM_VERSION_TITLE');
+                my.result.message = system.localizedStringWithFormat('ERROR_SYSTEM_VERSION_MSG');
+                my.result.type = 'Fatal';
+                return false;
+            }
+
+            return true;
+        }
+
+        function VolumeCheck()
+        {
+            return true;
+        }
+        ]]></script>
+    <pkg-ref id="com.adobe.acrobat.DC.reader.entryPackage.pkg.MUI" installKBytes="0">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.acropython3.pkg.MUI" installKBytes="0" packageIdentifier="com.adobe.acrobat.DC.reader.acropython3.pkg.MUI">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.app.pkg.MUI" installKBytes="405567" packageIdentifier="com.adobe.acrobat.DC.reader.app.pkg.MUI">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="24.002.20857" CFBundleVersion="24.002.20857" id="com.adobe.Reader" path="Adobe Acrobat Reader.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.appsupport.pkg.MUI" installKBytes="99390" packageIdentifier="com.adobe.acrobat.DC.reader.appsupport.pkg.MUI">
+        <bundle-version>
+            <bundle CFBundleVersion="1.0" id="com.adobe.adobehunspellplugin2" path="Adobe/Reader/DC/Linguistics/Providers/Plugins2/AdobeHunspellPlugin.bundle"/>
+            <bundle CFBundleShortVersionString="5.0" CFBundleVersion="5" id="com.adobe.Acrobat.NativeMessagingHost" path="Adobe/WebExtnUtils/NativeMessagingHost.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.RdrServicesUpdater" installKBytes="0">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.armdc.app.pkg.MUI" installKBytes="1367" packageIdentifier="com.adobe.armdc.app.pkg">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="1 . 2 . 2" CFBundleVersion="1 . 2 . 2" id="com.adobe.ARMDC" path="Adobe Acrobat Updater.app"/>
+            <bundle CFBundleShortVersionString="1 . 2 . 2" CFBundleVersion="1 . 2 . 2" id="com.adobe.ARMDCHelper" path="Acrobat Update Helper.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.DC.reader.exitPackage.pkg.MUI" installKBytes="0">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.DC.reader.entryPackage.pkg.MUI">#entryPackage.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.acropython3.pkg.MUI">#acropython3.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.app.pkg.MUI" installKBytes="405567">#application.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.reader.DC.reader.appsupport.pkg.MUI">#support.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.RdrServicesUpdater">#RdrServicesUpdater.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.armdc.app.pkg.MUI">#armagent.pkg</pkg-ref>
+    <pkg-ref id="com.adobe.acrobat.DC.reader.exitPackage.pkg.MUI">#exitPackage.pkg</pkg-ref>
+</installer-gui-script>

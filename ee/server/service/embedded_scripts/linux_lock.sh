@@ -29,4 +29,21 @@ do
     fi
 done
 
+# Logout any non-passwd users
+logged_in=$(users | tr ' ' '\n' | sort  | uniq)
+for user in $logged_in; do
+    [ "$user" = "root" ] && continue
+    echo "Logging out $user"
+    pkill -KILL -u "$user"
+done
+
+# Create the pam_nologin file
+echo "Locked by administrator" > /etc/nologin
+
+# Disable systemd-user-sessions, a service that deletes /etc/nologin
+if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
+    systemctl mask systemd-user-sessions
+    systemctl daemon-reload
+fi
+
 echo "All non-root users have been logged out and their accounts locked."

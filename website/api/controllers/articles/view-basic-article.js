@@ -34,7 +34,7 @@ module.exports = {
     }
 
     // Serve appropriate page content.
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + pageUrlSuffix });
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: this.req.path });
     if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
       let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
       thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedPageUrlSuffix });
@@ -44,15 +44,12 @@ module.exports = {
         throw 'notFound';
       }
     }
-
-    let articleCategorySlug = pageUrlSuffix.split('/')[0];
-
     // Setting the pages meta title and description from the articles meta tags, as well as an article image, if provided.
     // Note: Every article page should have a 'articleTitle' and a 'authorFullName' meta tag.
     // Note: Leaving title and description as `undefined` in our view means we'll default to the generic title and description set in layout.ejs.
     let pageTitleForMeta;
     if(thisPage.meta.articleTitle) {
-      pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet';
+      pageTitleForMeta = thisPage.meta.articleTitle;
     }//ﬁ
     let pageDescriptionForMeta;
     if(thisPage.meta.description){
@@ -61,13 +58,23 @@ module.exports = {
       pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
     }//ﬁ
 
+    let articleCategorySlug = this.req.path.split('/')[1];
+    // console.log(articleCategorySlug);
+    let categoryFriendlyNamesByCategorySlug = {
+      'success-stories': 'Success stories',
+      'releases': 'Releases',
+      'guides': 'Guides',
+      'securing': 'Security articles',
+      'engineering': 'Engineering articles',
+      'announcements': 'Announcements',
+      'podcasts': 'Podcasts',
+      'report': 'Reports',
+    };
+    let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
     // Set a currentSection variable for the website header based on how the articles category page is linked to in the header navigation dropdown menus.
     let currentSection;
-    if(articleCategorySlug === 'success-stories'){
-      // If the article is in the 'device-management' category, highlight the "Platform" dropdown.
-      currentSection = 'platform';
-    } else if(_.contains(['deploy','guides','releases'], articleCategorySlug)) {
-      // If the articleCategorySlug is deploy, guides, or release, highlight the "Documentation" dropdown.
+    if(['guides','releases'].includes(articleCategorySlug)) {
+      // If the articleCategorySlug is guides, or releases, highlight the "Documentation" dropdown.
       currentSection = 'documentation';
     } else {
       // If the article is in any other category, highlight the "Community" dropdown.
@@ -85,10 +92,13 @@ module.exports = {
       pageDescriptionForMeta,
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
+      categoryFriendlyName,
       currentSection,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 
   }
+
 
 
 };

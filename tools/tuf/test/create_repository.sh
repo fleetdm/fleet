@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -xe
 
 # This script initializes a test Fleet TUF repository.
 # All targets are created with version 42.
@@ -23,13 +23,15 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-SYSTEMS=${SYSTEMS:-macos linux windows}
+SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
+
+echo "Generating packages for $SYSTEMS"
+
 NUDGE_VERSION=stable
-SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
-SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
+ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.11.0
+    OSQUERY_VERSION=5.14.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -46,8 +48,15 @@ for system in $SYSTEMS; do
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
+    elif [[ $system == "linux-arm64" ]]; then
+        osqueryd_system="linux-arm64"
     fi
-    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+
+    if [[ $system == "linux-arm64" ]]; then
+        osqueryd_path="$TUF_PATH/tmp/${osqueryd}-arm64"
+    else
+        osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    fi
     curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
@@ -61,20 +70,50 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
+    goarch_value=${GOARCH:-}
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
+    fi
+    if [[ $system == "linux" ]]; then
+        goarch_value="amd64"
+    fi
+    if [[ $system == "linux-arm64" ]]; then
+        goose_value="linux"
+        goarch_value="arm64"
     fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 
-    # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
-
-    # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
-    if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
-        codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime $orbit_target
+    # compiling a macOS-arm64 binary requires CGO and a macOS computer (for
+    # Apple keychain, some tables, etc), if this is the case, compile an
+    # universal binary.
+    #
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+       CGO_ENABLED=1 \
+       CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
+       ORBIT_VERSION=42 \
+       ORBIT_BINARY_PATH=$orbit_target \
+       go run ./orbit/tools/build/build.go
+    else
+      race_value=false
+      # Enable race on macOS Intel at least.
+      #
+      # For cross-compiling to Windows with `-race` we need CGO_ENABLED=1 but we cannot
+      # do cross-compilation with CGO_ENABLED=1.
+      if [ "$goose_value" = "darwin" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
+        race_value=true
+      fi
+      # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error),
+      # thus on Intel we do not build an universal binary.
+      CGO_ENABLED=0 \
+      GOOS=$goose_value \
+      GOARCH=$goarch_value \
+      go build \
+      -race=$race_value \
+      -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" \
+      -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
@@ -98,7 +137,9 @@ for system in $SYSTEMS; do
         --platform macos \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm desktop.app.tar.gz
+        if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
+            rm desktop.app.tar.gz
+        fi
     fi
 
     # Add Nudge application on macos (if enabled).
@@ -126,6 +167,20 @@ for system in $SYSTEMS; do
         rm swiftDialog.app.tar.gz
     fi
 
+    # Add Escrow Buddy on macos (if enabled).
+    if [[ $system == "macos" && -n "$ESCROW_BUDDY" ]]; then
+	make escrow-buddy-pkg version=$ESCROW_BUDDY_PKG_VERSION out-path=.
+
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target escrowBuddy.pkg \
+            --platform macos \
+            --name escrowBuddy \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm escrowBuddy.pkg
+    fi
+
+
     # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=42.0.0 \
@@ -149,6 +204,19 @@ for system in $SYSTEMS; do
         --platform linux \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm desktop.tar.gz
+    fi
+
+    # Add Fleet Desktop application on linux-arm64 (if enabled).
+    if [[ $system == "linux-arm64" && -n "$FLEET_DESKTOP" ]]; then
+        FLEET_DESKTOP_VERSION=42.0.0 \
+        make desktop-linux-arm64
+        ./build/fleetctl updates add \
+                         --path $TUF_PATH \
+                         --target desktop.tar.gz \
+                         --platform linux-arm64 \
+                         --name desktop \
+                         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm desktop.tar.gz
     fi
 
@@ -179,6 +247,21 @@ for system in $SYSTEMS; do
                 --platform linux \
                 --name "extensions/$extensionName" \
                 --version 42.0.0 -t 42.0 -t 42 -t stable
+        done
+    fi
+
+    # Add extensions on linux (if set).
+    if [[ $system == "linux-arm64" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
+        for extension in ${LINUX_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            ./build/fleetctl updates add \
+                             --path $TUF_PATH \
+                             --target $extension \
+                             --platform linux-arm64 \
+                             --name "extensions/$extensionName" \
+                             --version 42.0.0 -t 42.0 -t 42 -t stable
         done
     fi
 

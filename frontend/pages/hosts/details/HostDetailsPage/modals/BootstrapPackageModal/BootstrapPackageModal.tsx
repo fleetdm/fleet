@@ -18,14 +18,14 @@ const BootstrapPackageModal = ({
 }: IBootstrapPackageModalProps) => {
   return (
     <Modal
-      title={"Bootstrap package"}
+      title="Bootstrap package"
       onExit={onClose}
       onEnter={onClose}
       className={baseClass}
     >
       <>
         <p className={`${baseClass}__package-name`}>
-          The <b>{packageName}</b> failed to install with the following error:
+          <b>{packageName}</b> failed to install with the following error:
         </p>
         <p className={`${baseClass}__details`}>{details}</p>
 

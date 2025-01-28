@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -41,17 +40,29 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+func (c *Client) CountABMTokens() (int, error) {
+	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	var responseBody countABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Count, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
-// SCEP certificate and key along with the APNs key used for the CSR.
-func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/request_csr"
-	request := requestMDMAppleCSRRequest{
-		EmailAddress: email,
-		Organization: org,
-	}
-	var responseBody requestMDMAppleCSRResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
-	return responseBody.AppleCSR, err
+// CSR bytes
+func (c *Client) RequestAppleCSR() ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/request_csr"
+	var resp getMDMAppleCSRResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.CSR, err
+}
+
+// RequestAppleABM requests a signed CSR from the Fleet server and returns the
+// public key bytes
+func (c *Client) RequestAppleABM() ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	var resp generateABMKeyPairResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.PublicKey, err
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -158,30 +169,6 @@ func (c *Client) ValidateBootstrapPackageFromURL(url string) (*fleet.MDMAppleBoo
 	return downloadRemoteMacosBootstrapPackage(url)
 }
 
-func extractFilenameFromPath(p string) string {
-	u, err := url.Parse(p)
-	if err != nil {
-		return ""
-	}
-
-	invalid := map[string]struct{}{
-		"":  {},
-		".": {},
-		"/": {},
-	}
-
-	b := path.Base(u.Path)
-	if _, ok := invalid[b]; ok {
-		return ""
-	}
-
-	if _, ok := invalid[path.Ext(b)]; ok {
-		return b + ".pkg"
-	}
-
-	return b
-}
-
 func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstrapPackage, error) {
 	resp, err := http.Get(pkgURL) // nolint:gosec // we want this URL to be provided by the user. It will run on their machine.
 	if err != nil {
@@ -205,7 +192,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 
 	// if it fails, try to extract it from the URL
 	if filename == "" {
-		filename = extractFilenameFromPath(pkgURL)
+		filename = file.ExtractFilenameFromURLPath(pkgURL, "pkg")
 	}
 
 	// if all else fails, use a default name
@@ -270,8 +257,8 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 	return c.authenticatedRequest(request, verb, path, nil)
 }
 
-func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
-	const defaultCommandsPerPage = 1000
+func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	const defaultCommandsPerPage = 20
 
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
 
@@ -279,11 +266,13 @@ func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
 	query.Set("order_key", "updated_at")
 	query.Set("order_direction", "desc")
+	query.Set("host_identifier", opts.Filters.HostIdentifier)
+	query.Set("request_type", opts.Filters.RequestType)
 
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, err
 	}
 
 	return responseBody.Results, nil
@@ -312,7 +301,7 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or macOS hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)
@@ -387,4 +376,12 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
 	return response.UnlockPIN, nil
+}
+
+func (c *Client) MDMWipeHost(hostID uint) error {
+	var response wipeHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
+		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
 }

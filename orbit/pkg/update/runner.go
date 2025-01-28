@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -28,6 +29,21 @@ type RunnerOptions struct {
 	CheckInterval time.Duration
 	// Targets is the names of the artifacts to watch for updates.
 	Targets []string
+	// SignaturesExpiredAtStartup should be set to true when any of the
+	// "root", "targets", and "snapshot" roles has an expired signature.
+	// When that's the case, the go-tuf library won't allow loading the targets
+	// thus, in this scenario, the Runner will only check signature expiration
+	// on every check interval and return (exit) when signatures are valid
+	// (so that on the next orbit start everything can be initialized properly).
+	//
+	// An expired signature for the "timestamp" role does not cause issues
+	// at start up (the go-tuf libary allows loading the targets).
+	SignaturesExpiredAtStartup bool
+
+	// CheckAccessToNewTUF, if set to true, will perform a check of access to the new Fleet TUF
+	// server on every update interval (once the access is confirmed it will store the confirmation
+	// of access to disk and will exit to restart).
+	CheckAccessToNewTUF bool
 }
 
 // Runner is a specialized runner for an Updater. It is designed with Execute and
@@ -104,6 +120,20 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		localHashes: make(map[string][]byte),
 	}
 
+	if runner.opt.SignaturesExpiredAtStartup {
+		// Return early as we will only check for signature
+		// expiration on every check interval.
+		return runner, nil
+	}
+
+	if _, err := updater.Lookup(constant.OrbitTUFTargetName); errors.Is(err, client.ErrNoLocalSnapshot) {
+		// Return early and skip optimization, this will cause an unnecessary auto-update of orbit
+		// but allows orbit to start up if there's no local metadata AND if the TUF server is down
+		// (which may be the case during the migration from https://tuf.fleetctl.com to
+		// https://updates.fleetdm.com).
+		return runner, nil
+	}
+
 	// Initialize the hashes of the local files for all tracked targets.
 	//
 	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
@@ -165,8 +195,6 @@ func randomizeDuration(max time.Duration) (time.Duration, error) {
 
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
-	log.Debug().Msg("start updater")
-
 	// Randomize the initial interval so that all agents don't synchronize their updates
 	initialInterval := r.opt.CheckInterval
 	// Developers use a shorter update interval (10s), so they need a faster first update check
@@ -175,7 +203,7 @@ func (r *Runner) Execute() error {
 	if err != nil {
 		log.Info().Err(err).Msg("randomization of initial update interval failed")
 	} else {
-		initialInterval = initialInterval + randomizedInterval
+		initialInterval += randomizedInterval
 	}
 
 	ticker := time.NewTicker(initialInterval)
@@ -188,6 +216,23 @@ func (r *Runner) Execute() error {
 			return nil
 		case <-ticker.C:
 			ticker.Reset(r.opt.CheckInterval)
+
+			if r.opt.CheckAccessToNewTUF {
+				if HasAccessToNewTUFServer(r.updater.opt) {
+					log.Info().Msg("detected access to new TUF repository, exiting")
+					return nil
+				}
+			}
+
+			if r.opt.SignaturesExpiredAtStartup {
+				if r.updater.SignaturesExpired() {
+					log.Debug().Msg("signatures still expired")
+				} else {
+					log.Info().Msg("expired signatures have been updated successfully, exiting")
+					return nil
+				}
+			}
+
 			didUpdate, err := r.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("update failed")
@@ -228,7 +273,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 
 		// Check if we need to update the orbit symlink (e.g. if channel changed)
 		needsSymlinkUpdate := false
-		if target == "orbit" {
+		if target == constant.OrbitTUFTargetName {
 			var err error
 			needsSymlinkUpdate, err = r.needsOrbitSymlinkUpdate()
 			if err != nil {
@@ -262,9 +307,9 @@ func (r *Runner) UpdateAction() (bool, error) {
 }
 
 func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
-	localTarget, err := r.updater.Get("orbit")
+	localTarget, err := r.updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
-		return false, fmt.Errorf("get binary: %w", err)
+		return false, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
 	}
 	path := localTarget.ExecPath
 
@@ -296,12 +341,12 @@ func (r *Runner) updateTarget(target string) error {
 	}
 	path := localTarget.ExecPath
 
-	if target == "osqueryd" {
+	if target == constant.OsqueryTUFTargetName {
 		// Compare old/new osquery versions
-		_, _ = compareVersion(path, r.OsqueryVersion, "osquery")
+		_, _ = compareVersion(path, r.OsqueryVersion, constant.OsqueryTUFTargetName)
 	}
 
-	if target != "orbit" {
+	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
 	// Compare old/new orbit versions
@@ -322,7 +367,6 @@ func (r *Runner) updateTarget(target string) error {
 
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Error().Err(err).Msg("interrupt updater")
 }
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.
@@ -364,7 +408,7 @@ func GetVersion(path string) (string, error) {
 		return "", err
 	}
 	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
-	if matches != nil && len(matches) > 2 {
+	if len(matches) > 2 {
 		version = matches[2]
 	}
 	return version, nil

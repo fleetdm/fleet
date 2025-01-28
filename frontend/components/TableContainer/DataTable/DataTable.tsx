@@ -1,7 +1,13 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React, { useMemo, useEffect, useCallback, useContext } from "react";
+import React, {
+  useMemo,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+} from "react";
 import classnames from "classnames";
 import {
   Column,
@@ -40,12 +46,14 @@ interface IDataTableProps {
   sortDirection: any;
   onSort: any; // TODO: an event type
   disableMultiRowSelect: boolean;
+  keyboardSelectableRows?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
-  resultsTitle: string;
+  resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
+  defaultSelectedRows?: Record<string, boolean>;
   primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
@@ -55,11 +63,17 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
+  /** Set to true to persist the row selections across table data filters */
+  persistSelectedRows?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
-  renderFooter?: () => JSX.Element | null;
+  /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
+   * rows of data are present. */
+  renderTableHelpText?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  onClearSelection?: () => void;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -68,8 +82,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -80,12 +95,14 @@ const DataTable = ({
   sortDirection,
   onSort,
   disableMultiRowSelect,
+  keyboardSelectableRows,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
-  resultsTitle,
+  resultsTitle = "results",
   defaultPageSize,
   defaultPageIndex,
+  defaultSelectedRows = {},
   primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
@@ -95,12 +112,18 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
+  persistSelectedRows = false,
   onSelectSingleRow,
+  onClickRow,
   onResultsCountChange,
-  renderFooter,
+  renderTableHelpText,
   renderPagination,
   setExportRows,
+  onClearSelection = noop,
 }: IDataTableProps): JSX.Element => {
+  // used to track the initial mount of the component.
+  const isInitialRender = useRef(true);
+
   const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
@@ -146,6 +169,7 @@ const DataTable = ({
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
+        selectedRowIds: defaultSelectedRows,
       },
       disableMultiSort: true,
       disableSortRemove: true,
@@ -155,7 +179,7 @@ const DataTable = ({
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
-      filterTypes: React.useMemo(
+      filterTypes: useMemo(
         () => ({
           hasLength: (
             // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -176,7 +200,7 @@ const DataTable = ({
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
-      sortTypes: React.useMemo(
+      sortTypes: useMemo(
         () => ({
           boolean: (
             a: { values: Record<string, unknown> },
@@ -251,10 +275,16 @@ const DataTable = ({
   }, [isClientSideFilter, onResultsCountChange, rows.length]);
 
   useEffect(() => {
-    if (isClientSideFilter && searchQueryColumn) {
-      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    if (!isInitialRender.current && isClientSideFilter && searchQueryColumn) {
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
+
+    // we only want to reset the selected rows if we are not persisting them
+    // across table data filters
+    if (!isInitialRender.current && !persistSelectedRows) {
+      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    }
+    isInitialRender.current = false;
   }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
@@ -309,12 +339,13 @@ const DataTable = ({
   }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
-    toggleAllRowsSelected(false);
-    toggleAllPagesSelected(false);
-  }, [toggleAllPagesSelected, toggleAllRowsSelected]);
+    onClearSelection();
+    toggleAllRowsSelected?.(false);
+    toggleAllPagesSelected?.(false);
+  }, [onClearSelection, toggleAllPagesSelected, toggleAllRowsSelected]);
 
-  const onSingleRowClick = useCallback(
-    (row) => {
+  const onSelectRowClick = useCallback(
+    (row: any) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -334,10 +365,13 @@ const DataTable = ({
   };
 
   const renderSelectedCount = (): JSX.Element => {
+    const selectedCount = Object.entries(selectedRowIds).filter(
+      ([, value]) => value
+    ).length;
     return (
       <p>
         <span>
-          {selectedFlatRows.length}
+          {selectedCount}
           {isAllPagesSelected && "+"}
         </span>{" "}
         selected
@@ -440,23 +474,24 @@ const DataTable = ({
 
   const tableStyles = classnames({
     "data-table__table": true,
+    "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
 
   return (
     <div className={baseClass}>
       {isLoading && (
-        <div className={"loading-overlay"}>
+        <div className="loading-overlay">
           <Spinner />
         </div>
       )}
-      <div className={"data-table data-table__wrapper"}>
+      <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className={"active-selection"}>
+            <thead className="active-selection">
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
-                  className={"active-selection__checkbox"}
+                  className="active-selection__checkbox"
                   {...headerGroups[0].headers[0].getHeaderProps(
                     headerGroups[0].headers[0].getSortByToggleProps({
                       title: null,
@@ -465,29 +500,26 @@ const DataTable = ({
                 >
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
-                <th className={"active-selection__container"}>
-                  <div className={"active-selection__inner"}>
+                <th className="active-selection__container">
+                  <div className="active-selection__inner">
                     {renderSelectedCount()}
-                    <div className={"active-selection__inner-left"}>
+                    <div className="active-selection__inner-left">
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
-                    <div className={"active-selection__inner-right"}>
+                    <div className="active-selection__inner-right">
                       {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
                       <Button
                         onClick={onToggleAllPagesClick}
-                        variant={"text-link"}
-                        className={"light-text"}
+                        variant="text-link"
+                        className="light-text"
                       >
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
+                    <Button onClick={onClearSelectionClick} variant="text-link">
                       Clear selection
                     </Button>
                   </div>
@@ -527,11 +559,23 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      onSingleRowClick &&
+                      (onSelectRowClick &&
                         disableMultiRowSelect &&
-                        onSingleRowClick(row);
+                        onSelectRowClick(row)) ||
+                        (onClickRow && onClickRow(row));
+                    },
+                    // For accessibility when tabable
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.key === "Enter") {
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (onClickRow && onClickRow(row));
+                      }
                     },
                   })}
+                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                  tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
                   {row.cells.map((cell: any) => {
                     return (
@@ -553,8 +597,10 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderFooter && (
-          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        {renderTableHelpText && !!rows?.length && (
+          <div className={`${baseClass}__table-help-text`}>
+            {renderTableHelpText()}
+          </div>
         )}
         {isClientSidePagination ? (
           <div className={`${baseClass}__pagination`}>

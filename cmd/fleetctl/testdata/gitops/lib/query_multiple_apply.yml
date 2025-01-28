@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: query
+spec:
+  name: query_ruby
+  query: select 1
+---
+apiVersion: v1
+kind: query
+spec:
+  name: query_ruby2
+  query: select 2

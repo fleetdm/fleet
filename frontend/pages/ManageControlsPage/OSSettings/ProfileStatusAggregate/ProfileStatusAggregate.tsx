@@ -10,6 +10,7 @@ import Spinner from "components/Spinner";
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import DataError from "components/DataError";
 
 import AGGREGATE_STATUS_DISPLAY_OPTIONS from "./ProfileStatusAggregateOptions";
 
@@ -55,17 +56,17 @@ const ProfileStatusCount = ({
 
 interface ProfileStatusAggregateProps {
   isLoading: boolean;
+  isError: boolean;
   teamId: number;
   aggregateProfileStatusData?: ProfileStatusSummaryResponse;
 }
 
 const ProfileStatusAggregate = ({
   isLoading,
+  isError,
   teamId,
   aggregateProfileStatusData,
 }: ProfileStatusAggregateProps) => {
-  if (!aggregateProfileStatusData) return null;
-
   if (isLoading) {
     return (
       <div className={baseClass}>
@@ -73,6 +74,12 @@ const ProfileStatusAggregate = ({
       </div>
     );
   }
+
+  if (isError) {
+    return <DataError />;
+  }
+
+  if (!aggregateProfileStatusData) return null;
 
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
     const { value, text, iconName, tooltipText } = status;

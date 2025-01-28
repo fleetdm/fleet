@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { Row } from "react-table";
 
-import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
+import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
@@ -19,13 +20,23 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+export type IMdmSolutionTableData = Pick<
+  IMdmSummaryMdmSolution,
+  "name" | "hosts_count"
+>;
+
+interface IRowProps extends Row {
+  original: IMdmSolutionTableData;
+}
+
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
   mdmStatusData: IMdmStatusCardData[];
-  mdmSolutions: IMdmSolution[] | null;
+  mdmSolutions: IMdmSummaryMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
+  onClickMdmSolution: (solution: IMdmSolutionTableData) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -42,9 +53,9 @@ const EmptyMdmStatus = (): JSX.Element => (
       <>
         To see MDM versions, deploy&nbsp;
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+          url="https://fleetdm.com/learn-more-about/fleetd"
           newTab
-          text="Fleet's osquery installer"
+          text="Fleet's agent (fleetd)"
         />
       </>
     }
@@ -59,6 +70,23 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
+type IMdmSolutionMap = Record<string, IMdmSolutionTableData>;
+
+const reduceSolutionsToObj = (mdmSolutions: IMdmSummaryMdmSolution[]) => {
+  return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
+    // The solution name can be an empty string so we add a key for "Unknown"
+    // for this case.
+    const key = nextSolution.name || "Unknown";
+    if (acc[key]) {
+      acc[key].hosts_count += nextSolution.hosts_count;
+    } else {
+      acc[key] = Object.assign({ ...nextSolution });
+    }
+
+    return acc;
+  }, {});
+};
+
 const Mdm = ({
   isFetching,
   error,
@@ -66,6 +94,7 @@ const Mdm = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
+  onClickMdmSolution,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -73,18 +102,23 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
+  const rolledupMdmSolutionsData = useMemo(() => {
+    if (!mdmSolutions) {
+      return [];
+    }
+
+    return Object.values(reduceSolutionsToObj(mdmSolutions));
+  }, [mdmSolutions]);
+
   const solutionsTableHeaders = useMemo(
-    () => generateSolutionsTableHeaders(selectedTeamId),
-    [selectedTeamId]
+    () => generateSolutionsTableHeaders(),
+    []
   );
   const statusTableHeaders = useMemo(
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
-  const solutionsDataSet = generateSolutionsDataSet(
-    mdmSolutions,
-    selectedPlatformLabelId
-  );
+  const solutionsDataSet = generateSolutionsDataSet(rolledupMdmSolutionsData);
   const statusDataSet = generateStatusDataSet(
     mdmStatusData,
     selectedPlatformLabelId
@@ -92,6 +126,10 @@ const Mdm = ({
 
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
+
+  const handleSolutionRowClick = (row: IRowProps) => {
+    onClickMdmSolution(row.original);
+  };
 
   return (
     <div className={baseClass}>
@@ -111,19 +149,21 @@ const Mdm = ({
               {error ? (
                 <TableDataError card />
               ) : (
-                <TableContainer
+                <TableContainer<IRowProps>
+                  className={`${baseClass}__mdm-solutions-table`}
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"MDM"}
+                  resultsTitle="MDM"
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
-                  isClientSidePagination
                   disableCount
-                  pageSize={PAGE_SIZE}
+                  disablePagination
+                  disableMultiRowSelect
+                  onClickRow={handleSolutionRowClick}
                 />
               )}
             </TabPanel>
@@ -132,12 +172,13 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
+                  className={`${baseClass}__mdm-status-table`}
                   columnConfigs={statusTableHeaders}
                   data={statusDataSet}
                   isLoading={isFetching}
                   defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"MDM"}
+                  resultsTitle="MDM"
                   emptyComponent={EmptyMdmStatus}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}

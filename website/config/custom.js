@@ -85,6 +85,16 @@ module.exports.custom = {
   // ||  (Or if you don't need billing, feel free to remove them.)
   //--------------------------------------------------------------------------
 
+
+  // Other integrations:
+  // openAiSecret: undefined,
+  // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
+  // salesforceIntegrationUsername: undefined,
+  // salesforceIntegrationPasskey: undefined,
+
+  // For cleaning up LinkedIn URLs before creating CRM records.
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
+
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
   //  ██║  ██║██████╔╝██║███████╗
@@ -105,60 +115,73 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````
-    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
+    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'mikermcneil'], repo: 'fleetdm/fleet' },
     //    ````
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // 🚀 Code for core product and integrations
-    'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
+    'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
+    'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    '/docs/get-started/faq': 'zayhanlon',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'spokanemac',
+    'articles': 'drew-p-drawers',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
-    'website': 'mikermcneil',// (catch-all)
+    'website': 'eashaw',// (catch-all)
     'website/assets': 'eashaw', // « Eric is DRI for website frontend code
     'website/views': 'eashaw',
-    'website/api': 'mikermcneil',//« Website backend, scripts, deps
-    'website/api/controllers/webhooks/receive-from-github.js': 'mikermcneil',// github bot (webhook)
-    'website/api/controllers/imagine': 'eashaw',// landing pages
-    'website/config': 'mikermcneil',
+    'website/api': 'eashaw',//« Website backend, scripts, deps
+    'website/api/controllers/webhooks/receive-from-github.js': 'eashaw',// github bot (webhook)
+    'website/config': 'eashaw',
     'website/config/routes.js': 'eashaw',//« Website redirects and URLs
-    'website/scripts': 'mikermcneil',
+    'website/scripts': 'eashaw',
     'website/package.json': 'eashaw',
+
+    // 🫧 Vulnerability dashboard
+    'ee/vulnerability-dashboard': 'eashaw',// (catch-all)
+    'ee/vulnerability-dashboard/assets': 'eashaw',
+    'ee/vulnerability-dashboard/views': 'eashaw',
+    'ee/vulnerability-dashboard/api': 'eashaw',//« Vulnerability dashboard backend, scripts, deps
+    'ee/vulnerability-dashboard/config': 'eashaw',
+    'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
+    'ee/vulnerability-dashboard/scripts': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
+
+    // 🫧 Bulk operations dashboard
+    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
+    'handbook/company/pricing-features-table.yml': 'noahtalerman',
+    'handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/engineering': 'lukeheath',
+    'handbook/product-design': 'noahtalerman',
+
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
-    // 🦿 Repo automation and change control settings
-    // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
-    'website/config/custom.js': 'mikermcneil',
+    // 🌐 Repo automation and change control settings
+    'CODEOWNERS': 'sampfluger88',
+    'website/config/custom.js': 'sampfluger88',
 
-    // 🦿 Handbook
-    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/company/ceo.md': 'sampfluger88',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/business-operations': 'mikermcneil',
-    //'handbook/engineering': 'lukeheath',
-    //'handbook/product': 'noahtalerman',
-    //'handbook/customers': 'alexmitchelliii',
-    //'handbook/marketing': 'mikermcneil',
+    // 🌐 Handbook
+    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
 
-    // 🦿 GitHub issue templates
-    // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
+
+    // 🌐 GitHub issue templates
+    '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
   },
 
@@ -183,32 +206,45 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
+    'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['rachaelshaw'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
-    'schema': ['rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
+    'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
+    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
+    'schema': ['eashaw'],// (Osquery table schema)
+    'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
+
 
     // Articles and release notes
-    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
-    'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'drew-p-drawers', 'lukeheath'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
-    'website': 'mikermcneil',// (default for website)
-    'website/views': 'eashaw',
+    'website': ['mikermcneil', 'eashaw'],// (default for website)
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
-    'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
+
+    // 🫧 Vulnerability dashboard
+    'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
+    'ee/vulnerability-dashboard/assets': 'eashaw',
+    'ee/vulnerability-dashboard/views': 'eashaw',
+    'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
+
+    // 🫧 Bulk operations dashboard
+    'ee/bulk-operations-dashboard': 'eashaw',
 
     // Other brandfronts
-    'README.md': ['mikermcneil', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)
-    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'zwass'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
+    'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« brandfront for fleetctl package on npm (npmjs.com/package/fleetctl)
 
     // Config as code for infrastructure, internal security and IT use cases, and more.
     //'infrastructure': [],// Decided against in https://github.com/fleetdm/fleet/pull/12890
@@ -218,90 +254,134 @@ module.exports.custom = {
     // Github workflows
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
-    '.github/workflows': ['zwass', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
+    '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
+    '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
+    '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
-    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil', 'lukeheath', 'sampfluger88'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': 'mikermcneil',
-    // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/README.md': 'mikermcneil',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/company/ceo.md': ['sampfluger88'],
-    //'handbook/business-operations': ['jostableford'],
-    //'handbook/engineering': ['lukeheath'],
-    //'handbook/product': ['noahtalerman'],
-    //'handbook/customers': ['alexmitchelliii'],
-    //'handbook/marketing': ['mike-j-thomas'],
+    'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    'handbook/company': 'mikermcneil',
+    'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
+    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
+    'handbook/finance': ['sampfluger88','mikermcneil'],
+    'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
+    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
+    'handbook/sales': ['sampfluger88','mikermcneil'],
+    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/customer-success': ['sampfluger88','mikermcneil'],
+    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','noahtalerman'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
 
     // Config as code for infrastructure, internal security and IT use cases, and more.
-    'mdm_profiles': ['lukeheath', 'zwass'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
-    'vpn': ['rfairburn', 'zwass'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],//« CI/CD workflows
+    'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
+    'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
+    '.github/workflows': ['mikermcneil', 'lukeheath'],//« CI/CD workflows
 
     // Repo automation and change control settings
-    'CODEOWNERS': ['mikermcneil', 'zwass'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
+    'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
+    '.gitignore': ['mikermcneil', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-    'cold-outbound-strategy.md': ['mikermcneil'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
 
   },
 
   fleetMdmGitopsGithubRepoMaintainersByPath: {
-    '/': ['lukeheath']
+    '/': ['lukeheath'] // Future update this
   },
 
+  //  ███████╗ ██████╗██╗  ██╗███████╗███╗   ███╗ █████╗
+  //  ██╔════╝██╔════╝██║  ██║██╔════╝████╗ ████║██╔══██╗
+  //  ███████╗██║     ███████║█████╗  ██╔████╔██║███████║
+  //  ╚════██║██║     ██╔══██║██╔══╝  ██║╚██╔╝██║██╔══██║
+  //  ███████║╚██████╗██║  ██║███████╗██║ ╚═╝ ██║██║  ██║
+  //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝
+  //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
 
 
-  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
-  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
-  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
-  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
-  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+  //  ███╗   ███╗██╗███████╗ ██████╗
+  //  ████╗ ████║██║██╔════╝██╔════╝
+  //  ██╔████╔██║██║███████╗██║
+  //  ██║╚██╔╝██║██║╚════██║██║
+  //  ██║ ╚═╝ ██║██║███████║╚██████╗
+  //  ╚═╝     ╚═╝╚═╝╚══════╝ ╚═════╝
   //
-  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
-
-  // For sending requests to a Fleet instance:
-  // fleetBaseUrlForQueryReports: '…',
-  // fleetTokenForQueryReports: '…',
-
-  // The API ID of the team of hosts created for query reports.
-  // teamApidForQueryReports:
-
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
-  // queryIdsByTableName: {…}
-
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
-  // hostIdsByHostPlatform: {…}
-
   /***************************************************************************
   *                                                                          *
   * Any other custom config this Sails app should use during development.    *
   * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
   ***************************************************************************/
+
+  // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
+  // For the deliver-apple-csr webhook:
+  bannedEmailDomainsForCSRSigning:   [
+    'aim.com',         'alice.it',     'aliceadsl.fr',     'aol.com',
+    'arcor.de',        'att.net',      'bellsouth.net',    'bigpond.com',
+    'bigpond.net.au',  'bluewin.ch',   'blueyonder.co.uk', 'bol.com.br',
+    'centurytel.net',  'charter.net',  'chello.nl',        'club-internet.fr',
+    'comcast.net',     'cox.net',      'earthlink.net',    'facebook.com',
+    'free.fr',         'freenet.de',   'frontiernet.net',  'gmail.com',
+    'gmx.de',          'gmx.net',      'googlemail.com',   'hetnet.nl',
+    'home.nl',         'hotmail.ca',   'hotmail.co.uk',    'hotmail.com',
+    'hotmail.de',      'hotmail.es',   'hotmail.fr',       'hotmail.it',
+    'icloud.com',      'ig.com.br',    'juno.com',         'laposte.net',
+    'libero.it',       'live.ca',      'live.co.uk',       'live.com',
+    'live.com.au',     'live.fr',      'live.it',          'live.nl',
+    'mac.com',         'mail.com',     'mail.ru',          'me.com',
+    'msn.com',         'neuf.fr',      'ntlworld.com',     'optonline.net',
+    'optusnet.com.au', 'orange.fr',    'outlook.com',      'planet.nl',
+    'pm.me',           'proton.me',    'protonmail.ch',    'protonmail.com',
+    'qq.com',          'rambler.ru',   'rediffmail.com',   'rocketmail.com',
+    'sbcglobal.net',   'sfr.fr',       'shaw.ca',          'sky.com',
+    'skynet.be',       'sympatico.ca', 't-online.de',      'telenet.be',
+    'terra.com.br',    'tin.it',       'tiscali.co.uk',    'tiscali.it',
+    'tmmbt.net',       'uol.com.br',   'verizon.net',      'virgilio.it',
+    'voila.fr',        'wanadoo.fr',   'web.de',           'windstream.net',
+    'yahoo.ca',        'yahoo.co.id',  'yahoo.co.in',      'yahoo.co.jp',
+    'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
+    'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
+    'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
+  ],
+
+  // For website signups & contact form submissions:
+  bannedEmailDomainsForWebsiteSubmissions: [
+    'gmail.com',
+    'yahoo.com',
+    'yahoo.co.uk',
+    'hotmail.com',
+    'hotmail.co.uk',
+    'hotmail.ca',
+    'outlook.com',
+    'icloud.com',
+    'proton.me',
+    'live.com',
+    'yandex.ru',
+    'ymail.com',
+    'qq.com',
+  ],
+
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
 
@@ -317,6 +397,14 @@ module.exports.custom = {
   // customerWorkspaceOneOauthId: '…',
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
+
+  // For nurture emails:
+  // contactEmailForNutureEmails: '…',
+  // activityCaptureEmailForNutureEmails: '…',
+  // contactNameForNurtureEmails: '…',
+
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
 
   //…
 

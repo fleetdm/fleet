@@ -14,12 +14,13 @@ import teamsAPI, {
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import TableCount from "components/TableContainer/TableCount";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxMessage from "components/Sandbox/SandboxMessage";
 
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
-import EditTeamModal from "./components/EditTeamModal";
+import RenameTeamModal from "./components/RenameTeamModal";
 import EmptyTeamsTable from "./components/EmptyTeamsTable";
 
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
@@ -34,11 +35,12 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentTeam,
     setCurrentUser,
     setAvailableTeams,
+    setUserSettings,
   } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
-  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [showRenameTeamModal, setShowRenameTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
@@ -47,9 +49,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -84,15 +87,15 @@ const TeamManagementPage = (): JSX.Element => {
     [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]
   );
 
-  const toggleEditTeamModal = useCallback(
+  const toggleRenameTeamModal = useCallback(
     (team?: ITeam) => {
-      setShowEditTeamModal(!showEditTeamModal);
+      setShowRenameTeamModal(!showRenameTeamModal);
       setBackendValidators({});
       team ? setTeamEditing(team) : setTeamEditing(undefined);
     },
     [
-      showEditTeamModal,
-      setShowEditTeamModal,
+      showRenameTeamModal,
+      setShowRenameTeamModal,
       setTeamEditing,
       setBackendValidators,
     ]
@@ -114,6 +117,14 @@ const TeamManagementPage = (): JSX.Element => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
               name: "A team with this name already exists",
+            });
+          } else if (createError.data.errors[0].reason.includes("All teams")) {
+            setBackendValidators({
+              name: `"All teams" is a reserved team name. Please try another name.`,
+            });
+          } else if (createError.data.errors[0].reason.includes("No team")) {
+            setBackendValidators({
+              name: `"No team" is a reserved team name. Please try another name.`,
             });
           } else {
             renderFlash("error", "Could not create team. Please try again.");
@@ -161,10 +172,10 @@ const TeamManagementPage = (): JSX.Element => {
     toggleDeleteTeamModal,
   ]);
 
-  const onEditSubmit = useCallback(
+  const onRenameSubmit = useCallback(
     (formData: ITeamFormData) => {
       if (formData.name === teamEditing?.name) {
-        toggleEditTeamModal();
+        toggleRenameTeamModal();
       } else if (teamEditing) {
         setIsUpdatingTeams(true);
         teamsAPI
@@ -175,7 +186,7 @@ const TeamManagementPage = (): JSX.Element => {
               `Successfully updated team name to ${formData.name}.`
             );
             setBackendValidators({});
-            toggleEditTeamModal();
+            toggleRenameTeamModal();
             refetchTeams();
           })
           .catch((updateError: { data: IApiError }) => {
@@ -184,10 +195,20 @@ const TeamManagementPage = (): JSX.Element => {
               setBackendValidators({
                 name: "A team with this name already exists",
               });
+            } else if (
+              updateError.data.errors[0].reason.includes("all teams")
+            ) {
+              setBackendValidators({
+                name: `"All teams" is a reserved team name.`,
+              });
+            } else if (updateError.data.errors[0].reason.includes("no team")) {
+              setBackendValidators({
+                name: `"No team" is a reserved team name. Please try another name.`,
+              });
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${teamEditing.name}. Please try again.`
+                `Could not rename ${teamEditing.name}. Please try again.`
               );
             }
           })
@@ -196,14 +217,14 @@ const TeamManagementPage = (): JSX.Element => {
           });
       }
     },
-    [teamEditing, toggleEditTeamModal, refetchTeams, renderFlash]
+    [teamEditing, toggleRenameTeamModal, refetchTeams, renderFlash]
   );
 
   const onActionSelection = useCallback(
     (action: string, team: ITeam): void => {
       switch (action) {
-        case "edit":
-          toggleEditTeamModal(team);
+        case "rename":
+          toggleRenameTeamModal(team);
           break;
         case "delete":
           toggleDeleteTeamModal(team);
@@ -211,7 +232,7 @@ const TeamManagementPage = (): JSX.Element => {
         default:
       }
     },
-    [toggleEditTeamModal, toggleDeleteTeamModal]
+    [toggleRenameTeamModal, toggleDeleteTeamModal]
   );
 
   const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
@@ -220,6 +241,14 @@ const TeamManagementPage = (): JSX.Element => {
   const tableData = useMemo(() => (teams ? generateDataSet(teams) : []), [
     teams,
   ]);
+
+  const renderTeamCount = useCallback(() => {
+    if (teams?.length === 0) {
+      return <></>;
+    }
+
+    return <TableCount name="teams" count={teams?.length} />;
+  }, [teams]);
 
   return (
     <div className={`${baseClass}`}>
@@ -262,6 +291,7 @@ const TeamManagementPage = (): JSX.Element => {
             showMarkAllPages={false}
             isAllPagesSelected={false}
             isClientSidePagination
+            renderCount={renderTeamCount}
           />
         )}
         {showCreateTeamModal && (
@@ -280,10 +310,10 @@ const TeamManagementPage = (): JSX.Element => {
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {showEditTeamModal && (
-          <EditTeamModal
-            onCancel={toggleEditTeamModal}
-            onSubmit={onEditSubmit}
+        {showRenameTeamModal && (
+          <RenameTeamModal
+            onCancel={toggleRenameTeamModal}
+            onSubmit={onRenameSubmit}
             defaultName={teamEditing?.name || ""}
             backendValidators={backendValidators}
             isUpdatingTeams={isUpdatingTeams}

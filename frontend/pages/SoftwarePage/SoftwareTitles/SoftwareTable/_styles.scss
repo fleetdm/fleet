@@ -1,28 +1,6 @@
 .software-table {
-  &__count {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  &__vuln_dropdown {
-    .Select-menu-outer {
-      width: 250px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
-
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-    }
-
-    .dropdown__custom-value-label {
-      width: 155px; // Override 105px for longer text options
-    }
+  &__software-filter {
+    min-width: 213px;
   }
 
   &__filter-controls {
@@ -31,28 +9,21 @@
     gap: $pad-medium;
   }
 
-  // Fix dropdown form bug
-  &__version-slider {
-    width: 210px;
+  &__filters {
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
+
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
 
   .table-container {
-    &__header {
-      flex-direction: column-reverse; // Search bar on top
-      margin-bottom: $pad-medium;
-
-      @media (min-width: $break-md) {
-        flex-direction: row;
-      }
-    }
-
-    &__header-left {
-      flex-direction: row; // Filter dropdown aligned with count
-
-      .controls {
-        .form-field--dropdown {
-          margin: 0;
-        }
+    &__results-count {
+      .form-field--slider {
+        align-self: center;
       }
     }
 
@@ -61,14 +32,15 @@
       width: 100%; // Search bar across entire table
 
       .input-icon-field__input {
-        width: 100%;
+        min-width: 213px;
+        height: 40px;
       }
 
-      @media (min-width: $break-md) {
+      @media (min-width: $table-controls-break) {
         width: auto;
 
         .input-icon-field__input {
-          width: 375px;
+          width: 310px; // Any wider would run up against time ago header
         }
       }
     }
@@ -76,20 +48,6 @@
     &__data-table-block {
       .data-table-block {
         .data-table__table {
-          // for showing and hiding "view all hosts" link on hover
-          tr {
-            .software-link {
-              opacity: 0;
-              transition: opacity 250ms;
-            }
-
-            &:hover {
-              .software-link {
-                opacity: 1;
-              }
-            }
-          }
-
           thead {
             .name__header {
               width: $col-md;
@@ -120,15 +78,8 @@
               // ellipsis for software name
               .software-name {
                 overflow: hidden;
-                text-wrap: nowrap;
                 text-overflow: ellipsis;
               }
-            }
-
-            .link-cell {
-              display: flex;
-              align-items: center;
-              gap: $pad-small;
             }
 
             .hosts_count__cell {
@@ -165,6 +116,12 @@
   .data-table {
     &__wrapper {
       overflow-x: auto;
+    }
+  }
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
     }
   }
 }

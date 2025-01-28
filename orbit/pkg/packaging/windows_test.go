@@ -75,6 +75,14 @@ func TestSanitizeVersion(t *testing.T) {
 	}{
 		{Version: "4.13.0", Parts: []string{"4", "13", "0", "0"}},
 		{Version: "4.13.0.1", Parts: []string{"4", "13", "0", "1"}},
+
+		// We need to support this form of semantic versioning (with pre-releases)
+		// to comply with semantic versioning required by goreleaser to allow building
+		// orbit pre-releases.
+		{Version: "4.13.0-1", Parts: []string{"4", "13", "0", "1"}},
+		{Version: "4.13.0-alpha", Parts: []string{"4", "13", "0", "alpha"}},
+		{Version: "4.13.0-", ErrorsOut: true},
+
 		{Version: "4.13.0.1.2", Parts: []string{"4", "13", "0", "1"}},
 		{Version: "4", ErrorsOut: true},
 		{Version: "4.13", ErrorsOut: true},

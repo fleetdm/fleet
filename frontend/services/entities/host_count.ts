@@ -42,6 +42,7 @@ export interface IHostCountLoadOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
+  softwareStatus?: string;
   lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -50,6 +51,7 @@ export interface IHostCountLoadOptions {
   osName?: string;
   osVersion?: string;
   osSettings?: MdmProfileStatus;
+  vulnerability?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
@@ -66,6 +68,7 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
+    const softwareStatus = options?.softwareStatus;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -77,6 +80,7 @@ export default {
     const osName = options?.osName;
     const osVersion = options?.osVersion;
     const osSettings = options?.osSettings;
+    const vulnerability = options?.vulnerability;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
@@ -87,7 +91,10 @@ export default {
         macSettingsStatus,
         osSettings,
       }),
+      // TODO: shouldn't macSettingsStatus be included in the mutually exclusive query params too?
+      // If so, this todo applies in other places.
       ...reconcileMutuallyExclusiveHostParams({
+        teamId,
         label,
         policyId,
         policyResponse,
@@ -96,12 +103,14 @@ export default {
         munkiIssueId,
         softwareId,
         softwareTitleId,
+        softwareStatus,
         softwareVersionId,
         lowDiskSpaceHosts,
         osName,
         osVersionId,
         osVersion,
         osSettings,
+        vulnerability,
         diskEncryptionStatus,
         bootstrapPackageStatus,
       }),

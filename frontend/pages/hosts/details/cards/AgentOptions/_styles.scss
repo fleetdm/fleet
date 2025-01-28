@@ -1,9 +1,17 @@
-.agent-options {
+.agent-options-card {
   .component__tooltip-wrapper__tip-text {
     max-width: 326px;
   }
 
-  .grey-text {
-    color: $ui-fleet-black-75;
+  &__data {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__chrome-os {
+    dd {
+      color: $ui-fleet-black-75;
+    }
   }
 }

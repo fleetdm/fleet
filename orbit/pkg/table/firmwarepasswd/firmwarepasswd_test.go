@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +48,7 @@ func TestParser(t *testing.T) {
 
 	for _, tt := range tests {
 		tt := tt
-		parser := New(log.NewNopLogger()).parser
+		parser := New(zerolog.Nop()).parser
 
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()

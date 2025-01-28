@@ -3,7 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import format from "date-fns/format";
+import { format } from "date-fns";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -76,7 +76,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           indeterminate: props.indeterminate,
           onChange: () => cellProps.toggleAllRowsSelected(),
         };
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const props = cellProps.row.getToggleRowSelectedProps();
@@ -84,7 +84,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           value: props.checked,
           onChange: () => cellProps.row.toggleRowSelected(),
         };
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     },

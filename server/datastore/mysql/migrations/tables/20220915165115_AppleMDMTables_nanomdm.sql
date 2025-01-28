@@ -79,6 +79,7 @@ CREATE TABLE nano_users (
     CHECK (user_authenticate_digest IS NULL OR user_authenticate_digest != '')
 );
 
+ALTER TABLE nano_users ADD CONSTRAINT idx_unique_id UNIQUE (id);
 
 /* This table represents enrollments which are an amalgamation of
  * both device and user enrollments.

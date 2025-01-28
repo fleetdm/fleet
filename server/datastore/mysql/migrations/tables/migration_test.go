@@ -48,7 +48,9 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 		fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=true&loc=UTC&multiStatements=true", testUsername, testPassword, testAddress),
 	)
 	require.NoError(t, err)
-	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s;", t.Name(), t.Name(), t.Name()))
+
+	name := strings.ReplaceAll(strings.ReplaceAll(t.Name(), "/", "_"), " ", "_")
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s;", name, name, name))
 	require.NoError(t, err)
 	return db
 }
@@ -56,8 +58,25 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 func getMigrationVersion(t *testing.T) int64 {
 	// Migration test functions look like this:
 	//   func TestUp_20231109115838(t *testing.T)
-	// so this extracts the timestamp part only.
-	v, err := strconv.Atoi(strings.TrimPrefix(t.Name(), "TestUp_"))
+	//
+	// and multiple unit tests for the same migration version can be done by
+	// following this naming pattern:
+	//   func TestUp_20231109115838_scenario1(t *testing.T)
+	//   func TestUp_20231109115838_scenario2(t *testing.T)
+	//
+	// Note that sub-tests can also be used, so:
+	//   func TestUp_20231109115838(t *testing.T) {
+	//     t.Run("scenario1", func(t *testing.T) {...}
+	//   }
+	// also works (calling applyUpToPrev in each sub-test to create a new test
+	// database).
+	//
+	// This extracts the migration version (timestamp) from the test name.
+
+	baseName, _, _ := strings.Cut(t.Name(), "/")
+	withoutPrefix := strings.TrimPrefix(baseName, "TestUp_")
+	timestampPart, _, _ := strings.Cut(withoutPrefix, "_")
+	v, err := strconv.Atoi(timestampPart)
 	require.NoError(t, err)
 	return int64(v)
 }
@@ -132,7 +151,7 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
@@ -168,7 +187,7 @@ func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {

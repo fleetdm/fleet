@@ -1,0 +1,38 @@
+name: Compliance exclusions
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  update_channels:
+    # We want to use these hosts to smoke test edge releases.
+    osqueryd: edge
+    orbit: edge
+    desktop: edge
+controls:
+policies:
+queries:
+software:
+  packages:
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
+    - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL

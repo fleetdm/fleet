@@ -1,19 +1,12 @@
 .software-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
       min-width: 266px;
     }
-  }
-
-  &__manage-automations {
-    padding: $pad-small $pad-medium;
   }
 
   &__header {
@@ -23,6 +16,12 @@
     .form-field {
       margin-bottom: 0;
     }
+  }
+
+  &__action-buttons {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
   }
 
   &__text {
@@ -58,13 +57,8 @@
   }
 
   &__wrapper {
-    .table-container {
-      .software-icon {
-        width: 24px;
-        height: 24px;
-        border: 1px solid $ui-fleet-black-10;
-        border-radius: 8px;
-      }
+    .component__tabs-wrapper {
+      margin-bottom: $pad-xxlarge;
     }
   }
 }

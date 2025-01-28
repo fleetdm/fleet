@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, trimStart } from "lodash";
+import { findLastIndex, over, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -17,6 +17,29 @@ import { IUser, IUserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
 
+type OnTeamChangeFuncShouldStripParam = (
+  teamIdForApi: number | undefined
+) => boolean;
+
+type OnTeamChangeFuncShouldReplaceParam = (
+  teamIdForApi: number | undefined
+) => [boolean, string];
+
+/**
+ * This type is used to define functions that determine whether a query parameter should be stripped or replaced
+ * when the team id changes.
+ *
+ * The key is the name of the query parameter and the value is a function that receives the new team
+ * id with a return type of either:
+ *  - boolean indicating whether the query parameter should be stripped
+ *  - tuple of a boolean and a string, where the boolean indicates whether the query parameter should be replaced
+ *    and the string is the new value for the query parameter
+ */
+export type IConfigOverrideParamsOnTeamChange = Record<
+  string,
+  OnTeamChangeFuncShouldReplaceParam | OnTeamChangeFuncShouldStripParam
+>;
+
 const splitQueryStringParts = (queryString: string) =>
   trimStart(queryString, "?")
     .split("&")
@@ -27,20 +50,15 @@ const joinQueryStringParts = (parts: string[]) =>
 
 const rebuildQueryStringWithTeamId = (
   queryString: string,
-  newTeamId: number
+  newTeamId: number,
+  configAdditionalParams?: IConfigOverrideParamsOnTeamChange
 ) => {
   const parts = splitQueryStringParts(queryString);
 
   // Reset page to 0
   const pageIndex = parts.findIndex((p) => p.startsWith("page="));
-  const inheritedPageIndex = parts.findIndex((p) =>
-    p.startsWith("inherited_page=")
-  );
   if (pageIndex !== -1) {
     parts.splice(pageIndex, 1, "page=0");
-  }
-  if (inheritedPageIndex !== -1) {
-    parts.splice(inheritedPageIndex, 1, "inherited_page=0");
   }
 
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
@@ -65,6 +83,41 @@ const rebuildQueryStringWithTeamId = (
     parts.splice(teamIndex, 1, newTeamPart); // remove the old part and replace with the new
   } else {
     parts.splice(teamIndex, 1); // just remove the old team part
+  }
+
+  if (configAdditionalParams) {
+    Object.entries(configAdditionalParams).forEach(([paramName, fn]) => {
+      let shouldStrip = false;
+      let shouldReplace = false;
+      let replaceString = "";
+
+      const val = fn(newTeamId);
+      if (Array.isArray(val)) {
+        [shouldReplace, replaceString] = val;
+      } else if (typeof val === "boolean") {
+        shouldStrip = val;
+      }
+
+      if (shouldStrip || shouldReplace) {
+        const paramIndex = parts.findIndex((p) =>
+          p.startsWith(`${paramName}=`)
+        );
+
+        if (shouldStrip && paramIndex !== -1) {
+          parts.splice(paramIndex, 1);
+          return;
+        }
+
+        if (shouldReplace) {
+          const newPart = `${paramName}=${replaceString}`;
+          if (paramIndex === -1) {
+            parts.splice(paramIndex, 1, newPart);
+          } else {
+            parts.push(newPart);
+          }
+        }
+      }
+    });
   }
 
   return joinQueryStringParts(parts);
@@ -223,6 +276,7 @@ export const useTeamIdParam = ({
   includeNoTeam,
   permittedAccessByTeamRole,
   resetSelectedRowsOnTeamChange = true,
+  overrideParamsOnTeamChange,
 }: {
   location?: {
     pathname: string;
@@ -235,6 +289,7 @@ export const useTeamIdParam = ({
   includeNoTeam: boolean;
   permittedAccessByTeamRole?: Record<IUserRole, boolean>;
   resetSelectedRowsOnTeamChange?: boolean;
+  overrideParamsOnTeamChange?: IConfigOverrideParamsOnTeamChange;
 }) => {
   const { hash, pathname, query, search } = location;
   const {
@@ -273,7 +328,7 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
-      // TODO: This results in a warning that TableProvider is being updated while rendering while
+      // TODO: This results in a warning that TableProvider is being updated while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
       if (resetSelectedRowsOnTeamChange) {
@@ -282,11 +337,18 @@ export const useTeamIdParam = ({
 
       router.replace(
         pathname
-          .concat(rebuildQueryStringWithTeamId(search, teamId))
+          .concat(
+            rebuildQueryStringWithTeamId(
+              search,
+              teamId,
+              overrideParamsOnTeamChange
+            )
+          )
           .concat(hash || "")
       );
     },
     [
+      overrideParamsOnTeamChange,
       resetSelectedRowsOnTeamChange,
       router,
       pathname,
@@ -327,10 +389,14 @@ export const useTeamIdParam = ({
   }, [contextTeam?.id, currentTeam, isRouteOk, setContextTeam]);
 
   return {
+    // essentially `currentTeamIdForAppContext`, where -1: all teams, 0: no team, and positive integers: team ids
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
+    // not including the 'No team' "team", whose id of 0 is falsey
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
+    isAllTeamsSelected:
+      !isAnyTeamSelected(currentTeam?.id) && currentTeam?.id !== 0,
     isRouteOk,
     isTeamAdmin:
       !!currentTeam?.id && permissions.isTeamAdmin(currentUser, currentTeam.id),
@@ -347,7 +413,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: team_id=0 for No team (same as currentTeamId), undefined for All teams
     userTeams,
     handleTeamChange,
   };

@@ -33,7 +33,7 @@ spec:
       - name: fleet
         command: [/usr/bin/fleet]
         args: ["serve"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
         ports:
         - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}
@@ -95,6 +95,13 @@ spec:
           - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
           {{- end }}
+          {{- end }}
+          {{- if .Values.fleet.license.secretName }}
+          - name: FLEET_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                key: {{ .Values.fleet.license.licenseKey }}
+                name: {{ .Values.fleet.license.secretName }}
           {{- end }}
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
@@ -267,6 +274,20 @@ spec:
           - name: {{ $key }}
             value: {{ $value | quote }}
           {{- end }}
+          ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+          {{- range .Values.envsFrom }}
+          - name: {{ .name }}
+            valueFrom:
+          {{- if .valueFrom.configMapKeyRef }}
+              configMapKeyRef:
+                name: {{ .valueFrom.configMapKeyRef.name }}
+                key: {{ .valueFrom.configMapKeyRef.key }}
+          {{- else if .valueFrom.secretKeyRef }}
+              secretKeyRef:
+                name: {{ .valueFrom.secretKeyRef.name }}
+                key: {{ .valueFrom.secretKeyRef.key }}
+          {{- end }}
+          {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -314,7 +335,7 @@ spec:
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
-        image: "gcr.io/cloudsql-docker/gce-proxy:{{ .Values.gke.cloudSQL.imageTag }}"
+        image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
         command:
         - "/cloud_sql_proxy"
         - "-verbose={{ .Values.gke.cloudSQL.verbose}}"

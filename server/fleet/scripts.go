@@ -3,6 +3,7 @@ package fleet
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -26,13 +27,15 @@ type Script struct {
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
 	return "script"
 }
 
-func (s *Script) Validate() error {
+func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
@@ -40,7 +43,8 @@ func (s *Script) Validate() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {
+	// validate the script contents as if it were already a saved script
+	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}
 
@@ -132,15 +136,49 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 }
 
 type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptID       *uint  `json:"script_id"`
-	ScriptContents string `json:"script_contents"`
+	HostID          uint   `json:"host_id"`
+	ScriptID        *uint  `json:"script_id"`
+	PolicyID        *uint  `json:"policy_id"`
+	ScriptContents  string `json:"script_contents"`
+	ScriptContentID uint   `json:"-"`
+	ScriptName      string `json:"script_name"`
+	TeamID          uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+	// SetupExperienceScriptID is the ID of the setup experience script related to this request
+	// payload, if such a script exists.
+	SetupExperienceScriptID *uint `json:"-"`
+}
+
+func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
+	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
+		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+	}
+
+	if r.ScriptID != nil {
+		switch {
+		case r.ScriptContents != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_contents' is allowed.`)
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+		}
+	}
+	if r.ScriptContents != "" {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+		}
+	}
+
+	return nil
 }
 
 type HostScriptResultPayload struct {
@@ -149,6 +187,7 @@ type HostScriptResultPayload struct {
 	Output      string `json:"output"`
 	Runtime     int    `json:"runtime"`
 	ExitCode    int    `json:"exit_code"`
+	Timeout     int    `json:"timeout"`
 }
 
 // HostScriptResult represents a script result that was requested to execute on
@@ -172,6 +211,9 @@ type HostScriptResult struct {
 	// host. It is -1 if it was received but the script did not terminate
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
 	ExitCode *int64 `json:"exit_code" db:"exit_code"`
+	// Timeout is the maximum time in seconds that the script was allowed to run
+	// at the time of execution.
+	Timeout *int `json:"timeout" db:"timeout"`
 	// CreatedAt is the creation timestamp of the script execution request. It is
 	// not returned as part of the payloads, but is used to determine if the script
 	// is too old to still expect a response from the host.
@@ -179,6 +221,9 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// PolicyID is the id of the policy that triggered the script execution, or
+	// nil if the execution was not triggered by a policy failure
+	PolicyID *uint `json:"policy_id" db:"policy_id"`
 	// UserID is the id of the user that requested execution. It is not part of
 	// the rendered JSON as it is only returned by the
 	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
@@ -191,7 +236,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"`
+	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -203,6 +248,16 @@ type HostScriptResult struct {
 	// execution. It is otherwise not part of the host_script_results table and
 	// not returned as part of the resulting JSON.
 	Hostname string `json:"-" db:"-"`
+
+	// HostDeletedAt indicates if the results are associated with a deleted host.
+	// This supports the soft-delete feature for script results so that the
+	// results can still be returned to see activity details after the host got
+	// deleted.
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
+
+	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
+	// was part of setup experience.
+	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -214,7 +269,7 @@ func (hsr HostScriptResult) AuthzType() string {
 // for running a script synchronously (so that fleetctl can display it) and to
 // get the script results for an execution ID (e.g. when looking at the details
 // screen of a script execution activity in the website).
-func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
+func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int) string {
 	if hostTimeout {
 		return RunScriptHostTimeoutErrMsg
 	}
@@ -225,7 +280,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		}
 
 		if !hsr.SyncRequest {
-			return RunScriptAsyncScriptEnqueuedErrMsg
+			return RunScriptAsyncScriptEnqueuedMsg
 		}
 
 		return RunScriptAlreadyRunningErrMsg
@@ -233,7 +288,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 
 	switch *hsr.ExitCode {
 	case -1:
-		return RunScriptScriptTimeoutErrMsg
+		return HostScriptTimeoutMessage(hostTimeoutValue)
 	case -2:
 		return RunScriptDisabledErrMsg
 	default:
@@ -241,30 +296,68 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	}
 }
 
+func HostScriptTimeoutMessage(seconds *int) string {
+	var timeout int
+	if seconds == nil || *seconds == 0 {
+		timeout = int(scripts.MaxHostExecutionTime.Seconds())
+	} else {
+		timeout = *seconds
+	}
+	return fmt.Sprintf("Timeout. Fleet stopped the script after %d seconds to protect host performance.", timeout)
+}
+
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const (
+	SavedScriptMaxRuneLen   = 500000
+	UnsavedScriptMaxRuneLen = 10000
+)
 
 // anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
+var (
+	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+)
 
-func ValidateHostScriptContents(s string) error {
+// ValidateShebang validates if we support a script, and whether we
+// can execute it directly, or need to pass it to a shell interpreter.
+func ValidateShebang(s string) (directExecute bool, err error) {
+	if strings.HasPrefix(s, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(s))
+		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return false, ErrUnsupportedInterpreter
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
 		return errors.New("Script contents must not be empty.")
 	}
 
+	maxLen := SavedScriptMaxRuneLen
+	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	if !isSavedScript {
+		maxLen = UnsavedScriptMaxRuneLen
+		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
+	}
+
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
-	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if len(s) > utf8.UTFMax*maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if utf8.RuneCountInString(s) > maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we
@@ -274,13 +367,8 @@ func ValidateHostScriptContents(s string) error {
 		return errors.New("Wrong data format. Only plain text allowed.")
 	}
 
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
-		}
+	if _, err := ValidateShebang(s); err != nil {
+		return err
 	}
 
 	return nil
@@ -289,6 +377,23 @@ func ValidateHostScriptContents(s string) error {
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
+}
+
+type SoftwareInstallerPayload struct {
+	URL                string   `json:"url"`
+	PreInstallQuery    string   `json:"pre_install_query"`
+	InstallScript      string   `json:"install_script"`
+	UninstallScript    string   `json:"uninstall_script"`
+	PostInstallScript  string   `json:"post_install_script"`
+	SelfService        bool     `json:"self_service"`
+	FleetMaintained    bool     `json:"-"`
+	Filename           string   `json:"-"`
+	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
+	LabelsIncludeAny   []string `json:"labels_include_any"`
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	// ValidatedLabels is a struct that contains the validated labels for the
+	// software installer. It is nil if the labels have not been validated.
+	ValidatedLabels *LabelIdentsWithScope
 }
 
 type HostLockWipeStatus struct {
@@ -312,11 +417,68 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
-	// TODO: add wipe status when implementing the Wipe story.
+	// macOS and Windows use MDM commands for Wipe
+	WipeMDMCommand       *MDMCommand
+	WipeMDMCommandResult *MDMCommandResult
+
+	// Linux uses a script for Wipe
+	WipeScript *HostScriptResult
+}
+
+// ScriptResponse is the response type used when applying scripts by batch.
+type ScriptResponse struct {
+	// TeamID is the id of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// ID is the id of the script
+	ID uint `json:"id" db:"id"`
+	// Name is the name of the script
+	Name string `json:"name" db:"name"`
+}
+
+type DeviceStatus string
+
+const (
+	DeviceStatusWiped    DeviceStatus = "wiped"
+	DeviceStatusLocked   DeviceStatus = "locked"
+	DeviceStatusUnlocked DeviceStatus = "unlocked"
+)
+
+func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
+	switch {
+	case s.IsWiped():
+		return DeviceStatusWiped
+	case s.IsLocked():
+		return DeviceStatusLocked
+	default:
+		return DeviceStatusUnlocked
+	}
+}
+
+type PendingDeviceAction string
+
+const (
+	PendingActionLock   PendingDeviceAction = "lock"
+	PendingActionUnlock PendingDeviceAction = "unlock"
+	PendingActionWipe   PendingDeviceAction = "wipe"
+	PendingActionNone   PendingDeviceAction = ""
+)
+
+func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
+	switch {
+	case s.IsPendingLock():
+		return PendingActionLock
+	case s.IsPendingUnlock():
+		return PendingActionUnlock
+	case s.IsPendingWipe():
+		return PendingActionWipe
+	default:
+		return PendingActionNone
+	}
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
-	if s.HostFleetPlatform == "darwin" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
@@ -325,24 +487,28 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
-	if s.HostFleetPlatform == "darwin" {
-		// pending unlock if an unlock was requested
-		return !s.UnlockRequestedAt.IsZero()
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		// Apple MDM does not have a concept of pending unlock.
+		return false
 	}
 	// pending unlock if script execution request is queued but no result yet
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
 }
 
 func (s HostLockWipeStatus) IsPendingWipe() bool {
-	// TODO(mna): implement when addressing Wipe story, for now wipe is never pending
-	return false
+	if s.HostFleetPlatform == "linux" {
+		// pending wipe if script execution request is queued but no result yet
+		return s.WipeScript != nil && s.WipeScript.ExitCode == nil
+	}
+	// pending wipe if an MDM command is queued but no result received yet
+	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
@@ -359,6 +525,20 @@ func (s HostLockWipeStatus) IsUnlocked() bool {
 }
 
 func (s HostLockWipeStatus) IsWiped() bool {
-	// TODO(mna): implement when addressing Wipe story, for now never wiped
-	return false
+	switch s.HostFleetPlatform {
+	case "linux":
+		// wiped if script was sent and succeeded
+		return s.WipeScript != nil && s.WipeScript.ExitCode != nil &&
+			*s.WipeScript.ExitCode == 0
+	case "windows":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
+	case "darwin", "ios", "ipados":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
 }

@@ -9,9 +9,14 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
-import { IOldApiError } from "interfaces/errors";
 
 const baseClass = "reset-password-form";
+
+// Response created by utilities/format_error_response
+export interface IOldApiError {
+  http_status: number;
+  base: string;
+}
 
 export interface IFormData {
   new_password: string;

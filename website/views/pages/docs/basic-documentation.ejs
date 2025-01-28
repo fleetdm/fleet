@@ -17,7 +17,7 @@
           </div>
           <div class="form-control border-0 ">
           <input class="docsearch-input pr-1"
-            placeholder="Search the docs..." aria-label="Search the docs"
+            placeholder="Search..." aria-label="Search the docs and guides"
             />
           </div>
         </div>
@@ -74,7 +74,7 @@
             </div>
             <div class="form-control border-0 ">
               <input class="docsearch-input pr-1"
-              placeholder="Search the docs..." aria-label="Search the docs"
+              placeholder="Search the docs..." aria-label="Search the docs and guides"
               v-model="inputTextValue"/>
             </div>
           </div>
@@ -95,28 +95,28 @@
             <div class="container-fluid px-0 pt-4">
               <ul class="px-0 mb-0 pb-3">
                 <li class="px-0 mb-2" v-for="page in findPagesByUrl()" :key="page.title">
-                  <a :href="page.url" class="font-weight-bold">
+                  <span class="font-weight-bold">
                     {{page.title}}
-                  </a>
-                  <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                    <ul class="p-0 pl-2 mb-2" v-if="!_.isEmpty(findPagesByUrl(page.url))">
-                      <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                        <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                        <li v-for="subpage in section" :key="subpage.title">
-                          <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                            {{subpage.title}}
-                          </a>
-                        </li>
-                      </div>
+                  </span>
+                  <div purpose="expanded-nav" class="pt-3">
+                    <ul class="p-0 pl-2 mb-3" v-if="!_.isEmpty(findPagesByUrl(page.url))">
+                      <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                        <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                          {{subpage.title}}
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </li>
               </ul>
               <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
-                <li class="px-0 mb-3"><a href="/tables">Data tables</a></li>
-                <li class="px-0 mb-3"><a href="/queries">Built-in queries</a></li>
-                <li class="px-0 mb-3"><a href="https://github.com/fleetdm/fleet/releases" target="_blank">Releases</a></li>
+                <li class="px-0 mb-3"><a href="/queries">Built-in checks</a></li>
+                <li class="px-0 mb-3"><a href="/tables">Raw data</a></li>
+                <li class="px-0 mb-3"><a href="/app-library">App library</a></li>
+                <li class="px-0 mb-3"><a href="/releases">Release notes</a></li>
+                <li class="px-0 mb-3"><a href="/docs/contributing" target="_blank">Contributing</a></li>
                 <li class="px-0 mb-3"><a href="/support">Support</a></li>
+                <li class="px-0 mb-3"><a href="/contact">Take a tour</a></li>
               </ul>
             </div>
           </div>
@@ -137,27 +137,27 @@
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left pl-0 pr-4 left-sidebar">
           <ul class="p-0 pb-3 m-0 left-nav">
             <li v-for="page in findPagesByUrl()" :key="page.title">
-              <a :href="page.url" class="font-weight-bold pb-3">{{page.title}}</a>
-              <div purpose="expanded-nav" class="pt-3" v-if="isCurrentSection(page)">
-                <ul class="p-0 pl-2 mb-2">
-                  <div purpose="nav-section" v-for="(section, sectionName) of findAndSortNavSectionsByUrl(page.url)" :key="sectionName" v-if="sectionName !== 'hidden'">
-                    <p purpose="nav-section-title" v-if="sectionName !== 'Uncategorized' && sectionName !== 'TBD'">{{sectionName}}</p>
-                    <li v-for="subpage in section" :key="subpage.title">
-                      <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                        {{subpage.title}}
-                      </a>
-                    </li>
-                  </div>
+              <span class="font-weight-bold pb-3">{{page.title}}</span>
+              <div purpose="expanded-nav" class="pt-3" >
+                <ul class="p-0 pl-2 mb-3">
+                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
+                      {{subpage.title}}
+                    </a>
+                  </li>
                 </ul>
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" target="_blank" href="https://fleetdm.com/tables">Data tables</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/queries">Built-in queries</a>
-          <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/support">Support</a>
+          <a class="pt-4 pb-3" href="/queries">Built-in checks</a>
+          <a class="pb-3" href="/tables">Raw data</a>
+          <a class="pb-3" href="/app-library">App library</a>
+          <a class="pb-3" target="_blank" href="/releases">Release notes</a>
+          <a class="pb-3" href="/docs/contributing" target="_blank">Contributing</a>
+          <a class="pb-3" target="_blank" href="/support">Support</a>
+          <a class="pb-3" href="/contact">Take a tour</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
-            <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
+            <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
               <div class="d-flex flex-column align-items-center">
               <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
                 <p class="mb-0">Request Fleet swag</p>
@@ -203,20 +203,27 @@
             )
           ) %>
 
-          <div class="d-block" purpose="slack-cta">
-            <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
-            <div class="d-sm-flex">
-              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
-                <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                Ask the community on Slack
-              </a>
+          <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
+            <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
+            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center text-center">
+              <% if(!me){ %>
+              <h2>Try it out</h2>
+              <p>See what Fleet can do</p>
+              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+              <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
+              <h2>Tried Fleet yet?</h2>
+              <p>Continue getting started with Fleet</p>
+              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <% } else if (me.psychologicalStage === '4 - Has use case') {%>
+              <h2>Feeling confident?</h2>
+              <p>Get set up with Fleet</p>
+              <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
+                <h2>Talk to the team</h2>
+                <p>Let’s get you set up!</p>
+                <a purpose="continue-button" class="btn btn-primary docs-cta-continue-button" href="/start">Continue</a>
+              <%}%>
             </div>
-          </div>
-          <div class="d-block" purpose="improve-docs">
-            <h3 class="pt-0 pb-4 m-0" style="font-size: 24px; line-height: 28px;">Did we miss anything?</h3>
-            <p>
-              If you notice something we've missed or could be improved on, please follow <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">this link</a> and submit a pull request to the Fleet repo.
-            </p>
           </div>
 
         </div>

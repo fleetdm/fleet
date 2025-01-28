@@ -2,13 +2,8 @@ name: GoReleaser Orbit
 
 on:
   push:
-   tags:
-     - 'orbit-*'
-
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
-  cancel-in-progress: true
+    tags:
+      - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'
 
 defaults:
   run:
@@ -22,8 +17,16 @@ jobs:
   goreleaser-macos:
     runs-on: macos-latest
     permissions:
-      contents: read
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -51,10 +54,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-macos.yml # v2.4.4
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
@@ -62,17 +65,31 @@ jobs:
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
 
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit-macos_darwin_all/orbit"
+
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: orbit-macos
-          path: dist
+          path: dist/orbit-macos_darwin_all/orbit
 
   goreleaser-linux:
     runs-on: ubuntu-20.04
     permissions:
-      contents: read
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -85,22 +102,78 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v2.4.4
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_linux_amd64_v1/orbit"
 
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: orbit-linux
-          path: dist
+          path: dist/orbit_linux_amd64_v1/orbit
+
+  goreleaser-linux-arm64:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
+      # paid version. We pay for goreleaser, but using the closed source build would weaken our
+      # supply-chain integrity goals, so we hack around it by replacing the tag.
+      - name: Replace tag
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run GoReleaser
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux-arm64.yml # v2.4.4
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_linux_arm64_v8.0/orbit"
+
+      - name: Upload
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: orbit-linux-arm64
+          path: dist/orbit_linux_arm64_v8.0/orbit
 
   goreleaser-windows:
     runs-on: windows-2022
     permissions:
-      contents: read
+      contents: write
+      id-token: write
+      attestations: write
+      packages: write
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -113,13 +186,32 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: "go.mod"
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@56c9d09a1b925e2549631c6d180b0a1c2ebfac82 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml # v1.20.0
+        run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v2.4.4
+
+      - name: Attest binary
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: "dist/orbit_windows_amd64_v1/orbit.exe"
 
       - name: Upload
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: orbit-windows
-          path: dist
+          name: unsigned-windows
+          path: dist/orbit_windows_amd64_v1/orbit.exe
+
+  code-sign-windows:
+    needs: goreleaser-windows
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: orbit.exe
+      upload_name: orbit-windows
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}

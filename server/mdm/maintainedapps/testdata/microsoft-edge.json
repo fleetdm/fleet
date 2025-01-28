@@ -1,0 +1,154 @@
+{
+	"token": "microsoft-edge",
+	"full_token": "microsoft-edge",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Microsoft Edge"
+	],
+	"desc": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility.",
+	"homepage": "https://www.microsoft.com/en-us/edge?form=",
+	"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/be6d4c8f-ec75-405e-a5f7-fec66b2898a2/MicrosoftEdge-128.0.2739.67.pkg",
+	"url_specs": {},
+	"version": "128.0.2739.67,be6d4c8f-ec75-405e-a5f7-fec66b2898a2",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "cb4ddcbe57be83d1ec82d4ac76062a49bcd92e5bb27e04e8ff01dbda9045f449",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": [
+						"com.microsoft.EdgeUpdater.update-internal.109.0.1518.89.system",
+						"com.microsoft.EdgeUpdater.update.system",
+						"com.microsoft.EdgeUpdater.wake.system"
+					],
+					"pkgutil": "com.microsoft.edgemac"
+				}
+			]
+		},
+		{
+			"pkg": [
+				"MicrosoftEdge-128.0.2739.67.pkg",
+				{
+					"choices": [
+						{
+							"choiceIdentifier": "com.microsoft.package.Microsoft_AutoUpdate.app",
+							"choiceAttribute": "selected",
+							"attributeSetting": 0
+						}
+					]
+				}
+			]
+		},
+		{
+			"zap": [
+				{
+					"delete": "/Library/Application Support/Microsoft/EdgeUpdater",
+					"trash": [
+						"~/Library/Application Scripts/com.microsoft.edgemac.wdgExtension",
+						"~/Library/Application Support/Microsoft Edge",
+						"~/Library/Application Support/Microsoft/EdgeUpdater",
+						"~/Library/Caches/com.microsoft.edgemac",
+						"~/Library/Caches/com.microsoft.EdgeUpdater",
+						"~/Library/Caches/Microsoft Edge",
+						"~/Library/Containers/com.microsoft.edgemac.wdgExtension",
+						"~/Library/HTTPStorages/com.microsoft.edge*",
+						"~/Library/LaunchAgents/com.microsoft.EdgeUpdater.*.plist",
+						"~/Library/Microsoft/EdgeUpdater",
+						"~/Library/Preferences/com.microsoft.edgemac.plist",
+						"~/Library/Saved Application State/com.microsoft.edgemac.*",
+						"~/Library/WebKit/com.microsoft.edgemac"
+					],
+					"rmdir": "/Library/Application Support/Microsoft"
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/m/microsoft-edge.rb",
+	"ruby_source_checksum": {
+		"sha256": "71d9afd8b4f0ef22a30f7b987fd94daed8fbe3fcd0c0fb9b55c1738c554cb887"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"sonoma": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"ventura": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"monterey": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"big_sur": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"catalina": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"mojave": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"high_sierra": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"sierra": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		},
+		"el_capitan": {
+			"url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/3d8bc4f8-f1af-448e-b039-10a86db63085/MicrosoftEdge-128.0.2739.67.pkg",
+			"version": "128.0.2739.67,3d8bc4f8-f1af-448e-b039-10a86db63085",
+			"sha256": "4d79cc82038de72dd9efab38e69ceb6ed0f1fd90551f0d4764a593a428dfbfb1"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"microsoft-edge": 3588
+			},
+			"90d": {
+				"microsoft-edge": 10949
+			},
+			"365d": {
+				"microsoft-edge": 51951
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

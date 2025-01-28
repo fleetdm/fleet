@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -164,7 +164,7 @@ func TestKinesisRecordTooBig(t *testing.T) {
 	ctx := context.Background()
 	newLogs := make([]json.RawMessage, len(logs))
 	copy(newLogs, logs)
-	newLogs[0] = make(json.RawMessage, kinesisMaxSizeOfRecord+1, kinesisMaxSizeOfRecord+1)
+	newLogs[0] = make(json.RawMessage, kinesisMaxSizeOfRecord+1)
 	callCount := 0
 	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {
 		callCount += 1
@@ -185,7 +185,7 @@ func TestKinesisSplitBatchBySize(t *testing.T) {
 	// takes 3 total batches of just under 5 MB each
 	logs := make([]json.RawMessage, 15)
 	for i := 0; i < len(logs); i++ {
-		logs[i] = make(json.RawMessage, kinesisMaxSizeOfRecord-1-256, kinesisMaxSizeOfRecord-1-256)
+		logs[i] = make(json.RawMessage, kinesisMaxSizeOfRecord-1-256)
 	}
 	callCount := 0
 	putFunc := func(input *kinesis.PutRecordsInput) (*kinesis.PutRecordsOutput, error) {

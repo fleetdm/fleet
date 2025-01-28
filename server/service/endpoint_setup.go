@@ -7,8 +7,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 type setupRequest struct {
@@ -70,7 +70,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 		// If the login fails for some reason, ignore the error and don't return
 		// a token, forcing the user to log in manually.
 		var token *string
-		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password)
+		_, session, err := svc.Login(ctx, *req.Admin.Email, *req.Admin.Password, false)
 		if err != nil {
 			level.Debug(logger).Log("endpoint", "setup", "op", "login", "err", err)
 		} else {

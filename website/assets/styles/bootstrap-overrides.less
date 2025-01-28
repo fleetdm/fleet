@@ -28,7 +28,7 @@ img {
 h1, h2, h3, h4, h5, h6 {
   font-family: @header-font;
 }
-h1, h2, h3, h4, h5 {
+h1, h2, h3, h4, h5, h6 {
   font-weight: 800;
   color: @core-fleet-black;
 }
@@ -324,12 +324,14 @@ textarea.form-control {
 }
 
 .tooltip {
+  max-width: 326px;
   font-weight: 400;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 12px;
   font-size: 12px;
   background-color: @core-fleet-black-75;
   opacity: 1.0;
+  margin-bottom: 4px;
   .arrow {
     display: none;
   }
@@ -337,10 +339,14 @@ textarea.form-control {
 .tooltip-inner {
   background: none;
   padding: 0;
+  text-align: left;
   p {
     margin-bottom: 0px;
-    text-align: left;
     line-height: 16px;
+  }
+  a {
+    color: #FFF;
+    text-decoration: underline;
   }
 }
 .tooltip.show {

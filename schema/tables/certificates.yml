@@ -2,15 +2,13 @@ name: certificates
 description: "[Certificate
   authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in
   Keychains/ca-bundles."
-examples: >-
+examples: |-
   Replace 1QAZ2WSX with your Apple Developer ID, if you have one. This query
   will then let you identify Macs that have a copy of your code signing and
   notarization certificates.
 
   ```
-
   SELECT * FROM certificates WHERE common_"name" LIKE '%%1QAZ2SWX%%';
-
   ```
 columns:
   - name: sid
@@ -36,5 +34,3 @@ columns:
     platforms:
       - linux
       - darwin
-notes: >-
-  - This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).

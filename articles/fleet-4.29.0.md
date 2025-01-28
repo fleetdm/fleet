@@ -27,8 +27,6 @@ Users created via JIT provisioning can be assigned Fleet roles using SAML custom
 
 Learn more about [JIT user role setting](https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning).
 
-<call-to-action preset="premium-upgrade"></call-to-action>
-
 ## CIS benchmarks manual intervention
 
 _Available in Fleet Premium and Fleet Ultimate_
@@ -64,8 +62,6 @@ Fleet updated translation rules to provide better 🟢 Results and avoid false p
 * Adjusted the `aggregated_stats` table to compute and store statistics for "no team" in addition to per-team and for all teams.
 * Added MDM profiles status filter to hosts endpoints.
 * Added indicators of aggregate host count for each possible status of MDM-enforced mac settings (hidden until 4.30.0).
-
-<call-to-action preset="mdm-beta"></call-to-action>
 
 #### List of other features
 

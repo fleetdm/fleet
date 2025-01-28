@@ -8,11 +8,19 @@
   }
 }
 
-.flash-message {
+// Allows for centering flash message for short and long, wrapped messages
+.flash-message-container {
   @include position(fixed);
   top: 80px;
-  left: 50%;
-  transform: translate(-50%, 0);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.flash-message {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -20,11 +28,12 @@
   padding: $pad-small $pad-medium;
   z-index: 999;
   background-color: $core-vibrant-blue;
-  margin: auto;
   border: 1px solid $ui-fleet-black-10;
   box-sizing: border-box;
   box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
   border-radius: 8px;
+  max-width: calc(100% - 64px); // Same horizontal margin as .main-content
+  pointer-events: auto;
 
   &--success {
     background-color: $ui-success;
@@ -42,7 +51,6 @@
       margin-right: 15px;
       font-size: $x-small;
       color: $core-fleet-black;
-      white-space: nowrap;
     }
   }
 
@@ -54,7 +62,6 @@
       margin-left: 15px;
       margin-right: 15px;
       font-size: $x-small;
-      white-space: nowrap;
     }
 
     .fleeticon {
@@ -64,6 +71,10 @@
     img {
       width: 16px;
       height: 16px;
+    }
+
+    a {
+      color: inherit;
     }
   }
 

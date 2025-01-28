@@ -1,12 +1,10 @@
 name: apt_sources
-examples: >-
+examples: |-
   On Ubuntu or other Debian based systems, identify APT repositories that are
   not maintained by Ubuntu.
 
   ```
-
   SELECT * FROM apt_sources WHERE maintainer!='Ubuntu';
-
   ```
 columns:
   - name: pid_with_namespace

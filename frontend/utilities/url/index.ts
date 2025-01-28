@@ -1,4 +1,4 @@
-import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
+import { isEmpty, reduce, omitBy, Dictionary, snakeCase } from "lodash";
 
 import {
   DiskEncryptionStatus,
@@ -9,9 +9,13 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 
-type QueryValues = string | number | boolean | undefined | null;
+export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
+/** updated value for query params. TODO: update using this value across the codebase */
+type QueryParams2<T> = { [s in keyof T]: QueryValues };
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
@@ -23,6 +27,7 @@ interface IMutuallyInclusiveHostParams {
 }
 
 interface IMutuallyExclusiveHostParams {
+  teamId?: number;
   label?: string;
   policyId?: number;
   policyResponse?: string;
@@ -33,13 +38,39 @@ interface IMutuallyExclusiveHostParams {
   softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
+  softwareStatus?: string;
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
+
+export const parseQueryValueToNumberOrUndefined = (
+  value: QueryValues,
+  min?: number,
+  max?: number
+): number | undefined => {
+  const isWithinRange = (num: number) => {
+    if (min !== undefined && max !== undefined) {
+      return num >= min && num <= max;
+    }
+    return true; // No range check if min or max is undefined
+  };
+
+  if (typeof value === "number") {
+    return isWithinRange(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const parsedValue = parseFloat(value);
+    return !isNaN(parsedValue) && isWithinRange(parsedValue)
+      ? parsedValue
+      : undefined;
+  }
+  return undefined;
+};
 
 const reduceQueryParams = (
   params: string[],
@@ -62,7 +93,7 @@ const filterEmptyParams = (queryParams: QueryParams) => {
  * or an empty string on the queryParams object, that key-value pair will be
  * excluded from the query string.
  */
-export const buildQueryStringFromParams = (queryParams: QueryParams) => {
+export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
 
   let queryString = "";
@@ -74,6 +105,47 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
     ).join("&");
   }
   return queryString;
+};
+
+export const reconcileSoftwareParams = ({
+  teamId,
+  softwareId,
+  softwareVersionId,
+  softwareTitleId,
+  softwareStatus,
+}: Pick<
+  IMutuallyExclusiveHostParams,
+  | "teamId"
+  | "softwareId"
+  | "softwareVersionId"
+  | "softwareTitleId"
+  | "softwareStatus"
+>) => {
+  if (
+    isValidSoftwareAggregateStatus(softwareStatus) &&
+    softwareTitleId &&
+    teamId !== API_ALL_TEAMS_ID
+  ) {
+    return {
+      software_title_id: softwareTitleId,
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
+      team_id: teamId,
+    };
+  }
+
+  if (softwareTitleId) {
+    return { software_title_id: softwareTitleId };
+  }
+
+  if (softwareVersionId) {
+    return { software_version_id: softwareVersionId };
+  }
+
+  if (softwareId) {
+    return { software_id: softwareId };
+  }
+
+  return {};
 };
 
 export const reconcileMutuallyInclusiveHostParams = ({
@@ -101,9 +173,12 @@ export const reconcileMutuallyInclusiveHostParams = ({
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }
+
   return reconciled;
 };
+
 export const reconcileMutuallyExclusiveHostParams = ({
+  teamId,
   label,
   policyId,
   policyResponse,
@@ -114,10 +189,12 @@ export const reconcileMutuallyExclusiveHostParams = ({
   softwareId,
   softwareVersionId,
   softwareTitleId,
+  softwareStatus,
   osVersionId,
   osName,
   osVersion,
   osSettings,
+  vulnerability,
   diskEncryptionStatus,
   bootstrapPackageStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
@@ -145,8 +222,17 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
-    case !!softwareTitleId:
-      return { software_title_id: softwareTitleId };
+    case !!softwareStatus ||
+      !!softwareTitleId ||
+      !!softwareVersionId ||
+      !!softwareId:
+      return reconcileSoftwareParams({
+        teamId,
+        softwareId,
+        softwareVersionId,
+        softwareTitleId,
+        softwareStatus,
+      });
     case !!softwareVersionId:
       return { software_version_id: softwareVersionId };
     case !!softwareId:
@@ -155,6 +241,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
+    case !!vulnerability:
+      return { vulnerability };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
     case !!osSettings:
@@ -187,4 +275,23 @@ export const getLabelParam = (selectedLabels?: string[]) => {
   if (label === undefined) return undefined;
 
   return label.slice(7);
+};
+
+type QueryParamish<T> = keyof T extends string
+  ? {
+      [K in keyof T]: QueryValues;
+    }
+  : never;
+
+export const convertParamsToSnakeCase = <T extends QueryParamish<T>>(
+  params: T
+) => {
+  return reduce<typeof params, QueryParams>(
+    params,
+    (result, val, key) => {
+      result[snakeCase(key)] = val;
+      return result;
+    },
+    {}
+  );
 };

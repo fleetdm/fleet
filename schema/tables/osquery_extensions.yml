@@ -1,9 +1,7 @@
 name: osquery_extensions
-examples: >-
+examples: |-
   Identify osquery extensions in use that are not part of osquery core.
   
   ```
-  
   SELECT name, path from osquery_extensions WHERE type IS NOT 'core';
-  
   ```

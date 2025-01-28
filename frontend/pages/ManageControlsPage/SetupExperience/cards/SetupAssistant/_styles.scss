@@ -1,0 +1,25 @@
+.setup-assistant {
+  &__content {
+    max-width: $break-xxl;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-xxlarge;
+  }
+
+  &__upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__section-description {
+    margin: 0;
+  }
+
+  @media (max-width: $break-md) {
+    &__content {
+      flex-direction: column;
+    }
+  }
+}

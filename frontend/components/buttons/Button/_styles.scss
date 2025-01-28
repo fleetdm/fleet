@@ -1,7 +1,7 @@
 $base-class: "button";
 
 @mixin button-focus-outline($offset: 2px) {
-  outline-color: #d9d9fe;
+  outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
   outline-width: 2px;
@@ -92,6 +92,7 @@ $base-class: "button";
       $core-vibrant-blue-down
     );
     display: flex;
+    text-wrap: nowrap;
   }
 
   &--success {
@@ -230,18 +231,18 @@ $base-class: "button";
         width: 100%;
         height: 100%;
         position: absolute;
-        border: 1px solid #6a67fe;
+        border: 1px solid $core-vibrant-blue;
         border-radius: 6px;
       }
     }
 
     &:hover,
     &:focus {
-      color: $core-vibrant-blue-over;
+      color: $core-vibrant-blue;
 
       svg {
         path {
-          fill: $core-vibrant-blue-over;
+          fill: $core-vibrant-blue;
         }
       }
 
@@ -300,8 +301,13 @@ $base-class: "button";
       color: $core-vibrant-blue-down;
     }
 
-    &:focus {
+    &:focus-visible {
+      color: $core-vibrant-blue-over;
+      border: 1px;
+      border-radius: 2px; // Visble when tabbing
+      background: var(--Core-White, #fff);
       outline: none;
+      box-shadow: 0px 0px 0px 2px #fff, 0px 0px 0px 4px #d9d9fe;
     }
 
     &:hover,

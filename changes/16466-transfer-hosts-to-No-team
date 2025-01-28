@@ -1,1 +1,0 @@
-fleetctl can now transfer hosts to No team like: fleetctl hosts transfer --team '' --hosts yourHost

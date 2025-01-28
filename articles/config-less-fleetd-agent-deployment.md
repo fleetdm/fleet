@@ -4,7 +4,7 @@
 
 Deploying Fleet's agent across a diverse range of devices often involves the crucial step of enrolling each device. Traditionally, this involves [packaging](https://fleetdm.com/docs/using-fleet/fleetd#packaging)  `fleetd` with configuration including the enroll secret and server URL. While effective, an alternative offers more flexibility in your deployment process. This guide introduces a different approach for deploying Fleet's agent without embedding configuration settings directly into `fleetd`. Ideal for IT administrators who prefer to generate a single package and maintain greater control over the distribution of enrollment secrets and server URLs, this method simplifies the enrollment process across macOS and Windows hosts.
 
-Emphasizing adaptability and convenience, this approach allows for a more efficient way to manage device enrollments. Let’s dive into how to deploy Fleet's agent using this alternative method, ensuring a more open and flexible deployment process.
+This approach emphasizes adaptability and convenience and allows for a more efficient way to manage device enrollments. Let’s explore how to deploy Fleet's agent using this alternative method, ensuring a more open and flexible deployment process.
 
 
 ## For macOS:
@@ -44,6 +44,18 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
         <key>PayloadVersion</key>
         <integer>1</integer>
       </dict>
+      <dict>
+        <key>EndUserEmail</key>
+        <string>END_USER_EMAIL_HERE</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+        <key>PayloadType</key>
+	  <string>com.apple.mdm</string>
+	  <key>PayloadUUID</key>
+	  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
     </array>
     <key>PayloadDisplayName</key>
     <string>Fleetd configuration</string>
@@ -56,20 +68,55 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
     <key>PayloadVersion</key>
     <integer>1</integer>
     <key>PayloadDescription</key>
-    <string>Default configuration for the fleetd agent.</string>
+    <string>Configuration for the fleetd agent.</string>
   </dict>
 </plist>
 ```
 
+You can optionally specify the `END_USER_EMAIL` that will be added to the host's [human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <array>
+      ...
+      <dict>
+        <key>EndUserEmail</key>
+        <string>END_USER_EMAIL</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.fleet.mdm.apple.mdm</string>
+        <key>PayloadType</key>
+	  <string>com.apple.mdm</string>
+	  <key>PayloadUUID</key>
+	  <string>29713130-1602-4D27-90C9-B822A295E44E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+    ...
+  </dict>
+</plist>
+```
 
 ## For Windows:
 
-1. Download the Base MSI installer from [https://download.fleetdm.com/fleetd-base.msi](https://download.fleetdm.com/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
+1. Download the Base MSI installer from [https://download.fleetdm.com/stable/fleetd-base.msi](https://download.fleetdm.com/stable/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
 
 2. Install fleet on Windows boxes by passing the `FLEET_URL` and `FLEET_SECRET` properties to the MSI installer:
 
 ```xml
 msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
+
+Also, you can optionally pass `ENABLE_SCRIPTS`, `END_USER_EMAIL`, and `FLEET_DESKTOP` to the installer.
+
+For example, this command would install fleetd with script execution enabled, custom human-device mapping set, and Fleet Desktop enabled:
+
+```xml
+msiexec /i fleetd-base.msi ENABLE_SCRIPTS=true END_USER_EMAIL="user@example.com" FLEET_DESKTOP=true FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
 ```
 
 These steps are a flexible alternative to deploying Fleet's agent across macOS and Windows platforms. This method, focused on separating the configuration from the `fleetd` package, empowers you with more control and simplifies the management of your device enrollments.

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -12,14 +13,21 @@ type CronScheduleName string
 
 // List of recognized cron schedule names.
 const (
-	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
-	CronCleanupsThenAggregation    CronScheduleName = "cleanups_then_aggregation"
-	CronUsageStatistics            CronScheduleName = "usage_statistics"
-	CronVulnerabilities            CronScheduleName = "vulnerabilities"
-	CronAutomations                CronScheduleName = "automations"
-	CronWorkerIntegrations         CronScheduleName = "integrations"
-	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
-	CronMDMAppleProfileManager     CronScheduleName = "mdm_apple_profile_manager"
+	CronAppleMDMDEPProfileAssigner  CronScheduleName = "apple_mdm_dep_profile_assigner"
+	CronCleanupsThenAggregation     CronScheduleName = "cleanups_then_aggregation"
+	CronFrequentCleanups            CronScheduleName = "frequent_cleanups"
+	CronUsageStatistics             CronScheduleName = "usage_statistics"
+	CronVulnerabilities             CronScheduleName = "vulnerabilities"
+	CronAutomations                 CronScheduleName = "automations"
+	CronWorkerIntegrations          CronScheduleName = "integrations"
+	CronActivitiesStreaming         CronScheduleName = "activities_streaming"
+	CronMDMAppleProfileManager      CronScheduleName = "mdm_apple_profile_manager"
+	CronMDMWindowsProfileManager    CronScheduleName = "mdm_windows_profile_manager"
+	CronAppleMDMIPhoneIPadRefetcher CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
+	CronAppleMDMAPNsPusher          CronScheduleName = "apple_mdm_apns_pusher"
+	CronCalendar                    CronScheduleName = "calendar"
+	CronUninstallSoftwareMigration  CronScheduleName = "uninstall_software_migration"
+	CronMaintainedApps              CronScheduleName = "maintained_apps"
 )
 
 type CronSchedulesService interface {
@@ -94,7 +102,7 @@ func (cs *CronSchedules) formatSupportedTriggerNames() string {
 	case 1:
 		return fmt.Sprintf("supported trigger name is %s", names[0])
 	default:
-		return fmt.Sprintf("supported trigger names are %s, and %s", strings.Join(names[:len(names)-1], fmt.Sprint(", ")), names[len(names)-1])
+		return fmt.Sprintf("supported trigger names are %s, and %s", strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
 	}
 }
 
@@ -140,6 +148,22 @@ func (e triggerNotFoundError) StatusCode() int {
 	return http.StatusNotFound
 }
 
+type CronScheduleErrors map[string]error
+
+func (cse CronScheduleErrors) MarshalJSON() ([]byte, error) {
+	// Create a temporary map for JSON serialization
+	stringMap := make(map[string]string)
+	for key, err := range cse {
+		if err != nil {
+			stringMap[key] = err.Error()
+		} else {
+			stringMap[key] = ""
+		}
+	}
+	// Serialize the temporary map to JSON
+	return json.Marshal(stringMap)
+}
+
 // CronStats represents statistics recorded in connection with a named set of jobs (sometimes
 // referred to as a "cron" or "schedule"). Each record represents a separate "run" of the named job set.
 type CronStats struct {
@@ -160,6 +184,8 @@ type CronStats struct {
 	// Status is the current status of the run. Recognized statuses are "pending", "completed", and
 	// "expired".
 	Status CronStatsStatus `db:"status"`
+	// Errors is a JSON string containing any errors encountered during the run.
+	Errors string `db:"errors"`
 }
 
 // CronStatsType is one of two recognized types of cron stats (i.e. "scheduled" or "triggered")

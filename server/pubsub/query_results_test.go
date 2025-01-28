@@ -96,7 +96,7 @@ func TestQueryResultsStore(t *testing.T) {
 
 		ctx1, cancel1 := context.WithCancel(context.Background())
 		channel1, err := store.ReadChannel(ctx1, campaign1)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 
 		expected1 := []fleet.DistributedQueryResult{
 			{
@@ -126,7 +126,7 @@ func TestQueryResultsStore(t *testing.T) {
 
 		ctx2, cancel2 := context.WithCancel(context.Background())
 		channel2, err := store.ReadChannel(ctx2, campaign2)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 
 		expected2 := []fleet.DistributedQueryResult{
 			{
@@ -153,7 +153,7 @@ func TestQueryResultsStore(t *testing.T) {
 		go func() {
 			defer readerWg.Done()
 			for res := range channel1 {
-				switch res := res.(type) {
+				switch res := res.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case fleet.DistributedQueryResult:
 					results1 = append(results1, res)
 				}
@@ -163,7 +163,7 @@ func TestQueryResultsStore(t *testing.T) {
 		go func() {
 			defer readerWg.Done()
 			for res := range channel2 {
-				switch res := res.(type) {
+				switch res := res.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case fleet.DistributedQueryResult:
 					results2 = append(results2, res)
 				}

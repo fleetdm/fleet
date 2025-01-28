@@ -1,3 +1,5 @@
+import { buildQueryStringFromParams } from "utilities/url";
+
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
@@ -14,24 +16,40 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
+  CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
+  CONTROLS_INSTALL_SOFTWARE: `${URL_PREFIX}/controls/setup-experience/install-software`,
+  CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
+  // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+  DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
+  DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
 
-  // Admin pages
+  /**
+   * Admin pages
+   */
+
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+
+  // Integrations pages
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
-  ADMIN_INTEGRATIONS_MDM_MAC: `${URL_PREFIX}/settings/integrations/mdm/apple`,
+  ADMIN_INTEGRATIONS_MDM_APPLE: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
-  ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
+  ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
+  ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
+  ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
+  ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
+
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,
@@ -58,6 +76,20 @@ export default {
   SOFTWARE_OS_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/software/os/${id}`;
   },
+  SOFTWARE_VULNERABILITIES: `${URL_PREFIX}/software/vulnerabilities`,
+  SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
+    return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
+  },
+  SOFTWARE_ADD_FLEET_MAINTAINED: `${URL_PREFIX}/software/add/fleet-maintained`,
+  SOFTWARE_FLEET_MAINTAINED_DETAILS: (id: number) =>
+    `${URL_PREFIX}/software/add/fleet-maintained/${id}`,
+  SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
+  SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
+
+  // Label pages
+  LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
+  LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
+  LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
 
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
@@ -73,10 +105,17 @@ export default {
       teamId ? `?team_id=${teamId}` : ""
     }`;
   },
-  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
+  LIVE_QUERY: (
+    queryId: number | null,
+    teamId?: number,
+    hostId?: number
+  ): string => {
+    const baseUrl = `${URL_PREFIX}/queries/${queryId || "new"}/live`;
+    const queryParams = buildQueryStringFromParams({
+      team_id: teamId,
+      host_id: hostId,
+    });
+    return queryParams ? `${baseUrl}?${queryParams}` : baseUrl;
   },
   QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
@@ -85,10 +124,11 @@ export default {
   },
   EDIT_POLICY: (policy: IPolicy): string => {
     return `${URL_PREFIX}/policies/${policy.id}${
-      policy.team_id ? `?team_id=${policy.team_id}` : ""
+      policy.team_id !== undefined ? `?team_id=${policy.team_id}` : ""
     }`;
   },
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
+  MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
 
@@ -123,6 +163,9 @@ export default {
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
+  DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
@@ -163,6 +206,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };

@@ -1,20 +1,18 @@
 name: google_chrome_profiles
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Profiles configured in Google Chrome.
 platforms: 
   - darwin
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List the Google Chrome accounts logged in to with `fleetdm.com` email addresses, joined to the
   [users](https://fleetdm.com/tables/users) table, to see the description of the operating system
   account that owns it.
 
   ```
-  
   SELECT gp.email, gp.username, u.description FROM google_chrome_profiles gp JOIN users u ON gp.username=u.username WHERE gp.email LIKE '%fleetdm.com';
-  
   ```
 columns:
   - name: email

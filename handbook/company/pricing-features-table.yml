@@ -1,3 +1,460 @@
+# [?]: To generate new ASCII art headings used in this file, you can use the @mikermcneil/kit npm package. See https://github.com/mikermcneil/kit for more details
+#
+# Example feature:
+# - industryName: Feature name - Displayed on the features table on fleetdm.com/pricing
+#   tier: The tier of Fleet that users can use this feature on. Either "Free" or "Premium"
+#   description: Description of feature - This value is added to the tooltip for this feature on fleetdm.com/pricing
+#   pricingTableCategories: [Array] - The section of the pricing features table this feature is. in. Supports multiple categories, but it is usally best to pick one. Supported values: "Support", "Integrations", "Deployment", "Endpoint operations", "Vulnerability management", "Device management". 
+#   documentationUrl: URL of relavant Fleet documentation - If provided with a description, this link will be added to the tooltip for this feature
+#   usualDepartment:  The type of buyer who would be interested in this feature. Supports "IT" or "Security". This value determines what category switcher this feature is under.
+#   productCategories: [Array] - The product category this feature is under. Supported values: "Vulnerability management", "Endpoint operations", "Device management". (Currently not used by the Fleet website UI)
+#   moreInfoUrl: URL where users can learn more about this feature - Not used on the pricing page currently
+#   jamfProHasFeature: Whether or not Jamf Pro has this (or a comparable) feature. Supported values: "yes", "no" or "appleOnly" (currently not used by Fleet website UI)
+#   jamfProtectHasFeature: Whether or not Jamf Protext has this (or a comparable) feature. Supported values: "yes", "no" or "appleOnly" (currently not used by Fleet website UI)
+#
+#                                                                                                                                                                                                                                                                                                                             
+#
+#  ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███╗   ███╗███████╗███╗   ██╗████████╗ 
+#  ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
+#  ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
+#  ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
+#  ██████╔╝███████╗██║     ███████╗╚██████╔╝   ██║   ██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
+#  ╚═════╝ ╚══════╝╚═╝     ╚══════╝ ╚═════╝    ╚═╝   ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
+#         
+#
+#  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦  ╔═╗╦ ╦╔╦╗
+#  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
+#  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
+- industryName: Managed cloud
+  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  pricingTableCategories: [Deployment]
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+# 
+#  ╔═╗╔═╗╦  ╔═╗  ╦ ╦╔═╗╔═╗╔╦╗╔═╗╔╦╗
+#  ╚═╗║╣ ║  ╠╣───╠═╣║ ║╚═╗ ║ ║╣  ║║
+#  ╚═╝╚═╝╩═╝╚    ╩ ╩╚═╝╚═╝ ╩ ╚═╝═╩╝
+- industryName: Self-hosted
+  friendlyName: Host it yourself
+  description: Deploy Fleet anywhere and host it yourself, even in air-gapped environments except where technologically impossible.
+  pricingTableCategories: [Deployment]
+  documentationUrl: https://fleetdm.com/docs/deploy/introduction
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  buzzwords: [Self-hosted]
+#  
+#  ╔╦╗╦ ╦╦ ╔╦╗╦  ╔╦╗╔═╗╔╗╔╔═╗╔╗╔╔═╗╦ ╦
+#  ║║║║ ║║  ║ ║───║ ║╣ ║║║╠═╣║║║║  ╚╦╝
+#  ╩ ╩╚═╝╩═╝╩ ╩   ╩ ╚═╝╝╚╝╩ ╩╝╚╝╚═╝ ╩ 
+- industryName: Multi-tenancy
+  description: For managed service providers to use a single instance of Fleet for multiple customers.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/9956
+  productCategories: [Device management]
+  pricingTableCategories: [Deployment]
+  usualDepartment: IT
+  buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
+  tier: Premium
+#  
+#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗
+#   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║    ║ ║ ║║ ║║  ╚═╗
+#  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩    ╩ ╚═╝╚═╝╩═╝╚═╝
+- industryName: Deployment tools 
+  description: Pre-built Terraform modules and Helm charts to help you get up and running. 
+  documentationUrl: https://fleetdm.com/docs/deploy/introduction
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Deployment] 
+#
+#
+#   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ ██╗   ██╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
+#  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝ ██║   ██║██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║
+#  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║  ███╗██║   ██║██████╔╝███████║   ██║   ██║██║   ██║██╔██╗ ██║
+#  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║   ██║██║   ██║██╔══██╗██╔══██║   ██║   ██║██║   ██║██║╚██╗██║
+#  ╚██████╗╚██████╔╝██║ ╚████║██║     ██║╚██████╔╝╚██████╔╝██║  ██║██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║
+#   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+#
+#
+#  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
+#  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
+#  ╩  ╩╚═╩ ╚╝ ╩ ╩ ╩ ╚═╝  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╚═╝╩╚═╝ ╩ ╩╚═ ╩
+- industryName: Private update registry
+  friendlyName: Update agents from a secret URL
+  description: Load agent code from a secret URL that you manage.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/update-agents
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Configuration]
+  usualDepartment: Security
+#
+#  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦    ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╦  ╦╔═╗╦═╗╔═╗╦╔═╗╔╗╔╔═╗
+#  ║  ║ ║║║║ ║ ╠╦╝║ ║║    ╠═╣║ ╦║╣ ║║║ ║   ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║╚═╗
+#  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝  ╩ ╩╚═╝╚═╝╝╚╝ ╩    ╚╝ ╚═╝╩╚═╚═╝╩╚═╝╝╚╝╚═╝
+- industryName: Control agent versions
+  description: Manage agents remotely by setting different versions per-baseline.
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Configuration]
+  usualDepartment: IT
+  waysToUse:
+    - description: Supply-chain Levels for Software Artifacts (SLSA) attestations for the fleetd binary artifacts and server container image to enable verification that the binaries are built and uploaded using GitHub Actions from the Fleet repository at a particular commit SHA coming soon (2024-12-31).
+    - moreInfoUrl: https://github.com/fleetdm/fleet/issues/20219
+#
+#  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
+#  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
+#  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
+- industryName: Command line tool (CLI)
+  friendlyName: fleetctl
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Configuration]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes      
+#
+#  ╔═╗╦╔╦╗╔═╗╔═╗╔═╗
+#  ║ ╦║ ║ ║ ║╠═╝╚═╗
+#  ╚═╝╩ ╩ ╚═╝╩  ╚═╝
+- industryName: GitOps
+  friendlyName: Manage endpoints in git
+  documentationUrl: https://github.com/fleetdm/fleet-gitops
+  description: Fork the best practices GitHub repo and use the included GitHub Actions or GitLab CI/CD pipelines to quickly automate Fleet console and configuration workflow management.
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Configuration]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  demos:
+    description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
+    quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
+    moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
+#  
+#  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
+#   ╩ ╚╩╝╚═╝   ╚  ╩ ╩╚═╝ ╩ ╚═╝╩╚═  ╩ ╩╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ ╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Two-factor authentication
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Configuration]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  waysToUse:
+    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+#  
+#  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
+#  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
+#  ╩╚═╚═╝╩═╝╚═╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝
+- industryName: Role-based access control
+  documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Configuration]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#
+#  ╔═╗╦ ╦╔╦╗╦╔╦╗  ╦  ╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+#  ╠═╣║ ║ ║║║ ║   ║  ║ ║║ ╦║ ╦║║║║║ ╦
+#  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
+- industryName: Audit logging
+  description: Log all activity, including queries, scripts, access, etc.
+  demos:
+    - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
+      moreInfoUrl: https://youtu.be/3Fndgrsk-Ss
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
+  productCategories: [Endpoint operations, Device management]
+  pricingTableCategories: [Configuration]
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: Security
+  waysToUse:
+    - description: Export activity of Fleet admins to your SIEM or data lake
+#  
+#  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╦═╗╔═╗╔╗╔╔═╗╔═╗╔═╗╦═╗╔═╗╔╗╔╔═╗╦ ╦
+#  ╚═╗║  ║ ║╠═╝║╣    ║ ╠╦╝╠═╣║║║╚═╗╠═╝╠═╣╠╦╝║╣ ║║║║  ╚╦╝
+#  ╚═╝╚═╝╚═╝╩  ╚═╝   ╩ ╩╚═╩ ╩╝╚╝╚═╝╩  ╩ ╩╩╚═╚═╝╝╚╝╚═╝ ╩ 
+- industryName: Scope transparency
+  description: Let end users see the source code for exactly how they are being monitored, and set clear expectations about what is and isn’t acceptable use of work computers.
+  tier: Free
+  documentationUrl: https://fleetdm.com/transparency
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Configuration]
+#        
+#  
+#  ██████╗ ███████╗██╗   ██╗██╗ ██████╗███████╗                                                
+#  ██╔══██╗██╔════╝██║   ██║██║██╔════╝██╔════╝                                                
+#  ██║  ██║█████╗  ██║   ██║██║██║     █████╗                                                  
+#  ██║  ██║██╔══╝  ╚██╗ ██╔╝██║██║     ██╔══╝                                                  
+#  ██████╔╝███████╗ ╚████╔╝ ██║╚██████╗███████╗                                                
+#  ╚═════╝ ╚══════╝  ╚═══╝  ╚═╝ ╚═════╝╚══════╝                                                
+#                                                                                              
+#  ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗███╗   ███╗███████╗███╗   ██╗████████╗
+#  ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
+#  ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
+#  ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
+#  ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
+#  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
+#
+#  
+#  ╔═╗╦═╗╔═╗╔═╗╔═╗   ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
+#  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
+#  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
+- industryName: Cross-platform MDM support
+  description: Apple, Windows, and Linux.
+  documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]       
+#  
+#  ╔╦╗╔╦╗╔╦╗  ╔╦╗╦╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
+#  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
+  description: Easily move your devices from your current MDM solution to Fleet.
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+#  
+#  ╔═╗╔═╗╦═╗╔═╗  ╔╦╗╔═╗╦ ╦╔═╗╦ ╦  ╔═╗╔═╗╔╦╗╦ ╦╔═╗
+#  ╔═╝║╣ ╠╦╝║ ║───║ ║ ║║ ║║  ╠═╣  ╚═╗║╣  ║ ║ ║╠═╝
+#  ╚═╝╚═╝╩╚═╚═╝   ╩ ╚═╝╚═╝╚═╝╩ ╩  ╚═╝╚═╝ ╩ ╚═╝╩  
+- industryName: Zero-touch setup
+  description: Zero-touch setup for macOS, iOS/iPadOS, and Windows.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Ship a macOS, iOS, or iPadOS device to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Customize the out-of-the-box setup experience for your end users.
+    - description: Install a bootstrap package to run custom scripts during the setup experience.
+    - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+  demos:
+    - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
+      moreInfoUrl: https://youtu.be/gt7_dAU0VMY
+    - description: Connect end users to Wi-Fi by adding your SCEP server.
+      moreInfoUrl: https://youtu.be/secV4NCGYPg
+#  
+#  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
+#  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
+#  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
+- industryName: Bring your own device (BYOD) enrollment
+  description: BYOD enrollment for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
+  documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
+#  
+#  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
+#  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
+#  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
+- industryName: User account sync
+  description: Sync macOS local user accounts via Okta, AD, or any IdP. 
+  documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#
+#  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+#  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
+#  ╩ ╩╚═╝╩ ╩╩ ╩╝╚╝   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩   ╩ ╩╩ ╩╩  ╩  ╩╝╚╝╚═╝
+- industryName: Human-endpoint mapping
+  friendlyName: See who logs in on every computer
+  description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
+  screenshotSrc:
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  buzzwords: [Device users,human-to-device mapping]
+  dri: mikermcneil
+  demos:
+    - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
+      moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+    - description: Data engineers at a top biotech corporation needed to know who is logged into their devices. 
+      quote: So we don't know exactly what's going on after we deploy the device, we know that they are compliant with the security because we are running these stuff, but we don't know certainly who is running, who is logging in the device?
+      moreInfoUrl: https://docs.google.com/document/d/17MNI5ykzlFjdVmQ8SPMrT1oR_hY_vkYAJx31F7l7Pv8/edit#heading=h.7en766pueek4 
+  waysToUse:
+    - description: Look up computer by ActiveDirectory account
+    - description: Find device by Google Chrome user
+    - description: Identify who logs in to any system, including login history and current sessions.
+    - description: Look up any host by the email address of the person using it.
+    - description: Check user login history
+      moreInfoUrl: https://www.lepide.com/how-to/audit-who-logged-into-a-computer-and-when.html#:~:text=To%20find%20out%20the%20details,logs%20in%20%E2%80%9CWindows%20Logs%E2%80%9D.
+    - description: See currently logged in users
+      moreInfoUrl: https://www.top-password.com/blog/see-currently-logged-in-users-in-windows/
+    - description: Get demographics off of our machines about who the user is and who's logged in
+      moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+    - description: See what servers someone is logged-in on
+      moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+#  
+#  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
+#   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
+#  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩ 
+- industryName: Device inventory
+  description:  Includes a list of all devices and all hardware and software attributes for each device.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/understanding-host-vitals
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Endpoint operations,Device management, Vulnerability management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
+      moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+    - description: View a list of all hardware attributes of a device.
+      moreInfoUrl: https://fleetdm.com/tables/system_info  
+    - description: View a list of all software and their versions installed on all your hosts.
+      moreInfoUrl: https://fleetdm.com/docs/get-started/anatomy#software-library
+    - description: View a list of software rolled up by title.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14674
+    - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
+      moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4 
+#  
+#  ╔═╗╔═╗╔═╗╦═╗╔═╗╦ ╦  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
+#  ╚═╗║╣ ╠═╣╠╦╝║  ╠═╣  ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
+#  ╚═╝╚═╝╩ ╩╩╚═╚═╝╩ ╩  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩ 
+- industryName: Search inventory
+  description: Search devices by IP, serial, hostname, and UUID.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet#how-to-ask-questions-about-your-device
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#  ╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+#   ║ ╠═╣╠╦╝║ ╦║╣  ║ ║╣  ║║   ║║║╣ ╚╗╔╝║║  ║╣   ╚═╗║  ║ ║╠═╝║║║║║ ╦
+#   ╩ ╩ ╩╩╚═╚═╝╚═╝ ╩ ╚═╝═╩╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╚═╝╚═╝╚═╝╩  ╩╝╚╝╚═╝
+- industryName: Targeted device scoping
+  description: Organize devices with Teams and Labels.
+  documentationUrl: https://fleetdm.com/guides/managing-labels-in-fleet
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]      
+#  
+#  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔╦╗╦╔═╗╦╔═  ╔═╗╔╗╔╔═╗╦═╗╦ ╦╔═╗╔╦╗╦╔═╗╔╗╔
+#  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
+#  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
+- industryName: Enforce disk encryption
+  description: Encrypt system drives on macOS, Windows, and Linux, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker, LUKS).
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
+  friendlyName: Ensure hard disks are encrypted
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  usualDepartment: Security
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Report on disk encryption status
+    - description: Encrypt hard disks on macOS with FileVault
+    - description: Escrow FileVault keys on macOS
+    - description: Encrypt hard disks on Windows with BitLocker.
+#  
+#  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗╔═╗
+#  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╠═╝║╣ ╠╦╝╠═╣ ║ ║║║║║ ╦  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ║ ║╠═╝ ║║╠═╣ ║ ║╣ ╚═╗
+#  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╩  ╚═╝╩╚═╩ ╩ ╩ ╩╝╚╝╚═╝  ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝╚═╝
+- industryName: Enforce operating system (OS) updates
+  description: Keep operating systems up to date for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Enforce macOS updates via Nudge.
+    - description: Progressively enhance from Nudge to DDM-based OS updates.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
+    - description: Automatically update Windows after the end user reaches a deadline.
+#  
+#  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
+#  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╚═╗  ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
+#  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
+- industryName: Enforce OS settings
+  description: MDM support for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices. Management support for Linux.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
+    - description: Deploy custom declaration (DDM) profiles on macOS.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
+    - description: Target profiles to specific hosts using SQL.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
+    - description: Automatically re-deploy configuration profiles when they're not installed.
+    - description: Deploy configuration profiles on iOS/iPadOS.
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
+    - description: Send MDM commands to tell end users to update their OS.
+      moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
+    - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
+      moreInfoUrl: https://fleetdm.com/docs/configuration/agent-configuration
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+#  
+#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗  
+#   ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║   
+#  ═╩╝╚═╝╚═╝╩═╝╩ ╩╩╚═╩ ╩ ╩ ╩ ╚╝ ╚═╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩            
+- industryName: Declarative Device Management (DDM) support for configuration profiles
+  description: Full support for Apple DDM configuration profiles.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-os-updates#macos
+  tier: Free
+  jamfProHasFeature: cloudOnly
+  jamfProtectHasFeature: cloudOnly
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
 #
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
@@ -8,14 +465,12 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   screenshotSrc:
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   productCategories: [Device management,Endpoint operations]
-  pricingTableCategories: [Device management,Endpoint operations]
+  pricingTableCategories: [Devices]
   usualDepartment: IT
   dri: mikermcneil
-  demos:
-    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
-      quote: 
-      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
@@ -24,64 +479,15 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
-    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
+  demos:
+    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
       moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
     - description: Implement your own version of Google's zero trust model (BeyondCorp)
       moreInfoUrl: https://cloud.google.com/beyondcorp
     - description: Get endpoint data into ServiceNow and make your asset management teams happy
       moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
-#
-#  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
-#  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
-#  ╚═╝╚═╝╩╚═╩╩   ╩   ╚═╝╩ ╚═╚═╝╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
-- industryName: Script execution
-  friendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
-  description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
-  tier: Premium
-  dri: mikermcneil
-  usualDepartment: IT
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Device management]
-  demos:
-    - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
-  buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
-  waysToUse:
-    - description: Execute custom macOS scripts (client platform engineering)
-      moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
-    - description: Execute custom Windows scripts (client platform engineering)
-      moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
-    - description: Use PowerShell scripts on Windows devices
-      moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
-    - description: Run PowerShell scripts for remediations (security engineering)
-      moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
-    - description: Download and run remediation scripts
-      moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
-    - description: Deploy custom scripts
-      moreInfoUrl: https://scalefusion.com/custom-scripting
-    - description: Run scripts on online/offline hosts
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
-#
-#  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
-#  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
-#  ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝  ╩  ╚═╝╚═╝ ╩ ╚═╝╩╚═╚═╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
-- industryName: Automatic posture assessment
-  friendlyName: Verify any security or compliance goal
-  description: Simplify security audits, build definitive reports, and discover + verify ongoing compliance for every endpoint, from workstations to data centers.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/cis-benchmarks#cis-benchmarks
-  screenshotSrc:
-  usualDepartment: Security
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  dri: mikermcneil
-  demos:
-    - description: A large tech company used Fleet's CIS Benchmark policies to automatically assess posuture of 80,000 endpoints. 
-      quote:
-      moreInfoUrl: 
-  buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
-  waysToUse:
     - description: Monitor devices that don't meet your organization's custom security policies
     - description: Quickly report your posture and vulnerabilities to auditors, showing remediation status and timing.
     - description: Keep your devices compliant with customizable baselines, or use common benchmarks like CIS.
@@ -105,71 +511,296 @@
     - description: Automatically apply security policies to protect endpoints against attack.
     - description: Surface security issues in all your deployed endpoints even data centers and factories.
     - description: Continually validate controls and policies
-#
-#  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
-#  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
-#  ╩ ╩╚═╝╩ ╩╩ ╩╝╚╝   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩   ╩ ╩╩ ╩╩  ╩  ╩╝╚╝╚═╝
-- industryName: Human-endpoint mapping
-  friendlyName: See who logs in on every computer
-  description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
-  screenshotSrc:
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
+    - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
+    - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
+      moreInfoUrl: https://play.goconsensus.com/s4e490bb9
+#  
+#  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
+#  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
+#  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
+- industryName: Application deployment
+  description: Deploy applications on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon). Additionally, install macOS and iOS/iPadOS apps from the App Store.
+  documentationUrl: https://fleetdm.com/guides/deploy-software-packages
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  isExperimental: yes
   usualDepartment: IT
-  buzzwords: [Device users,human-to-device mapping]
-  dri: mikermcneil
-  demos:
-    - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
-      moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
   waysToUse:
-    - description: Look up computer by ActiveDirectory account
-    - description: Find device by Google Chrome user
-    - description: Identify who logs in to any system, including login history and current sessions.
-    - description: Look up any host by the email address of the person using it.
-    - description: Check user login history
-      moreInfoUrl: https://www.lepide.com/how-to/audit-who-logged-into-a-computer-and-when.html#:~:text=To%20find%20out%20the%20details,logs%20in%20%E2%80%9CWindows%20Logs%E2%80%9D.
-    - description: See currently logged in users
-      moreInfoUrl: https://www.top-password.com/blog/see-currently-logged-in-users-in-windows/
-    - description: Get demographics off of our machines about who the user is and who's logged in
-      moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
-    - description: See what servers someone is logged-in on
-      moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
-- industryName: Intrusion detection
-  friendlyName: Build custom query and policy automations to detect suspicious behavior
-  description: Send webhooks and ship logs to detect intrusions and issues with devices.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
-  tier: Free
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  buzzwords: [Host-based intrusion detection system (HIDS,Indicators of Compromise (IOCs),Feeder for SIEM]
-  demos:
-    - description: A top media company wanted to share more security data with other departments without slowing down hosts.
+   - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
+   - description: Offer licenses for Photoshop and other App Sore apps for your end users.
+   - description: iOS/iPadOS coming soon (2024-08-11).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
+#  
+#  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
+#  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
+#  ╚═╝╚═╝╩═╝╚    ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝                                   
+- industryName: Self-service application installation
+  description: Allow end users to install apps through Fleet Desktop for macOS, Linux, and Windows.
+  documentationUrl: https://fleetdm.com/guides/deploy-software-packages
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  isExperimental: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
   waysToUse:
-    - description: Send webhooks to generate alerts when an IOC is detected on one or more devices.
-    - description: Ship logs to Splunk, Snowflake, and other SIEMs to build a host-based intrusion detection system (HIDS).
-    - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
-    - description: Export the data to other systems
-      moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
-    - description: Export data to a third-party SIEM tool
-      moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
-    - description: Gather data and log events from endpoints
-      moreInfoUrl: https://techbeacon.com/security/how-osquery-can-lift-your-security-teams-game#:~:text=%22If%20security%20teams%20didn%27t%20have%20osquery%2C%20they%20would%20have%20to%20find%20a%20way%20to%20manually%20go%20into%20each%20endpoint%20and%20gather%20data%2C%20or%20buy%20a%20third%2Dparty%20tool%20to%20do%20that%20for%20them
+   - description: Build scripts for Ansible deployments
+     moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+   - description: Deploy osquery to macOS via Jamf
+     moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+   - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
+     moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
+#  
+#  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+#  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
+#  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩ 
+- industryName: Application management
+  description: Manage updates and apps on macOS, Windows, and Linux computers.
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  comingSoonOn: 2024-08-25
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18865
 #
-#  ╔═╗╦╔╦╗
-#  ╠╣ ║║║║
-#  ╚  ╩╩ ╩
+#  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
+#  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
+#  ╚═╝╚═╝╩╚═╩╩   ╩   ╚═╝╩ ╚═╚═╝╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
+- industryName: Script execution
+  friendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
+  description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  dri: mikermcneil
+  usualDepartment: IT
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Devices]
+  demos:
+    - description: A large tech company used scripts to fix issues with their security and compliance agents on workstations.
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
+  buzzwords: [Remote script execution,PowerShell scripts,Bash scripts]
+  waysToUse:
+    - description: Execute custom macOS scripts (client platform engineering)
+      moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-mac-scripts-via-mdm/
+    - description: Execute custom Windows scripts (client platform engineering)
+      moreInfoUrl: https://www.hexnode.com/blogs/executing-custom-windows-scripts-via-mdm/
+    - description: Use PowerShell scripts on Windows devices
+      moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/apps/intune-management-extension
+    - description: Run PowerShell scripts for remediations (security engineering)
+      moreInfoUrl: https://learn.microsoft.com/en-us/mem/intune/fundamentals/powershell-scripts-remediation
+    - description: Download and run remediation scripts
+      moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
+    - description: Deploy custom scripts
+      moreInfoUrl: https://scalefusion.com/custom-scripting
+    - description: Run scripts on online/offline hosts
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
+    - description: Only maintainers and admins can run scripts.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055  
+#  
+#  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║║║╣ ╚╗╔╝║║  ║╣   ╠╦╝║╣ ║║║║╣  ║║║╠═╣ ║ ║║ ║║║║
+#  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Device remediation
+  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service (Fleet Desktop > My device page).
+  documentationUrl: https://fleetdm.com/securing/end-user-self-remediation # « NOTE: This link will change when auto-remediation is delivered.
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management, Vulnerability management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Send software vulnerability emails to end users to encourage self-remediation.
+#
+#  ╔╦╗╔═╗╦╔╗╔╔╦╗╔═╗╔╗╔╔═╗╔╗╔╔═╗╔═╗  ╦ ╦╦╔╗╔╔╦╗╔═╗╦ ╦╔═╗
+#  ║║║╠═╣║║║║ ║ ║╣ ║║║╠═╣║║║║  ║╣   ║║║║║║║ ║║║ ║║║║╚═╗
+#  ╩ ╩╩ ╩╩╝╚╝ ╩ ╚═╝╝╚╝╩ ╩╝╚╝╚═╝╚═╝  ╚╩╝╩╝╚╝═╩╝╚═╝╚╩╝╚═╝
+- industryName: Maintenance windows
+  friendlyName: Fleet in your calendar
+  description: Create a calendar event to auto-remediate failing policies when your end users are free.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/17230
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  isExperimental: yes
+  productCategories: [Device management, Endpoint operations]
+  pricingTableCategories: [Devices]
+#  
+#  ╔═╗╔═╗╔╗╔╔╦╗  ╦  ╔═╗╔═╗╦╔═  ╔═╗╔╗╔╔╦╗  ╦ ╦╦╔═╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗╔═╗
+#  ╚═╗║╣ ║║║ ║║  ║  ║ ║║  ╠╩╗  ╠═╣║║║ ║║  ║║║║╠═╝║╣   ║  ║ ║║║║║║║╠═╣║║║ ║║╚═╗
+#  ╚═╝╚═╝╝╚╝═╩╝  ╩═╝╚═╝╚═╝╩ ╩  ╩ ╩╝╚╝═╩╝  ╚╩╝╩╩  ╚═╝  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
+- industryName: Send lock and wipe commands
+  description: Secure your devices with remote lock and wipe commands if lost or stolen.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
+  waysToUse:
+    - description: High-level remote lock for macOS, Windows, and Linux.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
+    - description: High-level remote wipe for macOS, Windows, and Linux.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+#  
+#
+#  ███████╗███╗   ██╗██████╗ ██████╗  ██████╗ ██╗███╗   ██╗████████╗               
+#  ██╔════╝████╗  ██║██╔══██╗██╔══██╗██╔═══██╗██║████╗  ██║╚══██╔══╝               
+#  █████╗  ██╔██╗ ██║██║  ██║██████╔╝██║   ██║██║██╔██╗ ██║   ██║                  
+#  ██╔══╝  ██║╚██╗██║██║  ██║██╔═══╝ ██║   ██║██║██║╚██╗██║   ██║                  
+#  ███████╗██║ ╚████║██████╔╝██║     ╚██████╔╝██║██║ ╚████║   ██║                  
+#  ╚══════╝╚═╝  ╚═══╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝╚═╝  ╚═══╝   ╚═╝                  
+#                                                                                  
+#   ██████╗ ██████╗ ███████╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗
+#  ██╔═══██╗██╔══██╗██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+#  ██║   ██║██████╔╝█████╗  ██████╔╝███████║   ██║   ██║██║   ██║██╔██╗ ██║███████╗
+#  ██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗██╔══██║   ██║   ██║██║   ██║██║╚██╗██║╚════██║
+#  ╚██████╔╝██║     ███████╗██║  ██║██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║███████║
+#   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+#                                                                                  
+#
+#      
+#  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗ 
+#  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗ 
+#  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝                                                                                                                                                                                                          
+- industryName: Queries
+  description: Scheduled or saved queries with optional AI-generated descriptions, and, live queries for real-time data collection.  
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  demos:
+    - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
+      moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
+#
+#  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
+#  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
+#  ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩╩ ╩╝╚╝╚═╝╚═╝  ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
+- industryName: Query performance monitoring
+  documentationUrl: https://fleetdm.com/docs/get-started/faq#will-fleet-slow-down-my-servers-what-about-my-employee-laptops
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  demos:
+    - description: A top software company needed to understand the performance impact of osquery queries before running them on all of their production Linux servers.
+      moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+    - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
+      moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
+  waysToUse:
+    - description: Monitor performance for automated queries.
+    - description: Monitor performance for live queries.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/467
+#  
+#  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╗ ╦  ╔═╗╔═╗
+#  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
+#  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
+- industryName: Custom tables
+  friendlyName: Add tables to osquery with extensions
+  description: Create your own osquery tables, extensions & automatic table configurations or disable existing tables to maintain PII or privacy.
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#extensions
+  moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+# 
+#  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
+#  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
+#  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
+- industryName: Remote settings
+  description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  usualDepartment: Security
+#      
+#  ╔╦╗╔═╗╔═╗╔╦╗╔═╗
+#   ║ ║╣ ╠═╣║║║╚═╗
+#   ╩ ╚═╝╩ ╩╩ ╩╚═╝
+- industryName: Teams
+  friendlyName: Manage different endpoints differently
+  documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
+  description: Teams are what Fleet calls baselines, kinda like security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Automate remediation for different applications with different security postures (cloud security engineering)
+#     
+#  ╦  ╔═╗╔╗ ╔═╗╦  ╔═╗
+#  ║  ╠═╣╠╩╗║╣ ║  ╚═╗
+#  ╩═╝╩ ╩╚═╝╚═╝╩═╝╚═╝
+- industryName: Labels
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
+  friendlyName: Filter hosts using SQL
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+#  
+#  ╔═╗╔═╗╦  ╦╔═╗╦╔═╗╔═╗ 
+#  ╠═╝║ ║║  ║║  ║║╣ ╚═╗ 
+#  ╩  ╚═╝╩═╝╩╚═╝╩╚═╝╚═╝                                                                                                                                                                                                          
+- industryName: Policies
+  description: A policy is a specific “yes” or “no” query. Use policies to manage security compliance in your organization.  
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  demos:
+    - description: Policy failure in Fleet to trigger a script run on a host so that I can run scripts on many hosts w/o using a third-party automation tool (ex. Tines).
+      moreInfoUrl: https://youtu.be/o1G0YZAsWzI
+    - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
+      moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
+  waysToUse:
+    - description: Trigger a workflow based on a failing policy
+      moreInfoUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
+#
+#  ╔═╗╦╦  ╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
+#  ╠╣ ║║  ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝║ ║ ╚╦╝  ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
+#  ╚  ╩╩═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩  ╩   ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
 - industryName: File integrity monitoring (FIM) # Short industry phrase
   friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
   description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
   documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
   screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
   tier: Free # Either "Free" or "Premium"
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
   productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
-  pricingTableCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
   dri: mikermcneil #GitHub user name
   demos:
     - description: A top gaming company needed a way to monitor critical files on production Debian servers.
@@ -186,18 +817,125 @@
       moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
     - description: Meet compliance mandates
       moreInfoUrl: https://www.beyondtrust.com/resources/glossary/file-integrity-monitoring
+#  
+#  ╔═╗╦╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔╗╔╔═╗
+#  ╠╣ ║║  ║╣   ║  ╠═╣╠╦╝╚╗╔╝║║║║║ ╦
+#  ╚  ╩╩═╝╚═╝  ╚═╝╩ ╩╩╚═ ╚╝ ╩╝╚╝╚═╝
+- industryName: File carving
+  description: Write the results of complex queries to AWS S3.
+  documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  usualDepartment: Security
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]           
+#
+#  ╔╗ ╦╔╗╔╔═╗╦═╗╦ ╦  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╦═╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#  ╠╩╗║║║║╠═╣╠╦╝╚╦╝  ╠═╣║ ║ ║ ╠═╣║ ║╠╦╝║╔═╝╠═╣ ║ ║║ ║║║║
+#  ╚═╝╩╝╚╝╩ ╩╩╚═ ╩   ╩ ╩╚═╝ ╩ ╩ ╩╚═╝╩╚═╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Binary authorization
+  friendlyName: Restrict what programs can run, and what files running programs can access.
+  description: 
+  documentationUrl: 
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  dri: mikermcneil
+  usualDepartment: Security
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  comingSoonOn: 2025-06-30
+  buzzwords: [Mandatory Access Control (MAC),Privilege confinement,Binary authorization,Santa,Binary allowlisting,Binary whitelisting]
+  demos:
+    - description: 
+      moreInfoUrl: 
+  waysToUse:
+    - description: Confine programs to a limited set of resources.
+    - description: Report on AppArmor events
+      moreInfoUrl: https://fleetdm.com/tables/apparmor_events
+    - description: Confine programs according to a set of rules that specify which files a program can access.
+      moreInfoUrl: https://wiki.debian.org/AppArmor
+    - description: Proactively protect the system against both known and unknown vulnerabilities.
+#  
+#  ╦═╗╔═╗╔═╗╔═╗╦═╗╔╦╗╦╔╗╔╔═╗  
+#  ╠╦╝║╣ ╠═╝║ ║╠╦╝ ║ ║║║║║ ╦   
+#  ╩╚═╚═╝╩  ╚═╝╩╚═ ╩ ╩╝╚╝╚═╝                                                                                                                                                                                                               
+- industryName: Reporting
+  description: Generate reports based on searchable device attributes
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Devices]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#
+#  ╦╔╗╔╔═╗╦╔╦╗╔═╗╔╗╔╔╦╗  ╦═╗╔═╗╔═╗╔═╗╔═╗╔╗╔╔═╗╔═╗
+#  ║║║║║  ║ ║║║╣ ║║║ ║   ╠╦╝║╣ ╚═╗╠═╝║ ║║║║╚═╗║╣ 
+#  ╩╝╚╝╚═╝╩═╩╝╚═╝╝╚╝ ╩   ╩╚═╚═╝╚═╝╩  ╚═╝╝╚╝╚═╝╚═╝
+- industryName: Incident response
+  friendlyName: Interrogate hosts in real time
+  description: Live query, triage, figuring out scope of impact, remediate using scripts or MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
+  documentationUrl: https://fleetdm.com/securing/how-osquery-can-help-cyber-responders#simplifying-endpoint-visibility-with-osquery-and-fleet
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  dri: mikermcneil
+  usualDepartment: Security
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  buzzwords: []
+  demos:
+    - description: 
+      moreInfoUrl: 
+  waysToUse:
+    - description: 
+#      
+#  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗ ╦  ╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+#  ║  ║ ║╚═╗ ║ ║ ║║║║ ║  ║ ║║ ╦║ ╦║║║║║ ╦
+#  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩ ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
+- industryName: Custom logging
+  description: Flexible, configurable logging destinations (AWS Kinesis, Lambda, GCP, Kafka).
+  documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations#log-destinations
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: Security
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Devices]
+  buzzwords: [Real-time export,Ship logs]
+#
+#
+#  ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗██████╗  █████╗ ██████╗ ██╗██╗     ██╗████████╗██╗   ██╗    
+#  ██║   ██║██║   ██║██║     ████╗  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██║     ██║╚══██╔══╝╚██╗ ██╔╝    
+#  ██║   ██║██║   ██║██║     ██╔██╗ ██║█████╗  ██████╔╝███████║██████╔╝██║██║     ██║   ██║    ╚████╔╝     
+#  ╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║██╔══╝  ██╔══██╗██╔══██║██╔══██╗██║██║     ██║   ██║     ╚██╔╝      
+#   ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║███████╗██║  ██║██║  ██║██████╔╝██║███████╗██║   ██║      ██║       
+#    ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚══════╝╚═╝   ╚═╝      ╚═╝       
+#                                                                                                          
+#  ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗███╗   ███╗███████╗███╗   ██╗████████╗            
+#  ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝            
+#  ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██╔████╔██║█████╗  ██╔██╗ ██║   ██║               
+#  ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║               
+#  ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║               
+#  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝               
+#                                                                                                          
+#
 #  ╔╦╗╔═╗╦  ╦ ╦╔═╗╦═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ┌─╦ ╦╔═╗╦═╗╔═╗─┐
 #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
 - industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
-  friendlyName: Scan files for malware signatures
-  description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
-  documentationUrl: https://fleetdm.com/tables/yara
+  friendlyName: Scan files for zero days and malware signatures
+  description: Deploy YARA signatures (rules) to report and trigger automations when zero days, malware, or unexpected files are detected on a host.  YARA rules can be deployed remotely and privately.
+  documentationUrl: https://fleetdm.com/guides/remote-yara-rules
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations,Vulnerability management]
-  pricingTableCategories: [Endpoint operations,Vulnerability management]
+  pricingTableCategories: [Devices]
   buzzwords: [YARA scanning,Cyber Threat Intelligence (CTI),Indicators of compromise (IOCs),Antivirus (AV),Endpoint protection platform (EPP),Endpoint detection and response (EDR),Malware detection,Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
   demos:
     - description: A top media company used Fleet policies with YARA rules to continuously scan host filesystems for malware signatures provided by internal and external threat intelligence teams.
@@ -219,160 +957,97 @@
       moreInfoUrl: https://osquery.readthedocs.io/en/stable/deployment/anomaly-detection/
     - description: Run a targeted YARA scan with osquery as a lightweight approach to scan anything on a host filesystem, with minimal performance impact.  Unlike full system YARA scans which consume considerable CPU resources, an equivalent YARA scan targeted in Fleet can be 8x cheaper (CPU %).
       moreInfoUrl: https://www.tripwire.com/state-of-security/signature-socket-based-malware-detection-osquery-yara
-- industryName: Detection engineering
-  friendlyName: # Ship logs to your data lake and comopare with known bad binary hashes or capture behavioral data and build custom detections (e.g. using a framework like MITRE)
-  description: 
-  documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
-  tier: Free
-  dri: mikermcneil
+#
+#  ╔═╗╔═╗╔╗╔╔╦╗╦╔╗╔╦ ╦╔═╗╦ ╦╔═╗  ╔═╗╔═╗╔═╗╔╗╔╔╗╔╦╔╗╔╔═╗
+#  ║  ║ ║║║║ ║ ║║║║║ ║║ ║║ ║╚═╗  ╚═╗║  ╠═╣║║║║║║║║║║║ ╦
+#  ╚═╝╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╩ ╩╝╚╝╝╚╝╩╝╚╝╚═╝
+- industryName: Continuous scanning
+  friendlyName: Detect vulnerable software
+  documentationUrl: https://fleetdm.com/vulnerability-management
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Devices]
   usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  buzzwords: [Security analytics,Behavioral analytics,MITRE ATT&CK,Tactics techniques and procedures (TTPs),Security information and event management (SIEM)]
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
+  buzzwords: [Stakeholder-specific vulnerability categorization (SSVC),Continuous scanning,Continuous vulnerability scanning,Risk-based vulnerability management]
+  waysToUse:
+    - description: 'Use an SSVC decision tree model to prioritize relevant vulnerabilities into four possible decisions: "Track", "Track*", "Attend", and "Act".'
+      moreInfoUrl: https://www.cisa.gov/stakeholder-specific-vulnerability-categorization-ssvc
+    - description: 'Balint Fazakas: I think what offers a better use of CVSS if you break it down to vectors. You may find that a DoS (High Availability Impact) not as relevant for you, or equally a vulnerability requiring user interaction has a very low likelihood of exploit in another scenario.  If you want to fine tune your SSVC, it worth using the vectors you care about instead of the score itself. But ultimately you would want to read the description of the vulnerabilities to determine the risk they are posing to your environment. SSVC can assist you to do that in a more efficient way.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+    - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+  demos:
+    - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
+      quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
+      moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
+    - description: One of the world's largest, top transportation companies uses Fleet's API to email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+      moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
+#
+#  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
+#  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
+#   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
+- industryName: Vulnerability scores
+  friendlyName: EPSS and CVSS
+  documentationUrl: https://fleetdm.com/vulnerability-management
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Devices]
+  buzzwords: [Risk scores,Cyber risk,Risk reduction,Security operations effectiveness,Peer benchmarking,Security program effectiveness,Risk-based exposure scoring,Threat context,Cyber exposure,Exposure quantification and benchmarking,Optimize security investments,Vulnerability assessment]
+  demos:
+    - description: Fleet enables a more modern, threat-first prioritization approach to vulnerability management.
+      quote: In reality, across our inventory of devices, it's unlikely to ever be exploited. I'd rather do that legwork on my team and then go and ask and prioritize work on these infrastructure teams that are already busy with things that could or could not be vulnerable. Being able to be more exact allows us to go to these teams less, which saves everybody time.
+      moreInfoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc&t=131s
+  waysToUse:
+    - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
+    - description: An Introduction to EPSS, The Exploit Prediction Scoring System
+    - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
+    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable.
+#
+#  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
+#  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
+#  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
+- industryName: CISA KEVs
+  description: Known exploited vulnerabilities
+  documentationUrl: https://fleetdm.com/vulnerability-management
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Devices]
   demos:
     - description: 
-      moreInfoUrl: 
+      moreInfoUrl:
   waysToUse:
-    - description: 
-- industryName: Threat hunting
-  friendlyName: # TODO: live query
-  description: 
-  documentationUrl: https://fleetdm.com/queries
-  tier: Free
-  dri: mikermcneil
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  buzzwords: []
-  demos:
-    - description: 
-      moreInfoUrl: 
-  waysToUse:
-    - description: 
-- industryName: Incident response
-  friendlyName: # TODO: live query, triage, figuring out scope of impact, remediate using scripts, MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
-  description: 
+    - description: Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.
+    - description: Use CISA KEVs for vulnerability management
+    - moreInfoUrl: https://www.youtube.com/watch?v=Z3mw2oxssYk
+#  
+#   ╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔╦╗╦╔═╗╔═╗╔═╗╦  ╦╔═╗╦═╗╦ ╦
+#   ╠═╣╚═╗╚═╗║╣  ║    ║║║╚═╗║  ║ ║╚╗╔╝║╣ ╠╦╝╚╦╝
+#   ╩ ╩╚═╝╚═╝╚═╝ ╩   ═╩╝╩╚═╝╚═╝╚═╝ ╚╝ ╚═╝╩╚═ ╩ 
+- industryName: Asset discovery
   documentationUrl:
-  tier: Free
-  dri: mikermcneil
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  buzzwords: []
-  demos:
-    - description: 
-      moreInfoUrl: 
-  waysToUse:
-    - description: 
-- industryName: Binary authorization
-  friendlyName: Restrict what programs can run, and what files running programs can access.
-  description: 
-  documentationUrl:
-  tier: Free
-  dri: mikermcneil
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  comingSoonOn: YYYY-MM-DD
-  buzzwords: [Mandatory Access Control (MAC),Privilege confinement,Binary authorization,Santa,Binary allowlisting,Binary whitelisting]
-  demos:
-    - description: 
-      moreInfoUrl: 
-  waysToUse:
-    - description: Confine programs to a limited set of resources.
-    - description: Report on AppArmor events
-      moreInfoUrl: https://fleetdm.com/tables/apparmor_events
-    - description: Confine programs according to a set of rules that specify which files a program can access.
-      moreInfoUrl: https://wiki.debian.org/AppArmor
-    - description: Proactively protect the system against both known and unknown vulnerabilities.
-#  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
-#  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
-#  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
-- industryName: Agent auto-update
-  friendlyName: Keep agents and extensions up to date
-  descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-#  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗╔═╗
-#  ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝╚═╗
-#  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═╚═╝
-- industryName: Installers (self-service)
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
-  waysToUse:
-    - description: Build scripts for Ansible deployments
-      moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
-    - description: Deploy osquery to macOS via Jamf
-      moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
-    - description: Package osquery for Linux servers via Workspace One and Windows servers via group policies
-      moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
-#  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
-#  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
-#  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: Batch installation (Chef, Ansible, Puppet, MDM)
-  friendlyName: Install agents over the air
-  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-#  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
-#  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
-#  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
-- industryName: Remote settings
-  description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
-  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: Security
-#  ╦  ╦╔═╗╦═╗╦╔═╗╔╗ ╦  ╔═╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
-#  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║
-#   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
-- industryName: Variable enrollment
-  description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
   tier: Premium
-  productCategories: [Endpoint operations, Device management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-#  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
-#  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
-#  ╩  ╩╚═╩ ╚╝ ╩ ╩ ╩ ╚═╝  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╩╚═╚═╝╚═╝╩╚═╝ ╩ ╩╚═ ╩
-- industryName: Private update registry
-  friendlyName: Update agents from a secret URL
-  description: Load agent code from a secret URL that you manage.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/update-agents
-  tier: Premium
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
+  comingSoonOn: 2025-06-30
   usualDepartment: Security
-- industryName: Variable agent versions
-  descrption: Manage agents remotely by setting different versions per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
-  tier: Premium
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-#  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╗ ╦  ╔═╗╔═╗
-#  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
-#  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
-- industryName: Custom tables
-  friendlyName: Add tables to osquery with extensions
-  description: Install osquery extensions over the air. #  (GitOptional)
-  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#extensions
-  moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
-  tier: Premium
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Devices]  
+#     
+#
+#
+#  ██╗███╗   ██╗████████╗███████╗ ██████╗ ██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗
+#  ██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝ ██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+#  ██║██╔██╗ ██║   ██║   █████╗  ██║  ███╗██████╔╝███████║   ██║   ██║██║   ██║██╔██╗ ██║███████╗
+#  ██║██║╚██╗██║   ██║   ██╔══╝  ██║   ██║██╔══██╗██╔══██║   ██║   ██║██║   ██║██║╚██╗██║╚════██║
+#  ██║██║ ╚████║   ██║   ███████╗╚██████╔╝██║  ██║██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║███████║
+#  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+#                                                                                                                                                                                 
 #
 #  ╦═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╦
 #  ╠╦╝║╣ ╚═╗ ║   ╠═╣╠═╝║
@@ -386,68 +1061,86 @@
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
   screenshotSrc:
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   dri: rachaelshaw
-#  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
-#  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
-#  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
-- industryName: Command line tool (CLI)
-  friendlyName: fleetctl
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
+#
 #  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
 #  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
+  friendlyName: Automations
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT 
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#  ╔═╗╦═╗╔═╗╔╗╔╔╦╗  ╔═╗╔═╗╦   ╔═╗╔╗╔╦ ╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗
+#  ║ ╦╠╦╝╠═╣║║║ ║   ╠═╣╠═╝║───║ ║║║║║ ╚╦╝  ╠═╣║  ║  ║╣ ╚═╗╚═╗
+#  ╚═╝╩╚═╩ ╩╝╚╝ ╩   ╩ ╩╩  ╩   ╚═╝╝╚╝╩═╝╩   ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝
+- industryName: Grant API-only access
+  description: Grant API-only access to accounts exclusively for automation.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Integrations]
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
+#  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
+#  ╚═╝╩╝╚╝╚═╝╩═╝╚═╝  ╚═╝╩╚═╝╝╚╝  ╚═╝╝╚╝
+- industryName: Single sign on
+  description: SSO, SAML
+  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  friendlyName: 
   tier: Free
-#  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-#   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
-#  ═╩╝╚═╝╚═╝╩    ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Deep automations
-  friendlyName: Trigger webhooks or run scripts
-  description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#   ╦╦ ╦╔═╗╔╦╗  ╦╔╗╔  ╔╦╗╦╔╦╗╔═╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗
+#   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
+#  ╚╝╚═╝╚═╝ ╩   ╩╝╚╝   ╩ ╩╩ ╩╚═╝  ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝
+- industryName: Automatic user creation (JIT, SCIM)
+  description: Auto-create and manipulate Fleet users from Okta, etc with just-in-time (JIT) provisioning.
+  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
-  comingSoonOn: 2024-06-30
-  tier: Free
-  buzzwords: [Automated remediation,Auto-remediation,Self-healing]
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   waysToUse:
-    - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
-    - description: Use osquery and santa to work around inflexibilities in proprietary MDMs and other protection solutions.
-    - description: Listen to webhooks to perform autonomous self-healing (cloud security engineering)
-      moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
-#  ╔═╗╦╔╦╗╔═╗╔═╗╔═╗
-#  ║ ╦║ ║ ║ ║╠═╝╚═╗
-#  ╚═╝╩ ╩ ╚═╝╩  ╚═╝
-- industryName: GitOps
-  friendlyName: Manage endpoints in git
-  description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Deployment]
+    - description: Automatically set admin access to Fleet based on your IDP
+- industryName: Grant Wi-Fi access
+  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
+  isExperimental: yes
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
   usualDepartment: IT
-  tier: Free
-  demos:
-    description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
-    quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
-    moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
-  #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-  #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
-  #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+#
+#  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
+#   ╩ ╩ ╩╩╩╚══╩╝   ╩  ╩ ╩╩╚═ ╩  ╩   ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Third-party automation
   friendlyName: Borrow off-the-shelf tactics from the community
+  documentationUrl: https://fleetdm.com/integrations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  description:
+  description: Plug Fleet into other frameworks and tools like Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   waysToUse:
     - description: (ActiveDirectory) Know who opened your computer and check their device posture before you let them log into anything.
     - description: (Ansible) Easily issue MDM commands and standardize data across operating systems.
@@ -465,386 +1158,440 @@
     - description: (Splunk) Ingest osquery data and monitor for important changes or events.
     - description: (Tines) Build custom workflows that trigger in various situations.
     - description: (Webhooks) Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
-  #  ╔═╗╦═╗╔═╗╔╦╗╦╦ ╦╔╦╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-  #  ╠═╝╠╦╝║╣ ║║║║║ ║║║║  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
-  #  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Premium integrations (Puppet, Vanta, Jira, Zendesk, etc)
+    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
+    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
+  buzzwords: [Snowflake,Okta,Tines,Splunk,Elastic,AWS,ActiveDirectory,Ansible,GitHub,GitLab,Chronicle,Google Cloud,Munki,Vanta,Chef,Zendesk,Jira]
+#
+#  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦═╗╔═╗╦ ╦╔═╗╔═╗╔╦╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ║ ║╠╦╝║  ╠═╣║╣ ╚═╗ ║ ╠╦╝╠═╣ ║ ║║ ║║║║
+#   ╩ ╩ ╩╩╩╚══╩╝   ╩  ╩ ╩╩╚═ ╩  ╩   ╚═╝╩╚═╚═╝╩ ╩╚═╝╚═╝ ╩ ╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Third-party orchestration
   friendlyName: Borrow off-the-shelf tactics from legendary brands
-  description: Plug in to cutting edge frameworks from similar organizations.
+  documentationUrl: https://fleetdm.com/integrations
+  description: Plug Fleet into other frameworks and tools like Puppet, Vanta, etc.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Premium
-  buzzwords: [Vanta,Puppet,Jira,Zendesk,Custom IdP]
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
     - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
     - description: (Torq) Build custom workflows that trigger in various situations.
-    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
-- industryName: Public issue tracker (GitHub)
+  buzzwords: [Vanta,Puppet,Custom IdP]
+#  
+#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
+#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 
+#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩  
+- industryName: Munki compatibility + visibility
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
+#
+#
+#  ███████╗██╗   ██╗██████╗ ██████╗  ██████╗ ██████╗ ████████╗
+#  ██╔════╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝
+#  ███████╗██║   ██║██████╔╝██████╔╝██║   ██║██████╔╝   ██║   
+#  ╚════██║██║   ██║██╔═══╝ ██╔═══╝ ██║   ██║██╔══██╗   ██║   
+#  ███████║╚██████╔╝██║     ██║     ╚██████╔╝██║  ██║   ██║   
+#  ╚══════╝ ╚═════╝ ╚═╝     ╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   
+#   
+#
+#  ╔═╗╔═╗╔═╗╔╗╔   ╔═╗╔═╗╦ ╦╦═╗╔═╗╔═╗  ╦╔═╗╔═╗╦ ╦╔═╗  ╔╦╗╦═╗╔═╗╔═╗╦╔═╔═╗╦═╗  ╔═╗╦╔╦╗╦ ╦╦ ╦╔╗ 
+#  ║ ║╠═╝║╣ ║║║───╚═╗║ ║║ ║╠╦╝║  ║╣   ║╚═╗╚═╗║ ║║╣    ║ ╠╦╝╠═╣║  ╠╩╗║╣ ╠╦╝  ║ ╦║ ║ ╠═╣║ ║╠╩╗
+#  ╚═╝╩  ╚═╝╝╚╝   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝  ╩╚═╝╚═╝╚═╝╚═╝   ╩ ╩╚═╩ ╩╚═╝╩ ╩╚═╝╩╚═  ╚═╝╩ ╩ ╩ ╩╚═╝╚═╝
+- industryName: Open-source issue tracker (GitHub)
+  documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+#
+#  ╔═╗╔═╗╔╦╗╔╦╗╦ ╦╔╗╔╦╔╦╗╦ ╦  ╔═╗╦  ╔═╗╔═╗╦╔═  ╔═╗╦ ╦╔═╗╔╗╔╔╗╔╔═╗╦  
+#  ║  ║ ║║║║║║║║ ║║║║║ ║ ╚╦╝  ╚═╗║  ╠═╣║  ╠╩╗  ║  ╠═╣╠═╣║║║║║║║╣ ║  
+#  ╚═╝╚═╝╩ ╩╩ ╩╚═╝╝╚╝╩ ╩  ╩   ╚═╝╩═╝╩ ╩╚═╝╩ ╩  ╚═╝╩ ╩╩ ╩╝╚╝╝╚╝╚═╝╩═╝
 - industryName: Community Slack channel
+  documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#
+#  ╦ ╦╔╗╔╦  ╦╔╦╗╦╔╦╗╔═╗╔╦╗  ╔═╗╔╦╗╔═╗╦╦    ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
+#  ║ ║║║║║  ║║║║║ ║ ║╣  ║║  ║╣ ║║║╠═╣║║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║
+#  ╚═╝╝╚╝╩═╝╩╩ ╩╩ ╩ ╚═╝═╩╝  ╚═╝╩ ╩╩ ╩╩╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩
 - industryName: Unlimited email support (confidential)
+  documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#
+#  ╔═╗╦ ╦╔═╗╔╗╔╔═╗  ╔═╗╔╗╔╔╦╗  ╦  ╦╦╔╦╗╔═╗╔═╗  ╔═╗╔═╗╦  ╦    ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
+#  ╠═╝╠═╣║ ║║║║║╣   ╠═╣║║║ ║║  ╚╗╔╝║ ║║║╣ ║ ║  ║  ╠═╣║  ║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
+#  ╩  ╩ ╩╚═╝╝╚╝╚═╝  ╩ ╩╝╚╝═╩╝   ╚╝ ╩═╩╝╚═╝╚═╝  ╚═╝╩ ╩╩═╝╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Phone and video call support
+  documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Premium
-- industryName: Self-managed
-  friendlyName: Host it yourself
-  pricingTableCategories: [Deployment]
-  documentationUrl: https://fleetdm.com/docs/deploy/introduction
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  tier: Free
-  buzzwords: [Self-hosted]
-- industryName: Deployment tools (Terraform, Helm)
-  usualDepartment: IT
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Deployment]
-- industryName: Managed Cloud
-  pricingTableCategories: [Deployment]
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  tier: Premium
-- industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
-  tier: Premium
-  documentationUrl: ""
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Remotely enforce OS settings
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
-  usualDepartment: IT
-  tier: Free
-  waysToUse:
-    - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
-    - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
-    - description: Target profiles to specific hosts using SQL.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
-    - description: Automatically re-deploy configuration profiles on macOS they're not installed.
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Self service
-  description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: User-initiated enrollment of macOS computers
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
-  tier: Free
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Low-level MDM commands for macOS and Windows (e.g. remote restart)
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
-  tier: Free
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-  waysToUse:
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
-- industryName: Native macOS update reminders
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
-  tier: Free
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Zero-touch setup for macOS computers
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-  waysToUse:
-    - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Customize the out-of-the-box setup experience for your end users.
-    - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
-- industryName: Enforce OS updates
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management,Vulnerability management]
-  pricingTableCategories: [Device management]
-  waysToUse:
-    - description: Enforce macOS updates via Nudge.
-    - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
-- industryName: Encrypt macOS hard disks with FileVault
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Cross-platform remote lock and wipe
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
-  waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux. Coming soon (2024-03-31)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux. Coming soon (2024-03-31)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Deploy apps and packages on macOS, Windows, and Linux computers.
-  description:
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
-  tier: Premium
-  comingSoonOn: 2024-03-31 #Customer-reedtimmer
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Puppet module
-  documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
-  friendlyName: Map macOS settings to computers with Puppet module
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Software inventory
-  tier: Free
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  waysToUse:
-    - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
-      moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
-    - description: View a list of all software and their versions installed on all your hosts.
-    - description: View a list of software rolled up by title.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14674
-- industryName: Hardware inventory
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-  waysToUse:
-    - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
-      moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
-- industryName: Device inventory dashboard
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
-- industryName: Browse installed software packages
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-- industryName: Search devices by IP, serial, hostname, UUID
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-- industryName: Labels (SQL-driven)
-  friendlyName: Filter hosts using SQL
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
-- industryName: Custom device data for help desk
-  description:
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
-  tier: Free
-  comingSoonOn: 2023-12-31
-  usualDepartment: IT
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Device management]
-- industryName: Baselines (device groups)
-  friendlyName: Manage different endpoints differently
-  description: Set baselines and strategies for hosts in different situations called "teams", and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
-  tier: Premium
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  waysToUse:
-    - description: Automate remediation for different applications with different security postures (cloud security engineering)
-- industryName: Generate reports for groups of devices
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Premium
-- industryName: Versionable queries and config (GitOps)
-  documentationUrl: https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet#basic-article
-  tier: Free
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  demos:
-    - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
-      moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
-- industryName: Scope transparency
-  tier: Free
-  documentationUrl: https://fleetdm.com/transparency
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-- industryName: Single sign on (SSO, SAML)
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
-- industryName: Disk encryption
-  friendlyName: Ensure hard disks are encrypted
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-  usualDepartment: Security
-  description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
-  tier: Free
-  waysToUse:
-    - description: Report on disk encryption status
-    - description: Encrypt hard disks on macOS with FileVault
-    - description: Escrow FileVault keys on macOS
-    - description: Encrypt hard disks on Windows with BitLocker.
-- industryName: Audit queries and user activities
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-  usualDepartment: Security
-- industryName: Grant API-only access
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-- industryName: Programmable audit log
-  productCategories: [Endpoint operations, Device management]
-  pricingTableCategories: [Endpoint operations, Device management]
-  tier: Premium
-  usualDepartment: Security
-  waysToUse:
-    - description: Export activity of Fleet admins to your SIEM or data lake
-- industryName: Just-in-time (JIT) provisioning
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Premium
-- industryName: Automated user role sync via Okta, AD, or any IDP
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Device management]
-  usualDepartment: IT
-  tier: Premium
-  waysToUse:
-    - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Vanta integration
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
-- industryName: Trigger a workflow based on a failing policy
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
-- industryName: Role-based access control
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Premium
-#   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
-#   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
-#   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
-- industryName: Risk-based vulnerability management
-  friendlyName: Detect vulnerable software
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  usualDepartment: Security
-  tier: Free
-  demos:
-    - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
-      quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
-      moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
-  waysToUse:
-    - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
-      moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
-#  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
-#  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
-#   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
-- industryName: Vulnerability dashboard 
-  friendlyName: Vulnerability dashboard
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  usualDepartment: Security
-  tier: Premium
-  demos:
-    - description: See a list of all vulneribilities across your hosts. Coming soon (2024-03-31)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
-    - description: AI generated CVSS v4 context. Coming soon (2024-03-31)
-  waysToUse:
-    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
-#  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
-#  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
-#   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
-- industryName: Vulnerability scores (EPSS and CVSS) 
-  tier: Premium
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  buzzwords: [Risk scores,Cyber risk,Risk reduction,Security operations effectiveness,Peer benchmarking,Security program effectiveness,Risk-based exposure scoring,Threat context,Cyber exposure,Exposure quantification and benchmarking,Optimize security investments,Vulnerability assessment]
-  demos:
-    - description: Fleet enables a more modern, threat-first prioritization approach to vulnerability management.
-      quote: In reality, across our inventory of devices, it's unlikely to ever be exploited. I'd rather do that legwork on my team and then go and ask and prioritize work on these infrastructure teams that are already busy with things that could or could not be vulnerable. Being able to be more exact allows us to go to these teams less, which saves everybody time.
-      moreInfoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc&t=131s
-  waysToUse:
-    - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
-    - description: An Introduction to EPSS, The Exploit Prediction Scoring System
-    - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
-    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable.
-#  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
-#  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
-#  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
-- industryName: CISA KEVs (known exploited vulnerabilities) 
-  tier: Premium
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  demos:
-    - description: 
-      moreInfoUrl:
-  waysToUse:
-    - description: Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.
-    - description: Use CISA KEVs for vulnerability management
-    - moreInfoUrl: https://www.youtube.com/watch?v=Z3mw2oxssYk
-- industryName: Query performance monitoring
-  tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  demos:
-    - description: A top software company needed to understand the performance impact of osquery queries before running them on all of their production Linux servers.
-      moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
-    - description: A top software company wanted to detect regressions when adding/changing queries and fail builds if queries were too expensive.
-      moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
-  waysToUse:
-    - description: Monitor performance for automated queries.
-    - description: Monitor performance for live queries.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/467
-- industryName: Detect and surface issues with devices (policies)
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
-- industryName: Policy scoring
-  friendlyName: Mark policies as critical
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Premium
-- industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
-  tier: Free
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  waysToUse:
-    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
-- industryName: File carving (AWS S3)
-  tier: Free
-  usualDepartment: Security
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+#
+# 
+#
+#
+#
+#
+#
+#
+#   █████╗ ██████╗  ██████╗██╗  ██╗██╗██╗   ██╗███████╗
+#  ██╔══██╗██╔══██╗██╔════╝██║  ██║██║██║   ██║██╔════╝
+#  ███████║██████╔╝██║     ███████║██║██║   ██║█████╗  
+#  ██╔══██║██╔══██╗██║     ██╔══██║██║╚██╗ ██╔╝██╔══╝  
+#  ██║  ██║██║  ██║╚██████╗██║  ██║██║ ╚████╔╝ ███████╗
+#  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝
+#
+#
+# #  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔═╗╔╗╔╔═╗╦╔╗╔╔═╗╔═╗╦═╗╦╔╗╔╔═╗
+# #   ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  ║╣ ║║║║ ╦║║║║║╣ ║╣ ╠╦╝║║║║║ ╦
+# #  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  ╚═╝╝╚╝╚═╝╩╝╚╝╚═╝╚═╝╩╚═╩╝╚╝╚═╝
+# - industryName: Detection engineering
+#   friendlyName: # Ship logs to your data lake and comopare with known bad binary hashes or capture behavioral data and build custom detections (e.g. using a framework like MITRE)
+#   description: 
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: yes
+#   dri: mikermcneil
+#   usualDepartment: Security
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   buzzwords: [Security analytics,Behavioral analytics,MITRE ATT&CK,Tactics techniques and procedures (TTPs),Security information and event management (SIEM)]
+#   demos:
+#     - description: 
+#       moreInfoUrl: 
+#   waysToUse:
+#     - description: 
+#
+#
+# #  ╦╔╗╔╔╦╗╦═╗╦ ╦╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
+# #  ║║║║ ║ ╠╦╝║ ║╚═╗ ║ ║║ ║║║║   ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║
+# #  ╩╝╚╝ ╩ ╩╚═╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝     
+# - industryName: Intrusion detection
+#   friendlyName: Build custom query and policy automations to detect suspicious behavior
+#   description: Send webhooks and ship logs to detect intrusions and issues with devices.
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: yes
+#   usualDepartment: Security
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   buzzwords: [Host-based intrusion detection system (HIDS,Indicators of Compromise (IOCs),Feeder for SIEM]
+#   demos:
+#     - description: A top media company wanted to share more security data with other departments without slowing down hosts.
+#   waysToUse:
+#     - description: Send webhooks to generate alerts when an IOC is detected on one or more devices.
+#     - description: Ship logs to Splunk, Snowflake, and other SIEMs to build a host-based intrusion detection system (HIDS).
+#     - description: Synchronize live state of endpoints to a data lake or SIEM in a consistent shape.
+#     - description: Export the data to other systems
+#       moreInfoUrl: https://docs.google.com/document/d/1pE9U-1E4YDiy6h4TorszrTOiFAauFiORikSUFUqW7Pk/edit
+#     - description: Export data to a third-party SIEM tool
+#       moreInfoUrl: https://www.websense.com/content/support/library/web/hosted/admin_guide/siem_integration_explain.aspx
+#     - description: Gather data and log events from endpoints
+#       moreInfoUrl: https://techbeacon.com/security/how-osquery-can-lift-your-security-teams-game#:~:text=%22If%20security%20teams%20didn%27t%20have%20osquery%2C%20they%20would%20have%20to%20find%20a%20way%20to%20manually%20go%20into%20each%20endpoint%20and%20gather%20data%2C%20or%20buy%20a%20third%2Dparty%20tool%20to%20do%20that%20for%20them
+# 
+# #  ╔╦╗╦ ╦╦═╗╔═╗╔═╗╔╦╗  ╦ ╦╦ ╦╔╗╔╔╦╗╦╔╗╔╔═╗
+# #   ║ ╠═╣╠╦╝║╣ ╠═╣ ║   ╠═╣║ ║║║║ ║ ║║║║║ ╦
+# #   ╩ ╩ ╩╩╚═╚═╝╩ ╩ ╩   ╩ ╩╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝
+# - industryName: Threat hunting
+#   friendlyName: # TODO: live query
+#   description: 
+#   documentationUrl: https://fleetdm.com/queries
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: yes
+#   dri: mikermcneil
+#   usualDepartment: Security
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   buzzwords: []
+#   demos:
+#     - description: 
+#       moreInfoUrl: 
+#   waysToUse:
+#     - description:
+#
+#   
+# #  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╦═╗╔═╗╔═╗╔═╗╔═╗  ╦╔═╗╔═╗╦ ╦╔═╗╔═╗  ╦ ╦╦╔╦╗╦ ╦  
+# #   ║║║╣  ║ ║╣ ║   ║   ╠═╣║║║ ║║  ╚═╗║ ║╠╦╝╠╣ ╠═╣║  ║╣   ║╚═╗╚═╗║ ║║╣ ╚═╗  ║║║║ ║ ╠═╣  
+# #  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩   ╩ ╩╝╚╝═╩╝  ╚═╝╚═╝╩╚═╚  ╩ ╩╚═╝╚═╝  ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚╩╝╩ ╩ ╩ ╩  
+# #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗╔═╗                                                                
+# #   ║║║╣ ╚╗╔╝║║  ║╣ ╚═╗                                                                
+# #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝╚═╝                                                                
+# - industryName: Detect and surface issues with devices (policies)
+#   documentationUrl: https://fleetdm.com/docs/get-started/anatomy#policy
+#   productCategories: [Endpoint operations,Device management]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: yes
+#
+# 
+# #  ╔╗ ╔═╗╔╦╗╔═╗╦ ╦  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔
+# #  ╠╩╗╠═╣ ║ ║  ╠═╣  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║
+# #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
+# - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
+#   friendlyName: Install agents over the air
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+#
+# 
+# #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
+# #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
+# #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
+# - industryName: Vulnerability dashboard 
+#   friendlyName: Vulnerability dashboard
+#   documentationUrl: https://fleetdm.com/vulnerability-management
+#   productCategories: [Vulnerability management]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: Security
+#   tier: Premium
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: yes
+#   demos:
+#     - description: See a list of all vulnerabilities across your hosts.
+#       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
+#     - description: AI generated CVSS v4 context. Coming soon (2024-12-31).
+#   waysToUse:
+#     - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about.
+#
+#
+# #  ╔═╗╦   ╔═╗╔═╗╔╗╔╔═╗╦═╗╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+# #  ╠═╣║───║ ╦║╣ ║║║║╣ ╠╦╝╠═╣ ║ ║╣  ║║   ║║║╣ ╚═╗║  ╠╦╝║╠═╝ ║ ║║ ║║║║╚═╗
+# #  ╩ ╩╩   ╚═╝╚═╝╝╚╝╚═╝╩╚═╩ ╩ ╩ ╚═╝═╩╝  ═╩╝╚═╝╚═╝╚═╝╩╚═╩╩   ╩ ╩╚═╝╝╚╝╚═╝
+# - industryName: AI-generated descriptions (optional)
+#   description: Optionally use AI to explain why your security policies matter.
+#   documentationUrl: https://github.com/fleetdm/fleet/issues/18187
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices] 
+# 
+# 
+# CONSOLIDATED WITH DEVICE HEALTH       
+# #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+# #  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
+# #  ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝  ╩  ╚═╝╚═╝ ╩ ╚═╝╩╚═╚═╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
+# - industryName: Automatic posture assessment
+#   friendlyName: Verify any security or compliance goal
+#   description: Simplify security audits, build definitive reports, and discover + verify ongoing compliance for every endpoint, from workstations to data centers.
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/cis-benchmarks#cis-benchmarks
+#   screenshotSrc:
+#   usualDepartment: Security
+#   tier: Free
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: yes
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   dri: mikermcneil
+#   demos:
+#     - description: A large tech company used Fleet's CIS Benchmark policies to automatically assess posuture of 80,000 endpoints. 
+#       quote:
+#       moreInfoUrl: 
+#   buzzwords: [Attack surface management (ASM),Endpoint hardening,Security posture,Cyber hygiene,Anomaly detection,Configuration management,Attack Surface Monitoring,Policy assessment]
+#   waysToUse: 
+#     # Consolidated ways to use with "Device health"
+# 
+#
+#  CONSOLIDATED WITH DEVICE HEALTH
+# #  ╔═╗╔═╗╦  ╦╔═╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╦╔╗╔╔═╗
+# #  ╠═╝║ ║║  ║║  ╚╦╝  ╚═╗║  ║ ║╠╦╝║║║║║ ╦
+# #  ╩  ╚═╝╩═╝╩╚═╝ ╩   ╚═╝╚═╝╚═╝╩╚═╩╝╚╝╚═╝
+# - industryName: Policy scoring
+#   documentationUrl: 
+#   friendlyName: Mark policies as critical
+#   productCategories: [Endpoint operations,Device management]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+#   tier: Premium
+#   jamfProHasFeature: no
+#   jamfProtectHasFeature: no
+#   waysToUse:
+#     # Consolidated ways to use with "Device health"
+# 
+#
+#  CONSOLIDATED WITH TEAMS
+# #  ╦  ╦╔═╗╦═╗╦╔═╗╔╗ ╦  ╔═╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
+# #  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║
+# #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
+# - industryName: Variable enrollment
+#   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
+#   tier: Premium
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations, Device management]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT  
+# 
+#
+# #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
+# #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
+# #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
+# - industryName: Agent auto-update (optional)
+#   friendlyName: Keep agents and extensions up to date
+#   description: Optionally keep agents and extensions up to date automatically using Fleet's free update registry, powered by The Update Framework (TUF).
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+# 
+#
+# #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+# #   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
+# #  ═╩╝╚═╝╚═╝╩    ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+# - industryName: Deep automations
+#   friendlyName: Trigger webhooks or run scripts
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+#   description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
+#   productCategories: [Endpoint operations,Device management,Vulnerability management]
+#   pricingTableCategories: [Integrations]
+#   comingSoonOn: 2024-12-31
+#   tier: Free
+#   buzzwords: [Automated remediation,Auto-remediation,Self-healing]
+#   waysToUse:
+#     - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
+#     - description: Use osquery and santa to work around inflexibilities in proprietary MDMs and other protection solutions.
+#     - description: Listen to webhooks to perform autonomous self-healing (cloud security engineering)
+#       moreInfoUrl: https://www.fugue.co/blog/automated-remediation-scripts-vs.-self-healing-infrastructure-two-approaches-to-cloud-security
+# 
+#
+#    CONSOLIDATED WITH "SELF-SERVICE APPLICATION INSTALLATION"
+# #  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗╔═╗
+# #  ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝╚═╗
+# #  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═╚═╝
+# - industryName: Installers (self-service)
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
+#   waysToUse:
+#     CONSOLIDATED WITH "SELF-SERVICE APPLICATION INSTALLATION"
+# 
+#
+#   CONSOLIDATED WITH "POLICIES"
+#  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
+#   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
+#   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
+#  ╔═╗╔═╗╦╦  ╦╔╗╔╔═╗  ╔═╗╔═╗╦  ╦╔═╗╦ ╦                                               
+#  ╠╣ ╠═╣║║  ║║║║║ ╦  ╠═╝║ ║║  ║║  ╚╦╝                                               
+#  ╚  ╩ ╩╩╩═╝╩╝╚╝╚═╝  ╩  ╚═╝╩═╝╩╚═╝ ╩                                                
+# - industryName: Trigger a workflow based on a failing policy
+#   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
+#   productCategories: [Endpoint operations,Device management]
+#   pricingTableCategories: [Integrations]
+#   usualDepartment: IT
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+# 
+#
+#   CONSOLIDATED WITH "DEVICE INVENTORY"
+# #  ╦ ╦╔═╗╦═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
+# #  ╠═╣╠═╣╠╦╝ ║║║║║╠═╣╠╦╝║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
+# #  ╩ ╩╩ ╩╩╚══╩╝╚╩╝╩ ╩╩╚═╚═╝  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩ 
+# - industryName: Hardware inventory
+#   documentationUrl: https://fleetdm.com/tables/system_info
+#   productCategories: [Endpoint operations,Device management,Vulnerability management]
+#   pricingTableCategories: [Devices]
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#   waysToUse:
+#     - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
+#       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+#   
+
+#   CONSOLIDATED WITH "DEVICE INVENTORY"
+# #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
+# #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
+# #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
+# - industryName: Device inventory dashboard
+#   documentationUrl: 
+#   productCategories: [Endpoint operations,Device management]
+#   pricingTableCategories: [Devices]
+#   usualDepartment: IT
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: yes
+# 
+#
+#   CONSOLIDATED WITH "DEVICE INVENTORY"
+# #  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
+# #  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
+# #  ╚═╝╚═╝╚   ╩ ╚╩╝╩ ╩╩╚═╚═╝  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩ 
+# - industryName: Software inventory
+#   documentationUrl: https://fleetdm.com/docs/get-started/anatomy#software-library
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#   productCategories: [Endpoint operations,Device management,Vulnerability management]
+#   pricingTableCategories: [Devices]
+#   waysToUse:
+#     - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
+#       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
+#     - description: View a list of all software and their versions installed on all your hosts.
+#     - description: View a list of software rolled up by title.
+#       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14674
+# #
+# 
+#   CONSOLIDATED WITH "DEVICE INVENTORY"
+# #  ╔╗ ╦═╗╔═╗╦ ╦╔═╗╔═╗  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╔═╗╔═╗╔═╗╦╔═╔═╗╔═╗╔═╗╔═╗
+# #  ╠╩╗╠╦╝║ ║║║║╚═╗║╣   ║║║║╚═╗ ║ ╠═╣║  ║  ║╣  ║║  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ╠═╝╠═╣║  ╠╩╗╠═╣║ ╦║╣ ╚═╗
+# #  ╚═╝╩╚═╚═╝╚╩╝╚═╝╚═╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝═╩╝  ╚═╝╚═╝╚   ╩ ╚╩╝╩ ╩╩╚═╚═╝  ╩  ╩ ╩╚═╝╩ ╩╩ ╩╚═╝╚═╝╚═╝
+# - industryName: Browse installed software packages
+#   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#software
+#   productCategories: [Endpoint operations,Device management,Vulnerability management]
+#   pricingTableCategories: [Devices]
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: no
+#  
+#
+#   CONSOLIDATED WITH "SEARCH INVENTORY"
+# #  ╔═╗╔═╗╔═╗╦═╗╔═╗╦ ╦  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗╔═╗  ╔╗ ╦ ╦  ╦╔═╗  ╔═╗╔═╗╦═╗╦╔═╗╦     
+# #  ╚═╗║╣ ╠═╣╠╦╝║  ╠═╣   ║║║╣ ╚╗╔╝║║  ║╣ ╚═╗  ╠╩╗╚╦╝  ║╠═╝  ╚═╗║╣ ╠╦╝║╠═╣║     
+# #  ╚═╝╚═╝╩ ╩╩╚═╚═╝╩ ╩  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝╚═╝  ╚═╝ ╩   ╩╩┘   ╚═╝╚═╝╩╚═╩╩ ╩╩═╝┘  
+# #  ╦ ╦╔═╗╔═╗╔╦╗╔╗╔╔═╗╔╦╗╔═╗   ╦ ╦╦ ╦╦╔╦╗                                      
+# #  ╠═╣║ ║╚═╗ ║ ║║║╠═╣║║║║╣    ║ ║║ ║║ ║║                                      
+# #  ╩ ╩╚═╝╚═╝ ╩ ╝╚╝╩ ╩╩ ╩╚═╝┘  ╚═╝╚═╝╩═╩╝                                      
+# - industryName: Search devices by IP, serial, hostname, UUID
+#   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#hosts
+#   productCategories: [Endpoint operations,Device management]
+#   pricingTableCategories: [Devices]
+#   tier: Free
+#   jamfProHasFeature: yes
+#   jamfProtectHasFeature: yes
+#

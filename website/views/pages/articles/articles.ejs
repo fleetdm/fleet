@@ -1,51 +1,66 @@
 <div id="articles" v-cloak>
-  <div style="max-width: 1200px;" class="container-fluid p-0">
-    <div class="mx-auto">
-      <div purpose="categories-and-search" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-md-center justify-content-start" v-if="isArticlesLandingPage">
-        <div purpose="categories" class="d-flex flex-md-row flex-column justify-content-start">
-          <div purpose="category-filter" :class="[ filter === 'all' ? 'selected' : '']" @click="filterBy('all')">All</div>
-          <div purpose="category-filter" :class="[ filter === 'engineering' ? 'selected' : '']" @click="filterBy('engineering')">Engineering</div>
-          <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
-          <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
-          <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
-          <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
-          <div purpose="category-filter" :class="[ filter === 'releases' ? 'selected' : '']" @click="filterBy('releases')">Releases</div>
-        </div>
-<!--         <div purpose="search" class="p-2 mt-3 mt-lg-0 d-flex flex-row">
-          <img class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-          <input class="ml-3 border-0" placeholder="Search">
-        </div> -->
-      </div>
-      <div purpose="category-title" v-else>
-        <h1>{{articleCategory}}</h1>
-        <div class="d-flex flex-sm-row flex-column justify-content-between">
-          <p>{{categoryDescription}}</p>
-          <a purpose="rss-button" class="px-0 px-sm-2 pt-sm-1" @click="clickCopyRssLink(category)" target="_blank"><span>Subscribe</span></a>
-        </div>
-      </div>
-      <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="selectedArticles.length > 0">
-        <div purpose="article-card" class="card" v-for="article in selectedArticles">
-          <a purpose="article-card-link" :href="article.url">
-            <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
-          </a>
-          <div purpose="article-card-body" class="card-body d-flex flex-column">
-            <p purpose="category-name" class="pb-2 mb-0">{{article.meta.category}}</p>
-            <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
-            <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
-              <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">
-              <p class="pl-2 font-weight-bold">{{article.meta.authorFullName}}</p>
+  <div style="max-width: 1200px;" class="container-fluid mx-auto" purpose="page-container">
+      <div purpose="category-title">
+        <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">
+          <div class="d-flex flex-column justify-content-between">
+            <h1>{{articleCategory}}</h1>
+            <p>{{categoryDescription}}</p>
+          </div>
+          <div purpose="search" id="docsearch-query" v-if="['Articles', 'Announcements', 'Guides'].includes(articleCategory)">
+            <div purpose="disabled-search" class="d-flex w-100">
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text border-0 bg-transparent pl-3" >
+                    <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                  </span>
+                </div>
+                <div class="form-control border-0 ">
+                <input class="docsearch-input pr-1"
+                  placeholder="Search" aria-label="Search"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
-        </div>
-        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
-        </div>
-        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+          <div class="d-flex flex-column align-self-md-end" v-if="articleCategory === 'Releases'">
+            <a purpose="changelog-button" href="https://github.com/fleetdm/fleet/releases" target="_blank"><img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png"/>View changelog</a>
+          </div>
         </div>
       </div>
-      <div v-else>
-        <h2 class="text-muted mx-auto">No articles to display</h2>
+    <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="articleCategory !== 'Guides'">
+      <div purpose="article-card" class="card" v-for="article in selectedArticles">
+        <a purpose="article-card-link" :href="article.url">
+          <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
+        </a>
+        <div purpose="article-card-body" class="card-body d-flex flex-column">
+          <p purpose="category-name" class="pb-2 mb-0">{{article.meta.category}}</p>
+          <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
+          <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
+            <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">
+            <p class="pl-2 font-weight-bold">{{article.meta.authorFullName}}</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+      </div>
+      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+      </div>
+      <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+      </div>
+    </div>
+    <div purpose="guides-category-page" v-else>
+      <div purpose="guides" class="card-columns">
+        <div purpose="guide-card" class="card" v-for="article in selectedArticles">
+          <a :href="article.url">
+          <div purpose="article-card-body" class="card-body d-flex flex-column">
+            <div purpose="article-title"><h5>{{article.meta.articleTitle}}</h5></div>
+            <p class="small" v-if="article.meta.description">{{article.meta.description}}</p>
+            <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
+              <js-timestamp :at="article.meta.publishedOn" format="timeago" always-show-year="true"></js-timestamp>
+            </div>
+          </div>
+          </a>
+        </div>
       </div>
     </div>
   </div>

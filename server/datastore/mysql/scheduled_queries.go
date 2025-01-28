@@ -113,7 +113,7 @@ func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.Sc
 	}
 
 	id, _ := result.LastInsertId()
-	sq.ID = uint(id)
+	sq.ID = uint(id) //nolint:gosec // dismiss G115
 
 	query = `SELECT query, name FROM queries WHERE id = ? LIMIT 1`
 	metadata := []struct {

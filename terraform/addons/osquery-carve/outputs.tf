@@ -1,7 +1,7 @@
 output "fleet_extra_environment_variables" {
   value = {
-    FLEET_S3_BUCKET = aws_s3_bucket.main.bucket
-    FLEET_S3_PREFIX = "carve_results/"
+    FLEET_S3_CARVES_BUCKET = aws_s3_bucket.main.bucket
+    FLEET_S3_CARVES_PREFIX = "carve_results/"
   }
 }
 

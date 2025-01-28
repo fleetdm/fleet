@@ -67,7 +67,7 @@ module "aurora_mysql" {
 
   name                  = "${local.name}-mysql-iam"
   engine                = "aurora-mysql"
-  engine_version        = "8.0.mysql_aurora.3.02.0"
+  engine_version        = "8.0.mysql_aurora.3.05.2"
   instance_type         = var.db_instance_type_writer
   instance_type_replica = var.db_instance_type_reader
 

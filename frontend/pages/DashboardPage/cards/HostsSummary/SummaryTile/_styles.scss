@@ -1,5 +1,4 @@
 .summary-tile {
-  width: 100%;
   display: flex;
   justify-content: space-around;
 
@@ -12,6 +11,7 @@
 
   &__tile {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: px-to-rem(12);
     text-align: left;
@@ -27,20 +27,11 @@
     white-space: nowrap;
   }
 
-  &__circled-icon {
+  &__icon-count {
     display: flex;
-    justify-content: center;
+    flex-direction: row;
     align-items: center;
-    background-color: $core-vibrant-blue;
-    width: px-to-rem(48);
-    height: px-to-rem(48);
-    border-radius: 100%;
-    background: $ui-vibrant-blue-10;
-
-    .icon {
-      margin-left: 0 !important;
-      margin-right: 0;
-    }
+    gap: 12px;
   }
 
   &__count {
@@ -57,7 +48,7 @@
   }
 
   &__description {
-    white-space: nowrap;
+    color: $ui-fleet-black-75;
 
     .component__tooltip-wrapper__element {
       font-size: $x-small;

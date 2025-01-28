@@ -6,7 +6,6 @@
     }
 
     &-label {
-      width: 105px;
       line-height: 38px;
       font-size: $small;
     }
@@ -38,7 +37,7 @@
           color: $core-vibrant-red;
           border: 1px solid $core-vibrant-red;
           box-sizing: border-box;
-          border-radius: 4px;
+          border-radius: $border-radius;
         }
 
         .Select-arrow {
@@ -51,13 +50,12 @@
   &__option {
     display: flex;
     flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
   }
 
   &__help-text {
-    margin-top: $pad-xsmall;
-    font-size: $xx-small;
-    white-space: normal;
-    color: $core-fleet-blue;
+    @include help-text;
     font-style: italic;
   }
 }
@@ -66,15 +64,19 @@
   &.dropdown__select {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
-    &:hover {
+
+    &:hover:not(.is-disabled) {
       box-shadow: none;
-      border: 1px solid $core-vibrant-blue;
+      border-color: $core-vibrant-blue;
     }
   }
+
   .Select-control {
     background-color: $ui-light-grey;
     border: 0;
     border-radius: $border-radius;
+    cursor: pointer;
+
     .Select-value {
       font-size: $small;
       background-color: $ui-light-grey;
@@ -203,6 +205,12 @@
         }
       }
     }
+
+    &.is-disabled {
+      > .Select-control .Select-value .Select-value-label {
+        color: $ui-fleet-black-50;
+      }
+    }
   }
 
   .Select-menu-outer {
@@ -215,6 +223,10 @@
     animation: fade-in 150ms ease-out;
   }
 
+  .Select-menu {
+    max-height: 190px;
+  }
+
   .Select-noresults {
     font-size: $x-small;
   }
@@ -225,6 +237,12 @@
     margin: 0;
     padding: 10px;
     display: block;
+    border-radius: $border-radius;
+
+    &.is-selected {
+      background-color: transparent;
+      font-weight: bold;
+    }
 
     &.is-focused {
       background-color: $ui-vibrant-blue-10;
@@ -232,6 +250,10 @@
       .Select-icon {
         color: $ui-vibrant-blue-10;
       }
+    }
+
+    &:active {
+      background-color: $core-vibrant-blue-down;
     }
 
     &:last-child {
@@ -306,7 +328,7 @@
 
     .Select-option {
       &.is-disabled {
-        color: $core-fleet-black;
+        color: $ui-fleet-black-50;
         cursor: default;
 
         &.is-focused {
@@ -325,5 +347,13 @@
     position: relative;
     top: 4px;
     margin-left: 3px;
+  }
+}
+
+.form-field {
+  &__label {
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 }

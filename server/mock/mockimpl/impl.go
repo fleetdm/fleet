@@ -413,7 +413,7 @@ func main() {
 		defer f.Close()
 		_, err = f.Write(imp)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(err) //nolint:gocritic // ignore exitAfterDefer
 		}
 	}
 }

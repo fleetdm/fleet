@@ -1,0 +1,29 @@
+.edit-teams-vpp-modal {
+  .component__tooltip-wrapper__element {
+    width: 100%; // default component style was causing the select box not to be full width
+  }
+
+  // this is needed to wrap the selected team names in that are displayed
+  // in the dropdown select box.
+  .dropdown__select {
+    text-wrap: wrap;
+  }
+
+  // styles needed to make select look like figma design when disabled,
+  // default styles in the Dropdown component were not enough
+  &__form-field--disabled {
+    .Select.dropdown__select {
+      background-color: $ui-off-white;
+    }
+    .Select-placeholder {
+      color: $ui-fleet-black-50;
+    }
+    .form-field__help-text {
+      opacity: 0.6;
+    }
+  }
+  // TODO: how to adjust positioning of the tooltip so that it is just above the select box?
+  &__tooltip--all-teams {
+    text-align: center;
+  }
+}

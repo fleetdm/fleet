@@ -6,6 +6,13 @@ module.exports = {
 
   description: 'Display "fleetctl preview" page.',
 
+  inputs: {
+    start: {
+      type: 'boolean',
+      description: 'A boolean flag that will hide the "next steps" buttons on the page if set to true',
+      defaultsTo: false,
+    }
+  },
 
   exits: {
 
@@ -21,10 +28,27 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({start}) {
+
+    let trialLicenseKey;
+    // Check to see if this user has a Fleet premium trial license key.
+    let userHasTrialLicense = this.req.me.fleetPremiumTrialLicenseKey;
+    let userHasExpiredTrialLicense = false;
+    if(userHasTrialLicense) {
+      if(this.req.me.fleetPremiumTrialLicenseKeyExpiresAt < Date.now()) {
+        userHasExpiredTrialLicense = true;
+      }
+      trialLicenseKey = this.req.me.fleetPremiumTrialLicenseKey;
+    } else {
+      trialLicenseKey = '';
+    }
 
     // Respond with view.
-    return {};
+    return {
+      hideNextStepsButtons: start,
+      trialLicenseKey,
+      userHasExpiredTrialLicense,
+    };
 
   }
 

@@ -1,64 +1,191 @@
-<div id="fleetctl-preview">
-  <div style="max-width: 800px; padding-top: 80px; padding-bottom: 80px;" class="container-fluid px-3">
-    <h1 class="pb-4 m-0">Get started</h1>
-    <p>Try out a preview of Fleet and osquery on your laptop before deploying at scale by following the guide below.</p>
-    <div class="pt-4 pb-4">
-      <h2 class="mb-3">1. Install Node (optional) and Docker</h2>
-      <p>The quickest way to install Fleet is with Node.js and Docker.</p>
-      <div class="d-sm-flex" purpose="get-started-buttons">
-        <a href="https://nodejs.org/en/download/" target="_blank"
-           style="color: #fff; background: #333;" class="d-flex btn btn-md justify-content-center align-items-center mr-sm-3">
-          <img style="height: 36px;" class="pr-3 d-inline" alt="NodeJS logo" src="/images/logo-node-59x36@2x.png"/>
-          Find my Node installer
-        </a>
-        <a href="https://docs.docker.com/get-docker/" target="_blank"
-          style="color: #fff; background: #0073EC;" class="d-flex btn btn-md justify-content-center align-items-center mt-3 mt-sm-0">
-          <img style="height: 36px;" class="pr-3 d-inline" alt="Docker logo" src="/images/logo-docker-51x36@2x.png"/>
-          Get Docker
-        </a>
+<div id="fleetctl-preview" v-cloak>
+  <div purpose="page-container" class="d-flex flex-column container">
+    <div purpose="page-title">
+      <h1>Try Fleet</h1>
+      <p>The quickest way to try Fleet Premium is to run a local demo with <a href="https://docs.docker.com/get-docker/" target="_blank">Docker</a>.</p>
+      <p class="mb-0">Follow the instructions below to test Fleet on your macOS, Windows, and Linux device.</p>
+    </div>
+    <div purpose="prerequisites">
+      <h2>Prerequisites</h2>
+      <p>An installation of Docker is required to try Fleet locally.</p>
+      <a purpose="docker-button" href="https://docs.docker.com/get-docker/" target="_blank"
+        style="color: #fff; background: #0073EC;" class="d-flex btn btn-md justify-content-center align-items-center mt-3 mt-sm-0">
+        <img alt="Docker logo" src="/images/logo-docker-51x36@2x.png"/>
+        Get Docker
+      </a>
+    </div>
+    <div purpose="installation-steps">
+      <h2>Install Fleet</h2>
+      <div purpose="platform-selector" class="d-flex flex-row justify-content-between justify-content-sm-start">
+        <div purpose="selector-tab" :class="[selectedPlatform === 'macos' ? 'selected' : '']" @click="selectedPlatform = 'macos'"><p>macOS</p></div>
+        <div purpose="selector-tab" :class="[selectedPlatform === 'windows' ? 'selected' : '']" @click="selectedPlatform = 'windows'"><p>Windows</p></div>
+        <div purpose="selector-tab" :class="[selectedPlatform === 'linux' ? 'selected' : '']" @click="selectedPlatform = 'linux'"><p>Linux</p></div>
+        <div purpose="selector-tab" :class="[selectedPlatform === 'npm' ? 'selected' : '']" @click="selectedPlatform = 'npm'"><p>NPM</p></div>
       </div>
-      <p class="pt-4"><img alt="A small circle with an 'I' inside of it"
-          style="width: 16px; display: inline; margin-right: 8px; margin-bottom: 3px" src="/images/info-16x16@2x.png">We
-        use NPM to install <code>fleetctl</code>. It can also be installed via the <a
-          href="https://github.com/fleetdm/fleet/releases" target="_blank">release page</a> or <a
-          href="https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md" target="_blank">built from source</a>.</p>
-    </div>
-    <div>
-      <h2 class="pt-3 mb-3">2. Run Fleet</h2>
-      <p>Install the <code>fleetctl</code> command line tool and start the Fleet preview experience:</p>
-      <div purpose="terminal-commands">
-        <p class="text-muted"># Install the Fleet command-line tool</p>
-        <p>npm install -g fleetctl</p>
-        <p class="text-muted"># Run a local demo of the Fleet server</p>
-        <p>fleetctl preview</p>
+      <%/* macOS install steps */%>
+      <div v-if="selectedPlatform === 'macos'">
+        <div purpose="numbered-steps">
+          <div purpose="step">
+              <p>Install the <code>fleetctl</code> command line tool:</p>
+              <div purpose="terminal-commands">
+                <div purpose="command-container">
+                  <code>{{installCommands[selectedPlatform]}}</code>
+                </div>
+                <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+              </div>
+          </div>
+          <div purpose="step">
+            <p>Run a local demo of the Fleet server:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
+          </div>
+          <div purpose="step">
+            <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
+            <p class="mb-2"><strong>Email</strong>: admin@example.com</p>
+            <p class="mb-0"><strong>Password</strong>: preview1337#</p>
+          </div>
+        </div>
+      </div>
+      <%/* Linux install steps */%>
+      <div v-else-if="selectedPlatform === 'linux'">
+        <div purpose="numbered-steps">
+          <div purpose="step">
+            <p>Install the <code>fleetctl</code> command line tool:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code>{{installCommands[selectedPlatform]}}</code>
+              </div>
+              <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+            </div>
+          </div>
+          <div purpose="step">
+            <p>Run a local demo of the Fleet server:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
+          </div>
+          <div purpose="step">
+            <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
+            <p class="mb-2"><strong>Email</strong>: admin@example.com</p>
+            <p class="mb-0"><strong>Password</strong>: preview1337#</p>
+          </div>
+        </div>
+      </div>
+      <%/* Windows install steps */%>
+      <div v-else-if="selectedPlatform === 'windows'">
+        <div purpose="numbered-steps">
+          <div purpose="step">
+              <p>Install the <code>fleetctl</code> command line tool:</p>
+              <div purpose="terminal-commands">
+                <div purpose="command-container">
+                  <code>{{installCommands[selectedPlatform]}}</code>
+                </div>
+                <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+              </div>
+          </div>
+          <div purpose="step">
+            <p>Run a local demo of the Fleet server:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
+          </div>
+          <div purpose="step">
+            <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
+            <p class="mb-2"><strong>Email</strong>: admin@example.com</p>
+            <p class="mb-0"><strong>Password</strong>: preview1337#</p>
+          </div>
+        </div>
+      </div>
+      <%/* NPM install steps */%>
+      <div v-else-if="selectedPlatform === 'npm'">
+        <div purpose="numbered-steps">
+          <div purpose="step">
+            <p>Install Node.js</p>
+            <a purpose="node-button" href="https://nodejs.org/en/download/" target="_blank" style="color: #fff; background: #333;" class="btn d-flex flex-row align-items-center justify-content-center">
+              <img alt="NodeJS logo" src="/images/logo-node-59x36@2x.png"/>
+              Find my Node installer
+            </a>
+          </div>
+          <div purpose="step">
+            <p>Install the <code>fleetctl</code> command line tool:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code>{{installCommands[selectedPlatform]}}</code>
+              </div>
+              <span purpose="install-copy-button" @click="clickCopyInstallCommand(selectedPlatform)"></span>
+            </div>
+          </div>
+          <div purpose="step">
+            <p>Run a local demo of the Fleet server:</p>
+            <div purpose="terminal-commands">
+              <div purpose="command-container">
+                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
+              </div>
+              <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
+            </div>
+            <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
+              </div>
+            </blockquote>
+          </div>
+          <div purpose="step">
+            <p>The Fleet UI is now available at <a href="http://localhost:1337" target="_blank">http://localhost:1337</a>. Use the credentials below to login:</p>
+            <p class="mb-2"><strong>Email</strong>: admin@example.com</p>
+            <p class="mb-0"><strong>Password</strong>: preview1337#</p>
+          </div>
+        </div>
       </div>
     </div>
-    <div style="padding-top: 60px;">
-      <h2 class="mb-3">3. Log in to Fleet</h2>
-      <p>The Fleet UI is now available at <a href="http://localhost:1337"
-          target="_blank">http://localhost:1337</a>. Use the credentials below to login.</p>
-      <p class="mb-2"><strong>Email:</strong> admin@example.com</p>
-      <p><strong>Password:</strong> preview1337#</p>
+    <div v-if="me">
+      <h2 class="pt-0">Need help?</h2>
+      <p><a purpose="contact-link" href="/contact">Get in touch</a> with us.</p>
     </div>
-    <div style="padding-top: 60px;">
-      <h2 class="mb-4">Next steps</h2>
-      <div class="d-md-flex" purpose="get-started-buttons">
-        <a href="/docs/using-fleet/learn-how-to-use-fleet"
-          class="d-flex flex-fill btn btn-primary btn-md justify-content-center mt-3 mt-md-0 mr-0 mr-md-3">
-          Learn how to use Fleet
+    <div v-else>
+      <h2 class="pt-0">Next steps</h2>
+      <div purpose="next-steps" class="d-flex flex-sm-row flex-column align-items-center">
+        <a purpose="docs-button" href="/docs" class="btn btn-primary">
+          Read the docs
         </a>
-        <a href="/slack" target="_blank"
-          class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0 mr-0 mr-md-3">
-          <img style="height: 24px;" class="pr-3 d-inline" alt="Slack logo" src="/images/logo-slack-24x24@2x.png" />
-          Ask for help on Slack
-        </a>
-        <a @click="clickOpenChatWidget()"
-          class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0 mr-0">
-          Show me
-        </a>
+        <animated-arrow-button href="/docs/deploying" class="d-flex">
+          Deploy to production
+        </animated-arrow-button>
       </div>
     </div>
-
   </div>
-
+  <parallax-city></parallax-city>
 </div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

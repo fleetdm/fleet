@@ -1,9 +1,0 @@
-- Changed the following endpoints to be platform-agnostic. The old routes still work but are deprecated.
-  - POST /mdm/apple/setup/eula was replaced by POST /mdm/setup/eula
-  - GET /mdm/apple/setup/eula/metadata was replaced by GET /mdm/setup/eula/metadata
-  - DELETE /mdm/apple/setup/eula/:token was replaced by DELETE /mdm/setup/eula/:token
-  - GET /mdm/apple/setup/eula/:token was replaced by GET /mdm/setup/eula/:token
-  - POST /mdm/apple/bootstrap was replaced by POST /mdm/bootstrap
-  - GET /mdm/apple/bootstrap/:team_id/metadata was replaced by GET /mdm/bootstrap/:team_id/metadata
-  - DELETE /mdm/apple/bootstrap/:team_id was replaced by DELETE /mdm/bootstrap/:team_id
-  - GET /mdm/apple/bootstrap/summary was replaced by GET /mdm/bootstrap/summary

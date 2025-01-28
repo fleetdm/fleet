@@ -4,8 +4,7 @@ import { DiskEncryptionStatus } from "interfaces/mdm";
 import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
-} from "services/entities/mdm";
-import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
+} from "services/entities/disk_encryption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -13,7 +12,7 @@ import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
-interface IStatusCellValue {
+export interface IStatusCellValue {
   displayName: string;
   statusName: IndicatorStatus;
   value: DiskEncryptionStatus;
@@ -86,13 +85,10 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "macosHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
         <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          <TextCell value={aggregateCount} />
         </div>
       );
     },
@@ -108,21 +104,37 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "windowsHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
+      return <TextCell value={aggregateCount} />;
+    },
+  },
+  {
+    title: "Linux hosts",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+        disableSortBy
+      />
+    ),
+    disableSortBy: true,
+    accessor: "linuxHosts",
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
+      return <TextCell value={aggregateCount} />;
+    },
+  },
+  {
+    title: "",
+    Header: "",
+    accessor: "linkToFilteredHosts",
+    disableSortBy: true,
+    Cell: (cellProps: ICellProps) => {
       return (
-        <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-          <ViewAllHostsLink
-            className="view-hosts-link"
-            queryParams={{
-              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
-              team_id: original.teamId,
-            }}
-          />
-        </div>
+        <>
+          {cellProps.row.original && (
+            <ViewAllHostsLink className="view-hosts-link" rowHover noLink />
+          )}
+        </>
       );
     },
   },
@@ -180,8 +192,6 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
   },
 };
 
-type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
-
 // Order of the status column. We want the order to always be the same.
 const STATUS_ORDER = [
   "verified",
@@ -205,6 +215,7 @@ export const generateTableData = (
     status: STATUS_CELL_VALUES[status],
     macosHosts: statusAggregate.macos,
     windowsHosts: statusAggregate.windows,
+    linuxHosts: statusAggregate.linux,
     teamId: currentTeamId,
   });
 

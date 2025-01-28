@@ -18,7 +18,7 @@ const DeleteUserModal = ({
   isUpdatingUsers,
 }: IDeleteUserModal): JSX.Element => {
   return (
-    <Modal title={"Delete user"} onExit={onCancel} onEnter={onDelete}>
+    <Modal title="Delete user" onExit={onCancel} onEnter={onDelete}>
       <div className={baseClass}>
         <p>
           You are about to delete{" "}

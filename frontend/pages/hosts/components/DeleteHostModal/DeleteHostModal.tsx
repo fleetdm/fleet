@@ -1,8 +1,11 @@
 import React from "react";
 
+import strUtils from "utilities/strings";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "delete-host-modal";
 
@@ -29,11 +32,18 @@ const DeleteHostModal = ({
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
+  const pluralizeHost = () => {
+    if (!selectedHostIds) {
+      return "host";
+    }
+    return strUtils.pluralize(selectedHostIds.length, "host");
+  };
+
   const hostText = () => {
     if (selectedHostIds) {
       return `${selectedHostIds.length}${
         isAllMatchingHostsSelected ? "+" : ""
-      } ${selectedHostIds.length === 1 ? "host" : "hosts"}`;
+      } ${pluralizeHost()}`;
     }
     return hostName;
   };
@@ -50,28 +60,24 @@ const DeleteHostModal = ({
   };
 
   return (
-    <Modal
-      title={"Delete host"}
-      onExit={onCancel}
-      onEnter={onSubmit}
-      className={baseClass}
-    >
+    <Modal title="Delete host" onExit={onCancel} className={baseClass}>
       <>
         <p>
-          This action will delete <b>{hostText()}</b> from your Fleet instance.
-          {largeVolumeText()}
+          This will remove the record of <b>{hostText()}</b> and associated data
+          (e.g. unlock PINs).{largeVolumeText()}
         </p>
-        <p>If the hosts come back online, they will automatically re-enroll.</p>
-        <p>
-          To prevent re-enrollment,{" "}
-          <CustomLink
-            url={
-              "https://fleetdm.com/docs/using-fleet/faq#how-can-i-uninstall-the-osquery-agent"
-            }
-            text={"uninstall the osquery agent"}
-            newTab
-          />
-        </p>
+        <ul>
+          <li>
+            macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
+            agent is uninstalled.{" "}
+            <CustomLink
+              text="Uninstall Fleet's agent"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
+              newTab
+            />
+          </li>
+          <li>iOS and iPadOS hosts will re-appear unless MDM is turned off.</li>
+        </ul>
         <div className="modal-cta-wrap">
           <Button
             type="button"

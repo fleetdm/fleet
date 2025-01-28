@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
 
 export GO111MODULE=on
 
@@ -9,12 +9,6 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
-
-ifdef GO_TEST_EXTRA_FLAGS
-GO_TEST_EXTRA_FLAGS_VAR := $(GO_TEST_EXTRA_FLAGS)
-else
-GO_TEST_EXTRA_FLAGS_VAR :=
-endif
 
 ifdef GO_BUILD_RACE_ENABLED
 GO_BUILD_RACE_ENABLED_VAR := true
@@ -75,21 +69,32 @@ define HELP_TEXT
 	make generate-js  - Generate and bundle required js code
 	make generate-dev - Generate and bundle required code in a watch loop
 
-    make clean        - Clean all build artifacts
+	make migration - create a database migration file (supply name=TheNameOfYourMigration)
+
+	make generate-doc     - Generate updated API documentation for activities, osquery flags
+	make dump-test-schema - update schema.sql from current migrations
+	make generate-mock    - update mock data store
+
+	make clean        - Clean all build artifacts
 	make clean-assets - Clean assets only
 
 	make build        - Build the code
 	make package 	  - Build rpm and deb packages for linux
 
-	make test         - Run the full test suite
-	make test-go      - Run the Go tests
-	make test-js      - Run the JavaScript tests
+	make run-go-tests   - Run Go tests in specific packages
+	make debug-go-tests - Debug Go tests in specific packages (with Delve)
+	make test-js        - Run the JavaScript tests
 
 	make lint         - Run all linters
 	make lint-go      - Run the Go linters
 	make lint-js      - Run the JavaScript linters
 	make lint-scss    - Run the SCSS linters
 	make lint-ts      - Run the TypeScript linters
+
+	For use in CI:
+
+	make test         - Run the full test suite (lint, Go and Javascript)
+	make test-go      - Run the Go tests (all packages and tests)
 
 endef
 
@@ -121,7 +126,8 @@ fleet-dev: fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	# Race requires cgo
 	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	$(eval FLEETCTL_LDFLAGS := $(shell echo "${LDFLAGS_VERSION} ${EXTRA_FLEETCTL_LDFLAGS}"))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags="${FLEETCTL_LDFLAGS}" ./cmd/fleetctl
 
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
@@ -130,21 +136,81 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 15m
+	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
+
+# This is the base command to run Go tests.
+# Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
+# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
+# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
+#
+PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
+go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
+dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
+
+DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+ifeq ($(CI_TEST_PKG), main)
+	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
+else ifeq ($(CI_TEST_PKG), integration)
+	CI_PKG_TO_TEST="server/service"
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST="server/datastore/mysql/..."
+else ifeq ($(CI_TEST_PKG), fleetctl)
+	CI_PKG_TO_TEST="cmd/fleetctl/..."
+else ifeq ($(CI_TEST_PKG), vuln)
+	CI_PKG_TO_TEST="server/vulnerabilities/..."
+else
+	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
+endif
+
+ci-pkg-list:
+	@echo $(CI_PKG_TO_TEST)
+
+.run-go-tests:
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
+else
+		@echo Running Go tests with command:
+		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
+endif
+
+# This is the base command to debug Go tests.
+# Wrap this to run tests with presets (see `debug-go-tests`)
+# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
+# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
+# DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
+# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
+.debug-go-tests:
+ifeq ($(PKG_TO_TEST), "")
+		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
+else
+		@echo Debugging tests with command:
+		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS}
+endif
+
+# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+run-go-tests:
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
+
+debug-go-tests:
+	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
+
+# Command used in CI to run all tests.
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
 test-js:
-	npm test
+	yarn test
 
 test: lint test-go test-js
 
@@ -221,6 +287,12 @@ docker-push-release: docker-build-release
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
+bomutils-docker:
+	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
+
+wix-docker:
+	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
+
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux
@@ -249,15 +321,17 @@ fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux-arm64:
+	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin_arm:
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
-fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
-	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-darwin_arm64:
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm64.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm64
+	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext -output fleetd_tables_darwin_universal.ext
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
 fleetd-tables-clean:
-	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
+	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_linux_arm64.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext fleetd_tables_darwin_universal.ext
 
 .pre-binary-arch:
 ifndef GOOS
@@ -279,7 +353,7 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
-	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
@@ -310,7 +384,7 @@ e2e-serve-premium: e2e-reset-db
 # Usage:
 # make e2e-set-desktop-token host_id=1 token=foo
 e2e-set-desktop-token:
-	docker-compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
 
 changelog:
 	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
@@ -318,9 +392,26 @@ changelog:
 	sh -c "git rm changes/*"
 
 changelog-orbit:
-	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## Orbit $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E "s/^-/*/"; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
 	sh -c "git rm orbit/changes/*"
+
+changelog-chrome:
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## fleetd-chrome $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find ee/fleetd-chrome/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' >> new-CHANGELOG.md"
+	sh -c "cat new-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md"
+	sh -c "git rm ee/fleetd-chrome/changes/*"
+
+# Updates the documentation for the currently released versions of fleetd components in Fleet's TUF.
+fleetd-tuf:
+	sh -c 'echo "<!-- DO NOT EDIT. This document is automatically generated by running \`make fleetd-tuf\`. -->\n# tuf.fleetctl.com\n\nFollowing are the currently deployed versions of fleetd components on the \`stable\` and \`edge\` channel.\n" > orbit/TUF.md'
+	sh -c 'echo "## \`stable\`\n" >> orbit/TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -channel stable -format markdown >> orbit/TUF.md'
+	sh -c 'echo "\n## \`edge\`\n" >> orbit/TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -channel edge -format markdown >> orbit/TUF.md'
 
 ###
 # Development DB commands
@@ -328,7 +419,7 @@ changelog-orbit:
 
 # Reset the development DB
 db-reset:
-	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --dev
 
 # Back up the development DB to file
@@ -386,7 +477,7 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
-	# migth have layout issues.
+	# might have layout issues.
 ifneq ($(version), 2.2.1)
 	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
 	@exit 1
@@ -404,6 +495,14 @@ endif
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
+
+# Generate escrowBuddy.pkg bundle from the Escrow Buddy repo.
+#
+# Usage:
+# make escrow-buddy-pkg version=1.0.0 out-path=.
+escrow-buddy-pkg:
+	curl -L https://github.com/macadmins/escrow-buddy/releases/download/v$(version)/Escrow.Buddy-$(version).pkg --output $(out-path)/escrowBuddy.pkg
+
 
 # Build and generate desktop.app.tar.gz bundle.
 #
@@ -442,8 +541,23 @@ desktop-windows:
 desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir /output/fleet-desktop && \
+		mkdir -p /output/fleet-desktop && \
 		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
+
+# Build desktop executable for Linux ARM.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux-arm64
+#
+# Output: desktop.tar.gz
+desktop-linux-arm64:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
+		mkdir -p /output/fleet-desktop && \
+		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
@@ -470,10 +584,11 @@ db-replica-setup:
 	$(eval MYSQL_REPLICATION_USER := replicator)
 	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; flush privileges;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
 	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
 	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_port=3306,master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	if [ "${FLEET_MYSQL_IMAGE}" == "mysql:8.0" ]; then MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to get_master_public_key=1;"; fi
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "start slave;"
 

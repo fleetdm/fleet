@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
@@ -29,7 +29,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IDropdownCellProps extends IRowProps {
+interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -41,7 +41,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IDropdownCellProps) => JSX.Element);
+    | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -126,7 +126,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   The GitOps role is only available on the command-line
@@ -144,7 +143,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   Users with the Observer+ role have access to all of
@@ -168,7 +166,7 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "email",
       Cell: (cellProps: ICellProps) => (
-        <TextCell classes="w400" value={cellProps.cell.value} />
+        <TextCell className="w400" value={cellProps.cell.value} />
       ),
     },
     {
@@ -176,13 +174,13 @@ const generateColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
+      Cell: (cellProps: IActionsDropdownProps) => (
+        <ActionsDropdown
           options={cellProps.cell.value}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
           }
-          placeholder={"Actions"}
+          placeholder="Actions"
         />
       ),
     },

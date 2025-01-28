@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/kit/log"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,6 +46,10 @@ func TestCPEFromSoftware(t *testing.T) {
 	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
+
+	// Does not error on Unicode Names
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -130,6 +134,28 @@ func TestCPETranslations(t *testing.T) {
 				Source:  "apps",
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "translate part",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+						Part:    "o",
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:o:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
 	}
 
@@ -462,8 +488,6 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
-	nettest.Run(t)
-
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -670,7 +694,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.1",
 				Vendor:           "",
@@ -679,7 +703,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.2",
 				Vendor:           "",
@@ -738,7 +762,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "18.9.0",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:*:*:*",
+			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -819,7 +843,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "105.0.1343.50",
 				Vendor:           "Microsoft Corporation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:edge:105.0.1343.50:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:microsoft:edge_chromium:105.0.1343.50:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1290,6 +1314,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		// 2025-01-20: there are no entries for the jira python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "jira",
+				Source:  "python_packages",
+				Version: "3.8.0",
+			}, cpe: "",
+		},
+		{ // checks vendor/product matching based on bundle name, including EAPs
+			software: fleet.Software{
+				Name:             "GoLand EAP.app",
+				Source:           "apps",
+				Version:          "2022.3.99.123.456",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "IntelliJ IDEA.app",
@@ -1312,6 +1354,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "intellij-idea-ce",
+				Source:           "homebrew_packages",
+				Version:          "2023.3.2,233.13135.103",
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
 				Source:           "apps",
 				Version:          "2019.2",
@@ -1329,6 +1381,245 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.jetbrains.pycharm.ce",
 			},
 			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "eamodio.gitlens",
+				Source:  "vscode_extensions",
+				Version: "14.9.0",
+				Vendor:  "GitKraken",
+			},
+			cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-python.python",
+				Source:  "vscode_extensions",
+				Version: "2024.2.1",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-toolsai.jupyter",
+				Source:  "vscode_extensions",
+				Version: "2024.2.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:jupyter:2024.2.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-vsliveshare.vsliveshare",
+				Source:  "vscode_extensions",
+				Version: "1.0.5918",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:visual_studio_live_share:1.0.5918:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "dbaeumer.vscode-eslint",
+				Source:  "vscode_extensions",
+				Version: "2.4.4",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.4.4:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vscjava.vscode-maven",
+				Source:  "vscode_extensions",
+				Version: "0.44.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:vscode-maven:0.44.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-vscode.powershell",
+				Source:  "vscode_extensions",
+				Version: "2024.0.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:powershell_extension:2024.0.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-vscode-remote.vscode-remote-extensionpack",
+				Source:  "vscode_extensions",
+				Version: "0.25.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: "cpe:2.3:a:microsoft:remote_development:0.25.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vknabel.vscode-swiftlint",
+				Source:  "vscode_extensions",
+				Version: "1.8.3",
+				Vendor:  "vknabel",
+			},
+			cpe: "cpe:2.3:a:swiftlint_project:swiftlint:1.8.3:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vknabel.vscode-swiftformat",
+				Source:  "vscode_extensions",
+				Version: "1.6.7",
+				Vendor:  "vknabel",
+			},
+			cpe: "cpe:2.3:a:swiftformat_project:swiftformat:1.6.7:*:*:*:*:visual_studio_code:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "jbenden.c-cpp-flylint",
+				Source:  "vscode_extensions",
+				Version: "1.14.0",
+				Vendor:  "Joseph Benden",
+			},
+			cpe: `cpe:2.3:a:c\/c\+\+_advanced_lint_project:c\/c\+\+_advanced_lint:1.14.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "stripe.vscode-stripe",
+				Source:  "vscode_extensions",
+				Version: "2.0.14",
+				Vendor:  "Stripe",
+			},
+			cpe: `cpe:2.3:a:stripe:stripe:2.0.14:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "vscodevim.vim",
+				Source:  "vscode_extensions",
+				Version: "1.27.2",
+				Vendor:  "vscodevim",
+			},
+			cpe: `cpe:2.3:a:vim_project:vim:1.27.2:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "svelte.svelte-vscode",
+				Source:  "vscode_extensions",
+				Version: "108.3.1",
+				Vendor:  "Svelte",
+			},
+			cpe: `cpe:2.3:a:svelte:svelte:108.3.1:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "lextudio.restructuredtext",
+				Source:  "vscode_extensions",
+				Version: "189.3.0",
+				Vendor:  "LeXtudio Inc.",
+			},
+			cpe: `cpe:2.3:a:lextudio:restructuredtext:189.3.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-vscode-remote.remote-containers",
+				Source:  "vscode_extensions",
+				Version: "0.348.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: `cpe:2.3:a:microsoft:remote:0.348.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-kubernetes-tools.vscode-kubernetes-tools",
+				Source:  "vscode_extensions",
+				Version: "0.348.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: `cpe:2.3:a:microsoft:kubernetes_tools:0.348.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-dotnettools.vscode-dotnet-sdk",
+				Source:  "vscode_extensions",
+				Version: "0.8.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: `cpe:2.3:a:microsoft:.net_education_bundle_sdk_install_tool:0.8.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-dotnettools.vscode-dotnet-runtime",
+				Source:  "vscode_extensions",
+				Version: "2.0.2",
+				Vendor:  "Microsoft",
+			},
+			cpe: `cpe:2.3:a:microsoft:.net_install_tool_for_extension_authors:2.0.2:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "ms-vscode-remote.remote-wsl",
+				Source:  "vscode_extensions",
+				Version: "0.86.0",
+				Vendor:  "Microsoft",
+			},
+			cpe: `cpe:2.3:a:microsoft:windows_subsystem_for_linux:0.86.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "mongodb.mongodb-vscode",
+				Source:  "vscode_extensions",
+				Version: "1.5.0",
+				Vendor:  "MongoDB",
+			},
+			cpe: `cpe:2.3:a:mongodb:mongodb:1.5.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "oracle.mysql-shell-for-vs-code",
+				Source:  "vscode_extensions",
+				Version: "1.14.2",
+				Vendor:  "MongoDB",
+			},
+			cpe: `cpe:2.3:a:oracle:mysql_shell:1.14.2:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "snyk-security.snyk-vulnerability-scanner",
+				Source:  "vscode_extensions",
+				Version: "2.3.6",
+				Vendor:  "Snyk",
+			},
+			cpe: `cpe:2.3:a:snyk:snyk_security:2.3.6:*:*:*:*:visual_studio_code:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "sourcegraph.cody-ai",
+				Source:  "vscode_extensions",
+				Version: "1.8.0",
+				Vendor:  "Sourcegraph",
+			},
+			cpe: `cpe:2.3:a:sourcegraph:cody:1.8.0:*:*:*:*:visual_studio_code:*:*`,
+		},
+		// There are vulnerabilities for `cpe:2.3:a:redhat:vscode-xml:` in
+		// NVD's database but there's no entry for `cpe:2.3:a:redhat:vscode-xml:0.26.1`
+		// in NVD's CPE database.
+		/*
+			{
+				software: fleet.Software{
+					Name:    "redhat.vscode-xml",
+					Source:  "vscode_extensions",
+					Version: "0.26.1",
+					Vendor:  "Red Hat",
+				},
+				cpe: `cpe:2.3:a:redhat:vscode-xml:0.26.1:*:*:*:*:visual_studio_code:*:*`,
+			},
+		*/
+		{
+			software: fleet.Software{
+				Name:    "github.vscode-pull-request-github",
+				Source:  "vscode_extensions",
+				Version: "0.82.0",
+				Vendor:  "GitHub",
+			},
+			cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -1363,18 +1654,76 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			// DO NOT MATCH with Cisco Umbrella
 			cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:    "python@3.9",
+				Source:  "homebrew_packages",
+				Version: "3.9.18_2",
+				Vendor:  "",
+			},
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "linux-image-5.4.0-105-custom",
+				Source:  "deb_packages",
+				Version: "5.4.0-105.118",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "VirtualBox.app",
+				Source:           "apps",
+				Version:          "7.0.12",
+				BundleIdentifier: "org.virtualbox.app.VirtualBox",
+			},
+			cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "deb_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "homebrew_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "pass",
+				Source:           "homebrew_packages",
+				Version:          "1.7.4",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
+		},
 	}
 
-	tempDir := t.TempDir()
+	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
+	dbPath := os.Getenv("NVD_TEST_CPEDB_PATH")
+	if dbPath == "" {
+		nettest.Run(t)
+		tempDir := t.TempDir()
+		err := DownloadCPEDBFromGithub(tempDir, "")
+		require.NoError(t, err)
+		dbPath = filepath.Join(tempDir, "cpe.sqlite")
+	} else {
+		require.FileExists(t, dbPath)
+		t.Logf("Using %s as database file", dbPath)
+	}
 
-	err := DownloadCPEDBFromGithub(tempDir, "")
-	require.NoError(t, err)
-
-	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	db, err := sqliteDB(dbPath)
-	require.NoError(t, err)
-
-	err = DownloadCPETranslationsFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	cpeTranslationsPath := filepath.Join(".", cpeTranslationsFilename)
@@ -1388,5 +1737,23 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
+	}
+}
+
+func TestContainsNonASCII(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"hello", false},
+		{"hello world", false},
+		{"hello – world!", false},
+		{"😊👍", true},
+		{"hello world! 😊👍", true},
+		{"Девушка Фонарём", true},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
 	}
 }

@@ -5,30 +5,35 @@
     min-width: auto;
   }
 
-  &__aggregate-table-data {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .linkToFilteredHosts__header {
+    width: auto;
+    max-width: 120px;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
   }
 
-  tr {
-    .view-hosts-link {
-      opacity: 0;
-      transition: 250ms;
-    }
+  .linkToFilteredHosts__cell {
+    width: auto;
+    max-width: 120px;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
+  }
+}
 
-    &:hover {
-      .view-hosts-link {
-        opacity: 1;
-      }
+@media (max-width: 1250px) {
+  // Prevents unnecessary status new line wrap
+  .view-hosts-link {
+    span {
+      display: none;
     }
   }
-
-  @media (max-width: $break-md) {
-    .view-hosts-link {
-      span {
-        display: none;
+  .linkToFilteredHosts {
+    &__header {
+      width: 0;
+      .column-header {
+        width: 0;
       }
+    }
+    &__cell {
+      width: min-content;
     }
   }
 }

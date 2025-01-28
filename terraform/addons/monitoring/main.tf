@@ -36,31 +36,36 @@ resource "aws_db_event_subscription" "default" {
 
 }
 
+locals {
+  alb_map = { for k, v in var.albs : k => v }
+}
+
+
 // ECS Alarms
 resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
-  count               = var.alb_target_group_arn_suffix == null || var.alb_arn_suffix == null ? 0 : 1
-  alarm_name          = "backend-healthyhosts-${var.customer_prefix}"
+  for_each            = local.alb_map
+  alarm_name          = "backend-healthyhosts-${var.customer_prefix}-${each.value.name}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "HealthyHostCount"
   namespace           = "AWS/ApplicationELB"
   period              = "60"
   statistic           = "Minimum"
-  threshold           = var.fleet_min_containers
-  alarm_description   = "This alarm indicates the number of Healthy Fleet hosts is lower than expected. Please investigate the load balancer \"${var.alb_name}\" or the target group \"${var.alb_target_group_name}\" and the fleet backend service \"${var.fleet_ecs_service_name}\""
+  threshold           = each.value.min_containers
+  alarm_description   = "This alarm indicates the number of Healthy Fleet hosts is lower than expected. Please investigate the load balancer \"${each.value.name}\" or the target group \"${each.value.target_group_name}\" and the fleet backend service \"${each.value.ecs_service_name}\""
   actions_enabled     = "true"
   alarm_actions       = lookup(var.sns_topic_arns_map, "alb_helthyhosts", var.default_sns_topic_arns)
   ok_actions          = lookup(var.sns_topic_arns_map, "alb_helthyhosts", var.default_sns_topic_arns)
   dimensions = {
-    TargetGroup  = var.alb_target_group_arn_suffix
-    LoadBalancer = var.alb_arn_suffix
+    TargetGroup  = each.value.target_group_arn_suffix
+    LoadBalancer = each.value.arn_suffix
   }
 }
 
 // alarm for target response time (anomaly detection)
 resource "aws_cloudwatch_metric_alarm" "target_response_time" {
-  count                     = var.alb_target_group_arn_suffix == null || var.alb_arn_suffix == null ? 0 : 1
-  alarm_name                = "backend-target-response-time-${var.customer_prefix}"
+  for_each                  = local.alb_map
+  alarm_name                = "backend-target-response-time-${var.customer_prefix}-${each.value.name}"
   comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "2"
   threshold_metric_id       = "e1"
@@ -87,29 +92,36 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
       unit        = "Count"
 
       dimensions = {
-        TargetGroup  = var.alb_target_group_arn_suffix
-        LoadBalancer = var.alb_arn_suffix
+        TargetGroup  = each.value.target_group_arn_suffix
+        LoadBalancer = each.value.arn_suffix
       }
     }
   }
 }
 
+locals {
+  http_5xx_alert_names = ["HTTPCode_ELB_5XX_Count", "HTTPCode_Target_5XX_Count"]
+  http_5xx_alerts_list = flatten([for alert in local.http_5xx_alert_names : [for alb in var.albs : merge(alb, { "alert" : alert })]])
+  http_5xx_alerts      = { for k, v in local.http_5xx_alerts_list : k => v }
+}
+
+
 resource "aws_cloudwatch_metric_alarm" "lb" {
-  for_each            = var.alb_target_group_arn_suffix == null ? toset([]) : toset(["HTTPCode_ELB_5XX_Count", "HTTPCode_Target_5XX_Count"])
-  alarm_name          = "${var.customer_prefix}-lb-${each.key}"
+  for_each            = local.http_5xx_alerts
+  alarm_name          = "${var.customer_prefix}-lb-${each.value.name}-${each.value.alert}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
-  metric_name         = each.key
+  metric_name         = each.value.alert
   namespace           = "AWS/ApplicationELB"
-  period              = "120"
+  period              = each.value.alert_thresholds[each.value.alert].period
   statistic           = "Sum"
-  threshold           = "0"
+  threshold           = each.value.alert_thresholds[each.value.alert].threshold
   alarm_description   = "This alarm indicates there are an abnormal amount of 5XX responses.  Either the lb cannot talk with the Fleet backend target or Fleet is returning an error."
   alarm_actions       = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
   ok_actions          = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
   treat_missing_data  = "notBreaching"
   dimensions = {
-    LoadBalancer = var.alb_arn_suffix
+    LoadBalancer = each.value.arn_suffix
   }
 }
 
@@ -280,7 +292,7 @@ resource "null_resource" "cron_monitoring_build" {
     go_mod_changes  = filesha256("${path.module}/lambda/go.mod")
     go_sum_changes  = filesha256("${path.module}/lambda/go.sum")
     # Make sure to always have a unique trigger if the file doesn't exist
-    binary_exists   = fileexists(local.cron_lambda_binary) ? true : timestamp()
+    binary_exists = fileexists(local.cron_lambda_binary) ? true : timestamp()
   }
   provisioner "local-exec" {
     working_dir = "${path.module}/lambda"
@@ -364,9 +376,11 @@ resource "aws_lambda_function" "cron_monitoring" {
       MYSQL_DATABASE              = var.cron_monitoring.mysql_database
       MYSQL_USER                  = var.cron_monitoring.mysql_user
       MYSQL_SECRETSMANAGER_SECRET = data.aws_secretsmanager_secret.mysql_database_password[0].name
-      SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      CRON_SYSTEM_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns))
+      CRON_JOB_FAILURE_MONITOR_SNS_TOPIC_ARNS              = join(",", lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns))
       FLEET_ENV                   = var.customer_prefix
       CRON_DELAY_TOLERANCE        = var.cron_monitoring.delay_tolerance
+      CRON_MONITOR_RUN_INTERVAL        = var.cron_monitoring.run_interval
     }
   }
 
@@ -434,7 +448,10 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
       "sns:Publish"
     ]
 
-    resources = lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns)
+    resources = distinct(concat(
+      lookup(var.sns_topic_arns_map, "cron_monitoring", var.default_sns_topic_arns),
+      lookup(var.sns_topic_arns_map, "cron_job_failure_monitoring", var.default_sns_topic_arns)
+    ))
 
     effect = "Allow"
   }
@@ -444,7 +461,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
 resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
   count             = var.cron_monitoring == null ? 0 : 1
   name              = "/aws/lambda/${var.customer_prefix}-cron-monitoring"
-  retention_in_days = 7
+  retention_in_days = var.cron_monitoring.log_retention_in_days
 
 }
 
@@ -452,7 +469,7 @@ resource "aws_cloudwatch_event_rule" "cron_monitoring_lambda" {
   count               = var.cron_monitoring == null ? 0 : 1
   name                = "${var.customer_prefix}-cron-monitoring"
   schedule_expression = "rate(${var.cron_monitoring.run_interval})"
-  is_enabled          = true
+  state               = "ENABLED"
 }
 
 resource "aws_cloudwatch_event_target" "cron_monitoring_lambda" {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -41,14 +42,14 @@ func TestUsers(t *testing.T) {
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
 	createTests := []struct {
-		password, email             string
-		isAdmin, passwordReset, sso bool
-		resultingPasswordReset      bool
+		password, email                  string
+		isAdmin, passwordReset, sso, mfa bool
+		resultingPasswordReset           bool
 	}{
-		{"foobar", "mike@fleet.co", true, false, true, false},
-		{"foobar", "jason@fleet.co", true, false, false, false},
-		{"foobar", "jason2@fleet.co", true, true, true, false},
-		{"foobar", "jason3@fleet.co", true, true, false, true},
+		{"foobar", "mike@fleet.co", true, false, true, false, false},
+		{"foobar", "jason@fleet.co", true, false, false, true, false},
+		{"foobar", "jason2@fleet.co", true, true, true, false, false},
+		{"foobar", "jason3@fleet.co", true, true, false, false, true},
 	}
 
 	for _, tt := range createTests {
@@ -57,10 +58,20 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
+
+		// truncating because we're truncating under the hood to match the DB
+		beforeUserCreate := time.Now().Truncate(time.Second)
 		user, err := ds.NewUser(context.Background(), u)
+		afterUserCreate := time.Now().Truncate(time.Second)
 		assert.Nil(t, err)
+
+		assert.LessOrEqual(t, beforeUserCreate, user.CreatedAt)
+		assert.LessOrEqual(t, beforeUserCreate, user.UpdatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, user.CreatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, user.UpdatedAt)
 
 		verify, err := ds.UserByEmail(context.Background(), tt.email)
 		assert.Nil(t, err)
@@ -69,7 +80,13 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.mfa, verify.MFAEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
+
+		assert.LessOrEqual(t, beforeUserCreate, verify.CreatedAt)
+		assert.LessOrEqual(t, beforeUserCreate, verify.UpdatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, verify.CreatedAt)
+		assert.GreaterOrEqual(t, afterUserCreate, verify.UpdatedAt)
 	}
 }
 
@@ -88,11 +105,11 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	createTests := []struct {
-		password, email        string
-		isAdmin, passwordReset bool
+		password, email             string
+		isAdmin, passwordReset, mfa bool
 	}{
-		{"foobar", "mike@fleet.co", true, false},
-		{"foobar", "jason@fleet.co", false, false},
+		{"foobar", "mike@fleet.co", true, false, true},
+		{"foobar", "jason@fleet.co", false, false, false},
 	}
 
 	var users []*fleet.User
@@ -102,6 +119,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
@@ -119,6 +137,50 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
+	testMFAAttribute(t, ds, users)
+	testSettingsAttribute(t, ds, users)
+}
+
+func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.MFAEnabled = true
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.True(t, verify.MFAEnabled)
+
+		user.MFAEnabled = false
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err = ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.False(t, verify.MFAEnabled)
+	}
+}
+
+func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.Settings = &fleet.UserSettings{}
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		// settings should only be returned via dedicated method
+		assert.Nil(t, verify.Settings)
+
+		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		// call the settings db method here
+		settings, err := ds.UserSettings(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
+	}
 }
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {

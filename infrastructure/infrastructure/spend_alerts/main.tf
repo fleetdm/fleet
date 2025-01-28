@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.59.0"
+      version = "~> 4.62.2"
     }
   }
   backend "s3" {
@@ -24,6 +24,7 @@ provider "aws" {
       environment = "spend-alerts"
       terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/infrastructure/spend_alerts"
       state       = "s3://fleet-terraform-state20220408141538466600000002/root/spend-alerts/terraform.tfstate"
+      VantaOwner  = "robert@fleetdm.com"
     }
   }
 }

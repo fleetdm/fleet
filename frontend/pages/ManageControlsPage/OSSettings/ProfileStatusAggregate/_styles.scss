@@ -4,7 +4,7 @@
   border-top: 1px solid #e2e4ea;
   border-bottom: 1px solid #e2e4ea;
   border-left: 1px solid #e2e4ea;
-  border-radius: $border-radius-large;
+  border-radius: $border-radius-medium;
 
   &__loading-spinner {
     margin: auto;
@@ -41,5 +41,9 @@
 
   &__status-indicator-value {
     font-weight: $bold;
+  }
+
+  .icon {
+    margin-right: initial;
   }
 }

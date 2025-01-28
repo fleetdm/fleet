@@ -1,0 +1,110 @@
+.policy-results-table {
+  border-collapse: collapse;
+
+  &__wrapper {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    overflow: hidden;
+    margin-top: $pad-medium;
+  }
+
+  .table-container__header {
+    display: none;
+  }
+
+  thead {
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    th {
+      font-size: $x-small;
+      font-weight: $bold;
+      text-align: left;
+      padding: $pad-medium $pad-large;
+    }
+
+    .host_display_name__header {
+      width: 50%;
+    }
+  }
+
+  tbody td img {
+    width: 16px;
+    height: 16px;
+    vertical-align: sub;
+    padding-right: 4px;
+  }
+
+  &__empty-table {
+    text-align: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
+  &__policy-count {
+    color: $core-fleet-black;
+    font-size: $x-small;
+    font-weight: $bold;
+    margin: 0 12px 0 0;
+    display: inline-block;
+  }
+}
+
+.no-policies {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: $pad-xxxlarge;
+
+  h1 {
+    font-size: $large;
+    font-weight: $regular;
+    line-height: normal;
+    letter-spacing: normal;
+    color: $core-fleet-black;
+  }
+
+  h2 {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0 0 $pad-large;
+    line-height: 20px;
+    color: $core-fleet-black;
+  }
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+      margin-bottom: $pad-medium;
+    }
+
+    img {
+      width: 322px;
+    }
+
+    p {
+      color: $core-fleet-black;
+      font-weight: $regular;
+      font-size: $x-small;
+      margin: 0;
+      margin-bottom: $pad-large;
+    }
+  }
+
+  &__inner-text {
+    width: 500px;
+    padding: $pad-xxlarge 0;
+  }
+}
+
+.no-team-policy {
+  border: 1px solid #e2e4ea;
+  box-sizing: border-box;
+  border-radius: 8px;
+}

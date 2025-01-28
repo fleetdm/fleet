@@ -57,44 +57,24 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
+      margin-top: $pad-small;
+    }
 
-      .target-pill-selector {
-        padding: $pad-small;
-        background-color: $core-white;
-        border: none;
-        box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
-        border-radius: $border-radius-large;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        margin-bottom: $pad-small;
+    .input-icon-field {
+      width: 600px;
+    }
 
-        &:not(:last-of-type) {
-          margin-right: $pad-small;
-        }
-        img {
-          max-width: 12px;
-        }
-        .plus-icon {
-          padding-right: 3px;
-        }
-        .selector-name {
-          margin-left: 8px;
-          font-size: $x-small;
-          flex: 1;
-        }
-        .selector-count {
-          margin-left: 8px;
-          font-size: $xxx-small;
-          font-weight: $bold;
-        }
-        &[data-selected="true"] {
-          background-color: $ui-vibrant-blue-10;
-          box-shadow: inset 0 0 0 1px $core-vibrant-blue;
-        }
-      }
+    .expand-button-wrap {
+      margin-top: -$pad-small;
     }
   }
+
+  &__empty-entity-search {
+    margin-top: $pad-small;
+    font-size: $x-small;
+    line-height: 21px; /* 150% */
+  }
+
   &__targets-button-wrap {
     margin-top: 30px;
     display: flex;

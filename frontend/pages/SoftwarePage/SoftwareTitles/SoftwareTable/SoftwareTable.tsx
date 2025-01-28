@@ -1,33 +1,51 @@
-import React, { useCallback, useContext, useMemo } from "react";
+/**
+software/titles Software tab > Table
+software/versions Software tab > Table (version toggle on)
+*/
+
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
-import { AppContext } from "context/app";
 import { getNextLocationPath } from "utilities/helpers";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import {
-  GITHUB_NEW_ISSUE_LINK,
-  VULNERABLE_DROPDOWN_OPTIONS,
-} from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
 import {
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
+import {
+  ISoftwareDropdownFilterVal,
+  ISoftwareVulnFiltersParams,
+  SOFTWARE_TITLES_DROPDOWN_OPTIONS,
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getVulnFilterRenderDetails,
+} from "./helpers";
 
 interface IRowProps extends Row {
   original: {
@@ -48,15 +66,19 @@ interface ISoftwareTableProps {
   router: InjectedRouter;
   data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse;
   showVersions: boolean;
+  installableSoftwareExists: boolean;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  showVulnerableSoftware: boolean;
+  softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFiltersParams;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
+  onAddFiltersClick: () => void;
 }
 
 const baseClass = "software-table";
@@ -65,18 +87,20 @@ const SoftwareTable = ({
   router,
   data,
   showVersions,
+  installableSoftwareExists,
   isSoftwareEnabled,
   query,
   perPage,
   orderDirection,
   orderKey,
-  showVulnerableSoftware,
+  softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
+  onAddFiltersClick,
 }: ISoftwareTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
-
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
     : PATHS.SOFTWARE_TITLES;
@@ -91,8 +115,6 @@ const SoftwareTable = ({
             return val !== orderDirection;
           case "sortHeader":
             return val !== orderKey;
-          case "vulnerable":
-            return val !== showVulnerableSoftware.toString();
           case "pageIndex":
             return val !== currentPage;
           default:
@@ -101,21 +123,29 @@ const SoftwareTable = ({
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey, query, showVulnerableSoftware]
+    [currentPage, orderDirection, orderKey, query]
   );
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      return {
+      const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
-        vulnerable: showVulnerableSoftware.toString(),
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
+      if (softwareFilter === "installableSoftware") {
+        newQueryParam.available_for_install = true.toString();
+      }
+      if (softwareFilter === "selfServiceSoftware") {
+        newQueryParam.self_service = true.toString();
+      }
+
+      return newQueryParam;
     },
-    [showVulnerableSoftware, teamId]
+    [softwareFilter, teamId, vulnFilters]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -126,7 +156,9 @@ const SoftwareTable = ({
       const changedParam = determineQueryParamChange(newTableQuery);
 
       // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render.
+      // this handler is called on the inital render. Can also happen when
+      // the filter dropdown is changed. That is handled on the onChange handler
+      // for the dropdown.
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
@@ -159,132 +191,157 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // determines if a user be able to search in the table
-  const searchable =
+  // Determines if a user should be able to filter or search in the table
+  const hasData = tableData && tableData.length > 0;
+  const hasQuery = query !== "";
+  const hasSoftwareFilter = softwareFilter !== "allSoftware";
+  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
+  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
+
+  const showFilterHeaders =
     isSoftwareEnabled &&
-    (!!tableData || query !== "" || showVulnerableSoftware);
-
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!tableData || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!tableData || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
-      />
-    );
-  };
+    (hasData || hasQuery || hasSoftwareFilter || hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
+    const queryParams: Record<string, string | number | boolean | undefined> = {
+      query,
+      team_id: teamId,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams("allSoftware"), // Reset to all software
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
     router.replace(
       getNextLocationPath({
         pathPrefix: showVersions
           ? PATHS.SOFTWARE_TITLES
           : PATHS.SOFTWARE_VERSIONS,
         routeTemplate: "",
-        queryParams: {
-          query,
-          team_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
-          vulnerable: showVulnerableSoftware.toString(),
-          page: 0, // resets page index
-        },
+        queryParams,
       })
     );
   };
 
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+  const handleCustomFilterDropdownChange = (
+    value: ISoftwareDropdownFilterVal
+  ) => {
+    const queryParams: ISoftwareApiParams = {
+      query,
+      teamId,
+      orderDirection,
+      orderKey,
+      page: 0, // resets page index
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFilterQueryParams(value),
+    };
+
     router.replace(
       getNextLocationPath({
         pathPrefix: currentPath,
         routeTemplate: "",
-        queryParams: {
-          query,
-          team_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
-          vulnerable: isFilterVulnerable,
-          page: 0, // resets page index
-        },
+        queryParams: convertParamsToSnakeCase(queryParams),
       })
     );
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = showVersions
-      ? {
+    const queryParams = showVersions
+      ? buildQueryStringFromParams({
           software_version_id: row.original.id,
           team_id: teamId,
-        }
-      : {
+        })
+      : buildQueryStringFromParams({
           software_title_id: row.original.id,
           team_id: teamId,
-        };
+        });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
 
     router.push(path);
   };
 
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
-
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {tableData && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
+          />
+        )}
+        <Slider
+          value={showVersions}
+          onChange={handleShowVersionsToggle}
+          inactiveText="Show versions"
+          activeText="Show versions"
+        />
+      </>
     );
   };
 
-  const renderCustomFilters = () => {
+  const renderCustomControls = () => {
+    // Hidden when viewing versions table
+    if (showVersions) {
+      return null;
+    }
+
     return (
       <div className={`${baseClass}__filter-controls`}>
-        <div className={`${baseClass}__version-slider`}>
-          {/* div required dropdown form field width bug */}
-          <Slider
-            value={showVersions}
-            onChange={handleShowVersionsToggle}
-            inactiveText="Show versions"
-            activeText="Show versions"
-          />
-        </div>
-        <Dropdown
-          value={showVulnerableSoftware}
-          className={`${baseClass}__vuln_dropdown`}
-          options={VULNERABLE_DROPDOWN_OPTIONS}
-          searchable={false}
-          onChange={handleVulnFilterDropdownChange}
-          tableFilterDropdown
+        <DropdownWrapper
+          name="software-filter"
+          value={softwareFilter}
+          className={`${baseClass}__software-filter`}
+          options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
+          onChange={(newValue: SingleValue<CustomOptionType>) =>
+            newValue &&
+            handleCustomFilterDropdownChange(
+              newValue.value as ISoftwareDropdownFilterVal
+            )
+          }
+          variant="table-filter"
         />
       </div>
     );
   };
 
-  const renderTableFooter = () => {
+  const renderCustomFiltersButton = () => {
     return (
-      <div>
-        Seeing unexpected software or vulnerabilities?{" "}
-        <CustomLink
-          url={GITHUB_NEW_ISSUE_LINK}
-          text="File an issue on GitHub"
-          newTab
-        />
-      </div>
+      <TooltipWrapper
+        className={`${baseClass}__filters`}
+        position="left"
+        underline={false}
+        showArrow
+        tipOffset={12}
+        tipContent={vulnFilterDetails.tooltipText}
+        disableTooltip={!hasVulnFilters}
+      >
+        <Button variant="text-link" onClick={onAddFiltersClick}>
+          <Icon name="filter" color="core-fleet-blue" />
+          <span>{vulnFilterDetails.buttonText}</span>
+        </Button>
+      </TooltipWrapper>
     );
   };
+
+  const renderTableHelpText = () => (
+    <div>
+      Seeing unexpected software or vulnerabilities?{" "}
+      <CustomLink
+        url={GITHUB_NEW_ISSUE_LINK}
+        text="File an issue on GitHub"
+        newTab
+      />
+    </div>
+  );
 
   return (
     <div className={baseClass}>
@@ -292,15 +349,14 @@ const SoftwareTable = ({
         columnConfigs={softwareTableHeaders}
         data={tableData ?? []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
+            softwareFilter={softwareFilter}
+            vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isFilterVulnerable={showVulnerableSoftware}
-            isSandboxMode={isSandboxMode}
-            isCollectingSoftware={false} // TODO: update with new API
-            isSearching={query !== ""}
-            noSandboxHosts={noSandboxHosts}
+            noSearchQuery={query === ""}
+            installableSoftwareExists={installableSoftwareExists}
           />
         )}
         defaultSortHeader={orderKey}
@@ -312,19 +368,23 @@ const SoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={searchable}
-        inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
+        searchable={showFilterHeaders}
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
-        // to fire onQueryChange for events happeing outside of
+        // to fire onQueryChange for events happening outside of
         // the TableContainer.
-        additionalQueries={showVulnerableSoftware ? "vulnerable" : ""}
-        customControl={searchable ? renderCustomFilters : undefined}
+        // additionalQueries={softwareFilter}
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customFiltersButton={
+          showFilterHeaders ? renderCustomFiltersButton : undefined
+        }
         stackControls
         renderCount={renderSoftwareCount}
-        renderFooter={renderTableFooter}
+        renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

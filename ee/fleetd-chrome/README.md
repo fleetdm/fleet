@@ -67,10 +67,17 @@ npm run test
 
 ## Release
 
-Release a new version via GitHub automation. Update the [package.json](./package.json) and [updates.xml](./updates.xml) versions, then tag a commit with `fleetd-chrome-vX.X.X` to kick off the build and deploy. The build is automatically uploaded to R2 and properly configured clients should be able to update immediately when the job completes. Note that automatic updates seem to only happen about once a day in Chrome -- Hit the "Update" button in `chrome://extensions` to trigger the update manually.
+1. At the top of the repo, update CHANGELOG.md by running `version="X.X.X" make changelog-chrome`
+2. Review CHANGELOG.md
+3. At `ee/fleetd-chrome`, run `npm version X.X.X` to update the version in `package.json` and `package-lock.json`
+4. Commit the changes and tag the commit with `fleetd-chrome-vX.X.X-beta`. This will trigger the beta release workflow.
+5. Once the beta release is tested and PR merged, tag the commit with `fleetd-chrome-vX.X.X`. This will trigger the release workflow.
+6. Announce the release in the #help-engineering channel in Slack.
+
+Using GitHub Actions, the build is automatically uploaded to R2 and properly configured clients should be able to update immediately when the job completes. Note that automatic updates seem to only happen about once a day in Chrome -- Hit the "Update" button in `chrome://extensions` to trigger the update manually.
 
 ### Beta releases
 
 Beta releases are pushed to `https://chrome-beta.fleetdm.com/updates.xml` with the extension ID `bfleegjcoffelppfmadimianphbcdjkb`.
 
-Kick off a beta release by updating the [package.json](./package.json) and [updates-beta.xml](./updates-beta.xml) versions, then tag a commit with `fleetd-chrome-vX.X.X-beta` to kick off the build and deploy.
+Kick off a beta release by updating the [package.json](./package.json), then tag a commit with `fleetd-chrome-vX.X.X-beta` to kick off the build and deploy.

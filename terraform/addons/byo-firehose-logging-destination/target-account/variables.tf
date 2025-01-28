@@ -5,18 +5,24 @@ variable "osquery_logging_destination_bucket_name" {
 
 variable "fleet_iam_role_arn" {
   type        = string
-  description = "the arn of the fleet role that firehose will assume to write data to your bucket"
+  description = "The ARN of the IAM role that will be assumed to gain permissions required to write to the Kinesis Firehose delivery stream."
+}
+
+variable "sts_external_id" {
+  type        = string
+  description = "Optional unique identifier that can be used by the principal assuming the role to assert its identity."
+  default     = ""
 }
 
 variable "log_destinations" {
   description = "A map of configurations for Firehose delivery streams."
   type = map(object({
-    name                  = string
-    prefix                = string
-    error_output_prefix   = string
-    buffering_size        = number
-    buffering_interval    = number
-    compression_format    = string
+    name                = string
+    prefix              = string
+    error_output_prefix = string
+    buffering_size      = number
+    buffering_interval  = number
+    compression_format  = string
   }))
   default = {
     results = {

@@ -3,7 +3,7 @@
 	"apiVersion": "v1",
 	"spec": {
 		"team": {
-			"id": 42,
+			"id": 12,
 			"created_at": "1999-03-10T02:45:06.371Z",
 			"name": "team1",
 			"description": "team1 description",
@@ -12,6 +12,7 @@
 				"host_expiry_window": 0
 			},
 			"webhook_settings": {
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
@@ -21,7 +22,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": true,
@@ -30,6 +32,14 @@
 			"mdm": {
 				"enable_disk_encryption": false,
 				"macos_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ios_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ipados_updates": {
 					"minimum_version": null,
 					"deadline": null
 				},
@@ -43,7 +53,10 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null
 				},
 				"windows_settings": {
 					"custom_settings": null
@@ -60,7 +73,7 @@
 	"apiVersion": "v1",
 	"spec": {
 		"team": {
-			"id": 43,
+			"id": 32,
 			"created_at": "1999-03-10T02:45:06.371Z",
 			"name": "team2",
 			"description": "team2 description",
@@ -81,6 +94,7 @@
 				"host_expiry_window": 15
 			},
 			"webhook_settings": {
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
@@ -90,7 +104,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": false,
@@ -105,6 +120,14 @@
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
 				},
+				"ios_updates": {
+					"minimum_version": "17.5",
+					"deadline": "2022-11-15"
+				},
+				"ipados_updates": {
+					"minimum_version": "18.0",
+					"deadline": "2023-01-01"
+				},
 				"windows_updates": {
 					"deadline_days": 7,
 					"grace_period_days": 3
@@ -115,7 +138,10 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null
 				},
 				"windows_settings": {
 					"custom_settings": null

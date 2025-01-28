@@ -20,7 +20,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/latest/fleet/queries/run_by_names":
+		case "/api/latest/fleet/queries/run_by_identifiers":
 			resp := createDistributedQueryCampaignResponse{
 				Campaign: &fleet.DistributedQueryCampaign{
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{

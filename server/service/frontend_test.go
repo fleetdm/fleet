@@ -2,11 +2,15 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
@@ -39,4 +43,36 @@ func TestServeFrontend(t *testing.T) {
 	response, err := http.DefaultClient.Post(ts.URL, "", bytes.NewReader(requestBody))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusMethodNotAllowed, response.StatusCode)
+}
+
+func TestServeEndUserEnrollOTA(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ds := new(mock.DataStore)
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{}}, nil
+	}
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	logger := log.NewLogfmtLogger(os.Stdout)
+	h := ServeEndUserEnrollOTA(svc, "", logger)
+	ts := httptest.NewServer(h)
+	t.Cleanup(func() {
+		ts.Close()
+	})
+
+	// assert html is returned
+	response, err := http.DefaultClient.Get(ts.URL + "?enroll_secret=foo")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	require.Equal(t, response.Header.Get("Content-Type"), "text/html; charset=utf-8")
+
+	// assert it contains the content we expect
+	defer response.Body.Close()
+	bodyBytes, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	bodyString := string(bodyBytes)
+	require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
 }

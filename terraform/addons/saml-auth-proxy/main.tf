@@ -82,7 +82,7 @@ module "saml_auth_proxy_alb" {
   subnets         = var.subnets
   security_groups = [aws_security_group.saml_auth_proxy_alb.id]
   # FIXME: Get this working eventually.
-  # access_logs     = var.alb_config.access_logs
+  access_logs = var.alb_access_logs
 
   internal = true
   target_groups = [

@@ -1,0 +1,35 @@
+.software-self-service {
+  &__card-header {
+    margin: 0 0 8px 0;
+  }
+
+  &__card-subheader {
+    margin: 0 0 24px 0;
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+  }
+
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
+  .empty-table__container {
+    margin: 64px 0;
+  }
+
+  &__items-count {
+    margin: 0 0 24px 0;
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__items {
+    display: grid;
+    gap: $pad-large;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  }
+
+  &__pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+}

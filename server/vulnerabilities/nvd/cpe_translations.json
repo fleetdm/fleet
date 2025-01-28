@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -94,6 +104,15 @@
   },
   {
     "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["docker"],
       "source": ["python_packages"]
     },
@@ -132,12 +151,428 @@
   },
   {
     "software": {
+      "name": ["/^intellij-idea(-ce)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
       "source": ["apps"]
     },
     "filter": {
       "product": ["pycharm"],
       "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^pycharm(-ce)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.PhpStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["phpstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.aqua/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["aqua"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.CLion/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["clion"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.datagrip/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["datagrip"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.dataspell/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["dataspell"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.goland/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["goland"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rider/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rider"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rubymine/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rubymine"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rustrover/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rustrover"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.WebStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["webstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.mps/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["mps"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-python.python"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["python_extension"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-vsliveshare.vsliveshare"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["visual_studio_live_share"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["dbaeumer.vscode-eslint"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["visual_studio_code_eslint_extension"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-vscode.powershell"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["powershell_extension"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["remote_development"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["vknabel.vscode-swiftlint"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["swiftlint"],
+      "vendor": ["swiftlint_project"]
+    }
+  },
+  {
+    "software": {
+      "name": ["vknabel.vscode-swiftformat"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["swiftformat"],
+      "vendor": ["swiftformat_project"]
+    }
+  },
+  {
+    "software": {
+      "name": ["jbenden.c-cpp-flylint"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["c\\/c\\+\\+_advanced_lint"],
+      "vendor": ["c\\/c\\+\\+_advanced_lint_project"]
+    }
+  },
+  {
+    "software": {
+      "name": ["stripe.vscode-stripe"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["stripe"],
+      "vendor": ["stripe"]
+    }
+  },
+  {
+    "software": {
+      "name": ["vscodevim.vim"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["vim"],
+      "vendor": ["vim_project"]
+    }
+  },
+  {
+    "software": {
+      "name": ["svelte.svelte-vscode"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["svelte"],
+      "vendor": ["svelte"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-vscode-remote.remote-containers"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["remote"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-kubernetes-tools.vscode-kubernetes-tools"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["kubernetes_tools"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-dotnettools.vscode-dotnet-sdk"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": [".net_education_bundle_sdk_install_tool"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-dotnettools.vscode-dotnet-runtime"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": [".net_install_tool_for_extension_authors"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["ms-vscode-remote.remote-wsl"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["windows_subsystem_for_linux"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["mongodb.mongodb-vscode"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["mongodb"],
+      "vendor": ["mongodb"]
+    }
+  },
+  {
+    "software": {
+      "name": ["oracle.mysql-shell-for-vs-code"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["mysql_shell"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "name": ["snyk-security.snyk-vulnerability-scanner"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["snyk_security"],
+      "vendor": ["snyk"]
+    }
+  },
+  {
+    "software": {
+      "name": ["sourcegraph.cody-ai"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["cody"],
+      "vendor": ["sourcegraph"]
+    }
+  },
+  {
+    "software": {
+      "name": ["github.vscode-pull-request-github"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "product": ["pull_requests_and_issues"],
+      "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Microsoft Edge"],
+      "source": ["programs", "apps"]
+    },
+    "filter": {
+      "product": ["edge_chromium"],
+      "vendor": ["microsoft"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Steam"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["Steam.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["/^linux-image\\.*/"]
+    },
+    "filter": {
+      "product": ["linux_kernel"],
+      "vendor": ["linux"],
+      "part": "o"
+    }
+  },
+  {
+    "software": {
+      "name": ["git"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["git"],
+      "vendor": ["git"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
+    },
+    "filter": {
+      "product": ["virtualbox"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "name": ["gh"]
+    },
+    "filter": {
+      "product": ["cli"],
+      "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["iterm2"],
+      "vendor": ["iterm2"]
     }
   }
 ]

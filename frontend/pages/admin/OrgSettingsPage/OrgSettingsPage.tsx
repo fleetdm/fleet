@@ -14,6 +14,7 @@ import paths from "router/paths";
 
 import SideNav from "../components/SideNav";
 import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
+import { DeepPartial } from "./cards/constants";
 
 interface IOrgSettingsPageProps {
   params: Params;
@@ -50,7 +51,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   });
 
   const onFormSubmit = useCallback(
-    (formUpdates: Partial<IConfig>) => {
+    (formUpdates: DeepPartial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
@@ -76,21 +77,23 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
               "Could not connect to SMTP server. Please try again."
             );
           } else if (response?.data.errors) {
+            const reason = response?.data.errors[0].reason;
             const agentOptionsInvalid =
-              response.data.errors[0].reason.includes(
-                "unsupported key provided"
-              ) ||
-              response.data.errors[0].reason.includes("invalid value type");
-
+              reason.includes("unsupported key provided") ||
+              reason.includes("invalid value type");
+            const isAgentOptionsError =
+              agentOptionsInvalid ||
+              reason.includes("script_execution_timeout' value exceeds limit.");
             renderFlash(
               "error",
               <>
-                Could not update settings. {response.data.errors[0].reason}
+                Couldn&apos;t update{" "}
+                {isAgentOptionsError ? "agent options" : "settings"}: {reason}
                 {agentOptionsInvalid && (
                   <>
                     <br />
-                    If you’re not using the latest osquery, use the fleetctl
-                    apply --force command to override validation.
+                    If you&apos;re not using the latest osquery, use the
+                    fleetctl apply --force command to override validation.
                   </>
                 )}
               </>
@@ -126,7 +129,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        Set your organization information and configure SSO and SMTP
+        Set your organization information and configure SSO and SMTP.
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

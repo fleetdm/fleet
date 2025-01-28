@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -19,7 +20,12 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		return query, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -144,7 +150,12 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		act, ok := activity.(fleet.ActivityTypeEditedSavedQuery)
 		assert.True(t, ok)
 		assert.NotEmpty(t, act.Name)
@@ -349,7 +360,7 @@ func TestQueryAuth(t *testing.T) {
 		return query, nil
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
-		if teamID == nil && name == "global query" {
+		if teamID == nil && name == "global query" { //nolint:gocritic // ignore ifElseChain
 			return &globalQuery, nil
 		} else if teamID != nil && *teamID == team.ID && name == "team query" {
 			return &teamQuery, nil
@@ -358,11 +369,16 @@ func TestQueryAuth(t *testing.T) {
 		}
 		return nil, newNotFoundError()
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-		if id == 99 {
+		if id == 99 { //nolint:gocritic // ignore ifElseChain
 			return &globalQuery, nil
 		} else if id == 88 {
 			return &teamQuery, nil
@@ -385,8 +401,8 @@ func TestQueryAuth(t *testing.T) {
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		return 0, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
@@ -629,10 +645,10 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.QueryReportIsClipped(ctx, tt.qid)
+			_, err = svc.QueryReportIsClipped(ctx, tt.qid, fleet.DefaultMaxQueryReportRows)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil)
+			_, _, _, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			teamName := ""
@@ -673,15 +689,15 @@ func TestQueryReportIsClipped(t *testing.T) {
 		return 0, nil
 	}
 
-	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
+	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.False(t, isClipped)
 
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return fleet.MaxQueryReportRows, nil
+		return fleet.DefaultMaxQueryReportRows, nil
 	}
 
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.True(t, isClipped)
 }
@@ -710,7 +726,235 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 		}, nil
 	}
 
-	results, err := svc.GetQueryReportResults(viewerCtx, 1)
+	results, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1, nil)
 	require.NoError(t, err)
 	require.Nil(t, results)
+	require.False(t, reportClipped)
+}
+
+func TestInheritedQueryReportTeamPermissions(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+
+	hostTeam2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		ComputerName:    "Foo Local",
+		Hostname:        "foo.local",
+		OsqueryHostID:   ptr.String("1"),
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{hostTeam2.ID})
+	require.NoError(t, err)
+
+	hostTeam1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("42"),
+		UUID:            "42",
+		ComputerName:    "bar Local",
+		Hostname:        "bar.local",
+		OsqueryHostID:   ptr.String("42"),
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-62",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTeam1.ID})
+	require.NoError(t, err)
+
+	globalQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		ID:      77,
+		Name:    "team2 query",
+		TeamID:  nil,
+		Query:   "select * from usb_devices;",
+		Logging: fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	// Insert initial Result Rows
+	mockTime := time.Now().UTC().Truncate(time.Second)
+	host2Row := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     globalQuery.ID,
+			HostID:      hostTeam2.ID,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+	host1Row := []*fleet.ScheduledQueryResultRow{
+		{
+			QueryID:     globalQuery.ID,
+			HostID:      hostTeam1.ID,
+			LastFetched: mockTime,
+			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
+		},
+	}
+	err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+
+	team2Admin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team2.ID},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+
+	queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: team2Admin}), globalQuery.ID, &team2.ID)
+	require.NoError(t, err)
+	require.Len(t, queryReportResults, 1)
+
+	// team admins requesting query results filtered to not-their-team should get no rows back
+
+	teamAdmin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	teamObserverPlus := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: team1.ID},
+				Role: fleet.RoleObserverPlus,
+			},
+		},
+	}
+
+	testCases := []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			name: "team admin",
+			user: teamAdmin,
+		},
+		{
+			name: "team maintainer",
+			user: teamMaintainer,
+		},
+		{
+			name: "team observer",
+			user: teamObserver,
+		},
+		{
+			name: "team observer+",
+			user: teamObserverPlus,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			queryReportResults, _, err := svc.GetQueryReportResults(viewer.NewContext(ctx, viewer.Viewer{User: tt.user}), globalQuery.ID, &team2.ID)
+			require.NoError(t, err)
+			require.Len(t, queryReportResults, 0)
+		})
+	}
+}
+
+func TestComparePlatforms(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		p1       string
+		p2       string
+		expected bool
+	}{
+		{
+			name:     "equal single value",
+			p1:       "linux",
+			p2:       "linux",
+			expected: true,
+		},
+		{
+			name:     "different single value",
+			p1:       "macos",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "equal multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows",
+			expected: true,
+		},
+		{
+			name:     "equal multiple values out of order",
+			p1:       "linux,windows",
+			p2:       "windows,linux",
+			expected: true,
+		},
+		{
+			name:     "different multiple values",
+			p1:       "linux,windows",
+			p2:       "linux,windows,darwin",
+			expected: false,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "",
+			expected: true,
+		},
+		{
+			name:     "no values set",
+			p1:       "",
+			p2:       "linux",
+			expected: false,
+		},
+		{
+			name:     "single and multiple values",
+			p1:       "linux",
+			p2:       "windows,linux",
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := comparePlatforms(tc.p1, tc.p2)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
 }

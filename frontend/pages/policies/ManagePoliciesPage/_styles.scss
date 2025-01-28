@@ -1,20 +1,51 @@
 .manage-policies-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      align-items: center;
+      gap: 8px;
     }
   }
 
-  &__manage-automations {
-    padding: $pad-small;
-    margin-right: $pad-small;
+  &__manage-automations-wrapper {
+    @include button-dropdown;
+    .Select-multi-value-wrapper {
+      width: 146px;
+    }
+
+    // When tabbing through the app
+    .manage-policies-page__manage-automations-dropdown {
+      &.is-focused {
+        outline: 2px solid $ui-vibrant-blue-25;
+      }
+    }
+
+    .Select > .Select-menu-outer {
+      left: -186px;
+      width: 360px;
+    }
+    .Select-input {
+      padding: 8px;
+    }
+
+    .Select-control {
+      margin-top: 0;
+      gap: 6px;
+      .Select-placeholder {
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+      }
+      .dropdown__custom-arrow .dropdown__icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue-over;
+          }
+        }
+      }
+    }
   }
 
   &__header {
@@ -50,13 +81,6 @@
   &__description {
     margin: 0;
     margin-bottom: $pad-xxlarge;
-
-    h2 {
-      text-transform: uppercase;
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $small;
-    }
 
     p {
       color: $ui-fleet-black-75;
@@ -147,8 +171,8 @@
     }
   }
 
-  .critical-tooltip {
-    text-align: left;
+  .critical-tooltip,
+  .inherited-tooltip {
     font-weight: $regular;
   }
 
@@ -166,8 +190,13 @@
               display: flex; // required for inline icon
               gap: $pad-xsmall;
 
-              .tooltip-base {
-                display: inline-flex;
+              // Underlines only the name text
+              &:hover {
+                text-decoration: none;
+
+                .policy-name-text {
+                  text-decoration: underline;
+                }
               }
 
               .policy-name-text {
@@ -176,7 +205,95 @@
               }
             }
           }
+
+          .critical-badge,
+          .policy-has-not-run {
+            .critical-badge-icon {
+              display: inline-flex;
+            }
+
+            @include tooltip5-arrow-styles;
+
+            .react-tooltip {
+              @include tooltip-text;
+              font-style: normal;
+              text-align: center;
+            }
+          }
+
+          .inherited-badge {
+            overflow: initial;
+          }
         }
+      }
+    }
+  }
+
+  // Used in CalendarEventsModal, InstallSoftwareModal, and OtherWorkflowsModal
+  .automated-policies-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 4px;
+    border: 1px solid $ui-fleet-black-10;
+    // negate ul padding
+    padding-left: 0;
+    margin: 0;
+
+    .policy-row {
+      display: flex;
+      max-width: 100%;
+      padding: 8px 12px;
+      justify-content: space-between;
+      align-items: center;
+      align-self: stretch;
+      border-bottom: 1px solid $ui-fleet-black-10;
+      gap: 20px;
+
+      .form-field--checkbox {
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
+
+      .fleet-checkbox__tick {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
+      }
+
+      .fleet-checkbox__label {
+        display: flex;
+        white-space: nowrap;
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
+
+      &__preview-button {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
+        visibility: hidden;
+      }
+
+      &:hover {
+        background: $ui-off-white;
+        cursor: pointer;
+
+        label {
+          cursor: pointer;
+        }
+
+        .policy-row__preview-button {
+          visibility: visible;
+        }
+      }
+
+      &:first-child {
+        border-radius: 4px 4px 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 0 4px 4px;
+        border-bottom: none;
       }
     }
   }

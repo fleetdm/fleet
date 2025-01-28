@@ -1,0 +1,441 @@
+{
+	"token": "microsoft-excel",
+	"full_token": "microsoft-excel",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Microsoft Excel"
+	],
+	"desc": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization.",
+	"homepage": "https://www.microsoft.com/en-US/microsoft-365/excel",
+	"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.88.24081116_Installer.pkg",
+	"url_specs": {},
+	"version": "16.88.24081116",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "2af9d2d80d46942aa634223f54608ee75f26b973d89afbe79de2a56e6dcbc3b4",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": "com.microsoft.office.licensingV2.helper",
+					"quit": "com.microsoft.autoupdate2",
+					"pkgutil": [
+						"com.microsoft.package.Microsoft_Excel.app",
+						"com.microsoft.pkg.licensing"
+					]
+				}
+			]
+		},
+		{
+			"pkg": [
+				"Microsoft_Excel_16.88.24081116_Installer.pkg",
+				{
+					"choices": [
+						{
+							"choiceIdentifier": "com.microsoft.autoupdate",
+							"choiceAttribute": "selected",
+							"attributeSetting": 0
+						}
+					]
+				}
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Scripts/com.microsoft.Excel",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+						"~/Library/Caches/com.microsoft.Excel",
+						"~/Library/Containers/com.microsoft.Excel",
+						"~/Library/Preferences/com.microsoft.Excel.plist",
+						"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+						"~/Library/Webkit/com.microsoft.Excel"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"cask": [
+			"microsoft-auto-update"
+		]
+	},
+	"conflicts_with": {
+		"cask": [
+			"microsoft-office",
+			"microsoft-office-businesspro"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/m/microsoft-excel.rb",
+	"ruby_source_checksum": {
+		"sha256": "ba9a8018661312bf6e7f2bab84b37ccd4ab2e7f25185d626602b058498a13d0a"
+	},
+	"variations": {
+		"big_sur": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.77.23091703_Installer.pkg",
+			"version": "16.77.23091703",
+			"sha256": "582fca32104e828e01c0928e674122f2d8044d84fd2dc1d7964e0a807e2f4695",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.77.23091703_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"arm64_big_sur": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.77.23091703_Installer.pkg",
+			"version": "16.77.23091703",
+			"sha256": "582fca32104e828e01c0928e674122f2d8044d84fd2dc1d7964e0a807e2f4695",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.77.23091703_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"catalina": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.66.22101101_Installer.pkg",
+			"version": "16.66.22101101",
+			"sha256": "94148628c6f143f07555b3d2a70cea61cef817d963539d281b092834496f8f16",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.66.22101101_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"mojave": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.54.21101001_Installer.pkg",
+			"version": "16.54.21101001",
+			"sha256": "e09fe9f49a36b37af3745673a385be4de9ae8ec774965fd1753f8479a775fc54",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.54.21101001_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"high_sierra": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.43.20110804_Installer.pkg",
+			"version": "16.43.20110804",
+			"sha256": "2711a1b8864f7474458086b4b0a56673fee0097d2049f276788c50e004c47d72",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.43.20110804_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"sierra": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.30.19101301_Installer.pkg",
+			"version": "16.30.19101301",
+			"sha256": "9886b661067f4a99de544d140980fb0f8ef2f4871baa519024781fb814a02fe5",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.30.19101301_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		},
+		"el_capitan": {
+			"url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.16.20101200_Installer.pkg",
+			"version": "16.16.20101200",
+			"sha256": "bdd23b696d54e5ffeb40f30a9bd7f968d2936380ab78a6eaf29d05f5fc8eb78e",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": "com.microsoft.office.licensingV2.helper",
+							"quit": "com.microsoft.autoupdate2",
+							"pkgutil": [
+								"com.microsoft.package.Microsoft_Excel.app",
+								"com.microsoft.pkg.licensing"
+							]
+						}
+					]
+				},
+				{
+					"pkg": [
+						"Microsoft_Excel_16.16.20101200_Installer.pkg",
+						{
+							"choices": [
+								{
+									"choiceIdentifier": "com.microsoft.autoupdate",
+									"choiceAttribute": "selected",
+									"attributeSetting": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Scripts/com.microsoft.Excel",
+								"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.excel.sfl*",
+								"~/Library/Caches/com.microsoft.Excel",
+								"~/Library/Containers/com.microsoft.Excel",
+								"~/Library/Preferences/com.microsoft.Excel.plist",
+								"~/Library/Saved Application State/com.microsoft.Excel.savedState",
+								"~/Library/Webkit/com.microsoft.Excel"
+							]
+						}
+					]
+				}
+			]
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"microsoft-excel": 873
+			},
+			"90d": {
+				"microsoft-excel": 2501
+			},
+			"365d": {
+				"microsoft-excel": 10581
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

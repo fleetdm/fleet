@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -49,13 +50,29 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 }
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
-	configBytes, err := json.Marshal(info)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling config")
-	}
-
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx,
+		// Check if passwords need to be encrypted
+		if info.Integrations.NDESSCEPProxy.Valid {
+			if info.Integrations.NDESSCEPProxy.Set &&
+				info.Integrations.NDESSCEPProxy.Value.Password != "" &&
+				info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
+				err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
+					Name:  fleet.MDMAssetNDESPassword,
+					Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
+				})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
+				}
+			}
+			info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+		}
+
+		configBytes, err := json.Marshal(info)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling config")
+		}
+
+		_, err = tx.ExecContext(ctx,
 			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 			configBytes,
 		)
@@ -65,6 +82,30 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
+}
+
+func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.ExtContext, asset fleet.MDMConfigAsset) error {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{asset.Name}, tx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}, tx)
+		}
+		return ctxerr.Wrap(ctx, err, "get all mdm config assets by name")
+	}
+	if len(assets) == 0 {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("no asset found for name %s", asset.Name))
+	}
+	currentAsset, ok := assets[asset.Name]
+	if !ok {
+		// Should never happen
+		return ctxerr.New(ctx, fmt.Sprintf("asset not found for name %s", asset.Name))
+	}
+	if !bytes.Equal(currentAsset.Value, asset.Value) {
+		return ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{asset}, tx)
+	}
+	// asset already exists and is the same, so not need to update
+	return nil
 }
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
@@ -78,6 +119,28 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	}
 
 	return &s, nil
+}
+
+func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	secretTeamID := sql.NullInt64{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &secretTeamID, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check enroll secret availability")
+	}
+	if new {
+		// Secret is already in use, so a new team can't use it
+		return false, nil
+	}
+	// Secret is in use, but we're checking if it's already assigned to the team
+	if (teamID == nil && !secretTeamID.Valid) || (teamID != nil && secretTeamID.Valid && uint(secretTeamID.Int64) == *teamID) { //nolint:gosec // dismiss G115
+		return true, nil
+	}
+
+	// Secret is in use by another team or globally
+	return false, nil
 }
 
 func (ds *Datastore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -147,7 +210,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
-			if isDuplicate(err) {
+			if IsDuplicate(err) {
 				// Obfuscate the secret in the error message
 				err = alreadyExists("secret", fleet.MaskedPassword)
 			}
@@ -211,7 +274,7 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
@@ -224,4 +287,53 @@ func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *
 		return false, err
 	}
 	return ac.MDM.EnableDiskEncryption.Value, nil
+}
+
+func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return applyYaraRulesDB(ctx, tx, rules)
+	})
+}
+
+func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.YaraRule) error {
+	const delStmt = "DELETE FROM yara_rules"
+	if _, err := q.ExecContext(ctx, delStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear before insert")
+	}
+
+	if len(rules) > 0 {
+		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
+		var args []interface{}
+		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(rules)), ","))
+		for _, r := range rules {
+			args = append(args, r.Name, r.Contents)
+		}
+
+		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert yara rules")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetYaraRules(ctx context.Context) ([]fleet.YaraRule, error) {
+	sql := "SELECT name, contents FROM yara_rules"
+	rules := []fleet.YaraRule{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rules, sql); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get yara rules")
+	}
+	return rules, nil
+}
+
+func (ds *Datastore) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	query := "SELECT name, contents FROM yara_rules WHERE name = ?"
+	rule := fleet.YaraRule{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &rule, query, name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("YaraRule"), "no yara rule with provided name")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get yara rule by name")
+	}
+	return &rule, nil
 }

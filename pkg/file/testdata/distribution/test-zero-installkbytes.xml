@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <pkg-ref id="com.bozo.zeroinstallsize" installKBytes="0" packageIdentifier="com.bozo.zeroinstallsize.app">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="1.2.3" CFBundleVersion="8.10.34.234040" id="com.bozo.zeroinstallsize" path="ZeroInstallSize.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <product id="com.bozo.zeroinstallsize" version="1.2.3"/>
+    <title>ZeroInstallSize</title>
+</installer-gui-script>

@@ -7,14 +7,15 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/getsentry/sentry-go"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // ReloadInterval reloads and returns a new interval.
@@ -31,6 +32,8 @@ type Schedule struct {
 	instanceID string
 	logger     log.Logger
 
+	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
+
 	mu                sync.Mutex // protects schedInterval and intervalStartedAt
 	schedInterval     time.Duration
 	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
@@ -45,9 +48,12 @@ type Schedule struct {
 
 	altLockName string
 
-	jobs []Job
+	jobs   []Job
+	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
+
+	runOnce bool
 }
 
 // JobFn is the signature of a Job.
@@ -76,7 +82,7 @@ type CronStatsStore interface {
 	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
-	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
+	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 }
 
 // Option allows configuring a Schedule.
@@ -121,6 +127,24 @@ func WithJob(id string, fn JobFn) Option {
 	}
 }
 
+// WithRunOnce sets the Schedule to run only once.
+func WithRunOnce(once bool) Option {
+	return func(s *Schedule) {
+		s.runOnce = once
+	}
+}
+
+// WithDefaultPrevRunCreatedAt sets the default time to use for the previous
+// run of the schedule if it never ran yet. If not specified, the current time
+// is used. This affects when the schedule starts running after Fleet is
+// started, e.g. if the schedule has an interval of 1h and has no previous run
+// recorded, by default its first run after Fleet starts will be in 1h.
+func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
+	return func(s *Schedule) {
+		s.defaultPrevRunCreatedAt = tm
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -156,6 +180,7 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
 
@@ -163,13 +188,25 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	prevScheduledRun, _, err := s.getLatestStats()
+	prevScheduledRun, _, err := s.GetLatestStats()
 	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
-	s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
+
+	// if there is no previous run, set the start time to the specified default
+	// time, falling back to current time.
+	startedAt := prevScheduledRun.CreatedAt
+	if startedAt.IsZero() {
+		startedAt = s.defaultPrevRunCreatedAt
+		if startedAt.IsZero() {
+			startedAt = time.Now()
+		}
+	} else if s.runOnce && prevScheduledRun.Status == fleet.CronStatsStatusCompleted {
+		// If job is set to run once, and it already ran, then nothing to do
+		return
+	}
+	s.setIntervalStartedAt(startedAt)
 
 	initialWait := 10 * time.Second
 	if schedInterval := s.getSchedInterval(); schedInterval < initialWait {
@@ -205,10 +242,9 @@ func (s *Schedule) Start() {
 
 				s.runWithStats(fleet.CronStatsTypeTriggered)
 
-				prevScheduledRun, _, err := s.getLatestStats()
+				prevScheduledRun, _, err := s.GetLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "trigger get cron stats", "details", err)
-					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 				}
 
@@ -238,10 +274,9 @@ func (s *Schedule) Start() {
 
 				schedInterval := s.getSchedInterval()
 
-				prevScheduledRun, prevTriggeredRun, err := s.getLatestStats()
+				prevScheduledRun, prevTriggeredRun, err := s.GetLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
-					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
@@ -331,7 +366,7 @@ func (s *Schedule) Start() {
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
 					if err != nil {
 						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
-						sentry.CaptureException(err)
+						ctxerr.Handle(s.ctx, err)
 						continue
 					}
 
@@ -378,7 +413,7 @@ func (s *Schedule) Start() {
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
 func (s *Schedule) Trigger() (*fleet.CronStats, error) {
-	sched, trig, err := s.getLatestStats()
+	sched, trig, err := s.GetLatestStats()
 	switch {
 	case err != nil:
 		return nil, err
@@ -411,7 +446,6 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
 	if err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
 	level.Info(s.logger).Log("status", "pending")
@@ -420,7 +454,6 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 
 	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
 	level.Info(s.logger).Log("status", "completed")
@@ -431,8 +464,8 @@ func (s *Schedule) runAllJobs() {
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
+			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
-			sentry.CaptureException(err)
 			ctxerr.Handle(s.ctx, err)
 		}
 	}
@@ -441,8 +474,10 @@ func (s *Schedule) runAllJobs() {
 // runJob executes the job function with panic recovery.
 func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+		if os.Getenv("TEST_CRON_NO_RECOVER") != "1" { // for detecting panics in tests
+			if r := recover(); r != nil {
+				err = fmt.Errorf("%v\n%s", r, string(debug.Stack()))
+			}
 		}
 	}()
 
@@ -507,7 +542,7 @@ func (s *Schedule) acquireLock() bool {
 	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
 		return false
 	}
 	if !ok {
@@ -521,7 +556,7 @@ func (s *Schedule) releaseLock() {
 	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
 	if err != nil {
 		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
 	}
 }
 
@@ -556,7 +591,7 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) getLatestStats() (fleet.CronStats, fleet.CronStats, error) {
+func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
 	var scheduled, triggered fleet.CronStats
 
 	cs, err := s.statsStore.GetLatestCronStats(s.ctx, s.name)
@@ -586,7 +621,7 @@ func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronS
 }
 
 func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status)
+	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {

@@ -1,63 +1,45 @@
 import React from "react";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import {
-  ISoftwareTitleVersion,
   ISoftwareTitle,
   formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import PATHS from "router/paths";
 
+import { buildQueryStringFromParams } from "utilities/url";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
-import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-interface ICellProps {
-  cell: {
-    value: number | string | ISoftwareTitleVersion[];
-  };
-  row: {
-    original: ISoftwareTitle;
-  };
-}
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
 
-interface IVersionCellProps extends ICellProps {
-  cell: {
-    value: ISoftwareTitleVersion[];
-  };
-}
+type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
+type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
+type IVulnerabilitiesCellProps = IVersionsCellProps;
+type IHostCountCellProps = CellProps<
+  ISoftwareTitle,
+  ISoftwareTitle["hosts_count"]
+>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
-interface INumberCellProps extends ICellProps {
-  cell: {
-    value: number;
-  };
-}
+type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 
-interface IVulnCellProps extends ICellProps {
-  cell: {
-    value: ISoftwareTitleVersion[];
-  };
-}
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
-const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+) => {
   if (!versions) {
     return [];
   }
@@ -73,61 +55,100 @@ const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
   return vulnerabilities;
 };
 
+/**
+ * Gets the data needed to render the software name cell.
+ */
+const getSoftwareNameCellData = (
+  softwareTitle: ISoftwareTitle,
+  teamId?: number
+) => {
+  const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+  const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+    softwareTitle.id.toString()
+  )}?${teamQueryParam}`;
+
+  const { software_package, app_store_app } = softwareTitle;
+  let hasPackage = false;
+  let isSelfService = false;
+  let installType: "manual" | "automatic" | undefined;
+  let iconUrl: string | null = null;
+  if (software_package) {
+    hasPackage = true;
+    isSelfService = software_package.self_service;
+    installType =
+      software_package.automatic_install_policies &&
+      software_package.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+  } else if (app_store_app) {
+    hasPackage = true;
+    isSelfService = app_store_app.self_service;
+    iconUrl = app_store_app.icon_url;
+    installType =
+      app_store_app.automatic_install_policies &&
+      app_store_app.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+  }
+
+  const isAllTeams = teamId === undefined;
+
+  return {
+    name: softwareTitle.name,
+    source: softwareTitle.source,
+    path: softwareTitleDetailsPath,
+    hasPackage: hasPackage && !isAllTeams,
+    isSelfService,
+    installType,
+    iconUrl,
+  };
+};
+
 const generateTableHeaders = (
   router: InjectedRouter,
   teamId?: number
-): Column[] => {
-  const softwareTableHeaders = [
+): ISoftwareTitlesTableConfig[] => {
+  const softwareTableHeaders: ISoftwareTitlesTableConfig[] = [
     {
-      title: "Name",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       disableSortBy: false,
       accessor: "name",
-      Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { id, name, source } = cellProps.row.original;
-
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(PATHS.SOFTWARE_TITLE_DETAILS(id.toString()));
-        };
+      Cell: (cellProps: ITableStringCellProps) => {
+        const nameCellData = getSoftwareNameCellData(
+          cellProps.row.original,
+          teamId
+        );
 
         return (
-          <LinkCell
-            path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+          <SoftwareNameCell
+            name={nameCellData.name}
+            source={nameCellData.source}
+            path={nameCellData.path}
+            router={router}
+            hasPackage={nameCellData.hasPackage}
+            isSelfService={nameCellData.isSelfService}
+            installType={nameCellData.installType}
+            iconUrl={nameCellData.iconUrl ?? undefined}
           />
         );
       },
       sortType: "caseInsensitive",
     },
     {
-      title: "Version",
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
-      Cell: (cellProps: IVersionCellProps): JSX.Element => (
+      Cell: (cellProps: IVersionsCellProps) => (
         <VersionCell versions={cellProps.cell.value} />
       ),
     },
     {
-      title: "Type",
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ICellProps): JSX.Element => (
+      Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
       ),
     },
@@ -138,44 +159,48 @@ const generateTableHeaders = (
     // With the versions data, we can sum up the vulnerabilities to get the
     // total number of vulnerabilities for the software title
     {
-      title: "Vulnerabilities",
       Header: "Vulnerabilities",
       disableSortBy: true,
-      accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(
-          cellProps.row.original.versions
+          cellProps.row.original.versions ?? []
         );
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
     },
     {
-      title: "Hosts",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
+      Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
-          value={cellProps.column.title}
+          value="Hosts"
           disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       disableSortBy: false,
       accessor: "hosts_count",
-      Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_title_id: cellProps.row.original.id,
-                team_id: teamId, // TODO: do we need team id here?
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+      Cell: (cellProps: IHostCountCellProps) => (
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      Header: "",
+      id: "view-all-hosts",
+      disableSortBy: true,
+      Cell: (cellProps: IViewAllHostsLinkProps) => {
+        return (
+          <ViewAllHostsLink
+            queryParams={{
+              software_title_id: cellProps.row.original.id,
+              team_id: teamId, // TODO: do we need team id here?
+            }}
+            className="software-link"
+            rowHover
+          />
+        );
+      },
     },
   ];
 

@@ -2,10 +2,16 @@ import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import classnames from "classnames";
 
+import isURL from "validator/lib/isURL";
+
 import PATHS from "router/paths";
-import configAPI from "services/entities/config";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+
+import { getErrorReason } from "interfaces/errors";
+
+import configAPI from "services/entities/config";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -13,9 +19,9 @@ import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
-import validateUrl from "components/forms/validators/valid_url";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -39,7 +45,11 @@ interface IEndUserMigrationSectionProps {
 }
 
 const validateWebhookUrl = (val: string) => {
-  return validateUrl({ url: val });
+  return isURL(val, {
+    protocols: ["http", "https"],
+    require_protocol: true,
+    require_valid_protocol: true,
+  });
 };
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
@@ -69,7 +79,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   };
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   const onChangeMode = (mode: string) => {
@@ -82,6 +92,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
 
   const onChangeWebhookUrl = (webhookUrl: string) => {
     setFormData((prevFormData) => ({ ...prevFormData, webhookUrl }));
+    setIsValidWebhookUrl(validateWebhookUrl(webhookUrl));
   };
 
   const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
@@ -105,6 +116,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       renderFlash("success", "Successfully updated end user migration!");
       setConfig(updatedConfig);
     } catch (err) {
+      if (
+        getErrorReason(err, {
+          nameEquals: "macos_migration.webhook_url",
+        })
+      ) {
+        setIsValidWebhookUrl(false);
+        return;
+      }
       renderFlash("error", "Could not update. Please try again.");
     }
   };
@@ -141,14 +160,9 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   }
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user migration workflow" />
+    <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
-        <p>
-          Control the end user migration workflow for macOS hosts that
-          automatically enrolled to your old MDM solution.
-        </p>
-
+        <p>Control the end user migration workflow for macOS hosts.</p>
         <img
           src={MdmMigrationPreview}
           alt="end user migration preview"
@@ -172,6 +186,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               label="Voluntary"
               onChange={onChangeMode}
               className={`${baseClass}__voluntary-radio`}
+              name="mode-type"
             />
             <Radio
               disabled={!formData.isEnabled}
@@ -181,6 +196,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               label="Forced"
               onChange={onChangeMode}
               className={`${baseClass}__forced-radio`}
+              name="mode-type"
             />
           </div>
           <p>
@@ -194,7 +210,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             page.
           </p>
           <InputField
-            disabled={!formData.isEnabled}
+            readOnly={!formData.isEnabled}
             name="webhook_url"
             label="Webhook URL"
             value={formData.webhookUrl}
@@ -222,7 +238,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       {showExamplePayload && (
         <ExampleWebhookUrlPayloadModal onCancel={toggleExamplePayloadModal} />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

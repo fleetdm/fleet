@@ -1,11 +1,21 @@
+/**
+ software/versions/:id > Vulnerabilities table
+ software/os/:id > Vulnerabilities table
+ */
+
 import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-
+import { CONTACT_FLEET_LINK, GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { DisplayPlatform } from "interfaces/platform";
+import { buildQueryStringFromParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
@@ -15,6 +25,10 @@ const baseClass = "software-vulnerabilities-table";
 
 interface INoVulnsDetectedProps {
   itemName: string;
+}
+
+interface IVulnsNotSupportedProps {
+  platformText?: DisplayPlatform;
 }
 
 const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
@@ -35,12 +49,34 @@ const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
   );
 };
 
+export const VulnsNotSupported = ({
+  platformText,
+}: IVulnsNotSupportedProps) => (
+  <EmptyTable
+    header="Vulnerabilities are not supported for this type of host"
+    info={
+      <>
+        Interested in vulnerabilities in {platformText ?? "this platform"}?{" "}
+        <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
+      </>
+    }
+  />
+);
+
 interface ISoftwareVulnerabilitiesTableProps {
   data: ISoftwareVulnerability[];
   /** Name displayed on the empty state */
   itemName: string;
   isLoading: boolean;
   className?: string;
+  router: InjectedRouter;
+  teamIdForApi?: number;
+}
+
+interface IRowProps extends Row {
+  original: {
+    cve?: string;
+  };
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -48,29 +84,55 @@ const SoftwareVulnerabilitiesTable = ({
   itemName,
   isLoading,
   className,
+  router,
+  teamIdForApi,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   const classNames = classnames(baseClass, className);
 
+  const handleRowSelect = (row: IRowProps) => {
+    const hostsBySoftwareParams = {
+      vulnerability: row.original.cve,
+      team_id: teamIdForApi,
+    };
+
+    const path = hostsBySoftwareParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
+          hostsBySoftwareParams
+        )}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
+  };
+
   const tableHeaders = useMemo(
-    () => generateTableConfig(Boolean(isPremiumTier), Boolean(isSandboxMode)),
-    [isPremiumTier, isSandboxMode]
+    () => generateTableConfig(Boolean(isPremiumTier), router, teamIdForApi),
+    [isPremiumTier]
   );
+
+  const renderVulnerabilitiesCount = () => (
+    <TableCount name="items" count={data?.length} />
+  );
+
   return (
     <div className={classNames}>
       <TableContainer
         columnConfigs={tableHeaders}
         data={data}
-        defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
-        defaultSortDirection={"desc"}
+        defaultSortHeader={isPremiumTier ? "updated_at" : "cve"} // TODO: Change premium to created_at when added to API
+        defaultSortDirection="desc"
         emptyComponent={() => <NoVulnsDetected itemName={itemName} />}
         isAllPagesSelected={false}
         isLoading={isLoading}
         isClientSidePagination
         pageSize={20}
-        resultsTitle={"vulnerabilities"}
+        resultsTitle="items"
         showMarkAllPages={false}
+        disableMultiRowSelect
+        onSelectSingleRow={handleRowSelect}
+        disableTableHeader={data.length === 0}
+        renderCount={renderVulnerabilitiesCount}
       />
     </div>
   );

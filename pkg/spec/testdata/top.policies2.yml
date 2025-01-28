@@ -1,5 +1,0 @@
-- name: 🔥 Failing policy
-  platform: linux
-  description: This policy should always fail.
-  resolution: There is no resolution for this policy.
-  query: SELECT 1 FROM osquery_info WHERE start_time < 0;

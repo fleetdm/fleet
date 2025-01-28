@@ -178,7 +178,7 @@ func (c *Client) GetDBVersion(db *sql.DB) (int64, error) {
 	for rows.Next() {
 		var row MigrationRecord
 		if err = rows.Scan(&row.VersionId, &row.IsApplied); err != nil {
-			log.Fatal("error scanning rows:", err)
+			log.Fatal("error scanning rows:", err) //nolint:gocritic // ignore exitAfterDefer
 		}
 
 		// have we already marked this version to be skipped?

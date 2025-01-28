@@ -1,8 +1,15 @@
 .software-os-table {
-  &__count {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+  &__platform-dropdown {
+    width: 175px;
+
+    .Select-menu-outer {
+      width: 160px;
+      max-height: min-content;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
   }
 
   .hosts-cell__wrapper {
@@ -25,12 +32,31 @@
   .table-container {
     &__data-table-block {
       .data-table-block {
-        .data-table__table {
-          tbody {
-            .link-cell {
-              display: flex;
-              align-items: center;
-              gap: $pad-small;
+        .data-table {
+          &__wrapper {
+            overflow-x: auto;
+          }
+          &__table {
+            tbody {
+              .name_only__cell {
+                max-width: $col-md;
+
+                // Tooltip does not get cut off
+                .children-wrapper {
+                  overflow: initial;
+                }
+
+                // ellipsis for software name
+                .software-name {
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+              }
+              .link-cell {
+                display: flex;
+                align-items: center;
+                gap: $pad-small;
+              }
             }
           }
         }

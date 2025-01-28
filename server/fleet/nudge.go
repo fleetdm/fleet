@@ -44,25 +44,24 @@ type nudgeUpdateElements struct {
 	MainHeader       string `json:"mainHeader"`
 }
 
-func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
+func NewNudgeConfig(macOSUpdates AppleOSUpdateSettings) (*NudgeConfig, error) {
 	deadline, err := time.Parse("2006-01-02", macOSUpdates.Deadline.Value)
 	if err != nil {
 		return nil, err
 	}
 
-	// Per the spec, the exact deadline time is arbitrarily chosen to be
-	// 04:00:00 (UTC-8) until we allow users to customize it.
-	//
-	// See https://github.com/fleetdm/fleet/issues/9013 for more details.
-	localizedDeadline := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 4, 0, 0, 0, time.UTC)
+	// For macOS 14+ we use DDM, which sets deadlines relative to local time. Nudge doesn't allow local-time deadlines
+	// when providing JSON config, so for compatibility with existing fleetd versions we're using a somewhat sane
+	// UTC value here (noon Pacific Standard Time, no revision for DST). See https://github.com/fleetdm/fleet/pull/23320
+	deadlineWithTime := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 20, 0, 0, 0, time.UTC)
 
 	return &NudgeConfig{
 		OSVersionRequirements: []nudgeOSVersionRequirements{{
-			RequiredInstallationDate: localizedDeadline,
+			RequiredInstallationDate: deadlineWithTime,
 			RequiredMinimumOSVersion: macOSUpdates.MinimumVersion.Value,
 			AboutUpdateURLs: []nudgeAboutUpdateURLs{{
 				Language:       "en",
-				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mdm-macos-updates",
+				AboutUpdateURL: "https://fleetdm.com/learn-more-about/os-updates",
 			}},
 		}},
 		UserInterface: nudgeUserInterface{

@@ -12,7 +12,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
-import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 interface IHeaderProps {
   column: {
@@ -33,7 +33,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IDropdownCellProps extends IRowProps {
+interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -45,7 +45,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IDropdownCellProps) => JSX.Element);
+    | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
@@ -132,7 +132,6 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   The GitOps role is only available on the command-line
@@ -150,7 +149,6 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   Users with the Observer+ role have access to all of
@@ -165,10 +163,12 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        const greyAndItalic = greyCell(cellProps.cell.value);
         return (
           <TextCell
             value={cellProps.cell.value}
-            greyed={greyCell(cellProps.cell.value)}
+            grey={greyAndItalic}
+            italic={greyAndItalic}
           />
         );
       },
@@ -200,19 +200,20 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
+      Cell: (cellProps: IActionsDropdownProps) => (
+        <ActionsDropdown
           options={cellProps.cell.value}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
           }
-          placeholder={"Actions"}
+          placeholder="Actions"
+          menuAlign="right"
         />
       ),
     },
   ];
 
-  // Add Teams tab for premium tier only
+  // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
       title: "Teams",
@@ -220,10 +221,7 @@ const generateTableHeaders = (
       accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
+        <TextCell value={cellProps.cell.value} />
       ),
     });
   }

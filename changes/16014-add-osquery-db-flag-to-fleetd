@@ -1,1 +1,0 @@
-* Add `--osquery-db` flag to `fleetctl package` command to configure a custom directory for osquery's database (`fleetctl package --osquery-db=/path/to/osquery.db`).

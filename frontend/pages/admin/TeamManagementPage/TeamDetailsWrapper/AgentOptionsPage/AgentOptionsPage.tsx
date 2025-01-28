@@ -110,21 +110,21 @@ const AgentOptionsPage = ({
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
-
+        const reason = response.data.errors[0].reason;
         const agentOptionsInvalid =
-          response.data.errors[0].reason.includes("unsupported key provided") ||
-          response.data.errors[0].reason.includes("invalid value type");
+          reason.includes("unsupported key provided") ||
+          reason.includes("invalid value type");
 
-        return renderFlash(
+        renderFlash(
           "error",
           <>
-            Could not update {teamName} team agent options.{" "}
-            {response.data.errors[0].reason}
+            Couldn&apos;t update {teamName} team agent options:
+            {reason}
             {agentOptionsInvalid && (
               <>
                 <br />
-                If you’re not using the latest osquery, use the fleetctl apply
-                --force command to override validation.
+                If you&apos;re not using the latest osquery, use the fleetctl
+                apply --force command to override validation.
               </>
             )}
           </>
@@ -142,11 +142,12 @@ const AgentOptionsPage = ({
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        Agent options configure the osquery agent. When you update agent
-        options, they will be applied the next time a host checks in to Fleet.
+        Agent options configure Fleet&apos;s agent (fleetd). When you update
+        agent options, they will be applied the next time a host checks in to
+        Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
+          url="https://fleetdm.com/learn-more-about/agent-options"
           text="Learn more about agent options"
           newTab
           multiline

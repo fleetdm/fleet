@@ -1,58 +1,209 @@
 <div id="contact" v-cloak>
-  <div class="container-fluid pt-5 pb-5">
-    <div style="max-width:  650px;" class="mx-auto" v-if="!cloudSuccess">
-      <h2 style="max-width: 650px;" class="mx-auto">Contact our team</h2>
-      <p>We're here to answer your questions, and familiarize you with Fleet.</p>
-      <ajax-form action="deliverContactFormMessage" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()">
-        <div class="form-group">
-          <div class="row">
-            <div class="col-sm pt-4">
-              <label for="first-name">First name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
-              <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" focus-first>
-              <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
-            </div>
-            <div class="col-sm pt-4">
-              <label for="last-name">Last name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
-              <input class="form-control" id="last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
-              <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
+  <div purpose="page-container" class="container-fluid">
+    <div class="d-flex flex-lg-row flex-column justify-content-center">
+    <div purpose="form-container" v-if="!cloudSuccess">
+      <h2>Get in touch</h2>
+      <p v-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
+      <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
+      <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
+      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto">
+        <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to an engineer</div>
+        <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
+        <div purpose="switch" :class="formToDisplay+'-selected'"></div>
+      </div>
+      <div v-if="formToDisplay === 'contact'">
+        <ajax-form action="deliverContactFormMessage" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="contactFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedContactForm()">
+          <div class="form-group">
+            <label for="contact-email-address">Work email *</label>
+            <input class="form-control" id="contact-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
+            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid work email address</div>
+            <cloud-error class="p-0 mt-1 mb-0 bg-transparent invalid-feedback" v-if="cloudError && cloudError === 'invalidEmailDomain'">
+              <p>Please enter a valid work email address</p>
+            </cloud-error>
+
+          </div>
+          <div class="form-group">
+            <div class="row">
+              <div purpose="first-name-column" class="col-sm mb-4 mb-sm-0">
+                <label for="contact-first-name">First name *</label>
+                <input class="form-control" id="contact-first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name">
+                <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
+              </div>
+              <div purpose="last-name-column" class="col-sm">
+                <label for="contact-last-name">Last name *</label>
+                <input class="form-control" id="contact-last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
+                <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="email-address">Email<span style="font-weight: 400; color: #FF5C83"> *</span></label>
-          <input class="form-control" id="email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email">
-          <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address.</div>
-        </div>
-        <div class="form-group">
-          <label for="topic">How can we help you?</label>
-          <div class="selectbox">
-          <select class="form-control" id="topic" name="topic" :class="[formErrors.topic ? 'is-invalid' : '']" v-model="formData.topic">
-            <option disabled hidden value="undefined">Please select one</option>
-            <option value="I want to evaluate Fleet Premium for my organization">I want to evaluate Fleet Premium for my organization</option>
-            <option value="I want to understand which plan is right for me">I want to understand which plan is right for me</option>
-            <option value="I have a product question">I have a product question</option>
-            <option value="Something else">Something else</option>
-          </select>
+          <div class="form-group">
+            <label for="message">Message *</label>
+            <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
+            <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
           </div>
-          <div class="d-block invalid-feedback" v-if="formErrors.topic">Please choose a topic for your message.</div>
-        </div>
-        <div class="form-group">
-          <label for="message">Message</label>
-          <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
-          <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
-        </div>
-        <p style="color: #FF5C83">Fields marked with an asterisk (*) are required.</p>
-        <cloud-error v-if="cloudError"></cloud-error>
-        <div class="form-group btn-container">
-          <ajax-button type="submit" :syncing="syncing" class="btn btn-primary btn-sm">Submit</ajax-button>
-        </div>
-      </ajax-form>
-      <p class="mb-0 mt-4 pt-3"><a href="/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else" target="_blank">We will never spam you</a>.</p>
+          <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
+          <div class="form-group btn-container">
+            <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Send</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+      <div v-else>
+        <ajax-form action="deliverTalkToUsFormSubmission" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="talkToUsFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedTalkToUsForm()">
+          <div class="form-group">
+            <label for="email-address">Work email *</label>
+            <input class="form-control" id="email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
+            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid work email address</div>
+            <cloud-error class="p-0 mt-1 mb-0 bg-transparent invalid-feedback" v-if="cloudError && cloudError === 'invalidEmailDomain'">
+              <p>Please enter a valid work email address</p>
+            </cloud-error>
+          </div>
+          <div class="form-group">
+            <div class="row">
+              <div purpose="first-name-column" class="col-sm mb-4 mb-sm-0">
+                <label for="first-name">First name *</label>
+                <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name">
+                <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
+              </div>
+              <div purpose="last-name-column" class="col-sm">
+                <label for="last-name">Last name *</label>
+                <input class="form-control" id="last-name" name="last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name">
+                <div class="invalid-feedback" v-if="formErrors.lastName">Please let us know what to call you.</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="organization">Organization *</label>
+            <input class="form-control" id="organization" name="organization" type="text" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" autocomplete="email">
+            <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
+          </div>
+          <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
+            <label class="mb-3"><strong>What will you be using Fleet for? *</strong></label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'mdm' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="mdm">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Device management (MDM)
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'eo-it' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="eo-it">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              IT engineering
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="eo-security">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Security engineering
+            </label>
+            <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
+          </div>
+         <div class="form-group">
+           <label for="number-of-hosts">How many employees are in your organization? *</label>
+           <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" min="1" v-model.trim="formData.numberOfHosts">
+           <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="!primaryBuyingSituation || ['eo-it', 'mdm', 'vm'].includes(primaryBuyingSituation)">Includes computers, servers, phones, and more.</p>
+           <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-security'">Includes servers, supercomputers, and everything else.</p> -->
+           <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'eo-it'">Includes Apple, Windows, Linux workstations, Chromebooks, servers, and other hosts. </p> -->
+           <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'mdm'">Includes Apple, Windows, and desktop Linux. Android coming soon.</p> -->
+           <!-- <p purpose="devices-note" class="mt-3 mb-0" v-if="primaryBuyingSituation === 'vm'">Includes computers, servers, OT/ICS, containers, and other hosts.</p> -->
+           <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of employees</div>
+         </div>
+         <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
+           <p>Please enter a valid work email address</p>
+         </cloud-error>
+          <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
+          <div class="form-group btn-container">
+            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Schedule a call</ajax-button>
+          </div>
+        </ajax-form>
+      </div>
     </div>
-    <div style="max-width: 725px;" class="mx-auto text-center" v-else>
-      <h2>Thank you, {{formData.firstName}}!</h2>
-      <p class="mt-3">We’re happy to hear from you. A member of our team will get back to you soon - usually within 1 business day (or less!).</p>
+    <div purpose="success-message" v-else>
+      <h2>Thank you!</h2>
+      <p class="mt-3">A member of our team will get back to you soon.<br>Usually within one business day (or less!)</p>
     </div>
+    <div purpose="quote-and-logos">
+      <div purpose="quote" v-if="!primaryBuyingSituation || primaryBuyingSituation === 'mdm'">
+        <div purpose="logo" class="mb-4"><img height="32" alt="Stripe logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
+        <p purpose="quote-text">
+          We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
+            <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'vm'">
+        <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
+        <p purpose="quote-text">
+          The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img alt="Andre Shields" src="/images/testimonial-author-andre-shields-48x48@2x.png">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
+            <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-it'">
+        <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
+        <p purpose="quote-text">
+          Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img alt="Wes Whetstone" src="/images/testimonial-author-wes-whetstone-48x48@2x.png">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">Wes Whetstone</p>
+            <p purpose="job-title" class="m-0">Staff CPE</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-security'">
+        <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
+        <p purpose="quote-text">
+          Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
+            <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="logos" class="flex-column flex-wrap align-items-center w-100">
+        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
+          <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
+          <img alt="Atlassian logo" src="/images/logo-atlassian-140x32@2x.png">
+          <img alt="Epic Games logo" src="/images/logo-epic-games-28x32@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row flex-wrap justify-content-between">
+          <img alt="Rivian logo" src="/images/logo-rivian-120x32@2x.png">
+          <img alt="Flywire logo" src="/images/logo-flywire-69x32@2x.png">
+          <img alt="Snowflake logo" src="/images/logo-snowflake-101x32@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
+          <img alt="Uber logo" src="/images/logo-uber-65x32@2x.png">
+          <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">
+          <img alt="Reddit logo" src="/images/logo-reddit-80x32@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-between mb-0">
+          <img alt="Deloitte logo" src="/images/logo-deloitte-97x32@2x.png">
+          <img alt="Fastly logo" src="/images/logo-fastly-60x32@2x.png">
+          <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x32@2x.png">
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

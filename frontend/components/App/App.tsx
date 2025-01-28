@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
-import { AxiosResponse } from "axios";
-import { QueryClient, QueryClientProvider } from "react-query";
+import { AxiosError, AxiosResponse } from "axios";
+import { useQuery } from "react-query";
+import { ErrorBoundary } from "react-error-boundary";
+import { isBefore } from "date-fns";
 
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
@@ -10,20 +12,26 @@ import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
-
+import { QueryParams } from "utilities/url";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
+import mdmAppleBMAPI, {
+  IGetAbmTokensResponse,
+} from "services/entities/mdm_apple_bm";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
 
-import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
 // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
+
 import Spinner from "components/Spinner";
-import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
@@ -35,25 +43,106 @@ interface IAppProps {
   };
 }
 
+interface RecordWithRenewDate {
+  renew_date: string;
+}
+
+const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
+
+// TODO: add tests for this function
+const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+  const earliest = records.reduce((acc, record) => {
+    const renewDate = new Date(record.renew_date);
+    return isBefore(acc, renewDate) ? acc : renewDate;
+  }, new Date(NaN));
+
+  if (isNaN(earliest.valueOf())) {
+    // this should never happen assuming the API always returns valid dates, but just in case we'll
+    // return a guaranteed past date and log a warning to aid debugging
+    console.warn("No valid renew dates found, returning guaranteed past date.");
+    return GUARANTEED_PAST_DATE;
+  }
+
+  return earliest.toISOString();
+};
+
 const baseClass = "app";
 
 const App = ({ children, location }: IAppProps): JSX.Element => {
-  const queryClient = new QueryClient();
   const {
     config,
     currentUser,
+    isGlobalAdmin,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
+    setUserSettings,
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setABMExpiry,
+    setAPNsExpiry,
+    setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // We will do a series of API calls to get the data that we need to display
+  // warnings to the user about various token expirations.
+
+  // Get the ABM tokens
+  useQuery<IGetAbmTokensResponse, AxiosError>(
+    ["abm_tokens"],
+    () => mdmAppleBMAPI.getTokens(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      onSuccess: ({ abm_tokens }) => {
+        abm_tokens.length &&
+          setABMExpiry({
+            earliestExpiry: getEarliestExpiry(abm_tokens),
+            needsAbmTermsRenewal: abm_tokens.some(
+              (token) => token.terms_expired
+            ),
+          });
+      },
+      // TODO: Do we need to catch and check for a 400 status code? The old
+      // API behaved this way when the token is already expired or invalid.
+      onError: (err) => {
+        if (err.status === 400) {
+          setABMExpiry({
+            earliestExpiry: GUARANTEED_PAST_DATE,
+            needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
+          });
+        }
+      },
+    }
+  );
+
+  // Get the Apple Push Notification token expiration date
+  useQuery(["apns"], () => mdmAppleAPI.getAppleAPNInfo(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+    onSuccess: (data) => {
+      setAPNsExpiry(data.renew_date);
+    },
+  });
+
+  // Get the Apple VPP token expiration date
+  useQuery<IGetVppTokensResponse>(
+    ["vpp_tokens"],
+    () => mdmAppleAPI.getVppTokens(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      onSuccess: ({ vpp_tokens }) => {
+        vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
+      },
+    }
+  );
 
   const fetchConfig = async () => {
     try {
@@ -77,9 +166,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchCurrentUser = async () => {
     try {
-      const { user, available_teams } = await usersAPI.me();
+      const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
       fetchConfig();
     } catch (error) {
       if (
@@ -170,22 +260,20 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   return isLoading ? (
     <Spinner />
   ) : (
-    <QueryClientProvider client={queryClient}>
-      <TableProvider>
-        <QueryProvider>
-          <PolicyProvider>
-            <NotificationProvider>
-              <ErrorBoundary
-                fallbackRender={renderErrorOverlay}
-                resetKeys={[location?.pathname]}
-              >
-                <div className={baseClass}>{children}</div>
-              </ErrorBoundary>
-            </NotificationProvider>
-          </PolicyProvider>
-        </QueryProvider>
-      </TableProvider>
-    </QueryClientProvider>
+    <TableProvider>
+      <QueryProvider>
+        <PolicyProvider>
+          <NotificationProvider>
+            <ErrorBoundary
+              fallbackRender={renderErrorOverlay}
+              resetKeys={[location?.pathname]}
+            >
+              <div className={baseClass}>{children}</div>
+            </ErrorBoundary>
+          </NotificationProvider>
+        </PolicyProvider>
+      </QueryProvider>
+    </TableProvider>
   );
 };
 

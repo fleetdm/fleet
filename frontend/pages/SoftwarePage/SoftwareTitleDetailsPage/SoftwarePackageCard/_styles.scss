@@ -1,0 +1,106 @@
+.software-package-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: $pad-medium;
+
+  &__row-1 {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: $pad-medium;
+  }
+
+  &__main-info {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    justify-content: center;
+  }
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+    @include ellipse-text;
+    max-width: 48vw;
+  }
+
+  &__details {
+    font-size: $xx-small;
+  }
+
+  &__installer-statuses {
+    display: flex;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 6px;
+    border: 1px solid $ui-fleet-black-10;
+    font-size: $x-small;
+  }
+
+  &__status {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+    justify-content: center;
+    align-items: center;
+    flex: 1 0 0;
+    border-right: 1px solid var(--UI-Fleet-Black-10, #e2e4ea);
+
+    &:last-child {
+      border-right: none;
+    }
+
+    .react-tooltip {
+      text-align: center;
+    }
+  }
+
+  &__status-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__status-count {
+    font-weight: normal;
+
+    // When tabbing
+    &:focus-visible {
+      overflow: initial;
+      outline: 2px solid $ui-vibrant-blue-25;
+      box-shadow: inset 0 0 0 1px $ui-vibrant-blue-10;
+    }
+  }
+
+  &__actions-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-medium;
+    align-items: center;
+  }
+
+  &__download-icon {
+    display: flex;
+    justify-content: center;
+    width: 44px;
+  }
+
+  @media (max-width: $break-md) {
+    align-items: flex-start;
+
+    &__main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $pad-large;
+    }
+  }
+}

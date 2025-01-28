@@ -1,17 +1,34 @@
+// Similar to SelectQueryModal
 .add-policy-modal {
-  height: 80%;
+  height: 90%;
   overflow: hidden;
+
+  // we have to reach into the modal component classes to style the content
+  // correctly. This is because this modal always has a fixed height and
+  // the content is scrollable.
+  .modal__content-wrapper {
+    height: 95%;
+  }
+
   .modal__content {
     height: 100%;
-    overflow: scroll;
-    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
-  &__create-policy {
-    padding-top: 1.5rem;
-  }
+
   &__policy-selection {
-    padding: $pad-large 0;
-    height: 100%;
+    overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
+  }
+
+  .Select-multi-value-wrapper {
+    display: flex;
+  }
+  .Select-menu-outer {
+    max-height: 220px;
   }
 
   &__policy-name {

@@ -73,28 +73,43 @@ parasails.registerPage('osquery-table-details', {
     keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
       return a.length < b.length ? 1 : -1;
     });
+    keywordsForThisTable = _.pull(keywordsForThisTable, this.tableToDisplay.title);
     (()=>{
       $('pre code').each((i, block) => {
-        let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
-        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(keyword)||[]){
-            keywordsToHighlight.push(match);
-          }
+        let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let match of block.innerHTML.match(this.tableToDisplay.title)||[]){
+          tableNamesToHighlight.push(match);
         }
         // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
         let replacementHMTL = block.innerHTML;
-        for(let keywordInExample of keywordsToHighlight) {
+        for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
           replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
+        }
+        // $(block).html(replacementHMTL);
+        let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          for(let match of block.innerHTML.match(keyword)||[]){
+            columnNamesToHighlight.push(match);
+          }
+        }
+        // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
+        // let replacementHMTL = block.innerHTML;
+        for(let keywordInExample of columnNamesToHighlight) {
+          let regexForThisExample = new RegExp(keywordInExample, 'g');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+keywordInExample+'</span>');
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
         window.hljs.highlightElement(block);
-      });
-      // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
-      $('.hljs-keyword').each((i, el)=>{
-        for(i in el.innerText.match(/select|where|from|join/gi)) {
-          $(el).attr({'purpose':'line-break'});
+        // If this example is a single-line, we'll do some basic formatting to make it more human-readable.
+        if(!$(block)[0].innerText.match(/\n/gmi)){
+          // Adding [purpose="line-break"] to SQL keywords if they are one of: SELECT, WHERE, FROM, JOIN. (case-insensitive)
+          $('.hljs-keyword').each((i, el)=>{
+            for(i in el.innerText.match(/select|where|from|join/gi)) {
+              $(el).attr({'purpose':'line-break'});
+            }
+          });
         }
       });
     })();
@@ -104,6 +119,14 @@ parasails.registerPage('osquery-table-details', {
       let tablePartialHeight = $('[purpose="table-container"]').height();
       $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
     })();
+    // 5 ms after the page loads, scroll the table of contents to the currently active link.
+    await setTimeout(()=>{
+      let activeTableLink = $('[purpose="table-of-contents-link"].active')[0];
+      if(activeTableLink) {
+        $('[purpose="table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop - 12;
+      }
+      // Note: we're running this code after a 5ms delay to make sure the tables have been filtered, otherwise it will scroll the table of contents to the links posiiton in the full list of tables.
+    }, 5);
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗

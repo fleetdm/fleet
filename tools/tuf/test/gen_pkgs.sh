@@ -24,11 +24,17 @@ set -ex
 #
 # ENROLL_SECRET: Fleet server enroll secret.
 # ROOT_KEYS: TUF repository root keys.
-# FLEET_DESKTOP: Whether to build with Fleet Desktop support. 
+# FLEET_DESKTOP: Whether to build with Fleet Desktop support.
 # INSECURE: Whether to use the --insecure flag.
 # USE_FLEET_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # USE_UPDATE_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST: Alternative host:port to use for the Fleet Desktop browser URLs.
+# DEBUG: Whether or not to build the package with --debug.
+
+ENABLE_SCRIPTS="1"
+if [[ -n $DISABLE_SCRIPTS ]]; then
+    ENABLE_SCRIPTS=""
+fi
 
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
@@ -40,7 +46,7 @@ if [ -n "$GENERATE_PKG" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -50,21 +56,22 @@ if [ -n "$GENERATE_PKG" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         --update-url=$PKG_TUF_URL \
-        --disable-keystore \
-        --enable-scripts
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --disable-keystore
 fi
 
 if [ -n "$GENERATE_DEB" ]; then
-    echo "Generating deb..."
+    echo "Generating deb (amd64)..."
     ./build/fleetctl package \
         --type=deb \
+        --arch=amd64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -73,21 +80,46 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$DEB_TUF_URL \
-        --enable-scripts
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$DEB_TUF_URL
+fi
+
+if [ -n "$GENERATE_DEB_ARM64" ]; then
+    echo "Generating deb (arm64)..."
+    ./build/fleetctl package \
+        --type=deb \
+        --arch=arm64 \
+        ${FLEET_DESKTOP:+--fleet-desktop} \
+        --fleet-url=$DEB_FLEET_URL \
+        --enroll-secret=$ENROLL_SECRET \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
+        ${INSECURE:+--insecure} \
+        ${DEBUG:+--debug} \
+        --update-roots="$ROOT_KEYS" \
+        --update-interval=10s \
+        --disable-open-folder \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$DEB_TUF_URL
 fi
 
 if [ -n "$GENERATE_RPM" ]; then
-    echo "Generating rpm..."
+    echo "Generating rpm (amd64)..."
     ./build/fleetctl package \
         --type=rpm \
+        --arch=amd64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -96,8 +128,32 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$RPM_TUF_URL \
-        --enable-scripts
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$RPM_TUF_URL
+fi
+
+if [ -n "$GENERATE_RPM_ARM64" ]; then
+    echo "Generating rpm (arm64)..."
+    ./build/fleetctl package \
+        --type=rpm \
+        --arch=arm64 \
+        ${FLEET_DESKTOP:+--fleet-desktop} \
+        --fleet-url=$RPM_FLEET_URL \
+        --enroll-secret=$ENROLL_SECRET \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
+        ${INSECURE:+--insecure} \
+        ${DEBUG:+--debug} \
+        --update-roots="$ROOT_KEYS" \
+        --update-interval=10s \
+        --disable-open-folder \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$RPM_TUF_URL
 fi
 
 if [ -n "$GENERATE_MSI" ]; then
@@ -110,7 +166,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -119,8 +175,8 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$MSI_TUF_URL \
-        --enable-scripts
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$MSI_TUF_URL
 fi
 
 echo "Packages generated."

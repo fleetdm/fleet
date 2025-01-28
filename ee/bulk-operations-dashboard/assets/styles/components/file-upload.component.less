@@ -1,0 +1,87 @@
+/**
+ * <file-upload>
+ */
+
+[parasails-component='file-upload'] {
+  @min-desired-image-preview-height: 280px;//« e.g. ~100px for a logo, ~280px for a headshot, etc.
+
+  position: relative;
+  .btn-and-tips-if-relevant {
+    min-width: 200px;
+    .file-upload-button {
+      position: relative;
+      cursor: pointer;
+      margin-bottom: 10px;
+      .button-text {
+        padding-top: 2px;
+      }
+      .file-input {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        height: 100%;
+        width: 100%;
+        cursor: pointer;
+        opacity: 0;
+      }
+    }
+    p {
+      margin-top: 10px;
+    }
+  }
+
+  &.file-mode {
+    .btn-and-tips-if-relevant {
+      display: inline-block;
+      min-width: 0;
+    }
+    .file-metadata-preview {
+      padding-right: 30px;
+      .selected-file-name {
+        font-weight: bold;
+      }
+      .selected-file-size {
+        color: @text-muted;
+      }
+    }
+  }
+
+  &.disabled {
+    .btn-and-tips-if-relevant {
+      .file-upload-button {
+        cursor: default;
+        border-color: @border-lt-gray;
+        color: @border-lt-gray;
+        &:hover {
+          cursor: default;
+          background-color: transparent;
+          border-color: @border-lt-gray;
+          color: @border-lt-gray;
+          .button-text, .file-input {
+            cursor: default;
+          }
+        }
+      }
+    }
+  }
+
+  @media screen and (max-width: 767px) {
+    padding-left: 0px;
+    .image-preview {
+      position: static;
+      .image-preview-field {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+    .btn-and-tips-if-relevant {
+      width: 100%;
+      margin-top: 25px;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+  }
+}
+

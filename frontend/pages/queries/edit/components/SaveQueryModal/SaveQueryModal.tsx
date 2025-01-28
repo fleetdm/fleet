@@ -1,28 +1,37 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { pull, size } from "lodash";
+
+import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
 
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-import RevealButton from "components/buttons/RevealButton";
-import { SelectedPlatformString } from "interfaces/platform";
+
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
+
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import Slider from "components/forms/fields/Slider";
+import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import RevealButton from "components/buttons/RevealButton";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
@@ -58,6 +67,8 @@ const SaveQueryModal = ({
   existingQuery,
   queryReportsDisabled,
 }: ISaveQueryModalProps): JSX.Element => {
+  const { config } = useContext(AppContext);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
@@ -66,7 +77,7 @@ const SaveQueryModal = ({
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
-  ] = useState<SelectedPlatformString>(existingQuery?.platform ?? "");
+  ] = useState<CommaSeparatedPlatformString>(existingQuery?.platform ?? "");
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
@@ -76,6 +87,7 @@ const SaveQueryModal = ({
     setSelectedLoggingType,
   ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
+  const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -99,19 +111,23 @@ const SaveQueryModal = ({
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validateQueryName(name);
+    const trimmedName = name.trim();
+
+    const { valid, errors: newErrors } = validateQueryName(trimmedName);
     setErrors({
       ...errors,
       ...newErrors,
     });
+    setName(trimmedName);
 
     if (valid) {
       saveQuery({
         // from modal fields
-        name,
+        name: trimmedName,
         description,
         interval: selectedFrequency,
         observer_can_run: observerCanRun,
+        automations_enabled: automationsEnabled,
         discard_data: discardData,
         platform: selectedPlatformOptions,
         min_osquery_version: selectedMinOsqueryVersionOptions,
@@ -133,19 +149,19 @@ const SaveQueryModal = ({
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         // TODO - inmprove type safety of all 3 options
         setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as SelectedPlatformString
+          pull(valArray, "").join(",") as CommaSeparatedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setSelectedPlatformOptions("");
       } else {
-        setSelectedPlatformOptions(values as SelectedPlatformString);
+        setSelectedPlatformOptions(values as CommaSeparatedPlatformString);
       }
     },
     [setSelectedPlatformOptions]
   );
 
   return (
-    <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
+    <Modal title="Save query" onExit={toggleSaveQueryModal}>
       <form
         onSubmit={onClickSaveQuery}
         className={baseClass}
@@ -154,6 +170,9 @@ const SaveQueryModal = ({
         <InputField
           name="name"
           onChange={(value: string) => setName(value)}
+          onBlur={() => {
+            setName(name.trim());
+          }}
           value={name}
           error={errors.name}
           inputClassName={`${baseClass}__name`}
@@ -176,7 +195,7 @@ const SaveQueryModal = ({
           onChange={(value: number) => {
             setSelectedFrequency(value);
           }}
-          placeholder={"Every hour"}
+          placeholder="Every hour"
           value={selectedFrequency}
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
@@ -186,17 +205,56 @@ const SaveQueryModal = ({
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
-          wrapperClassName={"observer-can-run-wrapper"}
+          wrapperClassName="observer-can-run-wrapper"
           helpText="Users with the Observer role will be able to run this query as a live query."
         >
           Observers can run
         </Checkbox>
+        <Slider
+          onChange={() => setAutomationsEnabled(!automationsEnabled)}
+          value={automationsEnabled}
+          activeText={
+            <>
+              Automations on
+              {selectedFrequency === 0 && (
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      Automations and reporting will be paused <br />
+                      for this query until a frequency is set.
+                    </>
+                  }
+                  position="right"
+                  tipOffset={9}
+                  showArrow
+                  underline={false}
+                >
+                  <Icon name="warning" />
+                </TooltipWrapper>
+              )}
+            </>
+          }
+          inactiveText="Automations off"
+          helpText={
+            <>
+              Historical results will {!automationsEnabled ? "not " : ""}be sent
+              to your log destination:{" "}
+              <b>
+                <LogDestinationIndicator
+                  logDestination={config?.logging.result.plugin || ""}
+                  excludeTooltip
+                />
+              </b>
+              .
+            </>
+          }
+        />
         <RevealButton
           isShowing={showAdvancedOptions}
-          className={"advanced-options-toggle"}
-          hideText={"Hide advanced options"}
-          showText={"Show advanced options"}
-          caretPosition={"after"}
+          className="advanced-options-toggle"
+          hideText="Hide advanced options"
+          showText="Show advanced options"
+          caretPosition="after"
           onClick={toggleAdvancedOptions}
         />
         {showAdvancedOptions && (

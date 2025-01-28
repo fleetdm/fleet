@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/VividCortex/mysqlerr"
@@ -91,7 +93,7 @@ func (e *existsError) WithTeamID(teamID uint) error {
 }
 
 func (e *existsError) Error() string {
-	msg := fmt.Sprintf("%s", e.ResourceType)
+	msg := e.ResourceType
 	if e.Identifier != nil {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
@@ -106,7 +108,11 @@ func (e *existsError) IsExists() bool {
 	return true
 }
 
-func isDuplicate(err error) bool {
+func (e *existsError) Resource() string {
+	return e.ResourceType
+}
+
+func IsDuplicate(err error) bool {
 	err = ctxerr.Cause(err)
 	if driverErr, ok := err.(*mysql.MySQLError); ok {
 		if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
@@ -147,3 +153,50 @@ func isMySQLForeignKey(err error) bool {
 	}
 	return false
 }
+
+// accessDeniedError is an error that implements StatusCode and Internal
+type accessDeniedError struct {
+	Message     string
+	InternalErr error
+	Code        int
+}
+
+// Error returns the error message.
+func (e *accessDeniedError) Error() string {
+	return e.Message
+}
+
+func (e accessDeniedError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
+}
+
+func (e *accessDeniedError) StatusCode() int {
+	if e.Code == 0 {
+		return http.StatusUnprocessableEntity
+	}
+	return e.Code
+}
+
+func isMySQLAccessDenied(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	if errors.As(
+		err, &mySQLErr,
+	) && (mySQLErr.Number == mysqlerr.ER_SPECIFIC_ACCESS_DENIED_ERROR || mySQLErr.Number == mysqlerr.ER_TABLEACCESS_DENIED_ERROR) {
+		return true
+	}
+	return false
+}
+
+func isMySQLUnknownStatement(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
+}
+
+// ErrPartialResult indicates that a batch operation was completed,
+// but some of the results are missing or incomplete.
+var ErrPartialResult = errors.New("batch operation completed with partial results")

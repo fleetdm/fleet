@@ -6,8 +6,9 @@ import (
 )
 
 type CVE struct {
-	CVE         string `json:"cve" db:"cve"`
-	DetailsLink string `json:"details_link" db:"-"`
+	CVE         string    `json:"cve" db:"cve"`
+	DetailsLink string    `json:"details_link" db:"-"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	// These are double pointers so that we can omit them AND return nulls when needed.
 	// 1. omitted when using the free tier
 	// 2. null when using the premium tier, but there is no value available. This may be due to an issue with syncing cve scores.
@@ -21,22 +22,22 @@ type CVE struct {
 }
 
 type CVEMeta struct {
-	CVE string `db:"cve"`
+	CVE string `db:"cve" json:"cve"`
 	// CVSSScore is the Common Vulnerability Scoring System (CVSS) base score v3. The base score ranges from 0 - 10 and
 	// takes into account several different metrics.
 	// See https://nvd.nist.gov/vuln-metrics/cvss.
-	CVSSScore *float64 `db:"cvss_score"`
+	CVSSScore *float64 `db:"cvss_score" json:"cvss_score,omitempty"`
 	// EPSSProbability is the Exploit Prediction Scoring System (EPSS) score. It is the probability
 	// that a software vulnerability will be exploited in the next 30 days.
 	// See https://www.first.org/epss/.
-	EPSSProbability *float64 `db:"epss_probability"`
+	EPSSProbability *float64 `db:"epss_probability" json:"epss_probability,omitempty"`
 	// CISAKnownExploit is whether the the software vulnerability is a known exploit according to CISA.
 	// See https://www.cisa.gov/known-exploited-vulnerabilities.
-	CISAKnownExploit *bool `db:"cisa_known_exploit"`
+	CISAKnownExploit *bool `db:"cisa_known_exploit" json:"cisa_known_exploit,omitempty"`
 	// Published is when the cve was published according to NIST.score
-	Published *time.Time `db:"published"`
+	Published *time.Time `db:"published" json:"published,omitempty"`
 	// CVE text description
-	Description string `db:"description"`
+	Description string `db:"description" json:"description,omitempty"`
 }
 
 // SoftwareCPE represents an entry in the `software_cpe` table.
@@ -125,4 +126,35 @@ const (
 	RHELOVALSource
 	MSRCSource
 	MacOfficeReleaseNotesSource
+	CustomSource
+	GovalDictionarySource
 )
+
+type VulnerabilityWithMetadata struct {
+	CVE
+	HostsCount          uint                `db:"hosts_count" json:"hosts_count"`
+	HostsCountUpdatedAt time.Time           `db:"hosts_count_updated_at" json:"hosts_count_updated_at"`
+	CreatedAt           time.Time           `db:"created_at" json:"created_at"`
+	Source              VulnerabilitySource `db:"source" json:"-"`
+}
+
+type VulnListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions      ListOptions `url:"list_options"`
+	IsEE             bool
+	ValidSortColumns []string
+	TeamID           *uint `query:"team_id,optional"`
+	KnownExploit     bool  `query:"exploit,optional"`
+}
+
+func (opt VulnListOptions) HasValidSortColumn() bool {
+	if opt.ListOptions.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
+		return true
+	}
+	for _, c := range opt.ValidSortColumns {
+		if c == opt.ListOptions.OrderKey {
+			return true
+		}
+	}
+	return false
+}

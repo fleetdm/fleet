@@ -1,33 +1,77 @@
 #login {
-
-  padding-top: 80px;
-
   h1 {
-    font-size: 28px;
-    line-height: 38px;
+    font-size: 32px;
+    line-height: 120%;
   }
   a {
-    color: @core-vibrant-blue;
+    line-height: 150%;
+    color: @core-fleet-black-75;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
-  [purpose='customer-login-container'] {
-    max-width: 560px;
+  p {
+    line-height: 150%;
   }
-  [purpose='login-container'] {
-    max-width: 560px;
-    [purpose='customer-portal-form'] {
-      max-width: 560px;
+  [purpose='page-container'] {
+    padding: 64px 128px 64px 128px;
+    max-width: 1200px;
+  }
+
+  [purpose='page-heading'] {
+    text-align: left;
+    margin-bottom: 48px;
+  }
+
+  [purpose='quote-and-logos'] {
+    max-width: 310px;
+  }
+  [purpose='quote'] {
+    margin-top: 8px;
+  }
+  [purpose='quote-text'] {
+    font-size: 14px;
+    line-height: 150%;
+    font-style: italic;
+  }
+  [purpose='quote-author-info'] {
+    display: inline-flex;
+    padding: 4px 16px 4px 4px;
+    border-radius: 28px;
+    width: fit-content;
+    margin-top: 8px;
+    margin-bottom: 48px;
+    [purpose='job-title'] {
+      color: @core-fleet-black-75;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+      margin-bottom: 0px;
+    }
+    [purpose='name'] {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 18px;
+      margin-bottom: 0px;
+    }
+    [purpose='profile-picture'] {
+      margin-right: 16px;
+      img {
+        height: 32px;
+        width: 32px;
+      }
     }
   }
-  [purpose='page-heading'] {
-    padding-left: 30px;
-    padding-right: 30px;
-    text-align: center;
+  [purpose='logos'] {
+    max-width: 310px;
+  }
+  [purpose='login-form'] {
+    width: 528px;
   }
   [purpose='customer-portal-form'] {
-    max-width: 560px;
     border-radius: 16px;
-    padding: 30px;
+    padding: 20px 32px 32px 32px;
     label {
+      color: @core-fleet-black;
       font-weight: 700;
       margin-bottom: 4px;
     }
@@ -35,8 +79,36 @@
       height: 40px;
       border-radius: 6px;
     }
-    .card-body {
-      padding: 2em;
+    .selectbox {
+
+      position: relative;
+    }
+    .selectbox::after {
+      content: url('/images/chevron-12x8@2x.png');
+      right: 14px;
+      transform: scale(0.5);
+      top: 14px;
+      position: absolute;
+      pointer-events: none;
+    }
+    .selectbox select {
+      border-radius: 6px;
+      height: 48px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .small {
+      font-size: 12px;
+    }
+  }
+
+  [purpose='register-link'] {
+    margin-bottom: 4px;
+    a {
+      float: right;
+      color: @core-fleet-black-75;
+      text-decoration: underline;
+      font-size: 14px;
     }
   }
 
@@ -47,7 +119,6 @@
     border-radius: 8px;
     padding-top: 16px;
     padding-bottom: 16px;
-    height: 48px;
     display: flex;
     align-items: center;
     span {
@@ -55,49 +126,69 @@
       margin-left: auto;
       margin-right: auto;
       font-size: 16px;
-      line-height: 20px;
+      line-height: 16px;
       text-align: center;
       font-weight: 700;
     }
   }
-
-  [purpose='features-list'] {
-
-    word-wrap: overflow;
-    padding-left: 40px;
-    font-size: 14px;
-   ul {
-     list-style-type: none;
-     padding-inline-start: 0px;
-   }
-   li {
-    padding-bottom: 12px;
-    color: @core-fleet-black-75;
-   }
-   img {
-    display: inline;
-    height: 16px;
-    margin-right: 8px;
-   }
+  @media (max-width: 1200px) {
+    [purpose='page-container'] {
+      padding: 64px;
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='signup-form'] {
+      max-width: 528px;
+    }
+    [purpose='quote-and-logos'] {
+      max-width: 528px;
+      margin-top: 48px;
+    }
+    [purpose='logos'] {
+      max-width: 528px;
+    }
+    [purpose='page-heading'] {
+      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 48px;
+      max-width: 528px;
+    }
+    [purpose='page-container'] {
+      padding: 64px 32px;
+    }
 
   }
 
   @media (max-width: 768px) {
-    padding-top: 60px;
     [purpose='customer-portal-form'] {
       max-width: unset;
+    }
+    [purpose='login-form'] {
+      width: 100%;
+    }
+    [purpose='quote-and-logos'] {
+      width: 100%;
+    }
+    [purpose='logos'] {
+      width: 100%;
     }
   }
 
   @media (max-width: 576px) {
-    padding-top: 40px;
     [purpose='page-heading'] {
       padding-left: 0px;
       padding-right: 0px;
     }
+    [purpose='page-container'] {
+      padding: 48px 24px;
+    }
+    [purpose='register-link'] {
+      margin-bottom: 12px;
+    }
     [purpose='customer-portal-form'] {
       .card-body {
-        padding: 1em;
+        padding: 1.5em 1em;
       }
     }
   }

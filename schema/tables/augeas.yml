@@ -1,13 +1,11 @@
 name: augeas
 description: Configuration files parsed by [augeas](https://augeas.net/).
-examples: >-
+examples: |-
   This table requires augeas [lenses](https://augeas.net/docs/lenses.html) to be
   installed in their default location. This query will output *sshd_config* as
   if it was a table. This is especially useful to check for specific
   configurations in text files.
 
   ```
-
   SELECT * FROM augeas WHERE path='/etc/ssh/sshd_config';
-
   ```

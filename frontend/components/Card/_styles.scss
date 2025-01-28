@@ -1,24 +1,65 @@
 .card {
   border-radius: $border-radius;
   border: 1px solid $ui-fleet-black-10;
+  // TODO - update this to be 40px per style guide
   padding: $pad-large;
 
   // radius styles
+
   &__radius-small {
     border-radius: $border-radius;
   }
 
   &__radius-medium {
-    border-radius: $border-radius-large;
+    border-radius: $border-radius-medium;
   }
 
   &__radius-large {
+    border-radius: $border-radius-large;
+  }
+
+  &__radius-xlarge {
+    border-radius: $border-radius-xlarge;
+  }
+
+  &__radius-xxlarge {
     border-radius: $border-radius-xxlarge;
   }
 
   // box shadow styles
   &__shadow {
     box-shadow: $box-shadow;
+  }
+
+  &__padding-small {
+    padding: $pad-small;
+  }
+
+  &__padding-medium {
+    padding: $pad-medium;
+  }
+
+  &__padding-large {
+    padding: $pad-large;
+  }
+
+  &__padding-xlarge {
+    padding: $pad-xlarge;
+  }
+
+  &__padding-xxlarge {
+    padding: $pad-xxlarge;
+  }
+
+  &__padding-xxxlarge {
+    padding: $pad-xxxlarge;
+  }
+
+  // 40px padding
+  // TODO: remove when we've replaced all instances of largePadding with
+  // paddingSize prop
+  &__large-padding {
+    padding: $pad-xxlarge;
   }
 
   // color styles

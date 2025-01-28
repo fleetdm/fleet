@@ -36,7 +36,7 @@ module.exports = {
       throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
     }
 
-    let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
+    // let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -65,29 +65,31 @@ module.exports = {
       'mna',
       'edwardsb',
       'eashaw',
-      'drewbakerfdm',
+      'drew-d-drawers',
       'lucasmrod',
       'ksatter',
       'hollidayn',
-      'roperzh',
       'ghernandez345',
       'rfairburn',
       'zayhanlon',
       'alexmitchelliii',
-      'jostableford',
       'sampfluger88',
       'ireedy',
       'mostlikelee',
-      'willmayhone88',
-      'pacamaster',
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      '3kindsoffish',
       'phtardif1',
       'pintomi1989',
       'nonpunctual',
-      'hughestaylor',
+      'dantecatalfamo',
+      'PezHub',
+      'SFriendLee',
+      'ddribeiro',
+      'rebeccaui',
+      'allenhouchins',
+      'harrisonravazzolo',
+      'KendraAtFleet',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -329,7 +331,7 @@ module.exports = {
         // Look up already-requested reviewers
         // (for use later in minimizing extra notifications for editing PRs to contain new changes
         // while also still doing appropriate review requests.  Also for determining whether
-        // to apply the #g-ceo label)
+        // to apply the ~ceo label)
         //
         // The "requested_reviewers" key in the pull request object:
         //   - https://developer.github.com/v3/activity/events/types
@@ -421,16 +423,16 @@ module.exports = {
         // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
         // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
         let isPRStillDependentOnAndReadyForCeoReview = expectedReviewers.includes('mikermcneil') && !issueOrPr.draft;
-        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('#g-ceo')) {
+        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('~ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
-            labels: ['#g-ceo']
+            labels: ['~ceo']
           }, baseHeaders);
-        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
+        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('~ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
-          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders)
+          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('~ceo')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the #g-ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -444,83 +446,88 @@ module.exports = {
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
+        // (2024-07-09): The Mergefreeze requests and related code in this webhook are disabled/commented out because we are no longer freezing the main branch.
+        // FUTURE: Remove mergefreeze related code and leave a comment with a link to an older version of this file
+        // -----------------------------------------------------
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
-        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
-          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
-          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
-          return { frozen: false };
-        });
-        sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
-        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
-        // If the "main" branch is not currently frozen and we still have PR numbers in our pocketOfPrNumbersUnfrozen array. Clear out the values in the platform record.
-        if(!isMainBranchFrozen && pocketOfPrNumbersUnfrozen.length > 0) {
-          await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: []});
-        }
+        // let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        // .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+        //   // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
+        //   sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
+        //   return { frozen: false };
+        // });
+        // sails.log.verbose('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        // let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
+        // let isMainBranchFrozen = false;
+        // // If the "main" branch is not currently frozen and we still have PR numbers in our pocketOfPrNumbersUnfrozen array. Clear out the values in the platform record.
+        // if(!isMainBranchFrozen && pocketOfPrNumbersUnfrozen.length > 0) {
+        //   await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: []});
+        // }
         if (isAutoApprovalExpected) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
+        }//ﬁ
+        //   // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
+        //   // (or maybe never did contain) changes to freezeworthy files.
+        //   // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+        //   if (isMainBranchFrozen && repo === 'fleet') {
 
-          // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
-          // (or maybe never did contain) changes to freezeworthy files.
-          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
-          if (isMainBranchFrozen && repo === 'fleet') {
+        //     pocketOfPrNumbersUnfrozen = _.union(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+        //     sails.log.verbose('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
-            pocketOfPrNumbersUnfrozen = _.union(pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log.verbose('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
+        //     // [?] See May 6th, 2022 changelog, which includes this code sample:
+        //     // (https://www.mergefreeze.com/news)
+        //     // (but as of July 26, 2022, I didn't see it documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
+        //     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //     // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
+        //     // ```
+        //     // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
+        //     // ```
+        //     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-            // [?] See May 6th, 2022 changelog, which includes this code sample:
-            // (https://www.mergefreeze.com/news)
-            // (but as of July 26, 2022, I didn't see it documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
-            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
-            // ```
-            // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
-            // ```
-            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
-            });
-            // Update the Platform record to have the current unfrozen PR numbers
-            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
-          }//ﬁ
+        //     await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+        //       user_name: 'fleet-release',//eslint-disable-line camelcase
+        //       unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+        //     });
+        //     // Update the Platform record to have the current unfrozen PR numbers
+        //     await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
+        //   }//ﬁ
 
-        } else {
-          // If "main" is explicitly frozen, then freeze this PR because it now contains
-          // (or maybe always did contain) changes to freezeworthy files.
-          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
-          if (isMainBranchFrozen && repo === 'fleet') {
+        // } else {
+        //   // If "main" is explicitly frozen, then freeze this PR because it now contains
+        //   // (or maybe always did contain) changes to freezeworthy files.
+        //   // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+        //   if (isMainBranchFrozen && repo === 'fleet') {
 
-            pocketOfPrNumbersUnfrozen = _.difference(pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
+        //     pocketOfPrNumbersUnfrozen = _.difference(pocketOfPrNumbersUnfrozen, [ prNumber ]);
+        //     sails.log.verbose('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',pocketOfPrNumbersUnfrozen);
 
-            // [?] See explanation above.
-            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
-            });
-            // Update the Platform record to have the current unfrozen PR numbers
-            await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
-          }//ﬁ
+        //     // [?] See explanation above.
+        //     await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+        //       user_name: 'fleet-release',//eslint-disable-line camelcase
+        //       unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+        //     });
+        //     // Update the Platform record to have the current unfrozen PR numbers
+        //     await Platform.updateOne({id: platformRecord.id}).set({currentUnfrozenGitHubPrNumbers: pocketOfPrNumbersUnfrozen});
+        //   }//ﬁ
 
-          // Is this in use?
-          // > For context on the history of this bit of code, which has gone been
-          // > implemented a couple of different ways, and gone back and forth, check out:
-          // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-          // if (IS_FROZEN) {
-          //   // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
-          //   await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
-          //     event: 'REQUEST_CHANGES',
-          //     body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
-          //   }, baseHeaders);
-          // }//ﬁ
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        }
+        //   // Is this in use?
+        //   // > For context on the history of this bit of code, which has gone been
+        //   // > implemented a couple of different ways, and gone back and forth, check out:
+        //   // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+        //   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        //   // if (IS_FROZEN) {
+        //   //   // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+        //   //   await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+        //   //     event: 'REQUEST_CHANGES',
+        //   //     body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+        //   //   }, baseHeaders);
+        //   // }//ﬁ
+        //   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // }
 
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {

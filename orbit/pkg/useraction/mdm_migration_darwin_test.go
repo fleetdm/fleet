@@ -17,6 +17,7 @@ func (d dummyHandler) NotifyRemote() error {
 func (d dummyHandler) ShowInstructions() error { return nil }
 
 func TestWaitForUnenrollment(t *testing.T) {
+	t.Parallel()
 	m := &swiftDialogMDMMigrator{
 		handler:                   dummyHandler{},
 		baseDialog:                newBaseDialog("foo/bar"),
@@ -39,7 +40,7 @@ func TestWaitForUnenrollment(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			tries := 0
-			m.testEnrollmentCheckFn = func() (bool, error) {
+			m.testEnrollmentCheckFileFn = func() (bool, error) {
 				if tries >= c.unenrollAfterNTries {
 					return false, c.enrollErr
 				}
@@ -47,7 +48,11 @@ func TestWaitForUnenrollment(t *testing.T) {
 				return true, c.enrollErr
 			}
 
-			outErr := m.waitForUnenrollment()
+			m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+				return true, "example.com", nil
+			}
+
+			outErr := m.waitForUnenrollment(true)
 			if c.wantErr {
 				require.Error(t, outErr)
 			} else {
@@ -56,4 +61,37 @@ func TestWaitForUnenrollment(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("fallback to enrollment check file", func(t *testing.T) {
+		m.testEnrollmentCheckFileFn = func() (bool, error) {
+			return true, nil
+		}
+
+		m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+			return false, "", nil
+		}
+
+		outErr := m.waitForUnenrollment(true)
+		require.NoError(t, outErr)
+	})
+
+	t.Run("only check file during ADE enrollment", func(t *testing.T) {
+		var fileWasChecked bool
+		m.testEnrollmentCheckFileFn = func() (bool, error) {
+			fileWasChecked = true
+			return true, nil
+		}
+
+		m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+			return false, "", nil
+		}
+
+		err := m.waitForUnenrollment(false)
+		require.NoError(t, err)
+		require.False(t, fileWasChecked)
+
+		err = m.waitForUnenrollment(true)
+		require.NoError(t, err)
+		require.True(t, fileWasChecked)
+	})
 }

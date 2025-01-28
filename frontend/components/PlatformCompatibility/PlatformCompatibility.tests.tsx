@@ -7,7 +7,7 @@ describe("Platform compatibility", () => {
   it("renders compatible platforms", () => {
     render(
       <PlatformCompatibility
-        compatiblePlatforms={["macOS", "Windows"]}
+        compatiblePlatforms={["darwin", "windows"]}
         error={null}
       />
     );
@@ -38,7 +38,7 @@ describe("Platform compatibility", () => {
   it("renders error state", () => {
     render(
       <PlatformCompatibility
-        compatiblePlatforms={["macOS"]}
+        compatiblePlatforms={["macos"]}
         error={{ name: "Error", message: "The resource was not found." }}
       />
     );

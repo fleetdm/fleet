@@ -10,6 +10,7 @@ interface DeleteProfileModalProps {
   profileId: string;
   onCancel: () => void;
   onDelete: (profileId: string) => void;
+  isDeleting: boolean;
 }
 
 const baseClass = "delete-profile-modal";
@@ -26,6 +27,7 @@ const DeleteProfileModal = ({
   profileId,
   onCancel,
   onDelete,
+  isDeleting,
 }: DeleteProfileModalProps) => {
   const { isPremiumTier, currentTeam } = useContext(AppContext);
 
@@ -34,7 +36,7 @@ const DeleteProfileModal = ({
   return (
     <Modal
       className={baseClass}
-      title={"Delete configuration profile"}
+      title="Delete configuration profile"
       onExit={onCancel}
       onEnter={() => onDelete(profileId)}
       width="large"
@@ -51,6 +53,7 @@ const DeleteProfileModal = ({
             onClick={() => onDelete(profileId)}
             variant="alert"
             className="delete-loading"
+            isLoading={isDeleting}
           >
             Delete
           </Button>

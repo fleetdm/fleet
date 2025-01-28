@@ -20,7 +20,14 @@ import (
 func NewService(config config.FleetConfig) (fleet.MailService, error) {
 	switch strings.ToLower(config.Email.EmailBackend) {
 	case "ses":
-		return NewSESSender(config.SES.Region, config.SES.EndpointURL, config.SES.AccessKeyID, config.SES.SecretAccessKey, config.SES.StsAssumeRoleArn, config.SES.SourceArn)
+		return NewSESSender(config.SES.Region,
+			config.SES.EndpointURL,
+			config.SES.AccessKeyID,
+			config.SES.SecretAccessKey,
+			config.SES.StsAssumeRoleArn,
+			config.SES.StsExternalID,
+			config.SES.SourceArn,
+		)
 	default:
 		return &mailService{}, nil
 	}
@@ -87,6 +94,10 @@ func (m mailService) SendEmail(e fleet.Email) error {
 		return err
 	}
 	return m.sendMail(e, msg)
+}
+
+func (m mailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
 }
 
 type loginauth struct {
@@ -187,6 +198,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 	defer client.Close()
 
+	if e.SMTPSettings.SMTPDomain != "" {
+		if err = client.Hello(e.SMTPSettings.SMTPDomain); err != nil {
+			return fmt.Errorf("client hello error: %w", err)
+		}
+	}
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			if err = client.StartTLS(tlsConfig); err != nil {

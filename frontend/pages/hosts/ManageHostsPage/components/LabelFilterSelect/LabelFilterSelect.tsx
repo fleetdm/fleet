@@ -3,11 +3,15 @@ import Select, { GroupBase, SelectInstance, components } from "react-select-5";
 import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
-import { PLATFORM_LABEL_DISPLAY_NAMES } from "utilities/constants";
+import {
+  hasPlatformTypeIcon,
+  isPlatformLabelNameFromAPI,
+  PLATFORM_LABEL_DISPLAY_NAMES,
+  PLATFORM_TYPE_ICONS,
+} from "utilities/constants";
 import Icon from "components/Icon";
 
 import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
-import { PLATFORM_TYPE_ICONS } from "./constants";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 import CustomDropdownIndicator from "../CustomDropdownIndicator";
 
@@ -20,12 +24,12 @@ declare module "react-select-5/dist/declarations/src/Select" {
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
-    labelQuery: string;
-    canAddNewLabels: boolean;
-    onAddLabel: () => void;
-    onChangeLabelQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickLabelSearchInput: React.MouseEventHandler<HTMLInputElement>;
-    onBlurLabelSearchInput: React.FocusEventHandler<HTMLInputElement>;
+    labelQuery?: string;
+    canAddNewLabels?: boolean;
+    onAddLabel?: () => void;
+    onChangeLabelQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onClickLabelSearchInput?: React.MouseEventHandler<HTMLInputElement>;
+    onBlurLabelSearchInput?: React.FocusEventHandler<HTMLInputElement>;
   }
 }
 
@@ -39,23 +43,25 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
   const isLabel = "display_text" in data;
   const isPlatform = isLabel && data.type === "platform";
 
-  let labelText = isLabel ? data.display_text : data.label;
+  let displayText = isLabel ? data.display_text : data.label;
 
   // the display names for platform options are slightly different then the display_text
   // property, so we get the correct display name here
   if (isLabel && isPlatform) {
-    labelText = PLATFORM_LABEL_DISPLAY_NAMES[data.display_text];
+    if (isPlatformLabelNameFromAPI(data.display_text)) {
+      displayText = PLATFORM_LABEL_DISPLAY_NAMES[data.display_text];
+    }
   }
 
   return (
-    <div className={"option-label"}>
-      {isPlatform && (
+    <div className="option-label">
+      {isLabel && hasPlatformTypeIcon(data.display_text) && (
         <Icon
           name={PLATFORM_TYPE_ICONS[data.display_text]}
           className="option-icon"
         />
       )}
-      <span>{labelText}</span>
+      <span>{displayText}</span>
     </div>
   );
 };
@@ -123,6 +129,10 @@ const LabelFilterSelect = ({
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      // Allow tabbing out of the component
       setMenuIsOpen(false);
       selectRef.current?.blur();
     } else {

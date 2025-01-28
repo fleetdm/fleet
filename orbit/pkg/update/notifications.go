@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	fleetscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -20,7 +21,7 @@ type checkEnrollmentFunc func() (bool, string, error)
 
 type checkAssignedEnrollmentProfileFunc func(url string) error
 
-// renewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
+// renewEnrollmentProfileConfigReceiver is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
 // renew the enrollment profile. If so, it runs the command (as root) to
 // bootstrap the renewal of the profile on the device (the user still needs to
@@ -28,10 +29,7 @@ type checkAssignedEnrollmentProfileFunc func(url string) error
 //
 // It ensures only one renewal command is executed at any given time, and that
 // it doesn't re-execute the command until a certain amount of time has passed.
-type renewEnrollmentProfileConfigFetcher struct {
-	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
-	// for actually returning the orbit configuration or an error.
-	Fetcher OrbitConfigFetcher
+type renewEnrollmentProfileConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the profile renewal command.
 	Frequency time.Duration
@@ -54,17 +52,12 @@ type renewEnrollmentProfileConfigFetcher struct {
 	fleetURL string
 }
 
-func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) OrbitConfigFetcher {
-	return &renewEnrollmentProfileConfigFetcher{Fetcher: fetcher, Frequency: frequency, fleetURL: fleetURL}
+func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) fleet.OrbitConfigReceiver {
+	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL}
 }
 
-// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
-// server set the renew enrollment profile flag to true, executes the command
-// to renew the enrollment profile.
-func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
-	cfg, err := h.Fetcher.GetConfig()
-
-	if err == nil && cfg.Notifications.RenewEnrollmentProfile {
+func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) error {
+	if config.Notifications.RenewEnrollmentProfile {
 		if h.cmdMu.TryLock() {
 			defer h.cmdMu.Unlock()
 
@@ -73,7 +66,7 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 			// enrolled (after the user's manual steps, and osquery reporting the
 			// updated mdm enrollment).
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
-			if time.Since(h.lastRun) > h.Frequency {
+			if time.Since(h.lastRun) >= h.Frequency {
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the client is enrolled to an MDM server.
 				enrollFn := h.checkEnrollmentFn
@@ -83,12 +76,12 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 				enrolled, mdmServerURL, err := enrollFn()
 				if err != nil {
 					log.Error().Err(err).Msg("fetching enrollment status")
-					return cfg, nil
+					return nil
 				}
 				if enrolled {
 					log.Info().Msgf("a request to renew the enrollment profile was processed but not executed because the host is enrolled into an MDM server with URL: %s", mdmServerURL)
 					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
-					return cfg, nil
+					return nil
 				}
 
 				// we perform this check locally on the client too to avoid showing the
@@ -104,7 +97,7 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 					// TODO: Design a better way to backoff `profiles show` so that the device doesn't get rate
 					// limited by Apple. For now, wait at least 2 minutes before retrying.
 					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
-					return cfg, nil
+					return nil
 				}
 
 				fn := h.runCmdFn
@@ -112,28 +105,26 @@ func (h *renewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, e
 					fn = runRenewEnrollmentProfile
 				}
 				if err := fn(); err != nil {
-					// TODO: Look into whether we should increment lastRun here or implement a
-					// backoff to avoid unnecessary user notification popups and mitigate rate
-					// limiting by Apple.
 					log.Info().Err(err).Msg("calling /usr/bin/profiles to renew enrollment profile failed")
-				} else {
-					h.lastRun = time.Now()
-					log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+					// TODO: Design a better way to backoff `profiles show` so that the device doesn't get rate
+					// limited by Apple. For now, wait at least 2 minutes before retrying.
+					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
+					return nil
 				}
+				h.lastRun = time.Now()
+				log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
 			}
 		}
 	}
-	return cfg, err
+	return nil
 }
 
 type execWinAPIFunc func(WindowsMDMEnrollmentArgs) error
 
-type windowsMDMEnrollmentConfigFetcher struct {
-	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
-	// for actually returning the orbit configuration or an error.
-	Fetcher OrbitConfigFetcher
+type windowsMDMEnrollmentConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
 	Frequency time.Duration
@@ -161,13 +152,11 @@ type OrbitNodeKeyGetter interface {
 }
 
 func ApplyWindowsMDMEnrollmentFetcherMiddleware(
-	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	hostUUID string,
 	nodeKeyGetter OrbitNodeKeyGetter,
-) OrbitConfigFetcher {
-	return &windowsMDMEnrollmentConfigFetcher{
-		Fetcher:       fetcher,
+) fleet.OrbitConfigReceiver {
+	return &windowsMDMEnrollmentConfigReceiver{
 		Frequency:     frequency,
 		HostUUID:      hostUUID,
 		nodeKeyGetter: nodeKeyGetter,
@@ -176,23 +165,27 @@ func ApplyWindowsMDMEnrollmentFetcherMiddleware(
 
 var errIsWindowsServer = errors.New("device is a Windows Server")
 
-// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
-// server set the "needs windows enrollment" flag to true, executes the command
-// to enroll into Windows MDM (or not, if the device is a Windows Server).
-func (w *windowsMDMEnrollmentConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
-	cfg, err := w.Fetcher.GetConfig()
-
-	if err == nil {
-		if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment {
-			w.attemptEnrollment(cfg.Notifications)
-		} else if cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment {
-			w.attemptUnenrollment()
+// Run checks if the fleet server set the "needs windows {un}enrollment" flag
+// to true, and executes the command to {un}enroll into Windows MDM (or not, if
+// the device is a Windows Server). It also unenrolls the device if the flag
+// "needs MDM migration" is set to true, so that the device can then be
+// enrolled in Fleet MDM.
+func (w *windowsMDMEnrollmentConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	switch {
+	case cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment:
+		w.attemptEnrollment(cfg.Notifications)
+	case cfg.Notifications.NeedsProgrammaticWindowsMDMUnenrollment,
+		cfg.Notifications.NeedsMDMMigration:
+		label := "unenroll"
+		if cfg.Notifications.NeedsMDMMigration {
+			label = "migrate"
 		}
+		w.attemptUnenrollment(label)
 	}
-	return cfg, err
+	return nil
 }
 
-func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
+func (w *windowsMDMEnrollmentConfigReceiver) attemptEnrollment(notifs fleet.OrbitConfigNotifications) {
 	if notifs.WindowsMDMDiscoveryEndpoint == "" {
 		log.Info().Err(errors.New("discovery endpoint is missing")).Msg("skipping enrollment, discovery endpoint is empty")
 		return
@@ -242,18 +235,18 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptEnrollment(notifs fleet.Orbit
 	}
 }
 
-func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
+func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment(actionLabel string) {
 	if w.mu.TryLock() {
 		defer w.mu.Unlock()
 
 		// do not unenroll Windows Servers, and do not attempt unenrollment if the
 		// last run is not at least Frequency ago.
 		if w.isWindowsServer {
-			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, device is a server")
+			log.Debug().Msgf("skipped calling UnregisterDeviceWithManagement to %s Windows device, device is a server", actionLabel)
 			return
 		}
 		if time.Since(w.lastUnenrollRun) <= w.Frequency {
-			log.Debug().Msg("skipped calling UnregisterDeviceWithManagement to unenroll Windows device, last run was too recent")
+			log.Debug().Msgf("skipped calling UnregisterDeviceWithManagement to %s Windows device, last run was too recent", actionLabel)
 			return
 		}
 
@@ -267,29 +260,25 @@ func (w *windowsMDMEnrollmentConfigFetcher) attemptUnenrollment() {
 		if err := fn(args); err != nil {
 			if errors.Is(err, errIsWindowsServer) {
 				w.isWindowsServer = true
-				log.Info().Msg("device is a Windows Server, skipping unenrollment")
+				log.Info().Msgf("device is a Windows Server, skipping %s", actionLabel)
 			} else {
-				log.Info().Err(err).Msg("calling UnregisterDeviceWithManagement to unenroll Windows device failed")
+				log.Info().Err(err).Msgf("calling UnregisterDeviceWithManagement to %s Windows device failed", actionLabel)
 			}
 			return
 		}
 
 		w.lastUnenrollRun = time.Now()
-		log.Info().Msg("successfully called UnregisterDeviceWithManagement to unenroll Windows device")
+		log.Info().Msgf("successfully called UnregisterDeviceWithManagement to %s Windows device", actionLabel)
 	}
 }
 
-type runScriptsConfigFetcher struct {
-	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
-	// for actually returning the orbit configuration or an error.
-	Fetcher OrbitConfigFetcher
-
+type runScriptsConfigReceiver struct {
 	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
 	// If it doesn't, scripts are not executed, but a response is returned to the
 	// Fleet server so it knows the agent processed the request. Note that this
 	// should be set to the value of the --scripts-enabled command-line flag. An
 	// additional, dynamic check is done automatically by the
-	// runScriptsConfigFetcher if this field is false to get the value from the
+	// runScriptsConfigReceiver if this field is false to get the value from the
 	// MDM configuration profile.
 	ScriptsExecutionEnabled bool
 
@@ -312,21 +301,25 @@ type runScriptsConfigFetcher struct {
 
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
+
+	rootDirPath string
 }
 
-func ApplyRunScriptsConfigFetcherMiddleware(fetcher OrbitConfigFetcher, scriptsEnabled bool, scriptsClient scripts.Client) OrbitConfigFetcher {
-	scriptsFetcher := &runScriptsConfigFetcher{
-		Fetcher:                            fetcher,
+func ApplyRunScriptsConfigFetcherMiddleware(
+	scriptsEnabled bool, scriptsClient scripts.Client, rootDirPath string,
+) (fleet.OrbitConfigReceiver, func() bool) {
+	scriptsFetcher := &runScriptsConfigReceiver{
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
 		dynamicScriptsEnabledCheckInterval: 5 * time.Minute,
+		rootDirPath:                        rootDirPath,
 	}
 	// start the dynamic check for scripts enabled if required
 	scriptsFetcher.runDynamicScriptsEnabledCheck()
-	return scriptsFetcher
+	return scriptsFetcher, scriptsFetcher.scriptsEnabled
 }
 
-func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
+func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 	getFleetdConfig := h.testGetFleetdConfig
 	if getFleetdConfig == nil {
 		getFleetdConfig = profiles.GetFleetdConfig
@@ -364,19 +357,27 @@ func (h *runScriptsConfigFetcher) runDynamicScriptsEnabledCheck() {
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server sent a list of scripts to execute, starts a goroutine to execute
 // them.
-func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
-	cfg, err := h.Fetcher.GetConfig()
+func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	timeout := fleetscripts.MaxHostExecutionTime
+	if cfg.ScriptExeTimeout > 0 {
+		timeout = time.Duration(cfg.ScriptExeTimeout) * time.Second
+	}
 
-	if err == nil && len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+	if runtime.GOOS == "darwin" {
+		if cfg.Notifications.RunSetupExperience && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
+			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
+			return nil
+		}
+	}
+
+	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 		if h.mu.TryLock() {
 			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
 			runner := &scripts.Runner{
-				// scripts are always enabled if the agent is started with the
-				// --scripts-enabled flag. If it is not started with this flag, then
-				// scripts are enabled only if the mdm profile says so.
-				ScriptExecutionEnabled: h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load(),
+				ScriptExecutionEnabled: h.scriptsEnabled(),
 				Client:                 h.ScriptsClient,
+				ScriptExecutionTimeout: timeout,
 			}
 			fn := runner.Run
 			if h.runScriptsFn != nil {
@@ -396,7 +397,14 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 			}()
 		}
 	}
-	return cfg, err
+	return nil
+}
+
+func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
+	// scripts are always enabled if the agent is started with the
+	// --scripts-enabled flag. If it is not started with this flag, then
+	// scripts are enabled only if the mdm profile says so.
+	return h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load()
 }
 
 type DiskEncryptionKeySetter interface {
@@ -422,11 +430,7 @@ type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err er
 // It returns an error if the process fails.
 type execDecryptVolumeFunc func(volumeID string) error
 
-type windowsMDMBitlockerConfigFetcher struct {
-	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
-	// for actually returning the orbit configuration or an error.
-	Fetcher OrbitConfigFetcher
-
+type windowsMDMBitlockerConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the windows MDM enrollment attempt.
 	Frequency time.Duration
@@ -454,12 +458,10 @@ type windowsMDMBitlockerConfigFetcher struct {
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
-	fetcher OrbitConfigFetcher,
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
-) OrbitConfigFetcher {
-	return &windowsMDMBitlockerConfigFetcher{
-		Fetcher:          fetcher,
+) fleet.OrbitConfigReceiver {
+	return &windowsMDMBitlockerConfigReceiver{
 		Frequency:        frequency,
 		EncryptionResult: encryptionResult,
 	}
@@ -468,9 +470,8 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the "EnforceBitLockerEncryption" flag to true, executes the command
 // to attempt BitlockerEncryption (or not, if the device is a Windows Server).
-func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
-	cfg, err := w.Fetcher.GetConfig()
-	if err == nil && cfg.Notifications.EnforceBitLockerEncryption {
+func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	if cfg.Notifications.EnforceBitLockerEncryption {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
 
@@ -478,10 +479,10 @@ func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, erro
 		}
 	}
 
-	return cfg, err
+	return nil
 }
 
-func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
+func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
 	if time.Since(w.lastRun) <= w.Frequency {
 		log.Debug().Msg("skipped encryption process, last run was too recent")
 		return
@@ -555,7 +556,7 @@ func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fle
 }
 
 // getEncryptionStatusForVolume retrieves the encryption status for a specific volume.
-func (w *windowsMDMBitlockerConfigFetcher) getEncryptionStatusForVolume(volume string) (*bitlocker.EncryptionStatus, error) {
+func (w *windowsMDMBitlockerConfigReceiver) getEncryptionStatusForVolume(volume string) (*bitlocker.EncryptionStatus, error) {
 	fn := w.execGetEncryptionStatusFn
 	if fn == nil {
 		fn = bitlocker.GetEncryptionStatus
@@ -576,7 +577,7 @@ func (w *windowsMDMBitlockerConfigFetcher) getEncryptionStatusForVolume(volume s
 
 // bitLockerActionInProgress determines an encryption/decription action is in
 // progress based on the reported status.
-func (w *windowsMDMBitlockerConfigFetcher) bitLockerActionInProgress(status *bitlocker.EncryptionStatus) bool {
+func (w *windowsMDMBitlockerConfigReceiver) bitLockerActionInProgress(status *bitlocker.EncryptionStatus) bool {
 	if status == nil {
 		return false
 	}
@@ -589,7 +590,7 @@ func (w *windowsMDMBitlockerConfigFetcher) bitLockerActionInProgress(status *bit
 }
 
 // performEncryption executes the encryption process.
-func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string) (string, error) {
+func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (string, error) {
 	fn := w.execEncryptVolumeFn
 	if fn == nil {
 		fn = bitlocker.EncryptVolume
@@ -603,7 +604,7 @@ func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string) (str
 	return recoveryKey, nil
 }
 
-func (w *windowsMDMBitlockerConfigFetcher) decryptVolume(targetVolume string) error {
+func (w *windowsMDMBitlockerConfigReceiver) decryptVolume(targetVolume string) error {
 	fn := w.execDecryptVolumeFn
 	if fn == nil {
 		fn = bitlocker.DecryptVolume
@@ -626,13 +627,13 @@ func (w *windowsMDMBitlockerConfigFetcher) decryptVolume(targetVolume string) er
 // encryption state.
 //
 // For more context, see issue #15916
-func (w *windowsMDMBitlockerConfigFetcher) isMisreportedDecryptionError(err *bitlocker.EncryptionError, status *bitlocker.EncryptionStatus) bool {
+func (w *windowsMDMBitlockerConfigReceiver) isMisreportedDecryptionError(err *bitlocker.EncryptionError, status *bitlocker.EncryptionStatus) bool {
 	return err.Code() == bitlocker.ErrorCodeNotDecrypted &&
 		status != nil &&
 		status.ConversionStatus == bitlocker.ConversionStatusFullyDecrypted
 }
 
-func (w *windowsMDMBitlockerConfigFetcher) updateFleetServer(key string, err error) error {
+func (w *windowsMDMBitlockerConfigReceiver) updateFleetServer(key string, err error) error {
 	// Getting Bitlocker encryption operation error message if any
 	// This is going to be sent to Fleet Server
 	bitlockerError := ""

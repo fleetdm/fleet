@@ -24,10 +24,7 @@
   }
 
   &__header {
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    @include normalize-team-header;
     margin-bottom: $pad-large;
 
     .Select-control {
@@ -63,16 +60,8 @@
     }
   }
 
-  &__platform_dropdown {
+  &__platform-filter {
     width: 138px;
-
-    .Select-menu-outer {
-      max-height: none;
-
-      .Select-menu {
-        max-height: none;
-      }
-    }
   }
 
   &__section {

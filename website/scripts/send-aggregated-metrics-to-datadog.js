@@ -18,10 +18,8 @@ module.exports = {
     // Get all the usage snapshots for the past week.
     let usageStatisticsReportedInTheLastWeek = await HistoricalUsageSnapshot.find({
       createdAt: { '>=': oneWeekAgoAt},// Search for records created in the past week.
-      fleetVersion: {startsWith: '4.'},// Only track metrics for instances reporting 4.x.x versions of Fleet.
     })
     .sort('createdAt DESC');// Sort the results by the createdAt timestamp
-
     // Filter out development premium licenses and loadtests.
     let filteredStatistics = _.filter(usageStatisticsReportedInTheLastWeek, (report)=>{
       return !_.contains(['Fleet Sandbox', 'fleet-loadtest', 'development-only', 'Dev license (expired)', ''], report.organization);
@@ -36,8 +34,6 @@ module.exports = {
       let latestReportFromThisInstance = _.find(statisticsReportedByFleetInstance[id], {id: lastReportIdForThisInstance});
       latestStatisticsForEachInstance.push(latestReportFromThisInstance);
     }
-    let numberOfInstancesToReport = latestStatisticsForEachInstance.length;
-
     // Get a filtered array of metrics reported by Fleet Premium instances
     let latestPremiumUsageStatistics = _.filter(latestStatisticsForEachInstance, {licenseTier: 'premium'});
     // Group reports by organization name.
@@ -47,14 +43,17 @@ module.exports = {
       let reportsForThisOrg = _.sortByOrder(reportsByOrgName[org], 'createdAt', 'desc');
       let lastReportForThisOrg = reportsForThisOrg[0];
       // Get the metrics we'll report for each org.
-      let lastNumberOfHostsReported = lastReportForThisOrg.numHostsEnrolled;
+      // Combine the numHostsEnrolled values from the last report for each unique Fleet instance that reports this organization.
+      let totalNumberOfHostsReportedByThisOrg = _.sum(reportsForThisOrg, (report)=>{
+        return report.numHostsEnrolled;
+      });
       let lastReportedFleetVersion = lastReportForThisOrg.fleetVersion;
       let hostCountMetricForThisOrg = {
         metric: 'usage_statistics.num_hosts_enrolled_by_org',
         type: 3,
         points: [{
           timestamp: timestampForTheseMetrics,
-          value: lastNumberOfHostsReported
+          value: totalNumberOfHostsReportedByThisOrg
         }],
         resources: [{
           name: reportsByOrgName[org][0].anonymousIdentifier,
@@ -67,11 +66,18 @@ module.exports = {
       };
       metricsToReport.push(hostCountMetricForThisOrg);
     }
+    // Filter the statistics to be only for released versions of Fleet.
+    // Note: we're doing this after we've reported the metrics for Fleet Premium instances to make sure
+    // that we are reporting metrics sent by customers who may be using a non-4.x.x version of Fleet.
+    let latestStatisticsReportedByReleasedFleetVersions = _.filter(latestStatisticsForEachInstance, (statistics)=>{
+      return _.startsWith(statistics.fleetVersion, '4.');
+    });
+    let numberOfInstancesToReport = latestStatisticsReportedByReleasedFleetVersions.length;
     // Build aggregated metrics for JSON attrributes
     // Create an empty object to store combined host counts.
     let combinedHostsEnrolledByOperatingSystem = {};
     // Get an array of the last reported hostsEnrolledByOperatingSystem values.
-    let allHostsEnrolledByOsValues = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOperatingSystem');
+    let allHostsEnrolledByOsValues = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOperatingSystem');
     // Iterate through each reported value, and combine them.
     for(let reportedHostCounts of allHostsEnrolledByOsValues) {
       _.merge(combinedHostsEnrolledByOperatingSystem, reportedHostCounts, (combinedCountsForThisOperatingSystemType, countsForThisOperatingSystemType) => {
@@ -116,7 +122,7 @@ module.exports = {
     }//∞
 
 
-    let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOsqueryVersion');
+    let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOsqueryVersion');
     let combinedHostsEnrolledByOsqueryVersion = [];
     let flattenedHostsEnrolledByOsqueryVersions = _.flatten(allHostsEnrolledByOsqueryVersion);
     let groupedHostsEnrolledValuesByOsqueryVersion = _.groupBy(flattenedHostsEnrolledByOsqueryVersions, 'osqueryVersion');
@@ -142,7 +148,7 @@ module.exports = {
 
 
     let combinedHostsEnrolledByOrbitVersion = [];
-    let allHostsEnrolledByOrbitVersion = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOrbitVersion');
+    let allHostsEnrolledByOrbitVersion = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOrbitVersion');
     let flattenedHostsEnrolledByOrbitVersions = _.flatten(allHostsEnrolledByOrbitVersion);
     let groupedHostsEnrolledValuesByOrbitVersion = _.groupBy(flattenedHostsEnrolledByOrbitVersions, 'orbitVersion');
     for(let orbitVersion in groupedHostsEnrolledValuesByOrbitVersion) {
@@ -165,7 +171,7 @@ module.exports = {
     }//∞
 
     // Merge the arrays of JSON storedErrors
-    let allStoredErrors = _.pluck(latestStatisticsForEachInstance, 'storedErrors');
+    let allStoredErrors = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'storedErrors');
     let flattenedStoredErrors = _.flatten(allStoredErrors);
     let groupedStoredErrorsByLocation = _.groupBy(flattenedStoredErrors, 'loc');
     let combinedStoredErrors = [];
@@ -204,7 +210,7 @@ module.exports = {
 
 
     // Build a metric for each Fleet version reported.
-    let statisticsByReportedFleetVersion = _.groupBy(latestStatisticsForEachInstance, 'fleetVersion');
+    let statisticsByReportedFleetVersion = _.groupBy(latestStatisticsReportedByReleasedFleetVersions, 'fleetVersion');
     for(let version in statisticsByReportedFleetVersion){
       let numberOfInstancesReportingThisVersion = statisticsByReportedFleetVersion[version].length;
       metricsToReport.push({
@@ -218,7 +224,7 @@ module.exports = {
       });
     }
     // Build a metric for each license tier reported.
-    let statisticsByReportedFleetLicenseTier = _.groupBy(latestStatisticsForEachInstance, 'licenseTier');
+    let statisticsByReportedFleetLicenseTier = _.groupBy(latestStatisticsReportedByReleasedFleetVersions, 'licenseTier');
     for(let tier in statisticsByReportedFleetLicenseTier){
       let numberOfInstancesReportingThisLicenseTier = statisticsByReportedFleetLicenseTier[tier].length;
       metricsToReport.push({
@@ -233,7 +239,7 @@ module.exports = {
     }
     // Build aggregated metrics for boolean variables:
     // Software Inventory
-    let numberOfInstancesWithSoftwareInventoryEnabled = _.where(latestStatisticsForEachInstance, {softwareInventoryEnabled: true}).length;
+    let numberOfInstancesWithSoftwareInventoryEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {softwareInventoryEnabled: true}).length;
     let numberOfInstancesWithSoftwareInventoryDisabled = numberOfInstancesToReport - numberOfInstancesWithSoftwareInventoryEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.software_inventory',
@@ -254,7 +260,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // vulnDetectionEnabled
-    let numberOfInstancesWithVulnDetectionEnabled = _.where(latestStatisticsForEachInstance, {vulnDetectionEnabled: true}).length;
+    let numberOfInstancesWithVulnDetectionEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {vulnDetectionEnabled: true}).length;
     let numberOfInstancesWithVulnDetectionDisabled = numberOfInstancesToReport - numberOfInstancesWithVulnDetectionEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.vuln_detection',
@@ -275,7 +281,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // SystemUsersEnabled
-    let numberOfInstancesWithSystemUsersEnabled = _.where(latestStatisticsForEachInstance, {systemUsersEnabled: true}).length;
+    let numberOfInstancesWithSystemUsersEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {systemUsersEnabled: true}).length;
     let numberOfInstancesWithSystemUsersDisabled = numberOfInstancesToReport - numberOfInstancesWithSystemUsersEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.system_users',
@@ -296,7 +302,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // hostsStatusWebHookEnabled
-    let numberOfInstancesWithHostsStatusWebHookEnabled = _.where(latestStatisticsForEachInstance, {hostsStatusWebHookEnabled: true}).length;
+    let numberOfInstancesWithHostsStatusWebHookEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {hostsStatusWebHookEnabled: true}).length;
     let numberOfInstancesWithHostsStatusWebHookDisabled = numberOfInstancesToReport - numberOfInstancesWithHostsStatusWebHookEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.host_status_webhook',
@@ -317,7 +323,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // mdmMacOsEnabled
-    let numberOfInstancesWithMdmMacOsEnabled = _.where(latestStatisticsForEachInstance, {mdmMacOsEnabled: true}).length;
+    let numberOfInstancesWithMdmMacOsEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {mdmMacOsEnabled: true}).length;
     let numberOfInstancesWithMdmMacOsDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmMacOsEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.macos_mdm',
@@ -338,7 +344,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // mdmWindowsEnabled
-    let numberOfInstancesWithMdmWindowsEnabled = _.where(latestStatisticsForEachInstance, {mdmWindowsEnabled: true}).length;
+    let numberOfInstancesWithMdmWindowsEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {mdmWindowsEnabled: true}).length;
     let numberOfInstancesWithMdmWindowsDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmWindowsEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.windows_mdm',
@@ -359,7 +365,7 @@ module.exports = {
       tags: [`enabled:false`],
     });
     // liveQueryDisabled
-    let numberOfInstancesWithLiveQueryDisabled = _.where(latestStatisticsForEachInstance, {liveQueryDisabled: true}).length;
+    let numberOfInstancesWithLiveQueryDisabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {liveQueryDisabled: true}).length;
     let numberOfInstancesWithLiveQueryEnabled = numberOfInstancesToReport - numberOfInstancesWithLiveQueryDisabled;
     metricsToReport.push({
       metric: 'usage_statistics.live_query',
@@ -380,7 +386,7 @@ module.exports = {
       tags: [`enabled:true`],
     });
     // hostExpiryEnabled
-    let numberOfInstancesWithHostExpiryEnabled = _.where(latestStatisticsForEachInstance, {hostExpiryEnabled: true}).length;
+    let numberOfInstancesWithHostExpiryEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {hostExpiryEnabled: true}).length;
     let numberOfInstancesWithHostExpiryDisabled = numberOfInstancesToReport - numberOfInstancesWithHostExpiryEnabled;
     metricsToReport.push({
       metric: 'usage_statistics.host_expiry',
@@ -400,9 +406,72 @@ module.exports = {
       }],
       tags: [`enabled:false`],
     });
+    // aiFeaturesDisabled
+    let numberOfInstancesWithAiFeaturesDisabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {aiFeaturesDisabled: true}).length;
+    let numberOfInstancesWithAiFeaturesEnabled = numberOfInstancesToReport - numberOfInstancesWithAiFeaturesDisabled;
+    metricsToReport.push({
+      metric: 'usage_statistics.ai_features',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithAiFeaturesEnabled
+      }],
+      tags: [`enabled:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.ai_features',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithAiFeaturesDisabled
+      }],
+      tags: [`enabled:false`],
+    });
+    // maintenanceWindowsEnabled
+    let numberOfInstancesWithMaintenanceWindowsEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {maintenanceWindowsEnabled: true}).length;
+    let numberOfInstancesWithMaintenanceWindowsDisabled = numberOfInstancesToReport - numberOfInstancesWithMaintenanceWindowsEnabled;
+    metricsToReport.push({
+      metric: 'usage_statistics.maintenance_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMaintenanceWindowsEnabled
+      }],
+      tags: [`enabled:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.maintenance_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMaintenanceWindowsDisabled
+      }],
+      tags: [`enabled:false`],
+    });
+    // maintenanceWindowsConfigured
+    let numberOfInstancesWithMaintenanceWindowsConfigured = _.where(latestStatisticsReportedByReleasedFleetVersions, {maintenanceWindowsEnabled: true}).length;
+    let numberOfInstancesWithoutMaintenanceWindowsConfigured = numberOfInstancesToReport - numberOfInstancesWithMaintenanceWindowsConfigured;
+    metricsToReport.push({
+      metric: 'usage_statistics.maintenance_windows_configured',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMaintenanceWindowsConfigured
+      }],
+      tags: [`configured:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.maintenance_windows_configured',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithoutMaintenanceWindowsConfigured
+      }],
+      tags: [`configured:false`],
+    });
 
     // Create two metrics to track total number of hosts reported in the last week.
-    let totalNumberOfHostsReportedByPremiumInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsForEachInstance, {licenseTier: 'premium'}), 'numHostsEnrolled'));
+    let totalNumberOfHostsReportedByPremiumInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'premium'}), 'numHostsEnrolled'));
     metricsToReport.push({
       metric: 'usage_statistics.total_num_hosts_enrolled',
       type: 3,
@@ -413,7 +482,7 @@ module.exports = {
       tags: [`license_tier:premium`],
     });
 
-    let totalNumberOfHostsReportedByFreeInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsForEachInstance, {licenseTier: 'free'}), 'numHostsEnrolled'));
+    let totalNumberOfHostsReportedByFreeInstancesInTheLastWeek = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'free'}), 'numHostsEnrolled'));
     metricsToReport.push({
       metric: 'usage_statistics.total_num_hosts_enrolled',
       type: 3,
@@ -423,6 +492,31 @@ module.exports = {
       }],
       tags: [`license_tier:free`],
     });
+
+    // FUTURE: Uncomment the section below to send metrics about reported number of queries to Datadog.
+    // let fleetInstancesThatReportedNumQueries = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+    //   return statistics.numQueries > 0;
+    // });
+
+    // let averageNumberOfQueries = Math.foor(_.sum(_.pluck(fleetInstancesThatReportedNumQueries, 'numQueries')) / fleetInstancesThatReportedNumQueries.length);
+    // metricsToReport.push({
+    //   metric: 'usage_statistics.avg_num_queries',
+    //   type: 3,
+    //   points: [{
+    //     timestamp: timestampForTheseMetrics,
+    //     value: averageNumberOfQueries
+    //   }],
+    // });
+
+    // let highestNumberOfQueries = _.max(_.pluck(fleetInstancesThatReportedNumQueries, 'numQueries'));
+    // metricsToReport.push({
+    //   metric: 'usage_statistics.max_num_queries',
+    //   type: 3,
+    //   points: [{
+    //     timestamp: timestampForTheseMetrics,
+    //     value: highestNumberOfQueries
+    //   }],
+    // });
 
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToReport, 500);// Note: 500 stringified JSON metrics is ~410 kb.

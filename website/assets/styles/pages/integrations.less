@@ -60,53 +60,13 @@
     }
   }
   [purpose='integration-card-buttons'] {
-    a {
-      font-size: 14px;
+    [purpose='learn-more-link'] {
       font-weight: 400;
-      line-height: 21px;
       color: @core-vibrant-blue;
     }
-    [purpose='animated-arrow-button-red'] {
-      display: inline;
-      padding-right: 24px;
-      cursor: pointer;
-      position: relative;
-      width: fit-content;
-      min-width: auto;
-      font-weight: bold;
-      user-select: none;
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-      color: @core-fleet-black;
-      text-decoration: none;
-      &:after {
-        content: ' ';
-        background-image: url('/images/arrow-right-red-16x16@2x.png');
-        height: 16px;
-        width: 16px;
-        background-size: 16px 16px;
-        position: absolute;
-        top: 2px;
-        right: 0px; // <--- here
-        transition: 0.2s ease-in-out;
-        -o-transition: 0.2s ease-in-out;
-        -ms-transition: 0.2s ease-in-out;
-        -moz-transition: 0.2s ease-in-out;
-        -webkit-transition: 0.2s ease-in-out;
-        /*   opacity: 0; */
-      }
-      &:hover:after {
-        right: -5px; // <--- here
-        transition: 0.2s ease-in-out;
-        -o-transition: 0.2s ease-in-out;
-        -ms-transition: 0.2s ease-in-out;
-        -moz-transition: 0.2s ease-in-out;
-        -webkit-transition: 0.2s ease-in-out;
-        /*   opacity:1; */
-      }
+    a {
+      line-height: 21px;
+      font-size: 14px;
     }
   }
   [purpose='integration-card-body'] {

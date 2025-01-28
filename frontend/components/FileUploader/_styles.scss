@@ -2,13 +2,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: $border-radius;
+  border-radius: $border-radius-medium;
   background-color: $ui-fleet-blue-10;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
   gap: $pad-small;
+
+  // when the file preview is showing, we want the padding to be
+  // slightly smaller on the top and bottom.
+  &__file-preview {
+    padding: $pad-medium $pad-large;
+  }
 
   &__graphics {
     display: flex;
@@ -17,6 +23,7 @@
   }
   &__message {
     margin: 0;
+    color: $ui-fleet-black-75;
   }
 
   &__additional-info {
@@ -29,19 +36,19 @@
   }
 
   &__upload-button {
-    margin-top: 8px;
+    // we handle the padding in the label so the entire button is clickable
     padding: 0;
-  }
 
-  label {
-    height: 36px;
-    width: 78.2667px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    label {
+      padding: $pad-small $pad-medium;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: $pad-small;
 
-    &:hover {
-      cursor: pointer;
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
 }

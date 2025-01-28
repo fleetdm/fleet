@@ -17,13 +17,14 @@ import (
 const awsRegionHint = "us-east-1"
 
 type s3store struct {
-	s3client *s3.S3
-	bucket   string
-	prefix   string
+	s3client         *s3.S3
+	bucket           string
+	prefix           string
+	cloudFrontConfig *config.S3CloudFrontConfig
 }
 
 // newS3store initializes an S3 Datastore
-func newS3store(config config.S3Config) (*s3store, error) {
+func newS3store(config config.S3ConfigInternal) (*s3store, error) {
 	conf := &aws.Config{}
 
 	// Use default auth provire if no static credentials were provided
@@ -49,8 +50,11 @@ func newS3store(config config.S3Config) (*s3store, error) {
 
 	// Assume role if configured
 	if config.StsAssumeRoleArn != "" {
-		stscreds.NewCredentials(sess, config.StsAssumeRoleArn)
-		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn)
+		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+			if config.StsExternalID != "" {
+				provider.ExternalID = &config.StsExternalID
+			}
+		})
 		conf.Credentials = creds
 		sess, err = session.NewSession(conf)
 		if err != nil {
@@ -67,9 +71,10 @@ func newS3store(config config.S3Config) (*s3store, error) {
 	}
 
 	return &s3store{
-		s3client: s3.New(sess, &aws.Config{Region: &config.Region}),
-		bucket:   config.Bucket,
-		prefix:   config.Prefix,
+		s3client:         s3.New(sess, &aws.Config{Region: &config.Region}),
+		bucket:           config.Bucket,
+		prefix:           config.Prefix,
+		cloudFrontConfig: config.CloudFrontConfig,
 	}, nil
 }
 

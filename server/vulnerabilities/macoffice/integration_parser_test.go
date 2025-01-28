@@ -653,7 +653,7 @@ var expected = []macoffice.ReleaseNote{
 	},
 }
 
-func TestIntegrationParseReleaseHTML(t *testing.T) {
+func TestIntegrationsParseReleaseHTML(t *testing.T) {
 	nettest.Run(t)
 
 	res, err := http.Get(macoffice.RelNotesURL)

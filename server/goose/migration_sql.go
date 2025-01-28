@@ -62,27 +62,23 @@ func splitSQLStatements(r io.Reader, direction bool) (stmts []string) {
 			cmd := strings.TrimSpace(line[len(sqlCmdPrefix):])
 			switch cmd {
 			case "Up":
-				directionIsActive = (direction == true)
+				directionIsActive = direction
 				upSections++
-				break
 
 			case "Down":
-				directionIsActive = (direction == false)
+				directionIsActive = !direction
 				downSections++
-				break
 
 			case "StatementBegin":
 				if directionIsActive {
 					ignoreSemicolons = true
 				}
-				break
 
 			case "StatementEnd":
 				if directionIsActive {
-					statementEnded = (ignoreSemicolons == true)
+					statementEnded = ignoreSemicolons
 					ignoreSemicolons = false
 				}
-				break
 			}
 		}
 

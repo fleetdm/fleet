@@ -8,7 +8,7 @@ networks:
 
 services:
   mysql01:
-    image: mysql:5.7
+    image: mysql:8.0.36
     platform: linux/x86_64
     volumes:
       - .:/data
@@ -55,6 +55,7 @@ services:
       FLEET_VULNERABILITIES_DATABASES_PATH: /vulndb
       FLEET_VULNERABILITIES_PERIODICITY: 5m
       FLEET_LOGGING_DEBUG: 'true'
+      FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
@@ -65,6 +66,7 @@ services:
       - .:/fleet/
       - ./logs:/logs
       - ./vulndb:/vulndb
+      - ./config:/config
     ports:
       - "8412:8412"
     networks:
@@ -93,8 +95,8 @@ services:
       FLEET_MYSQL_PASSWORD: fleet
       FLEET_REDIS_ADDRESS: redis01:6379
       FLEET_SERVER_ADDRESS: 0.0.0.0:1337
-      FLEET_SERVER_TLS: 'false'
-      FLEET_LOGGING_JSON: 'true'
+      FLEET_SERVER_TLS: "false"
+      FLEET_LOGGING_JSON: "true"
       FLEET_SESSION_DURATION: 720h
       FLEET_OSQUERY_STATUS_LOG_PLUGIN: stdout
       FLEET_OSQUERY_RESULT_LOG_PLUGIN: stdout
@@ -102,12 +104,15 @@ services:
       FLEET_LICENSE_KEY: ${FLEET_LICENSE_KEY}
       FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
       FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "no"
+      FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
     depends_on:
       - mysql01
       - redis01
+    volumes:
+      - ./config:/config
     ports:
       - "1337:1337"
     networks:

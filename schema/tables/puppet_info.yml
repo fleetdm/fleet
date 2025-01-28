@@ -1,18 +1,16 @@
 name: puppet_info
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.
 platforms: 
   - darwin
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List all the information available about the last Puppet run.
 
   ```
-  
   SELECT * FROM puppet_info;
-  
   ```
 columns:
   - name: cached_catalog_status
@@ -55,7 +53,7 @@ columns:
     description: Indicates if Puppet was run in [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) mode.
     required: false
     type: text
-  - name: noop_prending
+  - name: noop_pending
     description: Items pending from a [noop](https://puppet.com/docs/puppet/latest/metaparameter.html#noop) run.
     required: false
     type: text

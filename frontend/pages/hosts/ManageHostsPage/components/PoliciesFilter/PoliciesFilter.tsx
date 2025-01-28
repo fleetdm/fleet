@@ -32,13 +32,14 @@ const PoliciesFilter = ({
   const value = policyResponse;
 
   return (
-    <div className={`${baseClass}__policies-block`}>
+    <div className={baseClass}>
       <Dropdown
         value={value}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__status-filter`}
         options={POLICY_RESPONSE_OPTIONS}
         searchable={false}
         onChange={onChange}
+        iconName="filter-alt"
       />
     </div>
   );

@@ -1,11 +1,9 @@
 name: wifi_status
-examples: >-
+examples: |-
   See the current speed of the WiFi connection, in megabits per second.
   
   ```
-
   SELECT transmit_rate FROM wifi_status;
-  
   ```
-notes: >-
+notes: |-
   - `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. 

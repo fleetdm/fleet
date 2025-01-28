@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -86,7 +87,12 @@ func TestUserAuth(t *testing.T) {
 	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -362,7 +368,7 @@ func TestUserAuth(t *testing.T) {
 			}
 
 			teams := []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}}
-			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+			_, _, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:     ptr.String("Some Name"),
 				Email:    ptr.String("some@email.com"),
 				Password: ptr.String(test.GoodPassword),
@@ -370,7 +376,7 @@ func TestUserAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+			_, _, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:       ptr.String("Some Name"),
 				Email:      ptr.String("some@email.com"),
 				Password:   ptr.String(test.GoodPassword),
@@ -530,6 +536,96 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
 
+func TestMFAHandling(t *testing.T) {
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+
+	ms := new(mock.Store)
+	svc, ctx := newTestService(t, ms, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	payload := fleet.UserPayload{
+		Email:      ptr.String("foo@example.com"),
+		Name:       ptr.String("Full Name"),
+		Password:   ptr.String(test.GoodPassword),
+		MFAEnabled: ptr.Bool(true),
+		SSOEnabled: ptr.Bool(true),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	// test creation
+
+	_, _, err := svc.CreateUser(ctx, payload)
+	require.ErrorContains(t, err, "SSO")
+
+	appConfig := &fleet.AppConfig{SMTPSettings: &fleet.SMTPSettings{}}
+	ms.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	payload.SSOEnabled = nil
+	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, notFoundErr{}
+	}
+	_, _, err = svc.CreateUser(ctx, payload)
+	require.ErrorContains(t, err, "mail")
+
+	appConfig.SMTPSettings.SMTPConfigured = true
+	ms.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		user.ID = 4
+		return user, nil
+	}
+	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+	user, _, err := svc.CreateUser(ctx, payload)
+	require.NoError(t, err)
+	require.False(t, user.MFAEnabled)
+
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	user, _, err = svc.CreateUser(premiumCtx, payload)
+	require.NoError(t, err)
+	require.True(t, user.MFAEnabled)
+
+	// test modification
+
+	appConfig.SMTPSettings.SMTPConfigured = false
+	ms.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{SSOEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "SSO")
+
+	user.SSOEnabled = true
+	user.MFAEnabled = false
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "license")
+
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "SSO")
+
+	user.SSOEnabled = false
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.ErrorContains(t, err, "mail")
+
+	ms.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+		return nil
+	}
+	user.MFAEnabled = true // allow keeping MFA on when modifying a user with MFA already on
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true), Name: ptr.String("Joe Bob")})
+	require.NoError(t, err)
+	_, err = svc.ModifyUser(ctx, user.ID, fleet.UserPayload{Name: ptr.String("Joe Bob")})
+	require.NoError(t, err)
+
+	user.MFAEnabled = false
+	appConfig.SMTPSettings.SMTPConfigured = true
+	_, err = svc.ModifyUser(premiumCtx, user.ID, fleet.UserPayload{MFAEnabled: ptr.Bool(true)})
+	require.NoError(t, err)
+}
+
 func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	user := &fleet.User{
 		ID:    3,
@@ -636,6 +732,7 @@ func TestUsersWithDS(t *testing.T) {
 		{"CreateUserForcePasswdReset", testUsersCreateUserForcePasswdReset},
 		{"ChangePassword", testUsersChangePassword},
 		{"RequirePasswordReset", testUsersRequirePasswordReset},
+		{"UsersCreateUserWithAPIOnly", testUsersCreateUserWithAPIOnly},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -663,13 +760,14 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 
 	// As the admin, create a new user.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	user, err := svc.CreateUser(ctx, fleet.UserPayload{
+	user, sessionKey, err := svc.CreateUser(ctx, fleet.UserPayload{
 		Name:       ptr.String("Some Observer"),
 		Email:      ptr.String("some-observer@email.com"),
 		Password:   ptr.String(test.GoodPassword),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	})
 	require.NoError(t, err)
+	require.Nil(t, sessionKey) // only set when creating API-only users
 
 	user, err = ds.UserByID(context.Background(), user.ID)
 	require.NoError(t, err)
@@ -721,7 +819,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &tt.user})
 
 			err := svc.ChangePassword(ctx, tt.oldPassword, tt.newPassword)
-			if tt.anyErr {
+			if tt.anyErr { //nolint:gocritic // ignore ifElseChain
 				require.NotNil(t, err)
 			} else if tt.wantErr != nil {
 				require.Equal(t, tt.wantErr, ctxerr.Cause(err))
@@ -734,7 +832,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			}
 
 			// Attempt login after successful change
-			_, _, err = svc.Login(context.Background(), tt.user.Email, tt.newPassword)
+			_, _, err = svc.Login(context.Background(), tt.user.Email, tt.newPassword, false)
 			require.Nil(t, err, "should be able to login with new password")
 		})
 	}
@@ -752,7 +850,7 @@ func testUsersRequirePasswordReset(t *testing.T, ds *mysql.Datastore) {
 			var sessions []*fleet.Session
 
 			// Log user in
-			_, _, err = svc.Login(test.UserContext(ctx, test.UserAdmin), tt.Email, tt.PlaintextPassword)
+			_, _, err = svc.Login(test.UserContext(ctx, test.UserAdmin), tt.Email, tt.PlaintextPassword, false)
 			require.Nil(t, err, "login unsuccessful")
 			sessions, err = svc.GetInfoAboutSessionsForUser(test.UserContext(ctx, test.UserAdmin), user.ID)
 			require.Nil(t, err)
@@ -797,7 +895,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			ctx = refreshCtx(t, ctx, user, ds, nil)
 
-			session, err := ds.NewSession(context.Background(), user.ID, "")
+			session, err := ds.NewSession(context.Background(), user.ID, 8)
 			require.Nil(t, err)
 			ctx = refreshCtx(t, ctx, user, ds, session)
 
@@ -824,7 +922,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 			ctx = context.Background()
 
 			// Now user should be able to login with new password
-			u, _, err = svc.Login(ctx, tt.Email, test.GoodPassword2)
+			u, _, err = svc.Login(ctx, tt.Email, test.GoodPassword2, false)
 			require.Nil(t, err)
 			assert.False(t, u.AdminForcedPasswordReset)
 		})
@@ -903,7 +1001,7 @@ func TestAuthenticatedUser(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	admin1, err := ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
-	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, "admin1")
+	admin1Session, err := ds.NewSession(context.Background(), admin1.ID, 8)
 	require.NoError(t, err)
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin1, Session: admin1Session})
@@ -1313,4 +1411,51 @@ func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 	})
 	require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
 	require.False(t, ds.SaveUserFuncInvoked)
+}
+
+func testUsersCreateUserWithAPIOnly(t *testing.T, ds *mysql.Datastore) {
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		UUID:          "uuid-42",
+		OsqueryHostID: ptr.String("osquery_host_id-42"),
+	})
+	require.NoError(t, err)
+
+	// Create admin user.
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	err = admin.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
+	admin, err = ds.NewUser(ctx, admin)
+	require.NoError(t, err)
+
+	// As the admin, create a new API-only user.
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	apiOnlyUser, sessionKey, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:       ptr.String("Some Observer"),
+		Email:      ptr.String("some-observer@email.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		APIOnly:    ptr.Bool(true),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, sessionKey)
+	require.NotEmpty(t, *sessionKey)
+
+	sessions, err := svc.GetInfoAboutSessionsForUser(ctx, apiOnlyUser.ID)
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	session := sessions[0]
+	require.Equal(t, *sessionKey, session.Key)
+
+	refreshCtx(t, ctx, apiOnlyUser, ds, session)
+
+	hosts, err := svc.ListHosts(ctx, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host.ID, hosts[0].ID)
 }

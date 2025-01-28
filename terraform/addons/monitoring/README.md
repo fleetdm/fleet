@@ -16,26 +16,45 @@ Some of the for\_each and counts in this module cannot pre-determine the numbers
 
 You will need to `terraform apply -target module.main` prior applying monitoring assuming the use of a configuration matching the example at https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf.
 
+Multiple alb support was added in order to allow monitoring `saml-auth-proxy`.  See https://github.com/fleetdm/fleet/tree/main/terraform/addons/saml-auth-proxy
+
 # Example configuration
 
 This assumes your fleet module is `main` and is configured with it's default documentation.
 
-See https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf for details.
+ https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf for details.
+
+Note if you haven't specified defined `local.customer` or customized service names, the default is "fleet" for anywhere that `local.customer` is specified below.
 
 ```
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.0"
-  customer_prefix             = local.customer
-  fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
-  fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
-  alb_name                    = module.main.byo-vpc.byo-db.alb.lb_dns_name
-  alb_target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
-  alb_target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
-  alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
-  # Only publish alerts for items in this map
+  source                 = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.4.0"
+  customer_prefix        = local.customer
+  fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
+  albs = [
+    {
+      name                    = module.main.byo-vpc.byo-db.alb.lb_dns_name,
+      target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
+      target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
+      arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
+      ecs_service_name        = module.main.byo-vpc.byo-db.byo-ecs.service.name
+      min_containers          = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+      alert_thresholds = {
+        HTTPCode_ELB_5XX_Count = {
+          period    = 3600
+          threshold = 2
+        },
+        HTTPCode_Target_5XX_Count = {
+          period    = 120
+          threshold = 0
+        }
+      }
+    },
+  ]
   sns_topic_arns_map = {
     alb_httpcode_5xx = [var.sns_topic_arn]
     cron_monitoring  = [var.sns_topic_arn]
+    cron_job_failure_monitoring  = [var.sns_another_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -50,9 +69,10 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance            = "2h"
+    delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
-    run_interval               = "1 hour"
+    run_interval          = "1 hour"
+    log_retention_in_days = 365
   }
 }
 ```
@@ -65,7 +85,8 @@ Valid targets for `sns_topic_arns_map`:
  - alb\_helthyhosts
  - alb\_httpcode\_5xx
  - backend\_response\_time
- - cron\_monitoring
+ - cron\_monitoring (notifications about failures in the cron scheduler)
+ - cron\_job\_failure\_monitoring (notifications about errors in individual cron jobs - defaults to value of `cron_monitoring`)
  - rds\_cpu\_untilizaton\_too\_high
  - rds\_db\_event\_subscription
  - redis\_cpu\_engine\_utilization
@@ -84,9 +105,9 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_archive"></a> [archive](#provider\_archive) | 2.4.0 |
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.22.0 |
-| <a name="provider_null"></a> [null](#provider\_null) | 3.2.1 |
+| <a name="provider_archive"></a> [archive](#provider\_archive) | 2.7.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.81.0 |
+| <a name="provider_null"></a> [null](#provider\_null) | 3.2.3 |
 
 ## Modules
 
@@ -131,15 +152,11 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_acm_certificate_arn"></a> [acm\_certificate\_arn](#input\_acm\_certificate\_arn) | n/a | `string` | `null` | no |
-| <a name="input_alb_arn_suffix"></a> [alb\_arn\_suffix](#input\_alb\_arn\_suffix) | n/a | `string` | `null` | no |
-| <a name="input_alb_name"></a> [alb\_name](#input\_alb\_name) | n/a | `string` | `null` | no |
-| <a name="input_alb_target_group_arn_suffix"></a> [alb\_target\_group\_arn\_suffix](#input\_alb\_target\_group\_arn\_suffix) | n/a | `string` | `null` | no |
-| <a name="input_alb_target_group_name"></a> [alb\_target\_group\_name](#input\_alb\_target\_group\_name) | n/a | `string` | `null` | no |
-| <a name="input_cron_monitoring"></a> [cron\_monitoring](#input\_cron\_monitoring) | n/a | <pre>object({<br>    mysql_host                 = string<br>    mysql_database             = string<br>    mysql_user                 = string<br>    mysql_password_secret_name = string<br>    vpc_id                     = string<br>    subnet_ids                 = list(string)<br>    rds_security_group_id      = string<br>    delay_tolerance            = string<br>    run_interval               = string    <br>  })</pre> | `null` | no |
+| <a name="input_albs"></a> [albs](#input\_albs) | n/a | <pre>list(object({<br/>    name                    = string<br/>    arn_suffix              = string<br/>    target_group_name       = string<br/>    target_group_arn_suffix = string<br/>    min_containers          = optional(string, 1)<br/>    ecs_service_name        = string<br/>    alert_thresholds = optional(<br/>      object({<br/>        HTTPCode_ELB_5XX_Count = object({<br/>          period    = number<br/>          threshold = number<br/>        })<br/>        HTTPCode_Target_5XX_Count = object({<br/>          period    = number<br/>          threshold = number<br/>        })<br/>      }),<br/>      {<br/>        HTTPCode_ELB_5XX_Count = {<br/>          period    = 120<br/>          threshold = 0<br/>        },<br/>        HTTPCode_Target_5XX_Count = {<br/>          period    = 120<br/>          threshold = 0<br/>        }<br/>      }<br/>    )<br/>  }))</pre> | `[]` | no |
+| <a name="input_cron_monitoring"></a> [cron\_monitoring](#input\_cron\_monitoring) | n/a | <pre>object({<br/>    mysql_host                 = string<br/>    mysql_database             = string<br/>    mysql_user                 = string<br/>    mysql_password_secret_name = string<br/>    vpc_id                     = string<br/>    subnet_ids                 = list(string)<br/>    rds_security_group_id      = string<br/>    delay_tolerance            = string<br/>    run_interval               = string<br/>    log_retention_in_days      = optional(number, 7)<br/>  })</pre> | `null` | no |
 | <a name="input_customer_prefix"></a> [customer\_prefix](#input\_customer\_prefix) | n/a | `string` | `"fleet"` | no |
 | <a name="input_default_sns_topic_arns"></a> [default\_sns\_topic\_arns](#input\_default\_sns\_topic\_arns) | n/a | `list(string)` | `[]` | no |
 | <a name="input_fleet_ecs_service_name"></a> [fleet\_ecs\_service\_name](#input\_fleet\_ecs\_service\_name) | n/a | `string` | `null` | no |
-| <a name="input_fleet_min_containers"></a> [fleet\_min\_containers](#input\_fleet\_min\_containers) | n/a | `number` | `1` | no |
 | <a name="input_mysql_cluster_members"></a> [mysql\_cluster\_members](#input\_mysql\_cluster\_members) | n/a | `list(string)` | `[]` | no |
 | <a name="input_redis_cluster_members"></a> [redis\_cluster\_members](#input\_redis\_cluster\_members) | n/a | `list(string)` | `[]` | no |
 | <a name="input_sns_topic_arns_map"></a> [sns\_topic\_arns\_map](#input\_sns\_topic\_arns\_map) | n/a | `map(list(string))` | `{}` | no |

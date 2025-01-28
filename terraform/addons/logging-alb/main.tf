@@ -250,4 +250,6 @@ resource "aws_athena_workgroup" "logs" {
       }
     }
   }
+
+  force_destroy = true
 }

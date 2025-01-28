@@ -1,19 +1,14 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
-import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
+import React, { useCallback, useContext, useMemo } from "react";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { IApiError } from "interfaces/errors";
+import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
+import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
-import scriptsAPI, {
-  IHostScriptsQueryKey,
-  IHostScriptsResponse,
-} from "services/entities/scripts";
-import { IHostScript } from "interfaces/script";
+import scriptsAPI, { IHostScriptsResponse } from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
@@ -29,12 +24,22 @@ import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
 const baseClass = "run-script-modal";
 
-interface IScriptsProps {
+interface IRunScriptModalProps {
   currentUser: IUser | null;
   host: IHost;
-  scriptDetailsId: string;
-  setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
   onClose: () => void;
+  runScriptRequested: boolean;
+  refetchHostScripts: () => void;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  hostScriptResponse?: IHostScriptsResponse;
+  isFetching: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
+  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void;
+  onClickRunDetails: (scriptExecutionId: string) => void;
+  isHidden: boolean;
 }
 
 const EmptyComponent = () => <></>;
@@ -42,45 +47,29 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  scriptDetailsId,
-  setScriptDetailsId,
   onClose,
-}: IScriptsProps) => {
-  const [page, setPage] = useState<number>(0);
-  const [runScriptRequested, setRunScriptRequested] = useState(false);
-
+  runScriptRequested,
+  refetchHostScripts,
+  page,
+  setPage,
+  setRunScriptRequested,
+  hostScriptResponse,
+  isFetching,
+  isLoading,
+  isError,
+  onClickViewScript,
+  onClickRunDetails,
+  isHidden = false,
+}: IRunScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
-
-  const {
-    data: hostScriptResponse,
-    isError,
-    isLoading,
-    isFetching,
-    refetch: refetchHostScripts,
-  } = useQuery<
-    IHostScriptsResponse,
-    IApiError,
-    IHostScriptsResponse,
-    IHostScriptsQueryKey[]
-  >(
-    [{ scope: "host_scripts", host_id: host.id, page, per_page: 10 }],
-    ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 3000,
-      onSuccess: () => {
-        setRunScriptRequested(false);
-      },
-    }
-  );
 
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
       switch (action) {
-        case "showDetails": {
-          setScriptDetailsId(script.last_execution?.execution_id || "");
+        case "showRunDetails": {
+          script.last_execution?.execution_id &&
+            onClickRunDetails(script.last_execution?.execution_id);
           break;
         }
         case "run": {
@@ -96,9 +85,7 @@ const RunScriptModal = ({
             );
             refetchHostScripts();
           } catch (e) {
-            const error = e as AxiosResponse<IApiError>;
-            console.log(error);
-            renderFlash("error", error.data.errors[0].reason);
+            renderFlash("error", getErrorReason(e));
             setRunScriptRequested(false);
           }
           break;
@@ -106,7 +93,13 @@ const RunScriptModal = ({
         default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash, setScriptDetailsId]
+    [
+      host.id,
+      onClickRunDetails,
+      refetchHostScripts,
+      renderFlash,
+      setRunScriptRequested,
+    ]
   );
 
   const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
@@ -119,24 +112,24 @@ const RunScriptModal = ({
         currentUser,
         host.team_id,
         !!config?.server_settings?.scripts_disabled,
+        onClickViewScript,
         onSelectAction
       ),
-    [currentUser, host.team_id, config, onSelectAction]
+    [currentUser, host.team_id, config, onClickViewScript, onSelectAction]
   );
 
   if (!config) return null;
 
-  const isShowingScriptDetails = !!scriptDetailsId; // used to set css visibility for this modal to hidden when the script details modal is open
   const tableData = hostScriptResponse?.scripts;
 
   return (
     <Modal
-      title={"Run script"}
+      title="Run script"
       onExit={onClose}
       onEnter={onClose}
       className={`${baseClass}`}
-      isHidden={isShowingScriptDetails}
       isLoading={runScriptRequested || isFetching || isLoading}
+      isHidden={isHidden}
     >
       <>
         <div className={`${baseClass}__modal-content`}>
@@ -144,8 +137,8 @@ const RunScriptModal = ({
           {!isLoading && isError && <DataError />}
           {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
-              header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
+              header="No scripts available for this host"
+              info="Expecting to see scripts? Close this modal and try again."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (

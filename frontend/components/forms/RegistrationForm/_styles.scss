@@ -181,7 +181,7 @@
 
     .button {
       width: 160px;
-      margin-top: $pad-xxlarge;
+      margin-top: $pad-medium; // 40px total (24px gap + 16px more)
     }
   }
 }

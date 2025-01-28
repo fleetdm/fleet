@@ -8,15 +8,21 @@ Puppet::Reports.register_report(:fleetdm) do
 
   def process
     return if noop
-    client = Puppet::Util::FleetClient.instance
+
     node_name = Puppet[:node_name_value]
+    if resource_statuses.any? { |r, _| r.downcase.include?('error pre-setting fleetdm::profile') }
+      Puppet.err("Some resources failed to be assigned, not matching profiles for #{node_name}")
+      return
+    end
+
+    client = Puppet::Util::FleetClient.instance
     run_identifier = "#{catalog_uuid}-#{node_name}"
     response = client.match_profiles(run_identifier, environment)
-
     if response['error'].empty?
       Puppet.info("Successfully matched #{node_name} with a team containing configuration profiles")
-    else
-      Puppet.err("Error matching node #{node_name} with a team containing configuration profiles: #{response['error']}")
+      return
     end
+
+    Puppet.err("Error matching node #{node_name} with a team containing configuration profiles: #{response['error']}")
   end
 end

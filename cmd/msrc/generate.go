@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,13 +35,16 @@ func main() {
 	panicif(err)
 
 	now := time.Now()
-	httpC := fleethttp.NewGithubClient()
 
 	ctx := context.Background()
-	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)
-	msrcAPI := msrc.NewMSRCClient(httpC, inPath, msrc.MSRCBaseURL)
 
-	fmt.Println("Downloading existing bulletins...")
+	githubHttp := fleethttp.NewGithubClient()
+	ghAPI := io.NewGitHubClient(githubHttp, github.NewClient(githubHttp).Repositories, wd)
+
+	msrcHttp := fleethttp.NewClient() // don't reuse the GitHub client as it has an OAuth token baked in
+	msrcAPI := msrc.NewMSRCClient(msrcHttp, inPath, msrc.MSRCBaseURL)
+
+	fmt.Println("Downloading existing MSRC bulletins...")
 	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
 
@@ -61,7 +65,16 @@ func main() {
 		panicif(err)
 	}
 
-	fmt.Println("Done.")
+	fmt.Println("Done processing MSRC feed.")
+}
+
+// windowsBulletinGracePeriod returns whether we are within the grace period for a MSRC monthly feed to exist.
+//
+// E.g. September 2024 bulletin was released on the 2nd, thus we add some grace period (5 days)
+// for Microsoft to publish the current month bulletin.
+func windowsBulletinGracePeriod(month time.Month, year int) bool {
+	now := time.Now()
+	return month == now.Month() && year == now.Year() && now.Day() <= 5
 }
 
 func update(
@@ -72,15 +85,22 @@ func update(
 	ghClient io.GitHubAPI,
 ) ([]*parsed.SecurityBulletin, error) {
 	fmt.Println("Downloading current feed...")
-	f, err := msrcClient.GetFeed(m, y)
+	currentFeed, err := msrcClient.GetFeed(m, y)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, msrc.FeedNotFound) && windowsBulletinGracePeriod(m, y) {
+			fmt.Printf("Current month feed %d-%d was not found, skipping...\n", y, m)
+		} else {
+			return nil, err
+		}
 	}
 
-	fmt.Println("Parsing current feed...")
-	nBulletins, err := msrc.ParseFeed(f)
-	if err != nil {
-		return nil, err
+	var nBulletins map[string]*parsed.SecurityBulletin
+	if currentFeed != "" {
+		fmt.Println("Parsing current feed...")
+		nBulletins, err = msrc.ParseFeed(currentFeed)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var bulletins []*parsed.SecurityBulletin
@@ -118,6 +138,10 @@ func backfill(upToM time.Month, upToY int, client msrc.MSRCAPI) ([]*parsed.Secur
 		fmt.Printf("Downloading feed for %d-%d...\n", d.Year(), d.Month())
 		f, err := client.GetFeed(d.Month(), d.Year())
 		if err != nil {
+			if errors.Is(err, msrc.FeedNotFound) && windowsBulletinGracePeriod(d.Month(), d.Year()) {
+				fmt.Printf("Current month feed %d-%d was not found, skipping...\n", d.Year(), d.Month())
+				continue
+			}
 			return nil, err
 		}
 

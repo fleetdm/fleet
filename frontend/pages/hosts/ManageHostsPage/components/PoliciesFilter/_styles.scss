@@ -1,41 +1,5 @@
 .policies-filter {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-
-  &__status_dropdown {
-    width: 114px;
-
-    .Select-menu-outer {
-      width: 114px;
-      max-height: 310px;
-
-      .Select-menu {
-        max-height: none;
-
-        .dropdown__option {
-          font-size: $small !important;
-        }
-      }
-    }
-    .Select-value {
-      padding-left: $pad-medium;
-      padding-right: $pad-medium;
-
-      &::before {
-        display: inline-block;
-        position: absolute;
-        padding: 5px 0 0 0; // centers spin
-        content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
-        transform: scale(0.5);
-        width: 16px;
-        height: 26px;
-        left: 2px;
-      }
-    }
-    .Select-value-label {
-      padding-left: $pad-large;
-      font-size: $small !important;
-    }
+  .Select-multi-value-wrapper {
+    width: 91px; // Fits all dropdown options without resizing
   }
 }

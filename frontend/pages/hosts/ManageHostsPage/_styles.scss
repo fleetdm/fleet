@@ -1,15 +1,12 @@
 .manage-hosts {
-  .header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  &__header-wrap {
+    @include normalize-team-header;
     margin-bottom: $pad-medium;
-    height: 38px;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      white-space: nowrap;
     }
   }
 
@@ -20,7 +17,6 @@
   &__header {
     display: flex;
     align-items: center;
-    min-width: 125px;
 
     .form-field {
       margin-bottom: 0;
@@ -108,23 +104,18 @@
 
         .manage-hosts__filter-dropdowns {
           display: flex;
+          flex-direction: row;
           margin-left: $pad-medium;
+          align-items: center;
 
           // Dropdown height matches search bar height
-          .manage-hosts__status_dropdown {
+          .manage-hosts__status-filter {
             .Select-control,
             .Select-input {
               height: 33px;
             }
             .Select-value {
-              line-height: 38px;
-            }
-          }
-
-          .manage-hosts__status-dropdown-sandbox {
-            width: auto;
-            .Select-control {
-              width: 182px;
+              line-height: 40px;
             }
           }
         }
@@ -132,9 +123,7 @@
     }
 
     // table header content responsive styles
-    // NOTE: 1150px is a custom breakpoint to deal with responsiveness of the
-    // table controls. 990px doesnt work for us in this case.
-    @media (max-width: 1150px) {
+    @media (max-width: $table-controls-break) {
       &__header {
         flex-direction: column;
       }
@@ -168,10 +157,12 @@
         }
 
         .controls {
-          order: 1;
-          margin-bottom: $pad-medium;
+          order: -2;
+          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
+            display: flex;
+            flex-direction: row;
             flex: 1;
 
             .form-field--dropdown,
@@ -179,14 +170,8 @@
               flex: 1;
             }
 
-            .manage-hosts__status_dropdown {
+            .manage-hosts__status-filter {
               width: auto;
-            }
-
-            .manage-hosts__status-dropdown-sandbox {
-              .Select-control {
-                width: 100%;
-              }
             }
           }
         }
@@ -216,7 +201,8 @@
               .device_mapping__cell,
               .mdm_enrollment_status__cell,
               .mdm_server_url__cell,
-              .public_ip__cell {
+              .public_ip__cell,
+              .issues__cell {
                 .text-cell {
                   display: inline;
                 }
@@ -235,16 +221,16 @@
     margin: 0;
   }
 
-  &__status_dropdown {
+  &__status-filter {
     width: 175px;
 
-    @media (min-width: 1150px) {
+    @media (min-width: $table-controls-break) {
       width: 190px;
     }
 
     .Select-menu-outer {
       width: 364px;
-      max-height: 325px;
+      max-height: min-content;
 
       .Select-menu {
         max-height: none;
@@ -275,14 +261,6 @@
   }
 
   &__export-btn {
-    margin-left: $pad-medium;
-
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
-    }
+    margin-left: $pad-xsmall;
   }
 }

@@ -2,8 +2,10 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.44.1 # Version of Fleet to deploy
+imageRepository: fleetdm/fleet
+imageTag: v4.62.2 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
+serviceAnnotations: {} # Additional annotations to add to the Fleet service
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
   limits:
@@ -56,11 +58,16 @@ ingress:
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
+  # Will also be the targetPort for the service
   listenPort: 8080
+  # servicePort is optional.  Use if the service port needs to differ from the listenPort above.
+  # servicePort: 9080
   # Name of the Secret resource storing S3 bucket and optionally TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
+  # Add extra annotations to the migration Job
+  migrationJobAnnotations:
   tls:
     enabled: true
     # Set to true if you need a separate secret for just TLS data.
@@ -90,6 +97,9 @@ fleet:
       accessKeyID: ""
       secretKey: s3-bucket
       stsAssumeRoleARN: ""
+  license:
+    secretName: ""
+    licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -185,6 +195,7 @@ gke:
   # The CloudSQL Proxy runs as a container in the Fleet Pod that proxies connections to a Cloud SQL instance
   cloudSQL:
     enableProxy: false
+    imageRepository: gcr.io/cloudsql-docker/gce-proxy
     imageTag: 1.17-alpine
     verbose: true
     instanceName: ""
@@ -201,14 +212,24 @@ gke:
 # All of the environment variables that can be set for Fleet
 environments:
   # MDM Settings
-  # The following environment variables are used to configure Fleet to work with
-  # Apple's MDM service. These are optional and only required if you are using
-  # Fleet to manage Apple devices.
-  # To more information: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-3-configure-fleet-with-the-required-files
-  FLEET_MDM_APPLE_APNS_CERT_BYTES: ""
-  FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
-  FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
-  FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""
+  # The following environment variable is required if you are using
+  # Fleet's macOS MDM features.  In a production environment, it is recommended that
+  # you store this private key in a secret and use envsFrom to reference the secret below.
+  # For more information, check out the docs: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key
+  FLEET_SERVER_PRIVATE_KEY: ""
+
+## Section: Environment Variables from Secrets/CMs
+# envsFrom:
+# - name: MY_ENV_NAME_1
+#   valueFrom:
+#     configMapKeyRef:
+#       name: cm-name
+#       key: cm-key-name
+# - name: MY_ENV_NAME_2
+#   valueFrom:
+#     secretKeyRef:
+#       name: secret-name
+#       key: secret-key-name
 
 mysql:
   enabled: false

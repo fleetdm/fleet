@@ -1,0 +1,41 @@
+/** Modify with extreme caution as this CSS:
+- determines whether a tooltip is being rendered via useRef
+- is implemented in widely used checkbox labels
+- is highly sensitive */
+
+.tooltip-truncated-text {
+  max-width: 101%; // Required for implementation in checkbox labels
+
+  .tooltip-truncated {
+    max-width: 100%;
+  }
+
+  .truncated {
+    display: inline-block;
+    max-width: 99%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+
+  .inner-text {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .truncated-tooltip {
+    text-wrap: wrap;
+    overflow-wrap: break-word;
+
+    .safari-hack {
+      height: 0px;
+    }
+  }
+
+  // allows for the tooltip text to break on a word instead of a character
+  &.tooltip-break-on-word {
+    .truncated-tooltip {
+      word-break: normal;
+    }
+  }
+}

@@ -145,6 +145,16 @@ func TestGetRawProfilePlatform(t *testing.T) {
 			expected: "windows",
 		},
 		{
+			name:     "Windows case insensitive add ",
+			input:    []byte("<ADD this=\"that\">"),
+			expected: "windows",
+		},
+		{
+			name:     "Windows case sensitive add",
+			input:    []byte("<Add this=\"that\">"),
+			expected: "windows",
+		},
+		{
 			name:     "Whitespace before prefix",
 			input:    []byte("   <?xml version=\"1.0\"?>"),
 			expected: "darwin",
@@ -169,12 +179,78 @@ func TestGetRawProfilePlatform(t *testing.T) {
 			input:    []byte("<?x"),
 			expected: "",
 		},
+		{
+			name:     "DDM JSON",
+			input:    []byte(`{"foo": "bar"}`),
+			expected: "darwin",
+		},
+		{
+			name:     "DDM JSON with whitespace",
+			input:    []byte(`     {"foo": "bar"}`),
+			expected: "darwin",
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			got := GetRawProfilePlatform(tt.input)
 			require.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestGuessProfileExtension(t *testing.T) {
+	testCases := []struct {
+		name     string
+		profile  []byte
+		expected string
+	}{
+		{
+			name:     "XML with <?xml prefix",
+			profile:  []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+			expected: "xml",
+		},
+		{
+			name:     "XML with <replace prefix",
+			profile:  []byte("<replace value=\"something\"/>"),
+			expected: "xml",
+		},
+		{
+			name:     "XML with <add prefix",
+			profile:  []byte("<add key=\"somekey\" value=\"somevalue\"/>"),
+			expected: "xml",
+		},
+		{
+			name:     "JSON with { prefix",
+			profile:  []byte("{ \"key\": \"value\" }"),
+			expected: "json",
+		},
+		{
+			name:     "Empty string",
+			profile:  []byte(""),
+			expected: "",
+		},
+		{
+			name:     "Text with no recognizable prefix",
+			profile:  []byte("This is just some text."),
+			expected: "",
+		},
+		{
+			name:     "XML with spaces before prefix",
+			profile:  []byte("   <?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+			expected: "xml",
+		},
+		{
+			name:     "JSON with spaces before prefix",
+			profile:  []byte("   { \"key\": \"value\" }"),
+			expected: "json",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := GuessProfileExtension(tc.profile)
+			require.Equal(t, tc.expected, result, "Expected result does not match actual result")
 		})
 	}
 }

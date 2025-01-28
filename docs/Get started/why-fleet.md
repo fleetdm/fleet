@@ -1,76 +1,26 @@
 # Why Fleet
 
+Fleet is an open-source device management platform for Linux, macOS, Windows, Chromebooks, and iOS devices (BYOD or corporate owned.)
+
 ## What's it for?
 
-In an industry that views security and IT as a shopping spree rather than a process, it's little wonder that IT and security teams get stuck with bolt-on solutions, misconfigured tools, and disparate workflows. 
+Managing computers today is getting harder. You have to juggle a mix of operating systems and devices, with a bunch of middleman vendors in between. 
 
-Fleet helps organizations like Fastly and Gusto reimagine the "easy button." 
+Fleet makes things easier by giving you a single system to secure and maintain all your computing devices over the air. You can do MDM, patch stuff, and verify anything—all from one system. It's like having a universal remote control for all your organization's computers.
 
-By simplifying how they do device health, FIM, HIDS, posture assessment, malware detection, vulnerability management, MDM, and the rest, Fleet's API enables teams with thousands of computers to build an IT and security program that works.
-
-### Explore data
-To see what kind of data you can use Fleet to gather, you can check out the [table reference documentation](https://fleetdm.com/tables).
-
-### Out-of-the-box policies
-Fleet includes out-of-the-box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [simpler queries](https://fleetdm.com/queries).
-
-Take as much or as little as you need for your organization.
-
-### Supported platforms
-Here are the platforms Fleet currently supports:
-
-- Linux (all distros)
-- macOS
-- Windows
-- Chromebooks
-- Amazon Web Services (AWS)
-- Google Cloud (GCP)
-- Azure (Microsoft cloud)
-- Data centers
-- Containers (kube, etc)
-- Linux-based IoT devices
-
-## Lighter than air
-Fleet is lightweight and modular.  You can use it for security without using it for MDM, and vice versa.  You can turn off features you are not using.
-
-### Open by design
-Fleet is dedicated to flexibility, accessibility, and clarity.  We think [everyone can contribute](https://fleetdm.com/handbook/company#openness) and that tools should be as easy as possible for everyone to understand.
-
-### Good neighbors
-Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more.
-
-Fleet plays well with Munki, Chef, Puppet, and Ansible, as well as with security tools like Crowdstrike and SentinelOne.  For example, you can use the free version of Fleet to quickly report on what hosts are _actually_ running your EDR agent.
-
-
-### Free as in free
-The free version of Fleet will [always be free](https://fleetdm.com/pricing).  Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
-
-### Longevity
-The [company behind Fleet](https://fleetdm.com/handbook/company) is founded (and majority-owned) by [true believers in open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The company's business model is influenced by GitLab (NYSE: GTLB), with great investors, happy customers, and the capacity to become profitable at any time.
-
-In keeping with Fleet's value of openness, [Fleet Device Management's company handbook](https://fleetdm.com/handbook/company) is public and open source.  You can read about the [history of Fleet and osquery](https://fleetdm.com/handbook/company#history) and our commitment to improving the product.
-
-<!-- > To upgrade from Fleet ≤3.2.0, follow the upgrading steps for the earliest subsequent major release from this repository (it'll work out of the box until the release of Fleet 5.0). -->
+Fleet is open source, and free features will always be free.
 
 ## Is it any good?
-Fleet is used in production by IT and security teams with thousands of laptops and servers.  Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
 
-## Chat
-Please join us in [MacAdmins Slack](https://www.macadmins.org/) or [osquery Slack](https://fleetdm.com/slack).
+Fleet is used in production by IT and security teams with thousands of laptops and servers. Many deployments support tens of thousands of hosts, and a few large organizations manage deployments as large as 400,000+ hosts.
 
-The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy).  Whether or not you are a paying customer, if you need help, just ask.
+- **Get what you need:** Fleet lets you work directly with [data](https://fleetdm.com/integrations) and events from the native operating system. It lets you go all the way down to the bare metal. It’s also modular. (You can turn off features you are not using.)
+- **Out of the box:** Ready-to-use integrations exist for the [most common tools](https://fleetdm.com/integrations). You can also build custom workflows with the REST API, webhook events, and the fleetctl command line tool. Or go all in and govern computers [with GitOps](https://github.com/fleetdm/fleet-gitops).
+- **Good neighbors:** We think tools should be as easy as possible for everyone to understand. We helped [create osquery](https://fleetdm.com/handbook/company#history), and we are committed to improving it.
+- **Free as in free:** The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is independently backed and actively maintained with the help of many amazing contributors.
 
-<!-- - Great contributions are motivated by real-world use cases or learning.
-- Some of the most valuable contributions might not touch any code at all.
-Small, iterative, simple (boring) changes are the easiest to merge. -->
+## Ready to get started?
 
-## What's next?
-
-### Try it out
-
-[Try out Fleet](https://fleetdm.com/try-fleet) to see what it can do, grab time with one of the maintainers to discuss, or explore the rest of the docs and roll it out to your organization.
-
-### Questions?
-We have answers to the most [common questions](https://fleetdm.com/docs/get-started/faq).
+Deploying Fleet is easy. [Install it](https://fleetdm.com/docs/deploy/deploy-fleet) on a server, or [we can host it](https://fleetdm.com/register) for you. Enroll your devices, and you're set.
 
 <meta name="pageOrderInSection" value="100">

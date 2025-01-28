@@ -18,7 +18,7 @@ const DeletePackModal = ({
 }: IDeletePackModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Delete pack"}
+      title="Delete pack"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

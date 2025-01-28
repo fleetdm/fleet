@@ -1,8 +1,6 @@
 import React from "react";
 
-import differenceInSeconds from "date-fns/differenceInSeconds";
-import formatDistance from "date-fns/formatDistance";
-import add from "date-fns/add";
+import { add, differenceInSeconds, formatDistance } from "date-fns";
 
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import EmptyTable from "components/EmptyTable/EmptyTable";
@@ -57,7 +55,7 @@ const NoResults = ({
     return (
       <EmptyTable
         graphicName="collecting-results"
-        header={"Collecting results..."}
+        header="Collecting results..."
         info={collectingResultsInfo()}
       />
     );

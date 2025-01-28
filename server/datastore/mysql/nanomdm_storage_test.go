@@ -32,7 +32,7 @@ func TestNanoMDMStorage(t *testing.T) {
 
 func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ns, err := ds.NewMDMAppleMDMStorage(nil, nil)
+	ns, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
@@ -78,7 +78,7 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 		},
 	}, res)
 
-	status, err := ds.GetHostLockWipeStatus(ctx, host.ID, "darwin")
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 	require.Equal(t, "cmd-uuid", status.LockMDMCommand.CommandUUID)
 	require.Equal(t, "123456", status.UnlockPIN)

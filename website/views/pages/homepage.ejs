@@ -6,12 +6,11 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h4>For teams with lots of different endpoints</h4>
-            <h1>Your last MDM migration</h1>
-            <p>Replace the sprawl with open-source code that works the way you want.</p>
+            <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+            <p><%= /* Replace cross-platform hacks with */ primaryBuyingSituation === 'vm'? 'Secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'Open-source telemetry that works the way you want' : 'Lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
+              <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -19,172 +18,197 @@
     </div>
   </div>
   <%/* Row of logos */%>
-  <div purpose="hero-logos" class="mx-auto d-flex flex-column align-items-center justify-content-center">
-    <%/* >991px logos all on one row */%>
-    <div purpose="logo-column" class="w-100 flex-row d-lg-flex d-none justify-content-between align-items-center">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery" class="ml-0 mr-auto" ><img purpose="snowflake-logo" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png">
-      <img purpose="uber-logo" alt="Uber logo" class="" src="/images/logo-uber-70x24@2x.png">
-      <img purpose="fastly-logo" alt="Fastly logo" class="" src="/images/logo-fastly-75x30@2x.png">
-      <img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png">
-      <img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png">
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank" class="mr-0 ml-auto"><img purpose="segment-logo" alt="Segment logo"  src="/images/logo-segment-112x24@2x.png"></a>
-    </div>
-    <%/* >576px logos - two rows */%>
-    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-center align-items-start align-items-md-center">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <img class="d-block" purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png">
-      <img class="d-block" purpose="uber-logo" alt="Uber logo" src="/images/logo-uber-70x24@2x.png">
-      <img class="d-block" purpose="fastly-logo" alt="Fastly logo" src="/images/logo-fastly-75x30@2x.png">
-    </div>
-
-    <div purpose="logo-column" class="d-sm-flex d-none d-lg-none flex-row justify-content-center align-items-center mb-0">
-      <img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png">
-      <img purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png">
-      <a href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" src="/images/logo-segment-112x24@2x.png"></a>
-    </div>
-
-    <%/* <576px logos - three rows */%>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center">
-      <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" alt="Snowflake logo" src="/images/logo-snowflake-117x28@2x.png"></a>
-      <span ><img purpose="wayfair-logo" alt="Wayfair logo" src="/images/logo-wayfair-110x24@2x.png"></span>
-    </div>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-between align-items-center">
-      <img purpose="uber-logo" alt="Uber logo" src="/images/logo-uber-70x24@2x.png">
-      <img purpose="fastly-logo" alt="Fastly logo" src="/images/logo-fastly-75x30@2x.png">
-      <img purpose="atlassian-logo" alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png">
-    </div>
-    <div purpose="logo-column" class="d-flex d-sm-none flex-row justify-content-center align-items-center mb-0">
-      <span ><img  purpose="gusto-logo" alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png"></span>
-      <a  href="https://segment.com/blog/hosting-fleetdm-on-aws-eks/" target="_blank"><img purpose="segment-logo" alt="Segment logo" src="/images/logo-segment-112x24@2x.png"></a>
+  <div purpose="hero-logos" class="mx-auto">
+    <logo-carousel></logo-carousel>
+    <div purpose="statistics">
+      <div purpose="statistics-column">
+        <div purpose="customers">
+          <h4>100+</h4>
+          <p>customers</p>
+        </div>
+        <div purpose="devices">
+          <h4>2,000,000+</h4>
+          <p>computing devices</p>
+        </div>
+      </div>
+      <div purpose="statistics-column">
+        <div purpose="countries">
+          <h4>90+</h4>
+          <p>countries</p>
+        </div>
+        <div purpose="response-time">
+          <h4>8 minutes</h4>
+          <p>avg support response time</p>
+        </div>
+      </div>
     </div>
   </div>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
-    <%/* Testimonial videos */%>
     <div purpose="page-section">
-      <div purpose="testimonials" class="d-flex flex-lg-row flex-column justify-content-center card-deck">
-        <div purpose="testimonial" class="d-flex align-items-center card" @click="clickOpenVideoModal('nick-fohs')">
-          <div purpose="testimonial-video" class="card-title">
-            <img alt="Play video" src="/images/icon-play-48x48@2x.png">
-          </div>
-          <div purpose="testimonial-text">
-            <p purpose="testimonial-quote">“Fleet lets us to be as lightweight as possible while surfacing data to other teams and partners.”</p>
-            <p class="mb-0"><strong>Nick Fohs</strong></p>
-            <p class="mb-0">Systems and IT infrastructure manager</p>
-          </div>
-        </div>
-        <div purpose="testimonial" class="d-flex align-items-center card" @click="clickOpenVideoModal('austin-anderson')">
-          <div purpose="testimonial-video" class="card-title">
-            <img alt="Play video" src="/images/icon-play-48x48@2x.png">
-          </div>
-          <div purpose="testimonial-text">
-            <p purpose="testimonial-quote">“We can build it exactly the way we want it. Which is just not possible on other platforms.”</p>
-            <p class="mb-0"><strong>Austin Anderson</strong></p>
-            <p class="mb-0">Cybersecurity team senior manager</p>
-          </div>
-        </div>
-      </div>
-
+    <% if(!primaryBuyingSituation){ %>
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
-        <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'device-management' ? 'selected' : '']" @click="selectedCategory = 'device-management'">Device management</div>
-        <div purpose="category-switch-option" class="all" :class="[selectedCategory === 'endpoint-ops' ? 'selected' : '']" @click="selectedCategory = 'endpoint-ops'">Endpoint ops</div>
-        <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vulnerability-management'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
-        <div purpose="category-tier-switch" :class="selectedCategory+'-selected'"></div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'software-management' ? 'selected' : '']" @click="selectedCategory = 'software-management'">Software management</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-it' ? 'selected' : '']" @click="selectedCategory = 'eo-it'">IT engineering</div>
+        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'software-management' ? 'software-management-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
       </div>
-
       <%/* Device management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'device-management' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'device-management'">
-        <div purpose="category-text-block" class="d-flex flex-column">
-          <h4>Device management</h4>
-          <h3>Manage everything in one place</h3>
-          <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux. De-risk config changes, automate security audits, and clear the way for “zero trust access” in your org.</p>
-          <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
-          </div>
-        </div>
-        <div purpose="device-management-image">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" :class="[selectedCategory === 'mdm' ? 'visible' : '']" v-if="selectedCategory === 'mdm'">
+        <div purpose="device-management-image" class="left">
           <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
         </div>
-      </div>
-
-      <%/* Endpoint ops block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'endpoint-ops' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'endpoint-ops'">
         <div purpose="category-text-block" class="d-flex flex-column">
-          <h4>Endpoint ops</h4>
-          <h3>Focus on data, not vendors</h3>
-          <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
+          <strong>Real employee choice — even Linux</strong>
+          <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
+          <strong>Users have choice, you should too</strong>
+          <p>Love working in the UI? Check. Want to work in GitOps? Double check. Don't use GitOps? That's ok, plenty of people use Fleet without it.</p>
+          <strong>Know the state of your devices in seconds</strong>
+          <p>Collect and normalize the latest details about any device, like hardware specs, installed software, and security configurations.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">See how we compare</a>
           </div>
-        </div>
-        <div purpose="endpoint-ops-image">
-          <img alt="Endpoint ops" src="images/endpoint-operations-hero-image-380x383@2x.png">
         </div>
       </div>
 
-      <%/* Vulnerability management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'vulnerability-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'vulnerability-management'">
+      <%/* IT engineering block */%>
+      <div purpose="platform-block" :class="[selectedCategory === 'eo-it' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'eo-it'">
+        <div purpose="endpoint-ops-image" class="left">
+          <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
+        </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <h4>Vulnerability management</h4>
-          <h3>Build the vulnerability program you actually want</h3>
-          <p>Show how quickly CVEs are resolved and which teams need extra help. Manage and report on vulnerabilities in operating systems, software packages, browser plugins, anywhere.</p>
+          <strong>Orchestrate anything</strong>
+          <p>Use a robust API to remotely run scripts, verify configs, or create webhooks for every kind of device — including servers.</p>
+          <strong>Democratize change with GitOps</strong>
+          <p>Maintain reliable employee experiences with version-controlled changes and enhancements. Use CI/CD and peer reviews to look before you leap.</p>
+          <strong>In the cloud or on-prem</strong>
+          <p>Fleet uses the same open-source code base regardless of where it’s installed. You can deploy and configure it to fit your needs.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/orchestration?purpose=it">More about IT engineering</a>
           </div>
-        </div>
-        <div purpose="vuln-management-image">
-          <img  alt="A pocket monster orb being scanned for vulnerabilities" src="/images/vuln-management-hero-image-360x374@2x.png">
         </div>
       </div>
 
-      <%/* Integration cards */%>
-        <h2 class="text-center">Connect your favorite tools</h2>
-        <div purpose="integration-cards" class="d-flex flex-sm-row flex-column justify-content-center">
-          <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
-            <a href="/integrations">
-              <div purpose="integration-card">
-                <img alt="Custom IT workflows" src="/images/integration-icon-custom-workflows-32x36@2x.png">
-                <strong>Custom IT workflows</strong>
-                <p>Use git, yaml, webhooks, realtime device access, file carving, vuln feeds, the REST API, and a GUI for IT automation.</p>
-              </div>
-            </a>
-            <a href="/integrations">
-              <div purpose="integration-card">
-                <img alt="IT ticketing" src="/images/integration-logo-jira-32x36@2x.png">
-                <strong>IT ticketing</strong>
-                <p>Automate ticketing with Jira, ServiceNow, or integrate your own system.</p>
-              </div>
-            </a>
-          </div>
-          <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
-            <a href="/integrations">
-              <div purpose="integration-card">
-                <img alt="Event logs" src="/images/integration-logo-snowflake-32x36@2x.png">
-                <strong>Event logs</strong>
-                <p>Send data to any platform like Snowflake, AWS, or Splunk.  Ship logs or fine-tuned snapshots at high frequencies.</p>
-              </div>
-            </a>
-            <a href="/integrations">
-              <div purpose="integration-card">
-                <img alt="Scripting" src="/images/integration-logo-munki-36x36@2x.png">
-                <strong>Scripting</strong>
-                <p>Easily connect Munki, Chef, Ansible, and Puppet or deploy your own scripts.</p>
-              </div>
-            </a>
+      <%/* Security engineering block */%>
+      <div purpose="platform-block" :class="[selectedCategory === 'software-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'software-management'">
+        <div purpose="vuln-management-image" class="left">
+          <img  alt="An orb being scanned for vulnerabilities" src="/images/software-management-hero-image-380x380@2x.png">
+        </div>
+        <div purpose="category-text-block" class="d-flex flex-column">
+          <strong>Comprehensive software inventory</strong>
+          <p>In-depth insights into everything installed on your devices, all accessible from a single unified view.</p>
+          <strong>Patch software automatically</strong>
+          <p>Seamlessly enforce security updates and automate software installations or script execution.</p>
+          <strong>Head to head with the big players</strong>
+          <p>Fleet has the features you need, including zero-touch installs and self-service, to keep your employees secure and productive.</p>
+          <div>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/software-management">See how we compare</a>
           </div>
         </div>
-        <div class="d-flex flex-column align-items-center">
-          <a purpose="animated-arrow-button-red" href="/integrations">View all integrations</a>
-        </div>
-    </div>
+      </div>
+       <% } else if(['eo-it', 'eo-security'].includes(primaryBuyingSituation)) {%>
+         <%/* Endpoint ops block */%>
+         <%if(primaryBuyingSituation === 'eo-it'){ %>
+           <%/* Device management block */%>
+           <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
+             <div purpose="device-management-image" class="left">
+               <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
+             </div>
+             <div purpose="category-text-block" class="d-flex flex-column personalized">
+               <h4>Device management</h4>
+               <h2>Manage everything in one place</h2>
+               <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
+               <div>
+                 <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
+               </div>
+             </div>
+           </div>
+         <% } %>
+         <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
+           <div purpose="category-text-block" class="d-flex flex-column personalized">
+             <h4><%= primaryBuyingSituation==='eo-security'? 'Security engineering' : 'IT engineering'%></h4>
+             <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
+             <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
+             <div>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
+             </div>
+           </div>
+           <div purpose="endpoint-ops-image" class="right">
+             <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
+           </div>
+         </div>
+         <% if(primaryBuyingSituation === 'eo-security') {%>
+           <%/* Vulnerability management block */%>
+           <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
+             <div purpose="vuln-management-image" class="left">
+               <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
+             </div>
+             <div purpose="category-text-block" class="d-flex flex-column personalized">
+               <h4>Vulnerability management</h4>
+               <h2>Build the vulnerability program you actually want</h2>
+               <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
+               <div>
+                <animated-arrow-button href="/vulnerability-management">Start with vuln management</animated-arrow-button>
+               </div>
+             </div>
+           </div>
+         <% } %>
+
+       <% } else if(['vm', 'mdm'].includes(primaryBuyingSituation)) {%>
+
+         <%if(primaryBuyingSituation === 'mdm'){ %>
+           <%/* Device management block */%>
+           <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
+             <div purpose="category-text-block" class="d-flex flex-column personalized">
+               <h4>Device management</h4>
+               <h2>Manage everything in one place</h2>
+               <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
+               <div>
+                 <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
+               </div>
+             </div>
+             <div purpose="device-management-image" class="right">
+               <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
+             </div>
+           </div>
+         <% } else {%>
+           <%/* Vulnerability management block */%>
+           <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
+             <div purpose="category-text-block" class="d-flex flex-column personalized">
+               <h4>Vulnerability management</h4>
+               <h2>Build the vulnerability program you actually want</h2>
+               <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
+               <div>
+                 <animated-arrow-button href="/vulnerability-management">Start with vuln management</animated-arrow-button>
+               </div>
+             </div>
+             <div purpose="vuln-management-image" class="right">
+               <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
+             </div>
+           </div>
+         <% } %>
+
+         <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
+           <div purpose="endpoint-ops-image" class="left">
+             <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
+           </div>
+           <div purpose="category-text-block" class="d-flex flex-column personalized">
+             <h4><%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'Security engineering'%></h4>
+             <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
+             <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
+             <div>
+               <animated-arrow-button href="/orchestration">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
+             </div>
+           </div>
+         </div>
+       <% } %>
     <div purpose="page-section">
       <div purpose="endpoints-banner">
         <div purpose="endpoint-banner-text">
-          <h2>An open interface for every endpoint</h2>
+          <h2>An open interface for every OS</h2>
           <p>Normalize how you manage clouds and computers without losing low-level access to OS-specific features.</p>
           <div class="d-flex flex-row align-items-center justify-content-md-start justify-content-center">
-            <a purpose="animated-arrow-button-red-no-transform" href="/docs/get-started/why-fleet">Read the docs</a>
+            <animated-arrow-button href="/docs/get-started/why-fleet">Read the docs</animated-arrow-button>
           </div>
         </div>
         <div purpose="endpoints-images">
@@ -214,8 +238,8 @@
               <p>Data centers</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
-              <img alt="IOT" src="/images/icon-iot-36x36@2x.png">
-              <p>IoT (Linux)</p>
+              <img alt="iOS" src="/images/icon-ios-36x36@2x.png">
+              <p>iOS/iPadOS</p>
             </div>
             <div purpose="endpoint-empty-image-box"></div>
             <div purpose="endpoint-empty-image-box"></div>
@@ -241,7 +265,7 @@
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
               <img alt="ChromeOS" src="/images/logo-chrome-36x37@2x.png">
-              <p>Chromebook</p>
+              <p>ChromeOS</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
               <img alt="Containers" src="/images/logo-docker-40x40@2x.png">
@@ -254,15 +278,15 @@
             <div purpose="endpoint-empty-image-box" class="d-md-flex d-none"></div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
               <img alt="ChromeOS" src="/images/logo-chrome-36x37@2x.png">
-              <p>Chromebook</p>
+              <p>ChromeOS</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
               <img alt="Containers" src="/images/logo-docker-40x40@2x.png">
               <p>Containers</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
-              <img alt="IOT" src="/images/icon-iot-36x36@2x.png">
-              <p>IoT (Linux)</p>
+              <img alt="iOS" src="/images/icon-ios-36x36@2x.png">
+              <p>iOS/iPadOS</p>
             </div>
             <div purpose="endpoint-empty-image-box"></div>
             <div purpose="endpoint-empty-image-box"></div>
@@ -283,9 +307,63 @@
 
     </div>
 
+    <%/* Integration cards */%>
+<!--       <div purpose="integrations-section">
+        <h2 class="text-center">Connect your favorite tools</h2>
+        <div purpose="integration-cards" class="d-flex flex-sm-row flex-column justify-content-center">
+          <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img alt="Custom IT workflows" src="/images/integration-icon-custom-workflows-32x36@2x.png">
+                <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
+                <strong>Kick off automations</strong>
+                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations.</p>
+                <% } else { %>
+                <strong>Custom IT workflows</strong>
+                <p>Use git, yaml, webhooks, realtime device access, file carving, vuln feeds, the REST API, and a GUI for IT automation.</p>
+                <% } %>
+              </div>
+            </a>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img alt="IT ticketing" src="/images/integration-logo-jira-32x36@2x.png">
+                <strong><%- ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'Case management' : 'IT ticketing'%></strong>
+                <p>Automate ticketing with Jira, ServiceNow, or integrate your own system.</p>
+              </div>
+            </a>
+          </div>
+          <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img alt="Event logs" src="/images/integration-logo-snowflake-32x36@2x.png">
+                <strong>Event logs</strong>
+                <p>Send data to any platform like Snowflake, AWS, or Splunk.  Ship logs or fine-tuned snapshots at high frequencies.</p>
+              </div>
+            </a>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
+                  <img alt="Remediations" src="/images/integration-logo-ansible-36x36@2x.png">
+                  <strong>Remediations</strong>
+                  <p>Easily connect Ansible, Chef, or deploy your own runbooks to install missing security agents and harden endpoints.</p>
+                <% } else { %>
+                  <img alt="Scripting" src="/images/integration-logo-munki-36x36@2x.png">
+                  <strong>Scripting</strong>
+                  <p>Easily connect Munki, Chef, Ansible, and Puppet or deploy your own scripts.</p>
+                <% } %>
+              </div>
+            </a>
+          </div>
+        </div>
+        <div class="d-flex flex-column align-items-center">
+          <animated-arrow-button href="/integrations">View all integrations</animated-arrow-button>
+        </div>
+      </div> -->
+    </div>
+
     <div purpose="homepage-text-block" class="text-center mx-auto">
       <h2>Open by design</h2>
-      <p>Fleet is dedicated to flexibility, accessibility, and clarity. We think everyone can contribute and that tools should be as easy as possible for everyone to understand.</p>
+      <p>At Fleet, everyone can contribute. We are dedicated to making tools that are easy for everyone to understand.</p>
     </div>
 
     <div purpose="three-column-features" class="mx-auto">
@@ -293,20 +371,20 @@
 
         <div purpose="feature" class="ml-sm-0">
           <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-md-0">
-          <h5>Scope transparency</h5>
-          <p>Let end users see the source code for exactly <a href="/docs/using-fleet/fleet-desktop">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
+          <h5>"Why is this running on my computer?"</h5>
+          <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
         </div>
 
         <div purpose="feature">
           <img alt="Free as in free" src="/images/homepage-icon-free-48x64@2x.png">
           <h5>Free as in free</h5>
-          <p>The <a href="/pricing">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
+          <p>The <a href="https://fleetdm.com/docs/get-started/faq#what-is-your-commitment-to-open-source-stewardship">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
         </div>
 
         <div purpose="feature" class="mr-sm-0 mb-0">
           <img alt="An open book" src="/images/homepage-icon-openness-80x64@2x.png">
-          <h5>We value openness</h5>
-          <p>Fleet's company <a href="/handbook">handbook</a> is public and open source. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
+          <h5>Open source</h5>
+          <p>All of Fleet's source code is <a href="/handbook/company/why-this-way#why-open-source">public</a>, and our company <a href="/handbook">handbook</a> is public and open to the world. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
         </div>
 
       </div>
@@ -317,11 +395,11 @@
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>For teams with lots of different endpoints</h4>
-        <h1>Your last MDM migration</h1>
-        <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
+        <h4>For teams with lots of computing devices</h4>
+        <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+        <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/register">Try it yourself</a>
+          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
       </div>
     </div>
@@ -329,11 +407,41 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <div purpose="homepage-content" class="container py-4 my-0 my-md-2">
+    <div purpose="newsletter-banner">
+       <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">
+         <div purpose="newletter-form-text" class="d-flex flex-row align-items-center">
+            <p v-if="formErrors.emailAddress || cloudError" class="text-danger" focus-first>
+              Please enter a valid work email
+            </p>
+            <p v-else-if="cloudSuccess">
+              Thanks for subscribing!</p>
+            <p v-else>
+              <strong>Curious?</strong> Get product updates and news
+            </p>
+         </div>
+         <ajax-form class="d-flex flex-md-row flex-column" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedNewsletterForm()">
+           <div class="d-flex flex-column w-100">
+             <input purpose="newsletter-form-input" class="form-control" v-model.trim="formData.emailAddress" placeholder="Enter your work email">
+           </div>
+           <div class="d-flex flex-column w-100">
+             <ajax-button purpose="subscribe-button" type="submit-button" :syncing="syncing" class="btn btn-primary">Subscribe</ajax-button>
+          </div>
+         </ajax-form>
+       </div>
+    </div>
+  </div>
+  <modal v-if="modal === 'unsubscribed'" @close="closeModal()">
+    <p class="mb-0">Your email preferences have been updated.</p>
+  </modal>
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
   <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

@@ -43,7 +43,7 @@ I thought using Apple’s Automated Device Enrollment (or Device Enrollment Prog
 
 Technically, I was not wrong, but there are non-technical challenges.
 
-1. The requirements to establish a DEP account vary by country. In the US, for example, it requires a [DUNS](https://en.wikipedia.org/wiki/Data_Universal_Numbering_System) number. Getting a DUNS number is simple for US companies, but what is not easy is to fulfill similar requirements in every country where you would like to use DEP. We could not register for DEP in Canada. We have people in many other countries with a similar situation.
+1. The requirements to establish an ADE account vary by country. In the US, for example, it requires a [DUNS](https://en.wikipedia.org/wiki/Data_Universal_Numbering_System) number. Getting a DUNS number is simple for US companies, but what is not easy is to fulfill similar requirements in every country where you would like to use ADE. We could not register for ADE in Canada. We have people in many other countries with a similar situation.
 2. The delays for obtaining hardware are very long. When planning endpoint deployment strategies, we must consider this, as supply chain issues will not disappear soon.
 3. The benchmarks made by the Center for Internet Security (CIS) are excellent but are incredibly long (700+ pages) and written for experts. We wanted to be transparent about why we configured company devices a certain way and explain it so everyone could understand without Googling for hours.
 
@@ -55,9 +55,9 @@ Google should offer more granularity than on/off for third-party cookies, such a
 
 ## Solutions
 
-### DEP in other countries
+### ADE in other countries
 
-First, we enrolled in DEP in the US. Once we had our customer numbers and Mobile Device Management (MDM) system linked up, we were ready to buy laptops in the US that would get configured out of the box. Then, we found a workaround for Canada. If you add Apple’s Reseller ID to [Apple Business Manager](https://business.apple.com/), you can order computers over the phone and have them linked to your business account. The Reseller ID part is critical. I learned that the hard way, by receiving a laptop ordered like this to find it not part of DEP. Fortunately, it was easy for me to [add it to DEP manually](https://support.apple.com/en-ca/guide/apple-configurator/welcome/ios).
+First, we enrolled in ADE in the US. Once we had our customer numbers and Mobile Device Management (MDM) system linked up, we were ready to buy laptops in the US that would get configured out of the box. Then, we found a workaround for Canada. If you add Apple’s Reseller ID to [Apple Business Manager](https://business.apple.com/), you can order computers over the phone and have them linked to your business account. The Reseller ID part is critical. I learned that the hard way, by receiving a laptop ordered like this to find it not part of ADE. Fortunately, it was easy for me to [add it to ADE manually](https://support.apple.com/en-ca/guide/apple-configurator/welcome/ios).
 
 We will keep trying the same approach in every country where we need Macs, though we know it will not be possible everywhere. We will either obtain equipment from a nearby country or rely on manual MDM enrollment by end-users for those countries.
 
@@ -76,7 +76,7 @@ Using the [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/appl
 
 ### Effort
 
-Implementing our own security baseline, configuring our MDM and DEP required a couple of days of effort, mostly because I insisted on reviewing all of the CIS Benchmark to be certain I didn’t miss something important. Having everything published in our handbook required additional effort, but if you were to use our baseline, you could get started very quickly. The main thing that will slow you down is getting onboarded to DEP, and receiving your first laptop ordered!
+Implementing our own security baseline, configuring our MDM and ADE required a couple of days of effort, mostly because I insisted on reviewing all of the CIS Benchmark to be certain I didn’t miss something important. Having everything published in our handbook required additional effort, but if you were to use our baseline, you could get started very quickly. The main thing that will slow you down is getting onboarded to ADE, and receiving your first laptop ordered!
 
 ## What's next?
 

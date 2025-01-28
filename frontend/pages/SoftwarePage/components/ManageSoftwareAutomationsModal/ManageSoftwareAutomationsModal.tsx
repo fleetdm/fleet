@@ -8,7 +8,7 @@ import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegration,
-  IIntegrations,
+  IGlobalIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
 import {
@@ -16,6 +16,7 @@ import {
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
 import configAPI from "services/entities/config";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
@@ -124,7 +125,7 @@ const ManageAutomationsModal = ({
     }
   }, [destinationUrl]);
 
-  const { data: integrations } = useQuery<IConfig, Error, IIntegrations>(
+  const { data: integrations } = useQuery<IConfig, Error, IGlobalIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
     {
@@ -353,9 +354,9 @@ const ManageAutomationsModal = ({
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
-            placeholder={"Select integration"}
+            placeholder="Select integration"
             value={selectedIntegration?.dropdownIndex}
-            label={"Integration"}
+            label="Integration"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             helpText="For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
           />
@@ -365,6 +366,7 @@ const ManageAutomationsModal = ({
             <Link
               to={PATHS.ADMIN_INTEGRATIONS}
               className={`${baseClass}__add-integration-link`}
+              tabIndex={softwareAutomationsEnabled ? 0 : -1}
             >
               Add integration
             </Link>
@@ -396,21 +398,23 @@ const ManageAutomationsModal = ({
         <InputField
           inputWrapperClass={`${baseClass}__url-input`}
           name="webhook-url"
-          label={"Destination URL"}
-          type={"text"}
+          label="Destination URL"
+          type="text"
           value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
           helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
           }
-          placeholder={"https://server.com/example"}
+          placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
+          disabled={!softwareAutomationsEnabled}
         />
         <Button
           type="button"
           variant="text-link"
           onClick={togglePreviewPayloadModal}
+          disabled={!softwareAutomationsEnabled}
         >
           Preview payload
         </Button>
@@ -434,7 +438,7 @@ const ManageAutomationsModal = ({
   return (
     <Modal
       onExit={onReturnToApp}
-      title={"Manage automations"}
+      title="Manage automations"
       className={baseClass}
       width="large"
     >
@@ -444,8 +448,8 @@ const ManageAutomationsModal = ({
           onChange={() =>
             setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
           }
-          inactiveText={"Vulnerability automations disabled"}
-          activeText={"Vulnerability automations enabled"}
+          inactiveText="Vulnerability automations disabled"
+          activeText="Vulnerability automations enabled"
         />
         <div
           className={`form ${baseClass}__software-automations${
@@ -456,21 +460,23 @@ const ManageAutomationsModal = ({
             <div className="form-field__label">Workflow</div>
             <Radio
               className={`${baseClass}__radio-input`}
-              label={"Ticket"}
-              id={"ticket-radio-btn"}
+              label="Ticket"
+              id="ticket-radio-btn"
               checked={integrationEnabled}
-              value={"ticket"}
-              name={"ticket"}
+              value="ticket"
+              name="workflow-type"
               onChange={onRadioChange(true)}
+              disabled={!softwareAutomationsEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
-              label={"Webhook"}
-              id={"webhook-radio-btn"}
+              label="Webhook"
+              id="webhook-radio-btn"
               checked={!integrationEnabled}
-              value={"webhook"}
-              name={"webhook"}
+              value="webhook"
+              name="workflow-type"
               onChange={onRadioChange(false)}
+              disabled={!softwareAutomationsEnabled}
             />
           </div>
           {integrationEnabled ? renderTicket() : renderWebhook()}
@@ -478,9 +484,10 @@ const ManageAutomationsModal = ({
             Vulnerability automations currently run for software
             vulnerabilities. Interested in automations for OS vulnerabilities?{" "}
             <CustomLink
-              url="https://www.fleetdm.com/support"
+              url={SUPPORT_LINK}
               text="Let us know"
               newTab
+              disableKeyboardNavigation={!softwareAutomationsEnabled}
             />
           </p>
         </div>

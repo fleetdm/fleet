@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -21,9 +23,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
+	"golang.org/x/exp/slices"
 )
 
 // osqueryError is the error returned to osquery agents.
@@ -78,7 +82,7 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key: " + nodeKey)
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
@@ -238,7 +242,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "instance":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -256,7 +260,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "uuid":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -274,7 +278,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "hostname":
 		r, ok := details["system_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
@@ -687,7 +691,8 @@ const alwaysTrueQuery = "SELECT 1"
 // list of detail queries that are returned when only the critical queries
 // should be returned (due to RefetchCriticalQueriesUntil timestamp being set).
 var criticalDetailQueries = map[string]bool{
-	"mdm": true,
+	"mdm":         true,
+	"mdm_windows": true,
 }
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
@@ -952,6 +957,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
+	preProcessSoftwareResults(host, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -972,7 +979,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
-		queryStats, _ := stats[query]
+		queryStats := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
@@ -999,6 +1006,26 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	if len(policyResults) > 0 {
 
+		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
+		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		// filter policy results for webhooks
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
@@ -1009,10 +1036,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
-			} else {
-				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-				}
+			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
 		}
 
@@ -1029,6 +1054,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}()
 			}
 		}
+
 		// NOTE(mna): currently, failing policies webhook wouldn't see the new
 		// flipped policies on the next run if async processing is enabled and the
 		// collection has not been done yet (not persisted in mysql). Should
@@ -1039,12 +1065,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
-	} else {
-		if hostWithoutPolicies {
-			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-				logging.WithErr(ctx, err)
-			}
+	} else if hostWithoutPolicies {
+		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1089,6 +1113,296 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+func processCalendarPolicies(
+	ctx context.Context,
+	ds fleet.Datastore,
+	appConfig *fleet.AppConfig,
+	host *fleet.Host,
+	policyResults map[uint]*bool,
+	logger log.Logger,
+) error {
+	if len(appConfig.Integrations.GoogleCalendar) == 0 || host.TeamID == nil {
+		return nil
+	}
+
+	team, err := ds.Team(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load host team")
+	}
+
+	if team.Config.Integrations.GoogleCalendar == nil || !team.Config.Integrations.GoogleCalendar.Enable {
+		return nil
+	}
+
+	hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEvent(ctx, host.ID)
+	switch {
+	case err == nil:
+		if hostCalendarEvent.WebhookStatus != fleet.CalendarWebhookStatusPending {
+			return nil
+		}
+	case fleet.IsNotFound(err):
+		return nil
+	default:
+		return ctxerr.Wrap(ctx, err, "get host calendar event")
+	}
+
+	now := time.Now()
+	if now.Before(calendarEvent.StartTime) {
+		level.Warn(logger).Log("msg", "results came too early", "now", now, "start_time", calendarEvent.StartTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored early", "err", err)
+		}
+		return nil
+	}
+
+	//
+	// TODO(lucas): Discuss.
+	//
+	const allowedTimeRelativeToEndTime = 5 * time.Minute // up to 5 minutes after the end_time to allow for short (0-time) event times
+
+	if now.After(calendarEvent.EndTime.Add(allowedTimeRelativeToEndTime)) {
+		level.Warn(logger).Log("msg", "results came too late", "now", now, "end_time", calendarEvent.EndTime)
+		if err = ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, fleet.CalendarWebhookStatusError); err != nil {
+			level.Error(logger).Log("msg", "mark webhook as errored late", "err", err)
+		}
+		return nil
+	}
+
+	calendarPolicies, err := ds.GetCalendarPolicies(ctx, *host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get calendar policy ids")
+	}
+	if len(calendarPolicies) == 0 {
+		return nil
+	}
+
+	failingCalendarPolicies := getFailingCalendarPolicies(policyResults, calendarPolicies)
+	if len(failingCalendarPolicies) == 0 {
+		return nil
+	}
+
+	go func() {
+		retryStrategy := backoff.NewExponentialBackOff()
+		retryStrategy.MaxElapsedTime = 30 * time.Minute
+		err := backoff.Retry(
+			func() error {
+				if err := fleet.FireCalendarWebhook(
+					team.Config.Integrations.GoogleCalendar.WebhookURL,
+					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+				); err != nil {
+					var statusCoder kithttp.StatusCoder
+					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
+						level.Debug(logger).Log("msg", "fire webhook", "err", err)
+						if err := ds.UpdateHostCalendarWebhookStatus(
+							context.Background(), host.ID, fleet.CalendarWebhookStatusRetry,
+						); err != nil {
+							level.Error(logger).Log("msg", "mark fired webhook as retry", "err", err)
+						}
+						return err
+					}
+					return backoff.Permanent(err)
+				}
+				return nil
+			}, retryStrategy,
+		)
+		nextStatus := fleet.CalendarWebhookStatusSent
+		if err != nil {
+			level.Error(logger).Log("msg", "fire webhook", "err", err)
+			nextStatus = fleet.CalendarWebhookStatusError
+		}
+		if err := ds.UpdateHostCalendarWebhookStatus(context.Background(), host.ID, nextStatus); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("mark fired webhook as %v", nextStatus), "err", err)
+		}
+	}()
+
+	return nil
+}
+
+func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies []fleet.PolicyCalendarData) []fleet.PolicyCalendarData {
+	var failingPolicies []fleet.PolicyCalendarData
+	for _, calendarPolicy := range calendarPolicies {
+		result, ok := policyResults[calendarPolicy.ID]
+		if !ok || // ignore result of a policy that's not configured for calendar.
+			result == nil { // ignore policies that failed to execute.
+			continue
+		}
+		if !*result {
+			failingPolicies = append(failingPolicies, calendarPolicy)
+		}
+	}
+	return failingPolicies
+}
+
+// preProcessSoftwareResults will run pre-processing on the responses of the software queries.
+// It will move the results from the software extra queries (e.g. software_vscode_extensions)
+// into the main software query results (software_{macos|linux|windows}) as well as process
+// any overrides that are set.
+// We do this to not grow the main software queries and to ingest
+// all software together (one direct ingest function for all software).
+func preProcessSoftwareResults(
+	host *fleet.Host,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	overrides map[string]osquery_utils.DetailQuery,
+	logger log.Logger,
+) {
+	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	for name, query := range overrides {
+		fullQueryName := hostDetailQueryPrefix + "software_" + name
+		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
+	}
+
+	// Filter out python packages that are also deb packages on ubuntu/debian
+	pythonPackageFilter(host.Platform, results, statuses)
+}
+
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
+// python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
+func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
+	const pythonPrefix = "python3-"
+	const pythonSource = "python_packages"
+	const debSource = "deb_packages"
+	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
+
+	// Return early if platform is not Ubuntu or Debian
+	// We may need to add more platforms in the future
+	if platform != "ubuntu" && platform != "debian" {
+		return
+	}
+
+	// Check the 'software_linux' result and status
+	sw, ok := (*results)[linuxSoftware]
+	if !ok {
+		return
+	}
+	if status, ok := (*statuses)[linuxSoftware]; !ok || status != fleet.StatusOK {
+		return
+	}
+
+	// Extract the Python and Debian packages from the software list for filtering
+	// pre-allocating space for 40 packages based on number of package found in
+	// a fresh ubuntu 24.04 install
+	pythonPackages := make(map[string]int, 40)
+	debPackages := make(map[string]struct{}, 40)
+
+	// Track indexes of rows to remove
+	indexesToRemove := []int{}
+
+	for i, row := range sw {
+		switch row["source"] {
+		case pythonSource:
+			loweredName := strings.ToLower(row["name"])
+			pythonPackages[loweredName] = i
+			row["name"] = loweredName
+		case debSource:
+			// Only append python3 deb packages
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				debPackages[row["name"]] = struct{}{}
+			}
+		}
+	}
+
+	// Return early if there are no Python packages to process
+	if len(pythonPackages) == 0 {
+		return
+	}
+
+	// Loop through pythonPackages map to identify any that should be removed
+	for name, index := range pythonPackages {
+		convertedName := pythonPrefix + name
+
+		// Filter out Python packages that are also Debian packages
+		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else {
+			// Update remaining Python package names to match OVAL definitions
+			sw[index]["name"] = convertedName
+		}
+	}
+
+	// Sort indexes to remove in descending order
+	sort.Sort(sort.Reverse(sort.IntSlice(indexesToRemove)))
+
+	// Remove rows from sw in descending order of indexes
+	for _, index := range indexesToRemove {
+		sw = append(sw[:index], sw[index+1:]...)
+	}
+
+	// Store the updated software result back in the results map
+	(*results)[linuxSoftware] = sw
+}
+
+func preProcessSoftwareExtraResults(
+	softwareExtraQuery string,
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	override osquery_utils.DetailQuery,
+	logger log.Logger,
+) {
+	// We always remove the extra query and its results
+	// in case the main or extra software query failed to execute.
+	defer delete(*results, softwareExtraQuery)
+
+	status, ok := (*statuses)[softwareExtraQuery]
+	if !ok {
+		return // query did not execute, e.g. the table does not exist.
+	}
+	failed := status != fleet.StatusOK
+	if failed {
+		// extra query executed but with errors, so we return without changing anything.
+		level.Error(logger).Log(
+			"query", softwareExtraQuery,
+			"message", (*messages)[softwareExtraQuery],
+			"hostID", hostID,
+		)
+		return
+	}
+
+	// Extract the results of the extra query.
+	softwareExtraRows := (*results)[softwareExtraQuery]
+	if len(softwareExtraRows) == 0 {
+		return
+	}
+
+	// Append the results of the extra query to the main query.
+	for _, query := range []string{
+		// Only one of these execute in each host.
+		hostDetailQueryPrefix + "software_macos",
+		hostDetailQueryPrefix + "software_windows",
+		hostDetailQueryPrefix + "software_linux",
+	} {
+		if _, ok := (*results)[query]; !ok {
+			continue
+		}
+		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+			// Do not append results if the main query failed to run.
+			continue
+		}
+		if override.SoftwareProcessResults != nil {
+			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+		} else {
+			(*results)[query] = removeOverrides((*results)[query], override)
+			(*results)[query] = append((*results)[query], softwareExtraRows...)
+		}
+		return
+	}
+}
+
+func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
+	if override.SoftwareOverrideMatch != nil {
+		rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
+			return override.SoftwareOverrideMatch(row)
+		})
+	}
+
+	return rows
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
@@ -1231,7 +1545,7 @@ func (svc *Service) ingestDistributedQuery(
 
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
+		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
 		Host: fleet.ResultHostData{
 			ID:          host.ID,
 			Hostname:    host.Hostname,
@@ -1255,7 +1569,7 @@ func (svc *Service) ingestDistributedQuery(
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
@@ -1317,9 +1631,9 @@ func ingestMembershipQuery(
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
 	if failed {
-		results[uint(trimmedQueryNum)] = nil
+		results[uint(trimmedQueryNum)] = nil //nolint:gosec // dismiss G115
 	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0) //nolint:gosec // dismiss G115
 	}
 
 	return nil
@@ -1389,6 +1703,469 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 	return nil
 }
 
+func (svc *Service) processSoftwareForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// We do not want to queue software installations on vanilla osquery hosts.
+		return nil
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated installers for the team.
+	policiesWithInstaller, err := svc.ds.GetPoliciesWithAssociatedInstaller(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithInstaller) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to installers.
+	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
+	for _, policyWithInstaller := range policiesWithInstaller {
+		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
+	}
+	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithInstallersMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithInstallers[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithInstallers) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with installers that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithInstallers,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
+		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with installers that are not newly failing.
+	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
+	for _, policyWithInstaller := range policiesWithInstaller {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
+		}
+	}
+
+	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		policyID := failingPolicyWithInstaller.ID
+		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", failingPolicyWithInstaller.ID,
+			"software_installer_id", failingPolicyWithInstaller.InstallerID,
+			"software_title_id", installerMetadata.TitleID,
+			"software_installer_platform", installerMetadata.Platform,
+		)
+		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
+			level.Debug(logger).Log("msg", "installer platform does not match host platform")
+			continue
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
+		}
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since software is out of scope for host")
+			continue
+		}
+		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host last install data")
+		}
+		// hostLastInstall.Status == nil can happen when a software is installed by Fleet and later removed.
+		if hostLastInstall != nil && hostLastInstall.Status != nil &&
+			*hostLastInstall.Status == fleet.SoftwareInstallPending {
+			// There's a pending install for this host and installer,
+			// thus we do not queue another install request.
+			level.Debug(svc.logger).Log(
+				"msg", "found pending install request for this host and installer",
+				"pending_execution_id", hostLastInstall.ExecutionID,
+			)
+			continue
+		}
+		// NOTE(lucas): The user_id set in this software install will be NULL
+		// so this means that when generating the activity for this action
+		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
+		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
+			ctx, hostID,
+			installerMetadata.InstallerID,
+			false, // Set Self-service as false because this is triggered by Fleet.
+			&policyID,
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert software install request: host_id=%d, software_installer_id=%d",
+				hostID, installerMetadata.InstallerID,
+			)
+		}
+		level.Debug(logger).Log(
+			"msg", "install request sent",
+			"install_uuid", installUUID,
+		)
+	}
+	return nil
+}
+
+func (svc *Service) processVPPForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated VPP apps for the team.
+	policiesWithVPP, err := svc.ds.GetPoliciesWithAssociatedVPP(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithVPP) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to VPP apps.
+	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
+	for _, policyWithVPP := range policiesWithVPP {
+		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
+	}
+	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithVPPMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithVPP[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithVPP,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
+		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with VPP apps that are not newly failing.
+	var failingPoliciesWithVPP []fleet.PolicyVPPData
+	for _, policyWithVPP := range policiesWithVPP {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		}
+	}
+
+	if len(failingPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to get host details")
+	}
+	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
+	}
+
+	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
+	}
+
+	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
+		policyID := failingPolicyWithVPP.ID
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"vpp_adam_id", failingPolicyWithVPP.AdamID,
+			"vpp_platform", failingPolicyWithVPP.AdamID,
+			"software_title_id", failingPolicyWithVPP.Platform,
+		)
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			level.Debug(svc.logger).Log(
+				"msg", "install of app is already pending",
+			)
+			continue
+		}
+
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get VPP metadata",
+				"error", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get install VPP app",
+				"error", err,
+			)
+			continue
+		}
+
+		level.Debug(logger).Log("msg", "vpp install request sent", "command_uuid", commandUUID)
+	}
+
+	return nil
+}
+
+func (svc *Service) processScriptsForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		return nil // vanilla osquery hosts can't run scripts
+	}
+	// not logging here to avoid spamming logs on every policy failure for every no-scripts host even if the policy
+	// doesn't have a script attached
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
+
+	// Bail if scripts are disabled globally
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
+		return nil
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated scripts for the team.
+	policiesWithScript, err := svc.ds.GetPoliciesWithAssociatedScript(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+	}
+	if len(policiesWithScript) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to scripts.
+	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
+	for _, policyWithScript := range policiesWithScript {
+		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
+	}
+	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithScriptsMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithScripts[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithScripts) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with scripts that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithScripts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
+		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with scripts that are not newly failing.
+	var failingPoliciesWithScript []fleet.PolicyScriptData
+	for _, policyWithScript := range policiesWithScript {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
+		}
+	}
+
+	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		policyID := failingPolicyWithScript.ID
+
+		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"script_id", failingPolicyWithScript.ScriptID,
+			"script_name", scriptMetadata.Name,
+		)
+
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host pending script executions")
+		}
+		if len(allScriptsExecutionPending) > maxPendingScripts {
+			level.Warn(logger).Log("msg", "too many scripts pending for host")
+			return nil
+		}
+
+		// skip incompatible scripts
+		hostPlatform := fleet.PlatformFromHost(hostPlatform)
+		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+			level.Info(logger).Log("msg", "script type does not match host platform")
+			continue
+		}
+
+		// skip different-team scripts
+		var scriptTeamID uint
+		if scriptMetadata.TeamID != nil {
+			scriptTeamID = *scriptMetadata.TeamID
+		}
+		if policyTeamID != scriptTeamID { // this should not happen
+			level.Error(logger).Log("msg", "script team does not match host team")
+			continue
+		}
+
+		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
+		}
+		if scriptIsAlreadyPending {
+			level.Debug(logger).Log("msg", "script is already pending on host")
+			continue
+		}
+
+		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		runScriptRequest := fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  string(contents),
+			ScriptContentID: scriptMetadata.ScriptContentID,
+			ScriptID:        &scriptMetadata.ID,
+			TeamID:          policyTeamID,
+			PolicyID:        &policyID,
+			// no user ID as scripts are executed by Fleet
+		}
+
+		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert script run request; host_id=%d, script_id=%d",
+				hostID, scriptMetadata.ID,
+			)
+		}
+
+		level.Debug(logger).Log(
+			"msg", "script run request sent",
+			"execution_id", scriptResult.ExecutionID,
+		)
+	}
+
+	return nil
+}
+
 func (svc *Service) maybeDebugHost(
 	ctx context.Context,
 	host *fleet.Host,
@@ -1449,6 +2226,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 
 	case "result":
+		// NOTE(dantecatalfamo) We partially unmarshal the data here because osquery can send data we don't
+		// support unmarshaling, like differential query results. We also pass the raw data to logging
+		// facilities further down. Results are unmarshaled one at a time inside of SubmitResultLogs.
+		// We should re-address this once json/v2 releases and we can speed up parsing times.
 		var results []json.RawMessage
 		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
 		// Maybe there's a reason for it, we need to test such a change before fixing what appears
@@ -1457,6 +2238,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
+		logging.WithExtras(ctx, "results", len(results))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
@@ -1503,12 +2285,10 @@ func (svc *Service) preProcessOsqueryResults(
 			// 	field could not be unmarshalled.
 			//
 			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else {
+		} else if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			if result != nil && result.QueryName == "" {
-				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
-				result = nil
-			}
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
@@ -1524,6 +2304,11 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			// Legacy query. Cannot be stored and cannot
+			// infer team ID, but still used by some customers
+			continue
+		}
 		if err != nil {
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
@@ -1581,7 +2366,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
 	if !queryReportsDisabled {
-		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
 	var filteredLogs []json.RawMessage
@@ -1643,7 +2429,12 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+	maxQueryReportRows int,
+) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1668,6 +2459,16 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			continue
 		}
 
+		hostTeamID := uint(0)
+		if host.TeamID != nil {
+			hostTeamID = *host.TeamID
+		}
+		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
+			// The host was transferred to another team/global so we ignore the incoming results
+			// of this query that belong to a different team.
+			continue
+		}
+
 		// We first check the current query results count using the DB reader (also cached)
 		// to reduce the DB writer load of osquery/log requests when the host count is high.
 		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
@@ -1675,11 +2476,11 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
 			continue
 		}
-		if count >= fleet.MaxQueryReportRows {
+		if count >= maxQueryReportRows {
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
+		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
@@ -1691,7 +2492,7 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -1717,7 +2518,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
 	return nil
@@ -1761,18 +2562,45 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 // The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 //
 // Returns "" if it failed to parse the pack_delimiter.
+
+var (
+	dcounter = regexp.MustCompile(`(Global)|(team-\d+)`)
+	pattern  = regexp.MustCompile(`^(.*)(?:(Global)|(team-\d+))`)
+)
+
 func findPackDelimiterString(scheduledQueryName string) string {
-	// Go's regexp doesn't support backreferences so we have to perform some manual work.
 	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
-	for l := 1; l < len(scheduledQueryName); l++ {
-		sep := scheduledQueryName[:l]
-		rest := scheduledQueryName[l:]
-		pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
-		matched, _ := regexp.MatchString(pattern, rest)
-		if matched {
-			return sep
+
+	count := dcounter.FindAllString(scheduledQueryName, -1)
+
+	// If Global or team-<team_id> does not appear, then the
+	// pack_delimiter is invalid.
+	if len(count) == 0 {
+		return ""
+	}
+
+	if len(count) == 1 {
+		matches := pattern.FindStringSubmatch(scheduledQueryName)
+		if len(matches) > 1 {
+			return matches[1]
 		}
 	}
+
+	// Handle edge cases where "Global" or "team-<team_id>"" appears multiple times in the query
+	// name. Regex is not pre-compiled, so it is a less performant operation.
+	// Go's regexp doesn't support backreferences so we have to perform some manual work.
+	if len(count) > 1 {
+		for l := 1; l < len(scheduledQueryName); l++ {
+			sep := scheduledQueryName[:l]
+			rest := scheduledQueryName[l:]
+			pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
+			matched, _ := regexp.MatchString(pattern, rest)
+			if matched {
+				return sep
+			}
+		}
+	}
+
 	return ""
 }
 
@@ -1792,12 +2620,23 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
 		// considered unknown format (they are not considered global or team
 		// scheduled queries).
+
+		// We can't infer the team from this and it can't be stored, but it's still valid
+		if strings.HasPrefix(path, "pack/") && strings.Count(path, "/") == 2 {
+			return nil, "", fleet.ErrLegacyQueryPack
+		}
+
+		// Truly unknown
 		return nil, "", fmt.Errorf("unknown format: %q", path)
 	}
 
 	// For pattern: pack/Global/Name
 	globalPattern := "pack" + sep + "Global" + sep
 	if strings.HasPrefix(path, globalPattern) {
+		name := strings.TrimPrefix(path, globalPattern)
+		if name == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
+		}
 		return nil, strings.TrimPrefix(path, globalPattern), nil
 	}
 
@@ -1809,6 +2648,9 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		if len(teamIDAndQueryNameParts) != 2 {
 			return nil, "", fmt.Errorf("parsing team number part: %s", path)
 		}
+		if teamIDAndQueryNameParts[1] == "" {
+			return nil, "", fmt.Errorf("parsing query name: %s", path)
+		}
 		teamNumberUint, err := strconv.ParseUint(teamIDAndQueryNameParts[0], 10, 32)
 		if err != nil {
 			return nil, "", fmt.Errorf("parsing team number: %w", err)
@@ -1819,4 +2661,40 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
+}
+
+// Yara rules
+
+func (svc *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	return svc.ds.YaraRuleByName(ctx, name)
+}
+
+type getYaraRequest struct {
+	NodeKey string `json:"node_key"`
+	Name    string `url:"name"`
+}
+
+func (r *getYaraRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
+type getYaraResponse struct {
+	Err     error `json:"error,omitempty"`
+	Content string
+}
+
+func (r getYaraResponse) error() error { return r.Err }
+
+func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(r.Content))
+}
+
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	r := request.(*getYaraRequest)
+	rule, err := svc.YaraRuleByName(ctx, r.Name)
+	if err != nil {
+		return getYaraResponse{Err: err}, nil
+	}
+	return getYaraResponse{Content: rule.Contents}, nil
 }

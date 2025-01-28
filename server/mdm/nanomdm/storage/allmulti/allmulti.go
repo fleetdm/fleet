@@ -3,10 +3,11 @@ package allmulti
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // MultiAllStorage dispatches to multiple AllStorage instances.
@@ -93,6 +94,20 @@ func (ms *MultiAllStorage) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAu
 func (ms *MultiAllStorage) Disable(r *mdm.Request) error {
 	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
 		return nil, s.Disable(r)
+	})
+	return err
+}
+
+func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return s.ExpandEmbeddedSecrets(ctx, document)
+	})
+	return doc.(string), err
+}
+
+func (ms *MultiAllStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return nil, s.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
 	})
 	return err
 }

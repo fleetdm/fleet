@@ -10,24 +10,23 @@
       // and other "form-fields" in the filter block
       width: initial;
     }
-  }
 
-  // NOTE: Look more into this styling
-  &__os_settings-dropdown,
-  &__macsettings-dropdown {
-    width: 137px;
-
-    .Select-value {
+    // Vertically centers icon and text
+    .Select-multi-value-wrapper {
       display: flex;
       align-items: center;
+    }
+  }
 
-      &::before {
-        position: relative;
-        content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
-        transform: scale(0.5);
-        left: -8px;
-        top: 4px;
-      }
+  &__os_settings-dropdown,
+  &__macsettings-dropdown,
+  &__sw-install-status-dropdown {
+    .dropdown__select {
+      border: 1px solid #e2e4ea;
+    }
+
+    .Select-multi-value-wrapper {
+      width: 150px; // Fits all dropdown options without resizing
     }
   }
 }

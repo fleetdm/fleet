@@ -7,6 +7,7 @@ import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
+  ILoadTeamPolicyResponse,
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
@@ -17,14 +18,11 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  inheritedPage?: number;
-  inheritedPerPage?: number;
-  inheritedOrderKey?: string;
-  inheritedOrderDirection?: "asc" | "desc";
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
   teamId: number;
+  mergeInherited?: boolean;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -32,13 +30,14 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
-  scope: "teamPoliciesCount";
+  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
 interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
+  mergeInherited?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -65,6 +64,8 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
+      // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -76,6 +77,7 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
     });
   },
   update: (id: number, data: IPolicyFormData) => {
@@ -87,6 +89,10 @@ export default {
       resolution,
       platform,
       critical,
+      // automations-related fields
+      calendar_events_enabled,
+      software_title_id,
+      script_id,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -98,10 +104,13 @@ export default {
       resolution,
       platform,
       critical,
+      calendar_events_enabled,
+      software_title_id,
+      script_id,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
-    if (!teamId || teamId <= API_NO_TEAM_ID) {
+    if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
           `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
@@ -113,19 +122,14 @@ export default {
 
     return sendRequest("POST", path, { ids });
   },
-  load: (team_id: number, id: number) => {
+  load: (team_id: number, id: number): Promise<ILoadTeamPolicyResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
-
     return sendRequest("GET", path);
   },
   loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
-    if (!team_id) {
-      throw new Error("Invalid team id");
-    }
-
     return sendRequest("GET", path);
   },
   loadAllNew: async ({
@@ -135,10 +139,7 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-    inheritedPage,
-    inheritedPerPage,
-    inheritedOrderKey = ORDER_KEY,
-    inheritedOrderDirection: inheritedOrderDir = ORDER_DIRECTION,
+    mergeInherited,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -148,32 +149,27 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
-      inheritedPage,
-      inheritedPerPage,
-      inheritedOrderKey,
-      inheritedOrderDirection: inheritedOrderDir,
+      mergeInherited,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${TEAMS}/${teamId}/policies?${queryString}`;
-    if (!teamId) {
-      throw new Error("Invalid team id");
-    }
-
     return sendRequest("GET", path);
   },
   getCount: async ({
     query,
     teamId,
+    mergeInherited = true,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId"
+    "query" | "teamId" | "mergeInherited"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
+      mergeInherited,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

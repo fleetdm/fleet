@@ -2,12 +2,16 @@ package mobileconfig
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"go.mozilla.org/pkcs7"
+
+	// we are using this package as we were having issues with pasrsing signed apple
+	// mobileconfig profiles with the pcks7 package we were using before.
+	cms "github.com/github/smimesign/ietf-cms"
 	"howett.net/plist"
 )
 
@@ -19,6 +23,9 @@ const (
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
+
+	// FleetCARootConfigPayloadIdentifier TODO
+	FleetCARootConfigPayloadIdentifier = "com.fleetdm.caroot"
 
 	// FleetEnrollmentPayloadIdentifier is the value for the PayloadIdentifier used
 	// by Fleet to enroll a device with the MDM server.
@@ -43,8 +50,9 @@ const (
 // files around due to import cycles.
 func FleetPayloadIdentifiers() map[string]struct{} {
 	return map[string]struct{}{
-		FleetFileVaultPayloadIdentifier: {},
-		FleetdConfigPayloadIdentifier:   {},
+		FleetFileVaultPayloadIdentifier:    {},
+		FleetdConfigPayloadIdentifier:      {},
+		FleetCARootConfigPayloadIdentifier: {},
 	}
 }
 
@@ -75,6 +83,24 @@ type Parsed struct {
 	PayloadType        string
 }
 
+func (mc Mobileconfig) isSignedProfile() bool {
+	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
+}
+
+// getSignedProfileData attempts to parse the signed mobileconfig and extract the
+// profile byte data from it.
+func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
+	signedData, err := cms.ParseSignedData(mc)
+	if err != nil {
+		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+	}
+	data, err := signedData.GetData()
+	if err != nil {
+		return nil, fmt.Errorf("could not get profile data from the signed mobileconfig: %w", err)
+	}
+	return Mobileconfig(data), nil
+}
+
 // ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
 //
 // The byte slice must be XML or PKCS7 parseable. Fleet also requires that it contains both
@@ -83,16 +109,12 @@ type Parsed struct {
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
+	if mc.isSignedProfile() {
+		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
-		mcBytes = Mobileconfig(p7.Content)
+		mcBytes = profileData
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
@@ -123,16 +145,12 @@ type payloadSummary struct {
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
-	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(mcBytes)
-		if err != nil {
-			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-		}
-		err = p7.Verify()
+	if mc.isSignedProfile() {
+		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
-		mcBytes = Mobileconfig(p7.Content)
+		mcBytes = profileData
 	}
 
 	// unmarshal the values we need from the top-level object
@@ -247,3 +265,17 @@ var (
 	ErrEmptyPayloadContent     = errors.New("empty PayloadContent")
 	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
 )
+
+// XMLEscapeString returns the escaped XML equivalent of the plain text data s.
+func XMLEscapeString(s string) (string, error) {
+	// avoid allocation if we can.
+	if !strings.ContainsAny(s, "'\"&<>\t\n\r") {
+		return s, nil
+	}
+	var b strings.Builder
+	if err := xml.EscapeText(&b, []byte(s)); err != nil {
+		return "", err
+	}
+
+	return b.String(), nil
+}

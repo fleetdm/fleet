@@ -1,5 +1,9 @@
 import { IHostMdmData } from "interfaces/host";
-import { IMdmSolution, IMdmProfile } from "interfaces/mdm";
+import {
+  IMdmSolution,
+  IMdmProfile,
+  IMdmSummaryMdmSolution,
+} from "interfaces/mdm";
 
 const DEFAULT_MDM_SOLUTION_MOCK: IMdmSolution = {
   id: 1,
@@ -12,6 +16,19 @@ export const createMockMdmSolution = (
   overrides?: Partial<IMdmSolution>
 ): IMdmSolution => {
   return { ...DEFAULT_MDM_SOLUTION_MOCK, ...overrides };
+};
+
+const DEFAULT_HOST_SUMMARY_MDM_SOLUTION_MOCK: IMdmSummaryMdmSolution = {
+  id: 1,
+  name: "MDM Solution",
+  server_url: "http://mdmsolution.com",
+  hosts_count: 5,
+};
+
+export const createMockMdmSummaryMdmSolution = (
+  overrides?: Partial<IMdmSummaryMdmSolution>
+): IMdmSummaryMdmSolution => {
+  return { ...DEFAULT_HOST_SUMMARY_MDM_SOLUTION_MOCK, ...overrides };
 };
 
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {

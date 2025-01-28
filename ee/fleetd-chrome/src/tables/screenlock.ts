@@ -5,6 +5,17 @@ export default class TableScreenLock extends Table {
   columns = ["enabled", "grace_period"];
 
   async generate() {
+    if (!chrome.idle.getAutoLockDelay) {
+      return {
+        data: [],
+        warnings: [
+          {
+            column: "enabled",
+            error_message: "chrome.idle.getAutoLockDelay API is only available on ChromeOS for screen lock details",
+          },
+        ],
+      };
+    }
     const delay = await new Promise((resolve) =>
       chrome.idle.getAutoLockDelay(resolve)
     );

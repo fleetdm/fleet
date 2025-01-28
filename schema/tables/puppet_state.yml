@@ -1,18 +1,16 @@
 name: puppet_state
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.
 platforms: 
   - darwin
   - windows
   - linux
 evented: false
-examples: >-
+examples: |-
   List resources that failed or took over a minute to evaluate.
 
   ```
-  
-  SELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';
-  
+  SELECT * FROM puppet_state WHERE failed='true' OR evaluation_time|-'60';
   ```
 columns:
   - name: title

@@ -1,18 +1,16 @@
 name: filevault_users
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: Information on the users able to unlock the current boot volume if protected with FileVault.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   List the usernames able to unlock and boot a computer protected by FileVault, joined to
   [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating
   system account that owns it.
 
   ```
-  
   SELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;
-  
   ```
 columns:
   - name: username

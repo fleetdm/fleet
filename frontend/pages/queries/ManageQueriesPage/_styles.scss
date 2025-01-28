@@ -1,9 +1,6 @@
 .manage-queries-page {
   &__header-wrap {
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    @include normalize-team-header;
   }
 
   &__header {
@@ -39,13 +36,6 @@
   &__description {
     margin: 0 0 $pad-xxlarge;
 
-    h2 {
-      text-transform: uppercase;
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $small;
-    }
-
     p {
       color: $ui-fleet-black-75;
       margin: 0;
@@ -60,39 +50,8 @@
   }
 
   .queries-table {
-    .controls {
-      .form-field {
-        &--dropdown {
-          margin: 0;
-        }
-      }
-    }
     &__platform-dropdown {
-      .Select-menu-outer {
-        width: 364px;
-        max-height: 380px;
-
-        .Select-menu {
-          max-height: none;
-        }
-      }
-      .Select-value {
-        padding-left: $pad-medium;
-        padding-right: $pad-medium;
-
-        &::before {
-          display: inline-block;
-          position: absolute;
-          padding: 5px 0 0 0; // centers spin
-          content: url(../assets/images/icon-filter-black-16x16@2x.png);
-          transform: scale(0.5);
-          height: 26px;
-          left: 2px;
-        }
-      }
-      .Select-value-label {
-        padding-left: $pad-medium;
-      }
+      width: 200px;
     }
 
     .data-table-block {
@@ -103,6 +62,8 @@
         }
         &__table {
           thead {
+            // maintain height when select header is removed
+            height: 52.3833px;
             .name__header {
               width: auto;
             }
@@ -138,24 +99,39 @@
               .query-name-cell {
                 display: flex; // required for inline icon
                 gap: $pad-xsmall;
-
-                .children-wrapper {
+                text-decoration: none;
+                align-items: center;
+                &:hover {
                   .query-name-text {
-                    text-overflow: ellipsis;
-                    overflow: hidden;
+                    text-decoration: underline;
+                  }
+                }
+
+                .query-name-text {
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                }
+
+                .inherited-badge {
+                  overflow: initial;
+                }
+                .observer-can-run-badge {
+                  @include tooltip5-arrow-styles;
+
+                  .react-tooltip {
+                    @include tooltip-text;
+                    font-style: normal;
+                    text-align: center;
                   }
                 }
               }
-              .query-icon {
+              .observer-can-run-query-icon {
                 display: block;
               }
 
               .children-wrapper {
                 display: flex;
                 gap: $pad-xsmall;
-              }
-              .observer-can-run-tooltip {
-                font-weight: $regular;
               }
             }
 
@@ -188,6 +164,13 @@
               }
             }
           }
+        }
+      }
+    }
+    .empty-table {
+      &__additional-info {
+        * {
+          font-size: $xx-small;
         }
       }
     }

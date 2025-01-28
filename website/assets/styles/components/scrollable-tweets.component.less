@@ -9,9 +9,46 @@
   font-size: 13px;
   line-height: 20px;
 
+  position: relative;
 
   [purpose='tweets']::-webkit-scrollbar {
     display: none;
+  }
+
+  [purpose='previous-page-indicator'] {
+    display: none;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 30;
+    position: absolute;
+    transition: transform 1s, opacity 0.25s  ease-in;
+    transform: scale(0.5);
+    bottom: 50%;
+    left: 10px;
+    width: 48px;
+    height: 48px;
+    img {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  [purpose='next-page-indicator'] {
+    display: none;
+    opacity: 0;
+    cursor: pointer;
+    position: absolute;
+    transition: transform 1s, opacity 0.25s ease-in;
+    transform: scale(0.5);
+    bottom: 50%;
+    z-index: 30;
+    right: 10px;
+    width: 48px;
+    height: 48px;
+    img {
+      width: 48px;
+      height: 48px;
+    }
   }
 
   [purpose='tweets'] {
@@ -20,13 +57,25 @@
     padding-left: 120px;
     padding-right: 120px;
     margin-top: 80px;
-    padding-bottom: 16px;
+    margin-bottom: 80px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    &:hover {
+      [purpose='previous-page-indicator'] {
+        opacity: 1;
+        transform: scale(1.0);
+      }
+      [purpose='next-page-indicator'] {
+        opacity: 1;
+        transform: scale(1.0);
+      }
+    }
   }
 
 
   [purpose='tweet-card'] {
+    box-shadow: none;
+    background-color: #FFF;
     [purpose='logo'] {
       img {
         max-height: 32px;
@@ -36,6 +85,10 @@
     }
     [purpose='quote'] {
       margin-bottom: 24px;
+      color: #515774;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 150%;
     }
     [purpose='quote-author-info'] {
       [purpose='job-title'] {
@@ -43,6 +96,7 @@
         line-height: 18px !important;//lesshint-disable-line importantRule,duplicateProperty
       }
       [purpose='name'] {
+        text-transform: capitalize;
         color: @core-fleet-black !important;//lesshint-disable-line importantRule,duplicateProperty
       }
       [purpose='profile-picture'] {
@@ -50,6 +104,7 @@
         img {
           height: 48px;
           width: 48px;
+          border-radius: 50%;
         }
       }
     }
@@ -68,7 +123,7 @@
     margin-bottom: 8px;
     text-align: left;
     background: #FFFFFF;
-    padding: 40px;
+    padding: 24px;
     border: 1px solid @core-vibrant-blue-15;
     box-sizing: border-box;
     border-radius: 16px;
@@ -76,33 +131,6 @@
       text-decoration: none;
       pointer: cursor;
       box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
-    }
-  }
-
-  [purpose='page-indictator-container'] {
-    margin-bottom: 80px;
-    padding-left: 120px;
-    padding-right: 120px;
-  }
-  [purpose='page-indicator'] {
-    cursor: pointer;
-    padding: 4px;
-    height: 16px;
-    width: 16px;
-    border-radius: 100%;
-    margin-right: 8px;
-
-    background-color: @core-vibrant-blue-15;
-    &.selected {
-      background-color: @core-fleet-black-50;
-    }
-
-
-  }
-  [purpose='tweets-page-indicator'] {
-    li {
-    }
-    li.selected {
     }
   }
   [purpose='video-modal'] {
@@ -139,12 +167,17 @@
   }
 
 
+  @media(hover) {
+    [purpose='previous-page-indicator'] {
+      display: flex;
+    }
+    [purpose='next-page-indicator'] {
+      display: flex;
+    }
+  }
+
   @media (max-width: 991px) {
     [purpose='tweets'] {
-      padding-left: 80px;
-      padding-right: 80px;
-    }
-    [purpose='page-indictator-container'] {
       padding-left: 80px;
       padding-right: 80px;
     }
@@ -152,10 +185,6 @@
 
   @media (max-width: 768px) {
     [purpose='tweets'] {
-      padding-left: 40px;
-      padding-right: 40px;
-    }
-    [purpose='page-indictator-container'] {
       padding-left: 40px;
       padding-right: 40px;
     }
@@ -179,18 +208,10 @@
       padding-left: 20px;
       padding-right: 20px;
     }
-    [purpose='page-indictator-container'] {
-      padding-left: 20px;
-      padding-right: 20px;
-    }
     [purpose='tweet-card'] {
       min-width: 280px;
       padding: 20px;
       border-radius: 16px;
-    }
-    [purpose='page-indicator'] {
-      padding: 12px;
-      margin-bottom: 8px;
     }
     [purpose='video-modal'] {
       [purpose='modal-content'] {

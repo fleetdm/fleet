@@ -1,0 +1,13 @@
+name: cpu_info
+description: |- # (required) string - The description for this table. Note: this field supports Markdown
+  The `cpu_info` table expresses the data made available from a computer or mobile device by its Central Processing Unit (CPU).
+examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
+  Basic query:
+
+  ```
+  SELECT * FROM cpu_info;
+  ```
+notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
+  The `cpu_info` table is a good example of the cross-platform capabilities of osquery. It can be used on Linux, Mac and Windows hardware.
+
+  As seen in the schema table above, there are differences in CPU metadata made available across different platforms. These differences arise from various hardware manufacturers and operating systems not necessarily being held to an industry-wide, agreed-upon standard or protocol for CPU data.

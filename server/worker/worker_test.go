@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -35,7 +35,7 @@ func TestWorker(t *testing.T) {
 
 	// set up mocks
 	getQueuedJobsCalled := 0
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 		if getQueuedJobsCalled > 0 {
 			return nil, nil
 		}
@@ -93,7 +93,7 @@ func TestWorkerRetries(t *testing.T) {
 		State:   fleet.JobStateQueued,
 		Retries: 0,
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 		if theJob.State == fleet.JobStateQueued {
 			return []*fleet.Job{theJob}, nil
 		}
@@ -173,7 +173,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 			Retries: 0,
 		},
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 		var queued []*fleet.Job
 		for _, j := range jobs {
 			if j.State == fleet.JobStateQueued {
@@ -241,6 +241,8 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 func TestWorkerWithRealDatastore(t *testing.T) {
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
+	// call TruncateTables immediately, because a DB migration may create jobs
+	mysql.TruncateTables(t, ds)
 
 	oldDelayPerRetry := delayPerRetry
 	delayPerRetry = []time.Duration{
@@ -295,7 +297,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// timestamp in mysql vs the one set in ProcessJobs (time.Now().Add(...)).
 	time.Sleep(time.Second)
 
-	jobs, err := ds.GetQueuedJobs(ctx, 10)
+	jobs, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	require.Equal(t, j2.ID, jobs[0].ID)
@@ -311,7 +313,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// timestamp in mysql vs the one set in ProcessJobs (time.Now().Add(...)).
 	time.Sleep(time.Second)
 
-	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	jobs, err = ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	require.Equal(t, j2.ID, jobs[0].ID)
@@ -326,7 +328,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	jobs, err = ds.GetQueuedJobs(ctx, 10)
+	jobs, err = ds.GetQueuedJobs(ctx, 10, time.Time{})
 	require.NoError(t, err)
 	require.Empty(t, jobs)
 

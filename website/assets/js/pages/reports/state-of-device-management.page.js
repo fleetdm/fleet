@@ -348,12 +348,6 @@ parasails.registerPage('state-of-device-management', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
-
     scrollSideNavigationWithHeader: function () {
       var navBar = document.querySelector('div[purpose="report-sidebar"]');
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;

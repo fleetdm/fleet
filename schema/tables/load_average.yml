@@ -1,9 +1,7 @@
 name: load_average
-examples: >-
+examples: |-
   Find computers with a load average of 3.5 or higher over the last 15 minutes.
   
   ```
-  
-  SELECT average from load_average WHERE period='15m' AND average>=3.5;
-  
+  SELECT average from load_average WHERE period='15m' AND average|-=3.5;
   ```

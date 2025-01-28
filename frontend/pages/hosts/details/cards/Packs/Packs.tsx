@@ -2,6 +2,7 @@ import React from "react";
 
 import { IPackStats } from "interfaces/host";
 import TableContainer from "components/TableContainer";
+import Card from "components/Card";
 
 import {
   Accordion,
@@ -16,7 +17,7 @@ import {
   generatePackDataSet,
 } from "./PackTable/PackTableConfig";
 
-const baseClass = "schedule";
+const baseClass = "schedule-card";
 
 interface IPacksProps {
   packsState?: IPackStats[];
@@ -48,9 +49,9 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
                       data={generatePackDataSet(pack.query_stats)}
                       isLoading={isLoading}
                       onQueryChange={() => null}
-                      resultsTitle={"queries"}
-                      defaultSortHeader={"scheduled_query_name"}
-                      defaultSortDirection={"asc"}
+                      resultsTitle="queries"
+                      defaultSortHeader="scheduled_query_name"
+                      defaultSortDirection="asc"
                       showMarkAllPages={false}
                       isAllPagesSelected={false}
                       emptyComponent={() => <></>}
@@ -70,12 +71,17 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
   return !packs || !packs.length ? (
     <></>
   ) : (
-    <div className="section section--packs">
-      <p className="section__header">Packs</p>
+    <Card
+      borderRadiusSize="xxlarge"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">Packs</p>
       <Accordion allowMultipleExpanded allowZeroExpanded>
         {packsAccordion}
       </Accordion>
-    </div>
+    </Card>
   );
 };
 

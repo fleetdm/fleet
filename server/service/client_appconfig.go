@@ -43,11 +43,11 @@ func (c *Client) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 }
 
 // ApplyEnrollSecretSpec applies the enroll secrets.
-func (c *Client) ApplyEnrollSecretSpec(spec *fleet.EnrollSecretSpec) error {
+func (c *Client) ApplyEnrollSecretSpec(spec *fleet.EnrollSecretSpec, opts fleet.ApplySpecOptions) error {
 	req := applyEnrollSecretSpecRequest{Spec: spec}
 	verb, path := "POST", "/api/latest/fleet/spec/enroll_secret"
 	var responseBody applyEnrollSecretSpecResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
+	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, opts.RawQuery())
 }
 
 func (c *Client) Version() (*version.Info, error) {

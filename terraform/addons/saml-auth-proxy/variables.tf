@@ -7,6 +7,11 @@ variable "alb_target_group_arn" {
   type = string
 }
 
+variable "alb_access_logs" {
+  type    = map(string)
+  default = {}
+}
+
 # variable "public_alb_security_group_id" {
 #   type = string
 # }

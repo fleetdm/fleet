@@ -19,6 +19,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
+import IosIpadosPanel from "./IosIpadosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -35,16 +36,16 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
   },
   {
     name: "Advanced",
@@ -256,13 +257,13 @@ const PlatformWrapper = ({
             Run this command with the{" "}
             <a
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli"
+              href="https://fleetdm.com/learn-more-about/installing-fleetctl"
               target="_blank"
               rel="noopener noreferrer"
             >
               Fleet command-line tool
             </a>{" "}
-            installed:
+            :
           </span>
         )}{" "}
         <span className="buttons">
@@ -324,7 +325,7 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderTab = (packageType: string) => {
+  const renderPanel = (packageType: string) => {
     const CHROME_OS_INFO = {
       extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
@@ -337,6 +338,17 @@ const PlatformWrapper = ({
   }
 }`,
     };
+
+    let packageTypeHelpText = "";
+    if (packageType === "deb") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+    } else if (packageType === "msi") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
+    } else if (packageType === "pkg") {
+      packageTypeHelpText = "Install this package to add hosts to Fleet.";
+    }
 
     if (packageType === "chromeos") {
       return (
@@ -360,7 +372,7 @@ const PlatformWrapper = ({
             </InfoBanner>
           </div>
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
             label={renderChromeOSLabel(
@@ -370,7 +382,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
             label={renderChromeOSLabel(
@@ -380,7 +392,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
             label={renderChromeOSLabel(
@@ -393,13 +405,18 @@ const PlatformWrapper = ({
         </>
       );
     }
+
+    if (packageType === "ios-ipados") {
+      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+    }
+
     if (packageType === "advanced") {
       return (
         <>
           {renderFleetCertificateBlock("tooltip")}
           <div className={`${baseClass}__advanced--installer`}>
             <InputField
-              disabled
+              readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
               label={renderLabel(
@@ -427,9 +444,9 @@ const PlatformWrapper = ({
           <RevealButton
             className={baseClass}
             isShowing={showPlainOsquery}
-            hideText={"Plain osquery"}
-            showText={"Plain osquery"}
-            caretPosition={"after"}
+            hideText="Plain osquery"
+            showText="Plain osquery"
+            caretPosition="after"
             onClick={() => setShowPlainOsquery((prev) => !prev)}
           />
           {showPlainOsquery && (
@@ -495,15 +512,15 @@ const PlatformWrapper = ({
                   require sudo or Run as Administrator privileges):
                 </p>
                 <InputField
-                  disabled
+                  readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
                   label={renderLabel(
                     "plain-osquery",
                     "osqueryd --flagfile=flagfile.txt --verbose"
                   )}
-                  type={"text"}
-                  value={"osqueryd --flagfile=flagfile.txt --verbose"}
+                  type="text"
+                  value="osqueryd --flagfile=flagfile.txt --verbose"
                 />
               </div>
             </>
@@ -533,13 +550,13 @@ const PlatformWrapper = ({
           </Checkbox>
         )}
         <InputField
-          disabled
+          readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText="Distribute your package to add hosts to Fleet."
+          helpText={packageTypeHelpText}
         />
       </>
     );
@@ -569,7 +586,7 @@ const PlatformWrapper = ({
             return (
               <TabPanel className={`${baseClass}__info`} key={navItem.type}>
                 <div className={`${baseClass} form`}>
-                  {renderTab(navItem.type)}
+                  {renderPanel(navItem.type)}
                 </div>
               </TabPanel>
             );

@@ -4,7 +4,20 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
-    selectedCategory: 'device-management'
+    selectedCategory: 'mdm',
+    formData: { /* … */ },
+    formErrors: { /* … */ },
+
+    // Form rules
+    formRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
+    syncing: false,
+
+    // Server error state for the form
+    cloudError: '',
+    cloudSuccess: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -12,8 +25,12 @@ parasails.registerPage('homepage', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     //…
+    if(window.location.hash === '#unsubscribed'){
+      this.modal = 'unsubscribed';
+      window.location.hash = '';
+    }
   },
-  mounted: async function(){
+  mounted: async function() {
     //…
   },
 
@@ -22,12 +39,6 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
-
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
@@ -35,6 +46,13 @@ parasails.registerPage('homepage', {
     closeModal: function() {
       this.modal = undefined;
     },
-
+    submittedNewsletterForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+      this.formData = {};
+      await setTimeout(()=>{
+        this.cloudSuccess = false;
+      }, 10000);
+    },
   }
 });

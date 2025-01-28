@@ -1,0 +1,26 @@
+.data-set {
+  font-size: $x-small;
+  max-width: min-content;
+  overflow: hidden;
+
+  // ff only
+  @-moz-document url-prefix() {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  dt {
+    font-weight: $bold;
+    display: flex;
+    gap: $pad-xsmall; // For deprecated sandbox icons
+  }
+
+  dd {
+    display: flex;
+    gap: $pad-small;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

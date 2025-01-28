@@ -34,7 +34,8 @@ func TestUp_20230425082126(t *testing.T) {
 	var asst assistant
 	err = db.Get(&asst, `SELECT id, name, profile, team_id, global_or_team_id FROM mdm_apple_setup_assistants WHERE id = ?`, id)
 	require.NoError(t, err)
-	require.Equal(t, assistant{ID: uint(id), Name: "Test", Profile: "{}", TeamID: nil, GlobalOrTeamID: 0}, asst)
+	require.Equal(t, assistant{ID: uint(id), Name: "Test", Profile: "{}", TeamID: nil, GlobalOrTeamID: 0}, //nolint:gosec // dismiss G115
+		asst)
 
 	// create a team
 	r, err = db.Exec(`INSERT INTO teams (name) VALUES (?)`, "Test Team")
@@ -48,7 +49,8 @@ func TestUp_20230425082126(t *testing.T) {
 
 	err = db.Get(&asst, `SELECT id, name, profile, team_id, global_or_team_id FROM mdm_apple_setup_assistants WHERE id = ?`, id2)
 	require.NoError(t, err)
-	require.Equal(t, assistant{ID: uint(id2), Name: "Test2", Profile: "{}", TeamID: ptr.Uint(uint(tmID)), GlobalOrTeamID: uint(tmID)}, asst)
+	require.Equal(t, assistant{ID: uint(id2), Name: "Test2", Profile: "{}", TeamID: ptr.Uint(uint(tmID)), //nolint:gosec // dismiss G115
+		GlobalOrTeamID: uint(tmID)}, asst) //nolint:gosec // dismiss G115
 
 	// delete the team, that deletes the row
 	_, err = db.Exec(`DELETE FROM teams WHERE id = ?`, tmID)

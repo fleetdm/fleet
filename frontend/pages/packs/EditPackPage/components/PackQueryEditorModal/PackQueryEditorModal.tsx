@@ -194,7 +194,7 @@ const PackQueryEditorModal = ({
             searchable
             options={createQueryDropdownOptions()}
             onChange={onChangeSelectQuery}
-            placeholder={"Select query"}
+            placeholder="Select query"
             value={selectedQuery?.id}
             wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
             autoFocus

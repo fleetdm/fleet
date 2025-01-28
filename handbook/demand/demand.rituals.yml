@@ -1,8 +1,15 @@
 -
+  task: "Refresh event calendar"
+  startedOn: "2023-12-31"
+  frequency: "Quarterly"
+  description: "https://fleetdm.com/handbook/demand#refresh-event-calendar"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#refresh-event-calendar"
+  dri: "Drew-P-drawers"
+-
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly"
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # « Enable automation of GitHub issues
@@ -14,46 +21,70 @@
   frequency: "Quarterly (first Tuesday)"
   description: "https://fleetdm.com/handbook/demand#settle-event-strategy"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
-  dri: "3kindsoffish"
+  dri: "Drew-P-drawers"
+-
+  task: "🫧 Pipeline sync"
+  startedOn: "2024-08-29"
+  frequency: "Weekly"
+  description: "Allign with CRO and AEs on pipeline processes and incoming leads"
+  moreInfoUrl: ""
+  dri: "Drew-P-drawers"
 -
   task: "Optimize ads"
-  startedOn: "2023-09-25"
-  frequency: "Biweekly"
-  description: "Apply an ad variation to each ad every two weeks."
+  startedOn: "2024-02-26"
+  frequency: "Weekly"
+  description: "Remove all but the top 5 perfoming ads in each evergreen campaign. Make sure ABM campaigns are using top performing evergreen ads."
   moreInfoUrl: "https://fleetdm.com/handbook/demand#optimize-ads-through-experimentation"
-  dri: "drewBakerfdm"
+  dri: "Drew-P-drawers"
 -
   task: "Process pending swag requests from the website" # Title that will actually show in rituals table
   startedOn: "2023-09-20" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Weekly" # must be supported by
   description: "Complete draft orders." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#process-pending-swag-requests-from-the-website" #URL used to highlight "description:" test in table
-  dri: "drewbakerfdm" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  dri: "Drew-P-drawers" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
 -
   task: "Engage with the community"
   startedOn: "2023-09-20"
   frequency: "Daily"
   description: "Find relevant conversations with the community and contribute"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#engage-with-the-community"
-  dri: "drewbakerfdm"
+  dri: "Drew-P-drawers"
 - 
   task: "Publish ☁️🌈 Sprint demos"
   startedOn: "2023-11-03"
   frequency: "Triweekly"
   description: "Every release cycle, upload the ☁️🌈 Sprint demos video to YouTube"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#upload-to-youtube"
-  dri: "drewbakerfdm"
-# -
-#   task: "Propose a fleet event"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Populate ideas for future events"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
-#   dri: "drewbakerfdm"
-# - 
-#   task: "Respond to a (Talk to an expert) request"
-#   startedOn: "2023-08-28"
-#   frequency: "Daily"
-#   description: "Prepare, participate, and follow up scheduled Talk to an expert requests"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#talk-to-an-expert"
-#   dri: "spokanemac"
+  dri: "Drew-P-drawers"
+- 
+  task: "Measure intent signals"
+  startedOn: "2024-08-09"
+  frequency: "Daily"
+  description: "Measure intent signals and update Salesforce"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#measure-intent-signals"
+  dri: "Drew-P-drawers"
+- 
+  task: "Research accounts"
+  startedOn: "2024-08-09"
+  frequency: "Daily"
+  description: "Research any research-ready accounts in this Salesforce report (https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001PUIT2A4/view) and advance them to 'Ads running'"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#research-an-account"
+  dri: "Drew-P-drawers"
+-
+  task: "Check ongoing events"
+
+  startedOn: "2024-10-21"
+
+  frequency: "Daily"
+  description: "Check event issues and complete steps."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
+  dri: "Drew-P-drawers"
+-
+  task: "Propose a Fleet event"
+  startedOn: "2023-10-21"
+  frequency: "Weekly"
+  description: "Populate ideas for future events"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
+  dri: "Drew-P-drawers"
+

@@ -17,7 +17,7 @@ const DeletePackageModal = ({
   return (
     <Modal
       className={baseClass}
-      title={"Delete bootstrap package"}
+      title="Delete bootstrap package"
       onExit={onCancel}
       onEnter={() => onDelete()}
     >

@@ -9,7 +9,7 @@ import (
 )
 
 // parseOptions parses the stdout returned from falconctl's displayed options. As far as we know, output is a single
-// line, comma separated. We parse multiple lines, but assume data does not space that. Eg: linebreaks and commas
+// line, comma-separated. We parse multiple lines, but assume data does not space that. Eg: linebreaks and commas
 // treated as seperators.
 func parseOptions(reader io.Reader) (any, error) {
 	results := make(map[string]interface{})
@@ -61,9 +61,7 @@ func parseOptions(reader io.Reader) (any, error) {
 				kv[1] = strings.Trim(kv[1], `" `)
 
 				// Remove parenthetical note about an unset default
-				if strings.HasSuffix(kv[1], " (unset default)") {
-					kv[1] = kv[1][:len(kv[1])-len(" (unset default)")]
-				}
+				kv[1] = strings.TrimSuffix(kv[1], " (unset default)")
 
 				if lastKey == "rfm-reason" && kv[0] == "code" {
 					kv[0] = "rfm-reason-code"

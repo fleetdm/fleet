@@ -48,7 +48,8 @@
     "moment": true,
     "docsearch": true,
     "Chart": true,
-    // "google": true,
+    "gtag": true,
+    "analytics": true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

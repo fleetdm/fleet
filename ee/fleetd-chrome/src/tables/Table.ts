@@ -14,7 +14,6 @@ const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
 class cursorState {
   rowIndex: number;
   rows: Record<string, string>[];
-  error: any;
 }
 
 interface ChromeWarning {
@@ -121,10 +120,10 @@ export default abstract class Table implements SQLiteModule {
         }
         cursorState.rows = tableDataReturned.data;
       } catch (err) {
-        // Throwing here doesn't seem to work as expected in testing (the error doesn't seem to be
-        // thrown in a way that it can be caught appropriately), so instead we save the error and
-        // throw in xEof.
-        cursorState.error = err;
+        // We cannot throw inside SQLITE function because it may cause the wasm stack to run out of memory.
+        // See: https://github.com/rhashimoto/wa-sqlite/issues/156#issuecomment-1942477704
+        console.warn("Error generating table data: %s", err);
+        return SQLite.SQLITE_ERROR;
       }
       return SQLite.SQLITE_OK;
     });
@@ -133,6 +132,9 @@ export default abstract class Table implements SQLiteModule {
   xNext(pCursor: number): number {
     // Advance the row index for the cursor.
     const cursorState = this.cursorStates.get(pCursor);
+    if (!cursorState || !cursorState.rows) {
+      return SQLite.SQLITE_ERROR;
+    }
     cursorState.rowIndex += 1;
     return SQLite.SQLITE_OK;
   }
@@ -140,10 +142,8 @@ export default abstract class Table implements SQLiteModule {
   xEof(pCursor: number): number {
     // Check whether we've returned all rows (cursor index is beyond number of rows).
     const cursorState = this.cursorStates.get(pCursor);
-    // Throw any error saved in the cursor state (because throwing in xFilter doesn't seem to work
-    // correctly with async code).
-    if (cursorState.error) {
-      throw cursorState.error;
+    if (!cursorState || !cursorState.rows) {
+      return 1;
     }
     return Number(cursorState.rowIndex >= cursorState.rows.length);
   }

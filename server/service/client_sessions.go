@@ -20,8 +20,7 @@ func (c *Client) Login(email, password string) (string, error) {
 	}
 	defer response.Body.Close()
 
-	switch response.StatusCode {
-	case http.StatusNotFound:
+	if response.StatusCode == http.StatusNotFound {
 		return "", notSetupErr{}
 	}
 	if response.StatusCode != http.StatusOK {

@@ -38,8 +38,10 @@
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
-/server/ @fleetdm/go
 /cmd/ @fleetdm/go
+/server/ @fleetdm/go
+/ee/server/ @fleetdm/go
+/orbit/ @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -53,9 +55,10 @@ go.mod @fleetdm/go
 # (1 or more infra-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
-/infrastructure/ @fleetdm/infra @edwardsb
-/charts/ @fleetdm/infra @edwardsb
-/terraform/ @fleetdm/infra @edwardsb
+
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -63,40 +66,63 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                           @rachaelshaw
-/docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
+/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
-/schema                                         @rachaelshaw # « Data tables (osquery/fleetd schema) documentation
+/schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
+/render.yaml                                    @edwardsb
 
 ##############################################################################################
-# 🫧 Pricing and features
+# 🌐 Repo automation and change control settings
+##############################################################################################
+# /CODEOWNERS                 @mikermcneil  # Covered in DRIs
+
+##############################################################################################
+# 🌐 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/README.md                                     @mikermcneil
+/handbook/company/communications.md                             @sampfluger88
+/handbook/company/leadership.md                                 @sampfluger88
+/handbook/company/why-this-way.md                               @mikermcneil
+/handbook/README.md                                             @mikermcneil
+/handbook/company/open-positions.yml                            @sampfluger88
+#/handbook/company/product-groups.md                            🤡 Covered in custom.js
+/handbook/finance/README.md                   				          @sampfluger88
+/handbook/finance/finance.rituals.yml  						              @sampfluger88
+/handbook/digital-experience/security.md                        @sampfluger88
+/handbook/digital-experience                             	      @sampfluger88
+/handbook/customer-success                                		  @sampfluger88
+/handbook/demand                                          	  	@sampfluger88
+#/handbook/engineering                                     	  	🤡 Covered in custom.js
+/handbook/sales                                           	  	@sampfluger88
+#/handbook/product-design                                    	  🤡 Covered in custom.js
 
 ##############################################################################################
-# 🦿 Repo automation and change control settings
+# 🌐 GitHub issue templates
 ##############################################################################################
-/CODEOWNERS                 @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+#/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
+
 
 ##############################################################################################
-# 🦿 Handbook
-#
-# (see website/config/custom.js for DRIs of other paths not listed here)
+# 🌐 Fleet website
 ##############################################################################################
-/handbook                       @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
-/handbook/business-operations   @sampfluger88
-/handbook/digital-experience    @sampfluger88
-/handbook/customer-success      @sampfluger88
-/handbook/demand                @sampfluger88
-/handbook/engineering           @sampfluger88
-/handbook/sales                 @sampfluger88
-/handbook/product-design        @sampfluger88
+/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
 
 ##############################################################################################
-# 🦿 GitHub issue templates
+# 🌐 GitHub workflows
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @sampfluger88  # See https://github.com/fleetdm/fleet/pull/16203
+/.github/workflows/markdown-link-check-config.json @eashaw
+/.github/workflows/deploy-vulnerability-dashboard.yml @eashaw
+/.github/workflows/test-website.yml @eashaw
+/.github/workflows/test-vulnerability-dashboard-changes.yml @eashaw
+/.github/workflows/docs.yml @eashaw
+/.github/workflows/deploy-fleet-website.yml @eashaw
+
+##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

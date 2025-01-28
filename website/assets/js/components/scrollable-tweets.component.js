@@ -23,16 +23,16 @@ parasails.registerComponent('scrollableTweets', {
     return {
       quotesToDisplay: [],
       quotesWithVideoLinks: [],
-      currentTweetPage: 0,
-      numberOfTweetCards: 0,
-      numberOfTweetPages: 0,
+      tweetsDiv: undefined,
+      tweetCards: undefined,
+      pageWidth: undefined,
+      numberOfTweetCardsDisplayedOnThisPage: undefined,
+      showPreviousPageButton: false,
+      showNextPageButton: true,
       numberOfTweetsPerPage: 0,
-      tweetCardWidth: 0,
-      tweetPageWidth: 0,
-      screenSize: 0,
-      scrolledAmount: 0,
-      scrollableAmount: 0,
-      modal: ''
+      syncing: false,
+      firstCardPosition: 0,
+      modal: '',
     };
   },
 
@@ -41,7 +41,10 @@ parasails.registerComponent('scrollableTweets', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="d-flex flex-column">
+
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
+    <div purpose="previous-page-indicator" @click="clickPreviousPage()" v-if="showPreviousPageButton"><img src="/images/testimonials-pagination-previous-48x48@2x.png"></div>
+    <div purpose="next-page-indicator"  @click="clickNextPage()" v-if="showNextPageButton"><img src="/images/testimonials-pagination-next-48x48@2x.png"></div>
       <a purpose="tweet-card" class="card" v-for="testimonial in quotesToDisplay" target="_blank" :href="testimonial.quoteLinkUrl">
         <div purpose="logo" class="mb-4">
           <img :height="testimonial.imageHeight" v-if="testimonial.quoteImageFilename" :src="'/images/'+testimonial.quoteImageFilename"/>
@@ -61,11 +64,9 @@ parasails.registerComponent('scrollableTweets', {
         </div>
       </a>
     </div>
-    <div purpose="page-indictator-container" class="mx-auto d-flex flex-row justify-content-center">
-    </div>
     <div v-for="video in quotesWithVideoLinks">
     <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
-      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
     </modal>
     </div>
   </div>
@@ -93,7 +94,13 @@ parasails.registerComponent('scrollableTweets', {
 
   },
   mounted: async function(){
-
+    this.tweetsDiv = $('div[purpose="tweets"]')[0];
+    this.tweetCards = $('a[purpose="tweet-card"]');
+    this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
+    this.calculateHowManyFullTweetsCanBeDisplayed();
+    $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
+    $(window).on('wheel', this.updatePageIndicators);
   },
   beforeDestroy: function() {
 
@@ -103,6 +110,46 @@ parasails.registerComponent('scrollableTweets', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    calculateHowManyFullTweetsCanBeDisplayed: function() {
+      let firstTweetCard = this.tweetCards[0];
+      let nextTweetCard = this.tweetCards[1];
+      this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
+      this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
+      if(this.numberOfTweetsPerPage < 1){
+        this.numberOfTweetsPerPage = 1;
+      }
+      this.pageWidth = this.tweetCardWidth * this.numberOfTweetsPerPage;
+      if(this.numberOfTweetsPerPage >= this.numberOfTweetCardsDisplayedOnThisPage){
+        $(this.tweetsDiv).addClass('mx-auto');
+      } else {
+        $(this.tweetsDiv).removeClass('mx-auto');
+      }
+      this.updatePageIndicators();
+    },
+
+    clickNextPage: async function() {
+      if(!this.syncing){
+        this.tweetsDiv.scrollLeft += this.pageWidth;
+        await setTimeout(()=>{
+          this.updatePageIndicators();
+        }, 600);
+      }
+    },
+
+    clickPreviousPage: async function() {
+      if(!this.syncing){
+        this.tweetsDiv.scrollLeft -= this.pageWidth;
+        await setTimeout(()=>{
+          this.updatePageIndicators();
+        }, 600);
+      }
+    },
+
+    updatePageIndicators: function() {
+      this.syncing = false;
+      this.showPreviousPageButton = this.tweetsDiv.scrollLeft > (this.firstCardPosition * 0.5);
+      this.showNextPageButton = (this.tweetsDiv.scrollWidth - this.tweetsDiv.scrollLeft - this.tweetsDiv.clientWidth) >= this.tweetCardWidth * .25;
+    },
 
     clickOpenVideoModal: function(modalName) {
       this.modal = _.kebabCase(modalName);

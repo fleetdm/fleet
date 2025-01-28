@@ -1,83 +1,72 @@
 <div id="query-detail" v-cloak>
-
-  <div style="max-width: 1000px;" class="container-fluid justify-content-center p-0 px-4 pb-5 mb-lg-5 mx-auto">
-    <div class="d-flex flex-column p-0">
-      <a href="/queries" style="font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
-        <img style="display: inline-block; width: 6px; height: 9px; transform: rotate(180deg); margin-bottom: 2px;" alt="back arrow" src="/images/chevron-right-6x9@2x.png"/>
-        <span class="ml-1"> Back to queries</span>
-      </a>
-      <div purpose="title-mobile" class="d-flex d-md-none flex-column pb-4 mb-3">
-        <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-        <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
-      </div>
-    </div>
-    <div class="d-flex flex-column flex-md-row justify-content-md-between">
-      <div class="container-fluid col-md-8 d-flex flex-column p-0 pr-md-3">
-        <div purpose="title-widescreen" class="d-none d-md-flex flex-column">
-          <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-          <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
-        </div>
-        <div purpose="body" class="pt-4 pt-md-3 mt-3 mt-md-0">
-          <div purpose="query">
-            <h3 class="pb-4 mb-3 m-0">Query</h3>
-            <pre ><code class="sql hljs">{{query.query ? query.query : '--'}}</code></pre>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+          <div>
+            <a purpose="breadcrumbs-category" class="text-nowrap" href="/queries">Queries</a>/
           </div>
-          <div purpose="resolution" v-if="query.kind === 'policy' && query.resolution">
-            <h3 class="pt-5 pb-3">Resolve</h3>
-            <p>{{query.resolution}}</p>
+          <div purpose="breadcrumbs-title">
+            <span><%- query.name %></span>
           </div>
         </div>
-      </div>
-      <div purpose="summary-sidebar" class="col-md-4 order-first order-md-last p-0 pl-md-3 pt-md-4">
-        <div class="pb-2">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pb-1 pb-md-3">
-            <h5 class="pb-md-2 m-0">Platforms</h5>
-            <p class="pb-1" v-if="!query.platform || !query.platform.length">--</p>
-            <div purpose="platforms" class="d-flex align-items-center align-items-md-start pb-1" v-else>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
-            </div>
-          </div>
-        </div>
-        <div class="border-top py-2 pb-md-4">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pt-md-3">
-            <h5 class="pb-md-2 m-0">Tags</h5>
-            <div :class="[query.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
-              <div purpose="requires-mdm-badge" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-if="query.requiresMdm">requires mdm</div>
-              <div purpose="critical-badge" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-if="query.critical">critical</div>
-              <span class="mb-1" v-if="(!query.tags || !query.tags.length) && !query.critical && !query.requiresMdm">--</span>
-              <div purpose="query-tag" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-for="tag in query.tags">
-                {{tag}}
+        <div purpose="search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex w-100">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent pl-3" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
+              </div>
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search the handbook"
+                />
               </div>
             </div>
           </div>
         </div>
-        <div class="border-top py-2">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
-            <h5 class="pb-md-2 m-0">Purpose</h5>
-            <p class="m-0">{{query.kind === 'policy' ? 'Policy' : query.kind === 'query' ? 'Informational' : '--'}}</p>
+      </div>
+      <div purpose="query-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="query-details" class="d-flex flex-column">
+          <h2 purpose="query-name"><%- query.name %></h2>
+          <div purpose="query-attribution">
+            <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- query.contributors[0].handle %>.png?size=200">
+            <a purpose="query-link" href="https://github.com/<%- query.contributors[0].handle %>" class="d-flex align-items-center">
+            <p purpose="contributor-profile-name" class="mb-0"><%= query.contributors[0].name %></p></a>
           </div>
-        </div>
-        <div class="border-top py-2 pb-md-4">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 pt-md-3">
-            <h5 class="pb-md-2 m-0">Contributors</h5>
-            <div class="d-flex align-items-center">
-              <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
-              <div class="d-flex pl-2 pl-md-0 pr-md-2" v-for="contributor in query.contributors">
-                <div purpose="avatar-frame" class="d-flex avatar-frame" @click="clickAvatar(contributor)">
-                  <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
-                </div>
-              </div>
+          <p purpose="query-description"><%- query.description %></p>
+          <div purpose="query-check">
+            <p>To learn more about queries, <a href="/guides/queries">check this guide</a></p>
+            <div purpose="codeblock">
+              <div purpose="copy-button"></div>
+              <pre><code class="hljs sql"><%- query.query %></code></pre>
             </div>
           </div>
         </div>
-        <div class="d-md-none border-top"></div>
-        <div class="py-2 pt-md-0">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1">
-            <h5 class="d-flex pb-md-2 m-0 mr-3">Contribute to this page</h5>
-            <p class="d-flex m-0"><a class="d-flex text-right m-0" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">View source</a></p>
+        <div purpose="sidebar-container">
+          <div purpose="right-sidebar" class="d-flex flex-column">
+            <div purpose="query-platform">
+              <h4>Platform</h4>
+              <div class="d-flex flex-row">
+                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
+                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
+                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
+              </div>
+            </div>
+            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
+              <p><strong>Share</strong></p>
+              <div class="d-flex flex-row">
+                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/queries/${encodeURIComponent(query.slug)}&t=${encodeURIComponent(query.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+              </div>
+            </div>
+            <div purpose="docs-links" class="order-3">
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+              <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Talk to us</a>
+            </div>
           </div>
         </div>
       </div>

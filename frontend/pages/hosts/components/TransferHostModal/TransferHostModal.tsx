@@ -66,7 +66,7 @@ const TransferHostModal = ({
   };
 
   return (
-    <Modal onExit={onCancel} title={"Transfer hosts"} className={baseClass}>
+    <Modal onExit={onCancel} title="Transfer hosts" className={baseClass}>
       <form className={`${baseClass}__form`}>
         <Dropdown
           wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
@@ -74,7 +74,7 @@ const TransferHostModal = ({
           value={selectedTeam && selectedTeam.id}
           options={createTeamDropdownOptions()}
           onChange={onChangeSelectTeam}
-          placeholder={"Select a team"}
+          placeholder="Select a team"
           searchable={false}
           autoFocus
         />

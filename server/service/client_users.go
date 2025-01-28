@@ -8,11 +8,16 @@ import (
 )
 
 // CreateUser creates a new user, skipping the invitation process.
-func (c *Client) CreateUser(p fleet.UserPayload) error {
+//
+// The session key (aka API token) is returned only when creating
+// API only users.
+func (c *Client) CreateUser(p fleet.UserPayload) (*string, error) {
 	verb, path := "POST", "/api/latest/fleet/users/admin"
 	var responseBody createUserResponse
-
-	return c.authenticatedRequest(p, verb, path, &responseBody)
+	if err := c.authenticatedRequest(p, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.Token, nil
 }
 
 // ListUsers retrieves the list of users.

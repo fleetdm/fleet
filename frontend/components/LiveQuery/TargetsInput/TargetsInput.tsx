@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { isEmpty, pullAllBy } from "lodash";
 
@@ -7,68 +7,106 @@ import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
-import Input from "components/forms/fields/InputFieldWithIcon";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
+import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
-  tabIndex: number;
   searchText: string;
   searchResults: IHost[];
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
+  searchResultsTableConfig: ITargestInputHostTableConfig[];
+  selectedHostsTableConifg: ITargestInputHostTableConfig[];
+  /** disabled pagination for the results table. The pagination is currently
+   * client side pagination. Defaults to `false` */
+  disablePagination?: boolean;
+  label?: string;
+  placeholder?: string;
+  autofocus?: boolean;
   setSearchText: (value: string) => void;
-  handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row) => void;
+  handleRowSelect: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
 
+const DEFAULT_LABEL = "Target specific hosts";
+
 const TargetsInput = ({
-  tabIndex,
   searchText,
   searchResults,
   isTargetsLoading,
   hasFetchError,
   targetedHosts,
+  searchResultsTableConfig,
+  selectedHostsTableConifg,
+  disablePagination = false,
+  label = DEFAULT_LABEL,
+  placeholder = HOSTS_SEARCH_BOX_PLACEHOLDER,
+  autofocus = false,
   handleRowSelect,
-  handleRowRemove,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
-  const resultsDropdownTableHeaders = generateTableHeaders();
-  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownHosts =
-    searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
-  const isActiveSearch =
-    !isEmpty(searchText) && (!hasFetchError || isTargetsLoading);
+    searchResults && pullAllBy(searchResults, targetedHosts, "id");
+
+  const [isActiveSearch, setIsActiveSearch] = useState(false);
+
   const isSearchError = !isEmpty(searchText) && hasFetchError;
 
+  // Closes target search results when clicking outside of results
+  // But not during API loading state as it will reopen on API return
+  useEffect(() => {
+    if (!isTargetsLoading) {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsActiveSearch(false);
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isTargetsLoading]);
+
+  useEffect(() => {
+    setIsActiveSearch(
+      !isEmpty(searchText) && (!hasFetchError || isTargetsLoading)
+    );
+  }, [searchText, hasFetchError, isTargetsLoading]);
   return (
     <div>
       <div className={baseClass}>
-        <Input
-          autofocus
+        <InputFieldWithIcon
+          autofocus={autofocus}
           type="search"
           iconSvg="search"
           value={searchText}
-          tabIndex={tabIndex}
           iconPosition="start"
-          label="Target specific hosts"
-          placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
+          label={label}
+          placeholder={placeholder}
           onChange={setSearchText}
         />
         {isActiveSearch && (
-          <div className={`${baseClass}__hosts-search-dropdown`}>
-            <TableContainer
-              columnConfigs={resultsDropdownTableHeaders}
+          <div
+            className={`${baseClass}__hosts-search-dropdown`}
+            ref={dropdownRef}
+          >
+            <TableContainer<Row<IHost>>
+              columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
-              resultsTitle=""
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
-                    <h4>No hosts match the current search criteria.</h4>
+                    <h4>No matching hosts.</h4>
                     <p>
                       Expecting to see hosts? Try again in a few seconds as the
                       system catches up.
@@ -81,7 +119,8 @@ const TargetsInput = ({
               disableCount
               disablePagination
               disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
+              onClickRow={handleRowSelect}
+              keyboardSelectableRows
             />
           </div>
         )}
@@ -92,14 +131,14 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columnConfigs={selectedTableHeaders}
+            columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
-            resultsTitle=""
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
-            disablePagination
+            disablePagination={disablePagination}
+            isClientSidePagination={!disablePagination}
             emptyComponent={() => <></>}
           />
         </div>
