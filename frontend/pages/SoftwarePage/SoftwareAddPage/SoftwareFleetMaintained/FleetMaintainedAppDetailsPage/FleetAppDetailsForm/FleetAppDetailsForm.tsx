@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 
 import { ILabelSummary } from "interfaces/label";
-import { PackageType } from "interfaces/package_type";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
