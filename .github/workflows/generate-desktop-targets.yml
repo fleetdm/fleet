@@ -19,7 +19,7 @@ defaults:
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.38.0
+  FLEET_DESKTOP_VERSION: 1.38.1
 
 permissions:
   contents: write
