@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -1946,13 +1946,13 @@ func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, ex
 	UNION
 
 	SELECT st.name
-	FROM 
+	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
-		INNER JOIN software_install_upcoming_activities siua 
+		INNER JOIN software_install_upcoming_activities siua
 			ON siua.software_installer_id = si.id
 		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
-	WHERE 
+	WHERE
 		ua.execution_id = ? AND
 		ua.activity_type IN ('software_install', 'software_uninstall')
 	`
