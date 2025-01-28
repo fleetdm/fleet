@@ -111,16 +111,18 @@ func main() {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
 
-	// Ensure only one instance of Fleet Desktop is running at a time
-	lockFile, err := getLockfile()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not secure lock file")
-	}
-	defer func() {
-		if err := lockFile.Unlock(); err != nil {
-			log.Error().Err(err).Msg("unlocking lockfile")
+	if runtime.GOOS == "linux" {
+		// Ensure only one instance of Fleet Desktop is running at a time
+		lockFile, err := getLockfile()
+		if err != nil {
+			log.Fatal().Err(err).Msg("could not secure lock file")
 		}
-	}()
+		defer func() {
+			if err := lockFile.Unlock(); err != nil {
+				log.Error().Err(err).Msg("unlocking lockfile")
+			}
+		}()
+	}
 
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
