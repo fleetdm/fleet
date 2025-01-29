@@ -512,7 +512,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		TeamName:         &teamName,
 		TeamID:           teamID,
 		SelfService:      selfService,
-		SoftwareTitleId:  titleID,
+		SoftwareTitleID:  titleID,
 		SoftwareTitle:    meta.Name,
 		AppStoreID:       meta.AdamID,
 		Platform:         meta.Platform,
