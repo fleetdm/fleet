@@ -307,7 +307,7 @@ const SoftwareTable = ({
               newValue.value as ISoftwareDropdownFilterVal
             )
           }
-          tableFilter
+          variant="table-filter"
         />
       </div>
     );

@@ -169,7 +169,6 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
-	originalLabelName := label.Name
 	if payload.Name != nil {
 		// Check if the new name is a reserved label name
 		for name := range fleet.ReservedLabelNames() {
@@ -186,37 +185,20 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
 	}
 
-	// if membership type is manual and the Hosts membership is provided, must
-	// use ApplyLabelSpecs (as SaveLabel does not update label memberships),
-	// otherwise SaveLabel works for dynamic membership. Must resolve the host
-	// identifiers to hostname so that ApplySpecs can be used (it expects only
-	// hostnames).
-	if label.LabelMembershipType == fleet.LabelMembershipTypeManual && payload.Hosts != nil {
-		spec := fleet.LabelSpec{
-			Name:                originalLabelName,
-			Description:         label.Description,
-			Query:               label.Query,
-			Platform:            label.Platform,
-			LabelType:           label.LabelType,
-			LabelMembershipType: label.LabelMembershipType,
-		}
-		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, payload.Hosts)
+	// use SaveLabel to update label info, and UpdateLabelMembershipByHostIDs to update membership. Approach using label
+	// names and ApplyLabelSpecs doesn't work for multiple hosts with the same name.
+
+	if payload.Hosts != nil {
+		// get host ids for valid hosts. since this endpoint will contain hosts identified by serial
+		// number, there should be no duplicates
+
+		hostIds, err := svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
-		spec.Hosts = hostnames
-		// Note: ApplyLabelSpecs cannot update label name since it uses the name as a key.
-		// So, we must handle it later.
-		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
+		if err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds); err != nil {
 			return nil, nil, err
 		}
-		// If the label name has changed, we must update it.
-		if originalLabelName != label.Name {
-			return svc.ds.SaveLabel(ctx, label, filter)
-		}
-		// Otherwise, simply reload label to get the host counts information
-		ctx = ctxdb.RequirePrimary(ctx, true)
-		return svc.ds.Label(ctx, id, filter)
 	}
 	return svc.ds.SaveLabel(ctx, label, filter)
 }

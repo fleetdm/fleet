@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
 
@@ -23,7 +22,7 @@ import {
   IPolicy,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -39,8 +38,10 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
@@ -490,8 +491,8 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
-  const onSelectAutomationOption = (option: string) => {
-    switch (option) {
+  const onSelectAutomationOption = (option: SingleValue<CustomOptionType>) => {
+    switch (option?.value) {
       case "calendar_events":
         toggleCalendarEventsModal();
         break;
@@ -940,25 +941,25 @@ const ManagePolicyPage = ({
       );
     }
 
-    const options: IDropdownOption[] = [
+    const options: CustomOptionType[] = [
       {
         label: "Calendar events",
         value: "calendar_events",
-        disabled: !!disabledCalendarTooltipContent,
+        isDisabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Install software",
         value: "install_software",
-        disabled: !!disabledInstallTooltipContent,
+        isDisabled: !!disabledInstallTooltipContent,
         helpText: "Install software to resolve failing policies.",
         tooltipContent: disabledInstallTooltipContent,
       },
       {
         label: "Run script",
         value: "run_script",
-        disabled: !!disabledRunScriptTooltipContent,
+        isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
@@ -969,7 +970,7 @@ const ManagePolicyPage = ({
       options.push({
         label: "Other workflows",
         value: "other_workflows",
-        disabled: false,
+        isDisabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
       });
     }
@@ -1020,12 +1021,14 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {showAutomationsDropdown && (
                 <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <Dropdown
+                  <DropdownWrapper
                     className={`${baseClass}__manage-automations-dropdown`}
+                    name="policy-automations"
                     onChange={onSelectAutomationOption}
                     placeholder="Manage automations"
-                    searchable={false}
                     options={getAutomationsDropdownOptions(!!automationsConfig)}
+                    variant="button"
+                    nowrapMenu
                   />
                 </div>
               )}

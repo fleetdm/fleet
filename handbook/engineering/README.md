@@ -56,16 +56,69 @@ If there are no product changes, and the DRI decides to prioritize the story, th
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
+### Review a community pull request
+
+If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
+
+If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
+
+**For PRs that change the product:**
+
+- Assign the PR to the appropriate product group EM (Engineering Manager).
+- Notify the EM in the #help-engineering Slack channel.
+
+The EM will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The EM should:
+
+- Set the PR to draft.
+- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
+
+**For PRs that will not be merged:**
+
+- Thank the contributor for their effort and explain why the changes won't be merged.
+- Close the PR.
+
+
+### Merge a community pull request
+
+When merging a pull request from a community contributor:
+
+- Ensure that the checklist for the submitter is complete.
+- Verify that all necessary reviews have been approved.
+- Merge the PR.
+- Thank and congratulate the contributor.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+
+### Close a stale community issue
+
+If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
+
+
+### Schedule developer on-call workload
+
+Engineering Managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+
+On-call engineers are available during the business hours of 9am - 5pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) requires a 1-hour response time during business hours to any @oncall mention.
+
+
+### Assume developer on-call alias
+
+The on-call developer is responsible for:
+
+- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
+- [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
+- Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
+- Working on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+
+To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
+
+
 ### Create a release candidate
 
 All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the Tuesday before the release at 11:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work is merged without EM and QA approval.
 
-All bug fixes that are merged into `main` after the release candidate is created are merged into the release candidate by the engineer responsible for the fix.
-
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
-
-
-### Deploy the release candidate to QA Wolf
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
@@ -106,7 +159,6 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 - If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
-
 
 2. **macadmins-extension**: Latest release
 - Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
@@ -204,69 +256,16 @@ The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?
 
 ### Handle process exceptions for non-released code
 
-Some of our code does not go through a scheduled release process, but is released immediately via GitHub workflows. This includes:
+Some of our code does not go through a scheduled release process and is released immediately via GitHub workflows:
 
-- The [fleetdm/nvd](https://github.com/fleetdm/nvd) repository.
-- The [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository.
-- Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory.
+1. The [fleetdm/nvd](https://github.com/fleetdm/nvd) repository.
+2. The [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository.
+3. Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory.
 
-In these cases there are two differences in our process:
+In these cases there are two differences in our pull request process:
 
 - QA is done before merging the code change to the main branch.
 - Tickets are not moved to "Ready for release". Bug are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
-
-
-### Review a community pull request
-
-If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
-
-If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
-
-For PRs that change the product:
-
-- Set the PR to draft.
-- Thank the contributor for their hard work, explain that all changes to the product go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized), and ask them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describe the change their PR is introducing.
-
-For PRs that will not be merged:
-
-- Thank the contributor for their effort and explain why the changes won't be merged.
-- Close the PR.
-
-
-### Merge a community pull request
-
-When merging a pull request from a community contributor:
-
-- Ensure that the checklist for the submitter is complete.
-- Verify that all necessary reviews have been approved.
-- Merge the PR.
-- Thank and congratulate the contributor.
-- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
-
-
-### Close a stale community issue
-
-If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
-
-
-### Schedule developer on-call workload
-
-Engineering Managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and reduce estimate capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
-
-On-call engineers are available during the business hours of 9am - 5pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities) requires a 1-hour response time during business hours to any @oncall mention.
-
-
-### Assume developer on-call alias
-
-The on-call developer is responsible for:
-
-- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
-- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#developer-on-call-responsibilities).
-- [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
-- Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
-- Working on an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
-
-To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
 ### Notify stakeholders when a user story is pushed to the next release
@@ -319,6 +318,11 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
 
+### Maintain TUF repo for secure agent updates
+
+Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
+
+
 ### Provide same-day support for major version macOS releases
 
 Beginning with macOS 16, Fleet offers same-day support for all major version macOS releases. 
@@ -353,18 +357,13 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 
 We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
 
-The metrics are:
-* Number of bugs opened this week
-* Total # bugs open
-* Bugs in each state (inbox, acknowledged, reproduced)
-* Number of bugs closed this week
-
-Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
+At the end of each week, the Engineering KPIs are recorded by the engineering output DRI using the [get bug and PR report script](https://github.com/fleetdm/fleet/blob/main/website/scripts/get-bug-and-pr-report.js).
 
 
 ### Edit a DNS record
 
 We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
+
 1. Log into your Cloudflare account and select the "Fleet" account.
 2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
 3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
@@ -411,18 +410,9 @@ Steps to renew the certificate:
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 
-### Maintain TUF repo for secure agent updates
-
-Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
-
-
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
-
-
-#### Stubs
-The following stubs are included only to make links backward compatible.
 
 
 

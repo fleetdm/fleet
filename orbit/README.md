@@ -13,7 +13,7 @@ Orbit is the recommended agent for Fleet. But Orbit can be used with or without 
 To build orbit we use [goreleaser](https://goreleaser.com/).
 
 For reference, here are the build configuration files:
-- [Goreleaser github workflow](../.github/workflows/goreleaser-orbit.yml)
+- [Goreleaser github workflow](../.github/workflows/goreleaser-orbit.yaml)
 - Goreleaser configuration file for each platform:
     - [goreleaser-linux.yml](./goreleaser-linux.yml)
     - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)

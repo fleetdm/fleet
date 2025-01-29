@@ -66,6 +66,7 @@ import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
 import AutomaticSelfService from "./AutomaticSelfService";
 import User from "./User";
+import InfoOutline from "./InfoOutline";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -93,6 +94,7 @@ export const ICON_MAP = {
   "missing-hosts": MissingHosts,
   lightbulb: Lightbulb,
   info: Info,
+  "info-outline": InfoOutline,
   more: More,
   plus: Plus,
   policy: Policy,

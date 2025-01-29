@@ -1374,13 +1374,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
-	if meta.Version == "" {
-		return "", &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the version from %s.", payload.Filename),
-			InternalErr: ctxerr.New(ctx, "extracting version from installer metadata"),
-		}
-	}
-
 	if len(meta.PackageIDs) == 0 {
 		return "", &fleet.BadRequestError{
 			Message:     "Couldn't add. Unable to extract necessary metadata.",

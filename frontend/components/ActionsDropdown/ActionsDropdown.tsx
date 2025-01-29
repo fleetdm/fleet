@@ -198,6 +198,7 @@ const ActionsDropdown = ({
     option: (provided, state) => ({
       ...provided,
       padding: "10px 8px",
+      borderRadius: "4px",
       fontSize: "14px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
@@ -209,7 +210,7 @@ const ActionsDropdown = ({
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-vibrant-blue-25"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
