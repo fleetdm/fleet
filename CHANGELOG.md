@@ -1,4 +1,4 @@
-## Fleet 4.62.3 (Jan 24, 2025)
+## Fleet 4.62.3 (Jan 28, 2025)
 
 ### Bug fixes
 
