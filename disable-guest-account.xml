@@ -1,0 +1,11 @@
+<Replace> 
+    <Item>
+      <Meta>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI>
+      </Target>
+      <Data>0</Data>
+    </Item>
+  </Replace>
