@@ -24,6 +24,7 @@ func main() {
 
 	command := flag.String("command", "", "")
 	enterpriseID := flag.String("enterprise_id", "", "")
+	deviceID := flag.String("device_id", "", "")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -41,6 +42,8 @@ func main() {
 		policiesList(mgmt, *enterpriseID)
 	case "devices.list":
 		devicesList(mgmt, *enterpriseID)
+	case "devices.issueCommand.RELINQUISH_OWNERSHIP":
+		devicesRelinquishOwnership(mgmt, *enterpriseID, *deviceID)
 	default:
 		log.Fatalf("Unknown command: %s", *command)
 	}
@@ -107,4 +110,21 @@ func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
 		}
 		log.Println(string(data))
 	}
+}
+
+func devicesRelinquishOwnership(mgmt *androidmanagement.Service, enterpriseID, deviceID string) {
+	if enterpriseID == "" || deviceID == "" {
+		log.Fatalf("enterprise_id and device_id must be set")
+	}
+	operation, err := mgmt.Enterprises.Devices.IssueCommand("enterprises/"+enterpriseID+"/devices/"+deviceID, &androidmanagement.Command{
+		Type: "RELINQUISH_OWNERSHIP",
+	}).Do()
+	if err != nil {
+		log.Fatalf("Error issuing command: %v", err)
+	}
+	data, err := json.MarshalIndent(operation, "", "  ")
+	if err != nil {
+		log.Fatalf("Error marshalling operation: %v", err)
+	}
+	log.Println(string(data))
 }

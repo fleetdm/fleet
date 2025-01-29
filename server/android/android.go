@@ -18,3 +18,9 @@ func (e Enterprise) Name() string {
 type EnrollmentToken struct {
 	Value string `json:"value"`
 }
+
+type Host struct {
+	HostID            uint   `db:"host_id"`
+	FleetEnterpriseID uint   `db:"enterprise_id"`
+	DeviceID          string `db:"device_id"`
+}

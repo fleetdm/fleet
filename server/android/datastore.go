@@ -14,6 +14,9 @@ type Datastore interface {
 	GetEnterpriseByID(ctx context.Context, ID uint) (*Enterprise, error)
 	UpdateEnterprise(ctx context.Context, enterprise *Enterprise) error
 	ListEnterprises(ctx context.Context) ([]*Enterprise, error)
+
+	AddHost(ctx context.Context, host *Host) error
+	GetHost(ctx context.Context, fleetEnterpriseID uint, deviceID string) (*Host, error)
 }
 
 type MigrationStatus struct {
