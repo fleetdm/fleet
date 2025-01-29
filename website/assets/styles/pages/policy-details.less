@@ -268,10 +268,39 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
-  @import '../pages/docs/code-blocks.less'; // styles for code blocks and hljs
   [purpose='codeblock'] {
     padding: 0;
     position: relative;
+    .sh,.xml {
+      .hljs-keyword,
+      .hljs-selector-tag,
+      .hljs-name {
+        color: #AE6DDF;
+      }
+
+      .hljs-symbol,
+      .hljs-attribute,
+      .hljs-function-keyword,
+      .hljs-attr,
+      .hljs-class,
+      .hljs-title,
+      .hljs-string,
+      .hljs-type,
+      .hljs-builtin-name,
+      .hljs-selector-id,
+      .hljs-selector-attr,
+      .hljs-selector-pseudo,
+      .hljs-addition,
+      .hljs-variable,
+      .hljs-template-variable {
+        color: #4fd061;
+      }
+      .hljs-comment,
+      .hljs-deletion,
+      .hljs-meta {
+        color: @core-fleet-black-50;
+      }
+    }
     [purpose='copy-button'] {
       position: absolute;
       top: 11px;
@@ -322,7 +351,8 @@
       [purpose='line-break']:not(:first-of-type)::before {
         content: '\a';
       }
-      &:not(.nohighlight) {
+
+      &.sql {
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
           color: #AE6DDF;
         }
