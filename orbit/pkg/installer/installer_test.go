@@ -421,6 +421,20 @@ func TestInstallerRun(t *testing.T) {
 		assert.Equal(t, 2, numPostInstallMatches)
 	})
 
+	t.Run("failed installer download", func(t *testing.T) {
+		resetAll()
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			return "", errors.New("failed to download installer")
+		}
+
+		err := r.run(context.Background(), &config)
+		require.Error(t, err)
+
+		require.True(t, removeAllFnCalled)
+		require.True(t, tmpDirFnCalled)
+		require.Equal(t, tmpDir, removedDir)
+	})
 	t.Run("failed results upload", func(t *testing.T) {
 		var retries int
 		// set a shorter interval to speed up tests
@@ -669,7 +683,6 @@ func TestInstallerRunWithInstallerFromURL(t *testing.T) {
 		assert.True(t, getInstallerDetailsFnCalled)
 		assert.Equal(t, installDetails.ExecutionID, installIdRequested)
 	})
-
 }
 
 func TestScriptsDisabled(t *testing.T) {

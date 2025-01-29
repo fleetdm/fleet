@@ -235,6 +235,18 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
 	}
 
+	// remove tmp directory and installer
+	defer func() {
+		removeAllFn := r.removeAllFn
+		if removeAllFn == nil {
+			removeAllFn = os.RemoveAll
+		}
+		err := removeAllFn(tmpDir)
+		if err != nil {
+			log.Err(err)
+		}
+	}()
+
 	var installerPath string
 	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
 		log.Debug().Str("install_id", installID).Msgf("about to download software installer from URL")
@@ -254,18 +266,6 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			return payload, err
 		}
 	}
-
-	// remove tmp directory and installer
-	defer func() {
-		removeAllFn := r.removeAllFn
-		if removeAllFn == nil {
-			removeAllFn = os.RemoveAll
-		}
-		err := removeAllFn(tmpDir)
-		if err != nil {
-			log.Err(err)
-		}
-	}()
 
 	scriptExtension := ".sh"
 	if runtime.GOOS == "windows" {
