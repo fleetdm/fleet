@@ -9,8 +9,6 @@ const baseClass = "hosts-total";
 
 interface ITotalHostsProps {
   totalCount?: number;
-  isLoadingHosts: boolean;
-  showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
 }
@@ -19,8 +17,6 @@ const TOOLTIP_TEXT = "Total number of hosts.";
 
 const TotalHosts = ({
   totalCount,
-  isLoadingHosts,
-  showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
 }: ITotalHostsProps): JSX.Element => {
@@ -39,8 +35,6 @@ const TotalHosts = ({
     <HostCountCard
       iconName="total-hosts"
       count={totalCount || 0}
-      isLoading={isLoadingHosts}
-      showUI={showHostsUI}
       title="Total hosts"
       tooltip={TOOLTIP_TEXT}
       path={path}

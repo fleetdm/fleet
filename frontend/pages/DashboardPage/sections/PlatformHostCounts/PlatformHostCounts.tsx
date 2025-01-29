@@ -19,9 +19,7 @@ interface IPlatformHostCountsProps {
   chromeCount: number;
   iosCount: number;
   ipadosCount: number;
-  isLoadingHostsSummary: boolean;
   builtInLabels?: IHostSummary["builtin_labels"];
-  showHostsUI: boolean;
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
@@ -35,19 +33,11 @@ const PlatformHostCounts = ({
   chromeCount,
   iosCount,
   ipadosCount,
-  isLoadingHostsSummary,
   builtInLabels,
-  showHostsUI,
   errorHosts,
   selectedPlatform,
   totalHostCount,
 }: IPlatformHostCountsProps): JSX.Element => {
-  // Renders semi-transparent screen as host information is loading
-  let opacity = { opacity: 0 };
-  if (showHostsUI) {
-    opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
-  }
-
   // Only hide card if count is 0 but there are other platform counts
   const hidePlatformCard = (platformCount: number) => {
     return platformCount === 0 && totalHostCount && totalHostCount > 0;
@@ -68,7 +58,7 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || macLabelId === undefined) {
+    if (macLabelId === undefined) {
       return <></>;
     }
 
@@ -76,8 +66,6 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="darwin"
         count={macCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="macOS"
         path={PATHS.MANAGE_HOSTS_LABEL(macLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -93,15 +81,13 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || windowsLabelId === undefined) {
+    if (windowsLabelId === undefined) {
       return <></>;
     }
     return (
       <HostCountCard
         iconName="windows"
         count={windowsCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="Windows"
         path={PATHS.MANAGE_HOSTS_LABEL(windowsLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -117,15 +103,13 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || linuxLabelId === undefined) {
+    if (linuxLabelId === undefined) {
       return <></>;
     }
     return (
       <HostCountCard
         iconName="linux"
         count={linuxCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="Linux"
         path={PATHS.MANAGE_HOSTS_LABEL(linuxLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -141,7 +125,7 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || chromeLabelId === undefined) {
+    if (chromeLabelId === undefined) {
       return <></>;
     }
 
@@ -149,8 +133,6 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="chrome"
         count={chromeCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="Chromebooks"
         path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -166,7 +148,7 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || iosLabelId === undefined) {
+    if (iosLabelId === undefined) {
       return <></>;
     }
 
@@ -174,8 +156,6 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="iOS"
         count={iosCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="iPhones"
         path={PATHS.MANAGE_HOSTS_LABEL(iosLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -191,7 +171,7 @@ const PlatformHostCounts = ({
       return null;
     }
 
-    if (isLoadingHostsSummary || ipadosLabelId === undefined) {
+    if (ipadosLabelId === undefined) {
       return <></>;
     }
 
@@ -199,8 +179,6 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="iPadOS"
         count={ipadosCount}
-        isLoading={isLoadingHostsSummary}
-        showUI={showHostsUI}
         title="iPads"
         path={PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
@@ -237,15 +215,11 @@ const PlatformHostCounts = ({
     }
   };
 
-  if (errorHosts && !isLoadingHostsSummary) {
+  if (errorHosts) {
     return <DataError card />;
   }
 
-  return (
-    <div className={baseClass} style={opacity}>
-      {renderCounts(currentTeamId)}
-    </div>
-  );
+  return <div className={baseClass}>{renderCounts(currentTeamId)}</div>;
 };
 
 export default PlatformHostCounts;

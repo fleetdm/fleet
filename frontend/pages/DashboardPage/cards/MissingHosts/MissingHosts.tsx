@@ -9,16 +9,12 @@ const baseClass = "hosts-missing";
 
 interface IMissingHostsProps {
   missingCount: number;
-  isLoadingHosts: boolean;
-  showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
 }
 
 const MissingHosts = ({
   missingCount,
-  isLoadingHosts,
-  showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
 }: IMissingHostsProps): JSX.Element => {
@@ -37,8 +33,6 @@ const MissingHosts = ({
     <HostCountCard
       iconName="missing-hosts"
       count={missingCount}
-      isLoading={isLoadingHosts}
-      showUI={showHostsUI}
       title="Missing hosts"
       tooltip="Hosts that have not been online in 30 days or more."
       path={path}

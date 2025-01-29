@@ -547,9 +547,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
-        showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
         totalHostCount={
@@ -560,8 +558,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       />
       <MetricsHostCounts
         currentTeamId={teamIdForApi}
-        isLoadingHostsSummary={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
         totalHostCount={
@@ -880,12 +876,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         <div className={`${baseClass}__host-sections`}>
           <>
-            {isHostSummaryFetching && (
+            {isHostSummaryFetching ? (
               <Card paddingSize="medium">
                 <Spinner includeContainer={false} verticalPadding="small" />
               </Card>
+            ) : (
+              HostCountCards
             )}
-            {HostCountCards}
           </>
         </div>
         {renderCards()}

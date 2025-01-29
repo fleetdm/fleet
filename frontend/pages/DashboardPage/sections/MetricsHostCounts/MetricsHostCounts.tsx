@@ -12,8 +12,6 @@ const baseClass = "metrics-host-counts";
 
 interface IPlatformHostCountsProps {
   currentTeamId: number | undefined;
-  isLoadingHostsSummary: boolean;
-  showHostsUI: boolean;
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
@@ -25,8 +23,6 @@ interface IPlatformHostCountsProps {
 
 const MetricsHostCounts = ({
   currentTeamId,
-  isLoadingHostsSummary,
-  showHostsUI,
   errorHosts,
   selectedPlatform,
   totalHostCount,
@@ -35,21 +31,13 @@ const MetricsHostCounts = ({
   lowDiskSpaceCount,
   selectedPlatformLabelId,
 }: IPlatformHostCountsProps): JSX.Element => {
-  // Renders semi-transparent screen as host information is loading
-  let opacity = { opacity: 0 };
-  if (showHostsUI) {
-    opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
-  }
-
-  if (errorHosts && !isLoadingHostsSummary) {
+  if (errorHosts) {
     return <DataError card />;
   }
 
   const TotalHostsCard = (
     <TotalHosts
       totalCount={totalHostCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
       selectedPlatformLabelId={selectedPlatformLabelId}
       currentTeamId={currentTeamId}
     />
@@ -58,8 +46,6 @@ const MetricsHostCounts = ({
   const MissingHostsCard = (
     <MissingHosts
       missingCount={missingCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
       selectedPlatformLabelId={selectedPlatformLabelId}
       currentTeamId={currentTeamId}
     />
@@ -69,8 +55,6 @@ const MetricsHostCounts = ({
     <LowDiskSpaceHosts
       lowDiskSpaceGb={LOW_DISK_SPACE_GB}
       lowDiskSpaceCount={lowDiskSpaceCount}
-      isLoadingHosts={isLoadingHostsSummary}
-      showHostsUI={showHostsUI}
       selectedPlatformLabelId={selectedPlatformLabelId}
       currentTeamId={currentTeamId}
       notSupported={selectedPlatform === "chrome"}
@@ -78,7 +62,7 @@ const MetricsHostCounts = ({
   );
 
   return (
-    <div className={baseClass} style={opacity}>
+    <div className={baseClass}>
       {selectedPlatform === "all" && TotalHostsCard}
       {isPremiumTier &&
         selectedPlatform !== "ios" &&

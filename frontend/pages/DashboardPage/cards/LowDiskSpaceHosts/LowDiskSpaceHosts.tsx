@@ -10,8 +10,6 @@ const baseClass = "hosts-low-space";
 interface ILowDiskSpaceHostsProps {
   lowDiskSpaceGb: number;
   lowDiskSpaceCount: number;
-  isLoadingHosts: boolean;
-  showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
   notSupported: boolean;
@@ -20,8 +18,6 @@ interface ILowDiskSpaceHostsProps {
 const LowDiskSpaceHosts = ({
   lowDiskSpaceGb,
   lowDiskSpaceCount,
-  isLoadingHosts,
-  showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
   notSupported = false, // default to supporting this feature
@@ -46,8 +42,6 @@ const LowDiskSpaceHosts = ({
     <HostCountCard
       iconName="low-disk-space-hosts"
       count={lowDiskSpaceCount}
-      isLoading={isLoadingHosts}
-      showUI={showHostsUI}
       title="Low disk space hosts"
       tooltip={tooltipText}
       path={path}

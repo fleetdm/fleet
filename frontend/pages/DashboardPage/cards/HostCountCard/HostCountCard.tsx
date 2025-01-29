@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router";
 import { kebabCase } from "lodash";
+import { internationalNumberFormat } from "utilities/helpers";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
@@ -10,8 +10,6 @@ import Card from "components/Card";
 
 interface IHostCountCard {
   count: number;
-  isLoading: boolean;
-  showUI: boolean;
   title: string;
   iconName: IconNames;
   path: string;
@@ -25,8 +23,6 @@ const baseClass = "host-count-card";
 
 const HostCountCard = ({
   count,
-  isLoading,
-  showUI, // false on first load only
   title,
   iconName,
   path,
@@ -34,15 +30,8 @@ const HostCountCard = ({
   notSupported = false,
   className,
   iconPosition = "top",
-}: IHostCountCard): JSX.Element => {
-  const numberWithCommas = (x: number): string => {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  };
+}: IHostCountCard) => {
   // Renders opaque information as host information is loading
-  let opacity = { opacity: 0 };
-  if (showUI) {
-    opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
-  }
 
   const classes = classnames(`${baseClass}__card`, `${kebabCase(title)}-card`, {
     [`${baseClass}__not-supported`]: notSupported,
@@ -67,7 +56,7 @@ const HostCountCard = ({
           title
         )}`}
       >
-        {numberWithCommas(count)}
+        {internationalNumberFormat(count)}
       </div>
     );
   };
@@ -107,7 +96,7 @@ const HostCountCard = ({
   };
 
   return (
-    <div className={baseClass} style={opacity} data-testid="card">
+    <div className={baseClass} data-testid="card">
       <Card
         className={classes}
         borderRadiusSize="large"
