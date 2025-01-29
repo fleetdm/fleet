@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -91,7 +91,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     siua.software_installer_id AS installer_id,
 		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
-    inst.cot could be nulntents AS install_script,
+    inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
   FROM
@@ -117,7 +117,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 `
 
 	result := &fleet.SoftwareInstallDetails{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId, executionId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
@@ -1002,7 +1002,6 @@ VALUES
 }
 
 func (ds *Datastore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-	// TODO(uniq): could this return result for uninstalls too?
 	query := `
 SELECT
 	hsi.execution_id AS execution_id,
@@ -1026,7 +1025,8 @@ FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
-	hsi.execution_id = :execution_id
+	hsi.execution_id = :execution_id AND
+	hsi.uninstall = 0
 
 UNION
 
@@ -1081,8 +1081,6 @@ WHERE
 
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
-	// TODO(uniq): do we need to support team filtering or is that not needed because installers are
-	// associated to teams?
 
 	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
@@ -1417,29 +1415,39 @@ WHERE
   team_id = ?
 `
 
-	// TODO(uniq): this deletes from host_script_results but is related to software installs
-	// must add deletion from upcoming queue (here and many others below)
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
 		)
 `
-	const deleteAllPendingSoftwareInstalls = `
+	const deleteAllPendingSoftwareInstallsHSI = `
 		DELETE FROM host_software_installs
-		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
+	const deleteAllPendingSoftwareInstallsUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
 `
 	const markAllSoftwareInstallsAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
-			WHERE status IS NOT NULL AND host_deleted_at IS NULL
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+		WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
 `
 
 	const deleteAllInstallersInTeam = `
@@ -1452,17 +1460,28 @@ WHERE
 	const deletePendingUninstallScriptExecutionsNotInList = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			   )
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
 		)
 `
-	const deletePendingSoftwareInstallsNotInList = `
+	const deletePendingSoftwareInstallsNotInListHSI = `
 		DELETE FROM host_software_installs
-		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			   )
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
+`
+	const deletePendingSoftwareInstallsNotInListUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
 `
 	const markSoftwareInstallsNotInListAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
@@ -1635,8 +1654,12 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstalls, globalOrTeamID); err != nil {
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all upcoming pending host software install records")
 			}
 
 			if _, err := tx.ExecContext(ctx, markAllSoftwareInstallsAsRemoved, globalOrTeamID); err != nil {
@@ -1699,12 +1722,20 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
 		}
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+		}
+
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
 		}
 
 		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
@@ -1936,16 +1967,28 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 }
 
 func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
-	// TODO(uniq): must also look in upcoming queue
 	stmt := `
-	SELECT name
+	SELECT st.name
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
 	WHERE hsi.execution_id = ?
+
+	UNION
+
+	SELECT st.name
+	FROM
+		software_titles st
+		INNER JOIN software_installers si ON si.title_id = st.id
+		INNER JOIN software_install_upcoming_activities siua
+			ON siua.software_installer_id = si.id
+		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+	WHERE
+		ua.execution_id = ? AND
+		ua.activity_type IN ('software_install', 'software_uninstall')
 	`
 	var name string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID, executionID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get software title name from execution ID")
 	}

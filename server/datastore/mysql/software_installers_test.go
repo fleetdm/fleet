@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
+		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
 	}
 
 	for _, c := range cases {
@@ -52,6 +54,7 @@ func TestSoftwareInstallers(t *testing.T) {
 
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
@@ -127,6 +130,10 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// ensure that nothing gets automatically activated, we want to control
+	// specific activation for this test
+	ds.testActivateSpecificNextActivities = []string{"-"}
+
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
@@ -154,73 +161,82 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostInstall3, pendingHost2[0])
 	require.Equal(t, hostInstall4, pendingHost2[1])
 
-	_ = installerID3
+	// activate and set a result for hostInstall4 (installerID2)
+	ds.testActivateSpecificNextActivities = []string{hostInstall4}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
 
-	// TODO(mna): uncomment the rest of this test once execution of upcoming activities is implemented
-	/*
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                host2.ID,
-				InstallUUID:           hostInstall4,
-				InstallScriptExitCode: ptr.Int(0),
-			})
-			require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host2.ID,
+		InstallUUID:           hostInstall4,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
 
-			hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, false, nil)
-			require.NoError(t, err)
+	// create a new pending install request on host2 for installerID2
+	hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
 
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                    host2.ID,
-				InstallUUID:               hostInstall5,
-				PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
-			})
-			require.NoError(t, err)
+	ds.testActivateSpecificNextActivities = []string{hostInstall5}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
 
-			installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
-			require.NoError(t, err)
-			require.Equal(t, 2, len(installDetailsList1))
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host2.ID,
+		InstallUUID:               hostInstall5,
+		PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
+	})
+	require.NoError(t, err)
 
-			installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(installDetailsList2))
+	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(installDetailsList1))
 
-			require.Contains(t, installDetailsList1, hostInstall1)
-			require.Contains(t, installDetailsList1, hostInstall2)
+	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(installDetailsList2))
 
-			require.Contains(t, installDetailsList2, hostInstall3)
+	require.Contains(t, installDetailsList1, hostInstall1)
+	require.Contains(t, installDetailsList1, hostInstall2)
+	require.Contains(t, installDetailsList2, hostInstall3)
 
-			exec1, err := ds.GetSoftwareInstallDetails(ctx, hostInstall1)
-			require.NoError(t, err)
+	exec1, err := ds.GetSoftwareInstallDetails(ctx, hostInstall1)
+	require.NoError(t, err)
 
-			require.Equal(t, host1.ID, exec1.HostID)
-			require.Equal(t, hostInstall1, exec1.ExecutionID)
-			require.Equal(t, "hello DUCKY", exec1.InstallScript)
-			require.Equal(t, "world BIRD", exec1.PostInstallScript)
-			require.Equal(t, installerID1, exec1.InstallerID)
-			require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
-			require.False(t, exec1.SelfService)
-			assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
+	require.Equal(t, host1.ID, exec1.HostID)
+	require.Equal(t, hostInstall1, exec1.ExecutionID)
+	require.Equal(t, "hello DUCKY", exec1.InstallScript)
+	require.Equal(t, "world BIRD", exec1.PostInstallScript)
+	require.Equal(t, installerID1, exec1.InstallerID)
+	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
+	require.False(t, exec1.SelfService)
+	assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
 
-			hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true, nil)
-			require.NoError(t, err)
+	// add a self-service request for installerID3 on host1
+	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.NoError(t, err)
 
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                    host1.ID,
-				InstallUUID:               hostInstall6,
-				PreInstallConditionOutput: ptr.String("output"),
-			})
-			require.NoError(t, err)
+	ds.testActivateSpecificNextActivities = []string{hostInstall6}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host1.ID, "")
+	require.NoError(t, err)
 
-			exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
-			require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host1.ID,
+		InstallUUID:               hostInstall6,
+		PreInstallConditionOutput: ptr.String("output"),
+	})
+	require.NoError(t, err)
 
-		require.Equal(t, host1.ID, exec2.HostID)
-		require.Equal(t, hostInstall6, exec2.ExecutionID)
-		require.Equal(t, "banana", exec2.InstallScript)
-		require.Equal(t, "apple", exec2.PostInstallScript)
-		require.Equal(t, installerID3, exec2.InstallerID)
-		require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
-		require.True(t, exec2.SelfService)
-	*/
+	exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
+	require.NoError(t, err)
+
+	require.Equal(t, host1.ID, exec2.HostID)
+	require.Equal(t, hostInstall6, exec2.ExecutionID)
+	require.Equal(t, "banana", exec2.InstallScript)
+	require.Equal(t, "apple", exec2.PostInstallScript)
+	require.Equal(t, installerID3, exec2.InstallerID)
+	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
+	require.True(t, exec2.SelfService)
 
 	// Create install request, don't fulfil it, delete and restore host.
 	// Should not appear in list of pending installs for that host.
@@ -246,31 +262,6 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	// // TODO(uniq): we'll need to figure out how to actually mock the new flow for this; as it stands we
-	// // are missing the "activation" piece that actully inserts the record in the host_software_installs
-	// // table
-	// updateHostSoftwareInstall := func(t *testing.T, hostID uint, installerID uint, exitCode int) {
-	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 		r, err := q.ExecContext(ctx, `
-	// 				UPDATE host_software_installs SET install_script_exit_code = ? WHERE host_id = ? AND software_installer_id = ?`,
-	// 			exitCode, hostID, installerID)
-	// 		require.NoError(t, err)
-	// 		rows, err := r.RowsAffected()
-	// 		require.NoError(t, err)
-	// 		require.Equal(t, int64(1), rows)
-	// 		return nil
-	// 	})
-	// }
-
-	// // TODO(uniq): refactor adhoc sql to use appropriate datastore method once it is implemented
-	// deleteUpcomingActivity := func(t *testing.T, ds *Datastore, execID string) {
-	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 		_, err = q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
-	// 		require.NoError(t, err)
-	// 		return nil
-	// 	})
-	// }
 
 	cases := map[string]*uint{
 		"no team": nil,
@@ -335,15 +326,14 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
+			execID, err := ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET install_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostFailedInstall.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostFailedInstall.ID,
+				InstallUUID:           execID,
+				InstallScriptExitCode: ptr.Int(1),
+			})
+			require.NoError(t, err)
 
 			// Host with software install successful
 			tag = "-installed"
@@ -356,15 +346,14 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
+			execID, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET install_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostInstalled.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostInstalled.ID,
+				InstallUUID:           execID,
+				InstallScriptExitCode: ptr.Int(0),
+			})
+			require.NoError(t, err)
 
 			// Host with pending uninstall
 			tag = "-pending_uninstall"
@@ -391,15 +380,15 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostFailedUninstall.ID, si.InstallerID)
+			execID = "uuid" + tag + tc
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID)
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET uninstall_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostFailedUninstall.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostFailedUninstall.ID,
+				ExecutionID: execID,
+				ExitCode:    1,
+			})
+			require.NoError(t, err)
 
 			// Host with successful uninstall
 			tag = "-uninstalled"
@@ -412,15 +401,15 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostUninstalled.ID, si.InstallerID)
+			execID = "uuid" + tag + tc
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID)
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET uninstall_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostUninstalled.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostUninstalled.ID,
+				ExecutionID: execID,
+				ExitCode:    0,
+			})
+			require.NoError(t, err)
 
 			// Uninstall request with unknown host
 			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
@@ -430,18 +419,34 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
 
+			// for this test, teamID is nil for no-team, but the ListHosts filter
+			// returns "all teams" if TeamFilter = nil, it needs to use TeamFilter =
+			// 0 for "no team" only.
+			teamFilter := teamID
+			if teamFilter == nil {
+				teamFilter = ptr.Uint(0)
+			}
+
 			// list hosts with software install pending requests
 			expectStatus := fleet.SoftwareInstallPending
 			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 3) // TODO(uniq): update this after implementing "activation" piece
-			// require.Len(t, hosts, 1)
-			// require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
+
+			// get the names of hosts, useful for debugging
+			getHostNames := func(hosts []*fleet.Host) []string {
+				hostNames := make([]string, len(hosts))
+				for _, h := range hosts {
+					hostNames = append(hostNames, h.Hostname)
+				}
+				return hostNames
+			}
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
 
 			// list hosts with all pending requests
 			expectStatus = fleet.SoftwarePending
@@ -449,11 +454,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 6) // TODO(uniq): update this after implementing "activation" piece
-			// assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+			require.Len(t, hosts, 2, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
 			// list hosts with software install failed requests
 			expectStatus = fleet.SoftwareInstallFailed
@@ -461,12 +466,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
 
 			// list hosts with all failed requests
 			expectStatus = fleet.SoftwareFailed
@@ -474,12 +478,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 2)
-			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+			require.Len(t, hosts, 2, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
 			// list hosts with software installed
 			expectStatus = fleet.SoftwareInstalled
@@ -487,12 +490,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
 
 			// list hosts with pending software uninstall requests
 			expectStatus = fleet.SoftwareUninstallPending
@@ -500,12 +502,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 3) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
 
 			// list hosts with failed software uninstall requests
 			expectStatus = fleet.SoftwareUninstallFailed
@@ -513,33 +514,30 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
 
 			// list all hosts with the software title that shows up in host_software (after fleetd software query is run)
 			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
 			assert.Empty(t, hosts)
 
-			//  // TODO(uniq): uncomment this once we have everything implemented
-			// 	// get software title includes status
-			// 	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
-			// 	require.NoError(t, err)
-			// 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			// 		Installed:        1,
-			// 		PendingInstall:   1,
-			// 		FailedInstall:    1,
-			// 		PendingUninstall: 1,
-			// 		FailedUninstall:  1,
-			// 	}, *summary)
+			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+				Installed:        1,
+				PendingInstall:   1,
+				FailedInstall:    1,
+				PendingUninstall: 1,
+				FailedUninstall:  1,
+			}, *summary)
 		})
 	}
 }
@@ -759,11 +757,17 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
 	// create a team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
+	// create a couple hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID, host2.ID})
+	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// TODO(roberto): perform better assertions, we should have everything
@@ -1002,6 +1006,102 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		{Name: ins1, Source: "apps", Browser: ""},
 	})
 
+	instDetails1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
+	require.NoError(t, err)
+
+	// add pending and completed installs for ins1
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, instDetails1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	execID2, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, instDetails1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host2.ID,
+		InstallUUID:           execID2,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 1, PendingInstall: 1}, *summary)
+
+	// batch-set without changes
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:     "install",
+			PostInstallScript: "post-install",
+			InstallerFile:     tfr1,
+			StorageID:         ins1,
+			Filename:          ins1,
+			Title:             ins1,
+			Source:            "apps",
+			Version:           "2",
+			PreInstallQuery:   "select 1 from bar;",
+			UserID:            user1.ID,
+			ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	// installs stats haven't changed
+	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 1, PendingInstall: 1}, *summary)
+
+	// remove ins1 and add ins0
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   tfr0,
+			StorageID:       ins0,
+			Filename:        ins0,
+			Title:           ins0,
+			Source:          "apps",
+			Version:         "1",
+			PreInstallQuery: "select 0 from foo;",
+			UserID:          user1.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	// stats don't report anything about ins1 anymore
+	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 0, PendingInstall: 0}, *summary)
+	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, pendingHost1)
+
+	// add pending and completed installs for ins0
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	instDetails0, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, *softwareInstallers[0].TitleID, false)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, instDetails0.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	execID2b, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, instDetails0.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host2.ID,
+		InstallUUID:           execID2b,
+		InstallScriptExitCode: ptr.Int(1),
+	})
+	require.NoError(t, err)
+
+	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, pendingHost1, 1)
+
+	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 1, PendingInstall: 1}, *summary)
+
 	// remove everything
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
@@ -1009,6 +1109,14 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, softwareInstallers)
 	assertSoftware([]fleet.SoftwareTitle{})
+
+	// stats don't report anything about ins0 anymore
+	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
+	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Empty(t, pendingHost1)
 }
 
 func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastore) {
@@ -2085,327 +2193,98 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)
 }
 
-// TODO(uniq): This is intended to be a temporary test for happy path testing of the new
-// unified queue. It likely can be deleted assuming that existing tests that are currently failing
-// are updated once the full unified queue is implemented.
-func TestUnifiedQueueFiltersAndSummaries(t *testing.T) {
-	// TODO(uniq): temporary test helper until "activation" is implemented in the unified queue
-	upsertHostSoftwareInstall := func(t *testing.T, ds *Datastore, execID string, hostID uint, installerID uint, titleID uint, installScriptExitCode int) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), `
-INSERT INTO
-	host_software_installs (host_id, execution_id, software_installer_id, software_title_id, install_script_exit_code) VALUES (?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	install_script_exit_code = VALUES(install_script_exit_code)
-`, hostID, execID, installerID, titleID, installScriptExitCode)
-			return err
-		})
-	}
-
-	// TODO(uniq): temporary test helper until "activation" is implemented in the unified queue
-	deleteUpcomingActivity := func(t *testing.T, ds *Datastore, execID string) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
-			return err
-		})
-	}
-
-	ds := CreateMySQLDS(t)
-
+func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// TODO(uniq): add test cases with team variants
-	// team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	// require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	userTeamFilter := fleet.TeamFilter{
-		User: &fleet.User{GlobalRole: ptr.String("admin")},
-	}
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
 
-	tag := "uniq-host-1"
-	h1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      tag,
-		OsqueryHostID: ptr.String("osquery-" + tag),
-		NodeKey:       ptr.String("node-key-" + tag),
-		UUID:          uuid.NewString(),
-		Platform:      "darwin",
-		TeamID:        nil,
+	// create a couple software titles
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "foobar0",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "foobar0",
+		Title:            "foobar",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 
-	tag = "uniq-host-2"
-	h2, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      tag,
-		OsqueryHostID: ptr.String("osquery-" + tag),
-		NodeKey:       ptr.String("node-key-" + tag),
-		UUID:          uuid.NewString(),
-		Platform:      "darwin",
-		TeamID:        nil,
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "foobar1",
+		Extension:        "pkg",
+		StorageID:        "storage1",
+		Filename:         "foobar1",
+		Title:            "barfoo",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
 
-	// TODO(uniq): insert software title without installer to introduce a gap between title id and
-	// installer id
+	// get software title for unknown exec id
+	title, err := ds.GetSoftwareTitleNameFromExecutionID(ctx, "unknown")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Empty(t, title)
 
-	// add some of software installers
-	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "foo",
-		Source:          "foo",
-		InstallScript:   "echo",
-		TeamID:          nil,
-		Filename:        "foo.pkg",
-		UserID:          user1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	// create a couple pending software install request, the first will be
+	// immediately present in host_software_installs too (activated)
+	req1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
+	require.NoError(t, err)
+	require.Equal(t, "barfoo", title)
+
+	// record a result for req1, will be deleted from upcoming_activities
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           req1,
+		InstallScriptExitCode: ptr.Int(0),
 	})
 	require.NoError(t, err)
-	meta1, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
+	require.NoError(t, err)
+	require.Equal(t, "barfoo", title)
+
+	// create an uninstall request for installer1
+	req3 := uuid.NewString()
+	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1)
 	require.NoError(t, err)
 
-	require.NotNil(t, meta1.TitleID)
-	require.Equal(t, titleID, *meta1.TitleID)
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	require.NoError(t, err)
+	require.Equal(t, "foobar", title)
 
-	installerID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "bar",
-		Source:          "bar",
-		InstallScript:   "echo",
-		TeamID:          nil,
-		Filename:        "bar.pkg",
-		UserID:          user1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	// record a result for req2, will activate req3 so it is now in host_software_installs too
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           req2,
+		InstallScriptExitCode: ptr.Int(0),
 	})
 	require.NoError(t, err)
-	meta2, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID2)
+
+	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
 	require.NoError(t, err)
-
-	require.NotNil(t, meta2.TitleID)
-	require.Equal(t, titleID2, *meta2.TitleID)
-
-	// add some software install requests
-	exec1, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta1.InstallerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-
-	exec2, err := ds.InsertSoftwareInstallRequest(ctx, h1.ID, meta2.InstallerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-
-	_, err = ds.InsertSoftwareInstallRequest(ctx, h2.ID, meta2.InstallerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-
-	expectStatus := fleet.SoftwarePending
-
-	t.Run("software install filters and summaries", func(t *testing.T) {
-		// filter title1
-		gotHosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta1.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 1)
-
-		// summary title1
-		sum, err := ds.GetSummaryHostSoftwareInstalls(ctx, meta1.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			Installed:        0,
-			PendingInstall:   1,
-			FailedInstall:    0,
-			PendingUninstall: 0,
-			FailedUninstall:  0,
-		}, *sum)
-
-		// filter title2
-		gotHosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta2.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 2)
-
-		// summary title2
-		sum, err = ds.GetSummaryHostSoftwareInstalls(ctx, meta2.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			Installed:        0,
-			PendingInstall:   2,
-			FailedInstall:    0,
-			PendingUninstall: 0,
-			FailedUninstall:  0,
-		}, *sum)
-
-		// set installed status for h1 title1
-		upsertHostSoftwareInstall(t, ds, exec1, h1.ID, meta1.InstallerID, *meta1.TitleID, 0)
-		deleteUpcomingActivity(t, ds, exec1)
-
-		// filter title1 by pending
-		gotHosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta1.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 0) // none pending
-
-		// filter title1 by installed
-		expectStatus = fleet.SoftwareInstalled
-		gotHosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta1.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 1) // one installed
-
-		// summary title1
-		sum, err = ds.GetSummaryHostSoftwareInstalls(ctx, meta1.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			Installed:        1,
-			PendingInstall:   0,
-			FailedInstall:    0,
-			PendingUninstall: 0,
-			FailedUninstall:  0,
-		}, *sum)
-
-		// set failed status for h1 title2
-		upsertHostSoftwareInstall(t, ds, exec2, h1.ID, meta2.InstallerID, *meta2.TitleID, 1)
-		deleteUpcomingActivity(t, ds, exec2)
-
-		// filter title2 by pending
-		expectStatus = fleet.SoftwarePending
-		gotHosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta2.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 1) // h2 pending
-
-		// filter title2 by failed
-		expectStatus = fleet.SoftwareInstallFailed
-		gotHosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: meta2.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 1) // h1 failed
-
-		// summary title2
-		sum, err = ds.GetSummaryHostSoftwareInstalls(ctx, meta2.InstallerID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			Installed:        0,
-			PendingInstall:   1,
-			FailedInstall:    1,
-			PendingUninstall: 0,
-			FailedUninstall:  0,
-		}, *sum)
-
-		// TODO(uniq): test uninstalls once "activation" is implemented in the unified queue
-
-		// TODO(uniq): test filtering hosts by label plus title once "activation" is implemented
-	})
-
-	t.Run("vpp install filters and summaries", func(t *testing.T) {
-		test.CreateInsertGlobalVPPToken(t, ds)
-
-		// add some vpp apps
-		v1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-		}, nil)
-		require.NoError(t, err)
-
-		// TODO(uniq): add tests with platform variants
-
-		cmd1 := uuid.NewString()
-		event1 := uuid.NewString()
-		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, v1.VPPAppID, cmd1, event1, fleet.HostSoftwareInstallOptions{}))
-
-		cmd2 := uuid.NewString()
-		event2 := uuid.NewString()
-		require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, v1.VPPAppID, cmd2, event2, fleet.HostSoftwareInstallOptions{}))
-
-		expectStatus = fleet.SoftwareInstallPending
-		gotHosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
-			ListOptions:           fleet.ListOptions{PerPage: 100},
-			SoftwareTitleIDFilter: &v1.TitleID,
-			SoftwareStatusFilter:  &expectStatus,
-		})
-		require.NoError(t, err)
-		require.Len(t, gotHosts, 2)
-
-		sum, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, v1.VPPAppID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.VPPAppStatusSummary{
-			Installed: 0,
-			Pending:   2,
-			Failed:    0,
-		}, *sum)
-
-		// TODO(uniq): test success and failure once "activation" is implemented in the unified
-		// queue
-
-		// TODO(uniq): test filtering hosts by label plus title once "activation" is implemented
-	})
-
-	t.Run("host last install", func(t *testing.T) {
-		// add another host
-		tag := "uniq-host-3"
-		h3, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      tag,
-			OsqueryHostID: ptr.String("osquery-" + tag),
-			NodeKey:       ptr.String("node-key-" + tag),
-			UUID:          uuid.NewString(),
-			Platform:      "darwin",
-			TeamID:        nil,
-		})
-		require.NoError(t, err)
-
-		got, err := ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
-		require.NoError(t, err)
-		require.Nil(t, got)
-
-		// set failed status for h3 title1
-		exec1 := uuid.NewString()
-		expectStatus = fleet.SoftwareInstallFailed
-		upsertHostSoftwareInstall(t, ds, exec1, h3.ID, meta1.InstallerID, *meta1.TitleID, 1)
-		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.Equal(t, fleet.HostLastInstallData{
-			ExecutionID: exec1,
-			Status:      &expectStatus,
-		}, *got)
-
-		// set installed status for h3 title1
-		exec2 := uuid.NewString()
-		expectStatus = fleet.SoftwareInstalled
-		upsertHostSoftwareInstall(t, ds, exec2, h3.ID, meta1.InstallerID, *meta1.TitleID, 0)
-		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.Equal(t, fleet.HostLastInstallData{
-			ExecutionID: exec2,
-			Status:      &expectStatus,
-		}, *got)
-
-		// add upcoming activity for h3 title1
-		expectStatus = fleet.SoftwareInstallPending
-		exec3, err := ds.InsertSoftwareInstallRequest(ctx, h3.ID, meta1.InstallerID, fleet.HostSoftwareInstallOptions{})
-		require.NoError(t, err)
-		got, err = ds.GetHostLastInstallData(ctx, h3.ID, meta1.InstallerID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.Equal(t, fleet.HostLastInstallData{
-			ExecutionID: exec3,
-			Status:      &expectStatus,
-		}, *got)
-
-		// TODO(uniq): add tests with "activation" mechanism
-	})
+	require.Equal(t, "foobar", title)
 }
