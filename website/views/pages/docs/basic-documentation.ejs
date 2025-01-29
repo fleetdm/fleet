@@ -17,24 +17,20 @@
 
       <div purpose="content-and-desktop-sidebars" class="d-flex flex-column flex-lg-row">
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left left-sidebar">
-          <ul class="p-0 pb-3 m-0 left-nav">
-            <li v-for="page in findPagesByUrl()" :key="page.title">
-              <span class="font-weight-bold pb-3">{{page.title}}</span>
-              <div purpose="expanded-nav" class="pt-3" >
-                <ul class="p-0 pl-2 mb-3">
-                  <li v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
-                    <a :href="subpage.url" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'">
-                      {{subpage.title}}
-                    </a>
-                  </li>
-                </ul>
+          <div purpose="left-sidebar-links">
+            <div v-for="page in findPagesByUrl()" :key="page.title">
+              <p purpose="section-title">{{page.title}}</p>
+              <div purpose="expanded-nav">
+                <a :href="subpage.url" purpose="subpage-link" :class="subpage.title === thisPage.title ? 'topic active' : 'topic'" v-for="subpage in findPagesByUrl(page.url)" :key="subpage.title">
+                  {{subpage.title}}
+                </a>
               </div>
-            </li>
-          </ul>
-          <a class="pt-4 pb-3" target="_blank" href="/releases">Release notes</a>
-          <a class="pb-3" href="/docs/contributing" target="_blank">Contributing</a>
-          <a class="pb-3" target="_blank" href="/support">Support</a>
-          <a class="pb-3" href="/contact">Take a tour</a>
+            </div>
+          </div>
+          <a purpose="subpage-link" target="_blank" href="/releases">Release notes</a>
+          <a purpose="subpage-link" href="/docs/contributing" target="_blank">Contributing</a>
+          <a purpose="subpage-link" target="_blank" href="/support">Support</a>
+          <a purpose="subpage-link" href="/contact">Take a tour</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
             <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
               <div class="d-flex flex-column align-items-center">

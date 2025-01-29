@@ -212,12 +212,15 @@
       line-height: 28px;
       color: @core-fleet-black-75;
       text-decoration: none;
-    }
-    a:hover {
-      color: @core-vibrant-blue;
-    }
-    a.active {
-      color: @core-vibrant-blue;
+      &:hover {
+        text-decoration: none;
+        border-radius: 4px;
+        background: #F9FAFC;
+      }
+      &.active {
+        border-radius: 4px;
+        background: #F9FAFC;
+      }
     }
     min-height: calc(~'100vh - 565px');
     overflow-y: scroll;

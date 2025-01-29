@@ -37,9 +37,7 @@
   h1, h2, h3, h4, h5, h6 {
     line-height: 120%;
   }
-  a:not(.btn) {
-    color: @core-vibrant-blue;
-  }
+
   ul {
     list-style: none;
     padding-left: 8px;
@@ -307,76 +305,63 @@
       scrollbar-width: none;
       font-size: 14px;
       max-width: 200px;
-      a {
-        color: @core-fleet-black;
-        text-decoration: none;
-
-        &:hover {
-          color: #6A67FE;
-        }
-
-        &.btn-primary {
-          color: #fff;
-        }
-
-        .btn-primary {
-          color: #fff;
-          background-color: #ff5c83;
-          border-color: #ff5c83;
-
-          &:hover {
-            background-color: darken(#ff5c83, 10%);
-            border-color: darken(#ff5c83, 10%);
-          }
-
-        }
-
-      }
-
-      .left-nav {
+      [purpose='left-sidebar-links'] {
         border-bottom: 1px solid @core-fleet-black-25;
+        margin-bottom: 16px;
       }
-
-      .topic {
-        padding-left: 0px;
-        color: @core-fleet-black-75;
-        &.active {
-          color: @core-vibrant-blue;
-        }
-
+      [purpose='section-title'] {
+        margin-bottom: 8px;
+        color: #192147;
+        font-family: Inter;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 120%;
       }
-
-
-    }
-    [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
-      display: none;
-    }
-    [purpose='expanded-nav'] {
-      li {
+      [purpose='subpage-link'] {
         font-size: 14px;
         font-style: normal;
         font-weight: 400;
         line-height: 21px;
         color: @core-fleet-black-75;
+        display: block;
+        padding: 4px 8px;
+        &:hover {
+          text-decoration: none;
+          border-radius: 4px;
+          background: #F9FAFC;
+        }
+        &.active {
+          border-radius: 4px;
+          background: #F9FAFC;
+        }
       }
-
-      [purpose='nav-section']:not(:last-of-type) {
-        border-bottom: 1px solid #E2E4EA;
-        margin-bottom: 16px;
-      }
-      [purpose='nav-section'] {
-        padding-bottom: 12px;
-        [purpose='nav-section-title'] {
-          font-size: 13px;
-          font-weight: 500;
-          line-height: 18px;
-          text-transform: uppercase;
-          margin-bottom: 12px;
-          padding-top: 8px;
-          color: @core-fleet-black;
+      [purpose='expanded-nav'] {
+        display: flex;
+        flex-direction: column;
+        padding-top: 8px;
+        padding-bottom: 16px;
+        [purpose='nav-section']:not(:last-of-type) {
+          border-bottom: 1px solid #E2E4EA;
+          margin-bottom: 16px;
+        }
+        [purpose='nav-section'] {
+          padding-bottom: 12px;
+          [purpose='nav-section-title'] {
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 18px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            padding-top: 8px;
+            color: @core-fleet-black;
+          }
         }
       }
     }
+    [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
+      display: none;
+    }
+
 
     [purpose='right-sidebar'] {
       scrollbar-width: none;
@@ -385,7 +370,15 @@
       }
       a {
         &:hover {
-          color: #6A67FE;
+          color: @core-fleet-black-75;
+          text-decoration: none;
+          border-radius: 4px;
+          background: #F9FAFC;
+        }
+        &.active {
+          color: @core-fleet-black-75;
+          border-radius: 4px;
+          background: #F9FAFC;
         }
       }
       li {
@@ -567,7 +560,9 @@
         margin-bottom: 24px;
         scroll-margin-top: 104px;
       }
-
+      a:not(.btn) {
+        color: @core-vibrant-blue;
+      }
       pre + hr + h3 {
         padding-top: 0px;
       }
@@ -1003,11 +998,6 @@
   @media (min-width: 992px) {
 
     [purpose='docs-template'] {
-      ul {
-        .topic {
-          padding-left: 8px;
-        }
-      }
 
       [purpose='search'] {
         .input-group {
