@@ -1081,8 +1081,6 @@ WHERE
 
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
-	// TODO(uniq): do we need to support team filtering or is that not needed because installers are
-	// associated to teams?
 
 	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
