@@ -1,2 +1,0 @@
-- Fixed a bug in determining sort type of query result columns by deducing that type from the data
-  present in those columns.

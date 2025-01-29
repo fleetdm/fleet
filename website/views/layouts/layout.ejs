@@ -167,10 +167,12 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
-                    <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
-                    <a purpose="mobile-dropdown-link" href="/app-library">App library</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Guides</a>
+                    <a purpose="mobile-dropdown-link" href="/vitals">Vitals</a>
+                    <a purpose="mobile-dropdown-link" href="/queries">Queries</a>
+                    <a purpose="mobile-dropdown-link" href="/policies">Policies</a>
+                    <a purpose="mobile-dropdown-link" href="/app-library">Software</a>
+                    <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
                     <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
                     <span class="mt-2 mb-2">SUPPORT</span>
                     <div purpose="indented-mobile-links">
@@ -206,6 +208,7 @@
                     <hr>
                     <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
                     <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                       <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                       <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
                     </div>
@@ -230,10 +233,12 @@
                   <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Docs</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/docs">Get started</a>
-                    <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
-                    <a class="dropdown-item" href="/tables">Raw data</a>
-                    <a class="dropdown-item" href="/app-library">App library</a>
-                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
+                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Guides</a>
+                    <a class="dropdown-item" href="/vitals">Vitals</a>
+                    <a class="dropdown-item" href="/queries">Queries</a>
+                    <a class="dropdown-item" href="/policies">Policies</a>
+                    <a class="dropdown-item" href="/app-library">Software</a>
+                    <a class="dropdown-item" href="/tables">Data tables</a>
                     <a class="dropdown-item" href="/docs/rest-api">API</a>
                     <span class="muted dropdown-header">SUPPORT</span>
                     <a class="dropdown-item" href="/support">Chat</a>
@@ -289,7 +294,7 @@
                 <span>Admin pages</span>
               </div>
               <div class="d-flex flex-row align-self-end justify-content-between">
-                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/query-generator">Generate queries</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
               </div>
@@ -339,10 +344,11 @@
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
 
-              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
-                  <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
+                  <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
                 <div class="text-sm-nowrap d-block d-sm-inline">
                   © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
@@ -378,12 +384,13 @@
         </div>
       <% } else { %>
         <div purpose="reduced-nav-footer" data-nosnippet>
-            <div purpose="legal-and-social-nav" class="d-flex flex-md-row flex-column align-items-lg-center justify-content-md-between">
+            <div purpose="legal-and-social-nav" class="d-flex flex-md-row flex-column align-items-md-center justify-content-md-between">
 
-              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
-                  <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
+                  <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
                 <div purpose="copyright-and-legal-link" class="text-sm-nowrap d-block d-sm-inline">
                   © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
@@ -500,6 +507,8 @@
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
+    <script src="/js/pages/policy-details.page.js"></script>
+    <script src="/js/pages/policy-library.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
@@ -514,6 +523,7 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
+    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

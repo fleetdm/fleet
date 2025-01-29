@@ -24,7 +24,7 @@ variable "fleet_config" {
     vuln_processing_cpu                  = optional(number, 2048)
     vuln_data_stream_mem                 = optional(number, 1024)
     vuln_data_stream_cpu                 = optional(number, 512)
-    image                                = optional(string, "fleetdm/fleet:v4.61.0")
+    image                                = optional(string, "fleetdm/fleet:v4.62.3")
     family                               = optional(string, "fleet-vuln-processing")
     sidecars                             = optional(list(any), [])
     extra_environment_variables          = optional(map(string), {})
@@ -82,7 +82,7 @@ variable "fleet_config" {
     vuln_processing_cpu                  = 2048
     vuln_data_stream_mem                 = 1024
     vuln_data_stream_cpu                 = 512
-    image                                = "fleetdm/fleet:v4.61.0"
+    image                                = "fleetdm/fleet:v4.62.3"
     family                               = "fleet-vuln-processing"
     sidecars                             = []
     extra_environment_variables          = {}

@@ -18,8 +18,7 @@
     "sails-hook-orm": "^4.0.3",
     "sails-hook-sockets": "^3.0.0",
     "sails-postgresql": "^5.0.1",
-    "stripe": "17.3.1",
-    "yaml": "1.10.2"
+    "stripe": "17.3.1"
   },
   "devDependencies": {
     "eslint": "5.16.0",
@@ -27,7 +26,8 @@
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
     "marked": "4.0.10",
-    "sails-hook-grunt": "^5.0.0"
+    "sails-hook-grunt": "^5.0.0",
+    "yaml": "1.10.2"
   },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",

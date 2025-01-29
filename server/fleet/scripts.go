@@ -436,6 +436,47 @@ type ScriptResponse struct {
 	Name string `json:"name" db:"name"`
 }
 
+type DeviceStatus string
+
+const (
+	DeviceStatusWiped    DeviceStatus = "wiped"
+	DeviceStatusLocked   DeviceStatus = "locked"
+	DeviceStatusUnlocked DeviceStatus = "unlocked"
+)
+
+func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
+	switch {
+	case s.IsWiped():
+		return DeviceStatusWiped
+	case s.IsLocked():
+		return DeviceStatusLocked
+	default:
+		return DeviceStatusUnlocked
+	}
+}
+
+type PendingDeviceAction string
+
+const (
+	PendingActionLock   PendingDeviceAction = "lock"
+	PendingActionUnlock PendingDeviceAction = "unlock"
+	PendingActionWipe   PendingDeviceAction = "wipe"
+	PendingActionNone   PendingDeviceAction = ""
+)
+
+func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
+	switch {
+	case s.IsPendingLock():
+		return PendingActionLock
+	case s.IsPendingUnlock():
+		return PendingActionUnlock
+	case s.IsPendingWipe():
+		return PendingActionWipe
+	default:
+		return PendingActionNone
+	}
+}
+
 func (s *HostLockWipeStatus) IsPendingLock() bool {
 	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// pending lock if an MDM command is queued but no result received yet

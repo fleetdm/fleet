@@ -41,14 +41,8 @@ func (ds *Datastore) NewActivity(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-		if ranScriptActivity.PolicyID != nil {
-			userName = &automationActivityAuthor
-		}
-	} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
-		if softwareInstallActivity.PolicyID != nil {
-			userName = &automationActivityAuthor
-		}
+	} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+		userName = &automationActivityAuthor
 	}
 
 	cols := []string{"user_id", "user_name", "activity_type", "details", "created_at"}
@@ -255,6 +249,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			LEFT OUTER JOIN
 		    	host_software_installs hsi ON hsi.execution_id = hsr.execution_id
 			WHERE hsr.host_id = :host_id AND
+						hsr.host_deleted_at IS NULL AND
 						exit_code IS NULL AND
 						hsi.execution_id IS NULL AND
 						(sync_request = 0 OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
@@ -262,11 +257,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			COUNT(*) c
 			FROM host_software_installs hsi
 			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
+				hsi.host_deleted_at IS NULL AND
 				hsi.status = :software_status_install_pending`,
 		`SELECT
 			COUNT(*) c
 			FROM host_software_installs hsi
 			WHERE hsi.host_id = :host_id AND hsi.software_installer_id IS NOT NULL AND
+				hsi.host_deleted_at IS NULL AND
 				hsi.status = :software_status_uninstall_pending`,
 		`
 		SELECT
@@ -334,6 +331,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			setup_experience_scripts ses ON ses.id = hsr.setup_experience_script_id
 		WHERE
 			hsr.host_id = :host_id AND
+			hsr.host_deleted_at IS NULL AND
 			hsr.exit_code IS NULL AND
 			(
 				hsr.sync_request = 0 OR
@@ -377,6 +375,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE
 			hsi.host_id = :host_id AND
+			hsi.host_deleted_at IS NULL AND
 			hsi.status = :software_status_install_pending
 		`,
 		// list pending software uninstalls
@@ -413,12 +412,16 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = hsi.host_id
 		WHERE
 			hsi.host_id = :host_id AND
+			hsi.host_deleted_at IS NULL AND
 			hsi.status = :software_status_uninstall_pending
 		`,
+		// list pending VPP installs
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
-	u.name AS name,
+	-- policies with automatic installers generate a host_vpp_software_installs with (user_id=NULL,self_service=0),
+	-- so we mark those as "Fleet"
+	IF(hvsi.user_id IS NULL AND NOT hvsi.self_service, 'Fleet', u.name) AS name,
 	u.id AS user_id,
 	u.gravatar_url as gravatar_url,
 	u.email as user_email,
@@ -436,15 +439,15 @@ SELECT
 	) AS details
 FROM
 	host_vpp_software_installs hvsi
-INNER JOIN 
+INNER JOIN
 	nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	users u ON hvsi.user_id = u.id
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	host_display_names hdn ON hdn.host_id = hvsi.host_id
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
-LEFT OUTER JOIN 
+LEFT OUTER JOIN
 	software_titles st ON st.id = vpa.title_id
 WHERE
 	nvq.status IS NULL

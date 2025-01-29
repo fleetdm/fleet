@@ -1,13 +1,12 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import FleetAce from ".";
-import { IFleetAceProps } from "./FleetAce";
 
 import "../../index.scss";
 
-export default {
+const meta: Meta<typeof FleetAce> = {
   component: FleetAce,
   title: "Components/FleetAce",
   args: {
@@ -26,8 +25,10 @@ export default {
     onChange: noop,
     handleSubmit: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IFleetAceProps> = (props) => <FleetAce {...props} />;
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof FleetAce>;
+
+export const Default: Story = {};

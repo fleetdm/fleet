@@ -13,7 +13,6 @@
         }
         .interval__header {
           width: 0;
-          border-right: none;
         }
         .platform_string__header {
           display: none;
@@ -37,7 +36,6 @@
           .performance__header {
             display: table-cell;
             width: $col-md;
-            border-right: none;
           }
         }
         @media (min-width: $break-lg) {

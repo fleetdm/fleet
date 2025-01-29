@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -34,6 +35,7 @@ type (
 type Client interface {
 	GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error)
 	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
+	DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
 
@@ -73,6 +75,8 @@ type Runner struct {
 	osqueryConnectionMutex sync.Mutex
 
 	rootDirPath string
+
+	retryOpts []retry.Option
 }
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
@@ -82,6 +86,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 		scriptsEnabled:            scriptsEnabled,
 		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
 		rootDirPath:               rootDirPath,
+		retryOpts:                 []retry.Option{retry.WithMaxAttempts(5)},
 	}
 
 	return r
@@ -138,9 +143,19 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				continue
 			}
 		}
-		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+		attemptNum := 1
+		err = retry.Do(func() error {
+			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+				log.Debug().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				attemptNum++
+				return err
+			}
+			return nil
+		}, r.retryOpts...)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
+
 	}
 	if len(errs) != 0 {
 		return errors.Join(errs...)
@@ -232,10 +247,24 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		}
 	}()
 
-	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
-	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-	if err != nil {
-		return payload, err
+	var installerPath string
+	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
+		log.Debug().Str("install_id", installID).Msgf("about to download software installer from URL")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
+			installer.SoftwareInstallerURL.Filename, tmpDir)
+		if err != nil {
+			log.Err(err).Msg("downloading software installer from URL")
+			// If download fails, we will fall back to downloading the installer directly from Fleet server
+			installerPath = ""
+		}
+	}
+
+	if installerPath == "" {
+		log.Debug().Str("install_id", installID).Msgf("about to download software installer")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
+		if err != nil {
+			return payload, err
+		}
 	}
 
 	scriptExtension := ".sh"

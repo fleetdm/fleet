@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
   components,
+  DropdownIndicatorProps,
+  GroupBase,
+  OptionProps,
+  StylesConfig,
 } from "react-select-5";
 
 import { COLORS } from "styles/var/colors";
@@ -13,7 +15,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 
 import Icon from "components/Icon";
@@ -40,7 +42,7 @@ const generateDropdownOptions = (
   const filtered = options.filter(
     (o) =>
       !(
-        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
         (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
       )
   );
@@ -48,10 +50,14 @@ const generateDropdownOptions = (
   return filtered;
 };
 
-const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+const getOptionBackgroundColor = (
+  state: OptionProps<
+    INumberDropdownOption,
+    false,
+    GroupBase<INumberDropdownOption>
+  >
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 interface ITeamsDropdownProps {
@@ -112,21 +118,23 @@ const TeamsDropdown = ({
     );
   };
 
+  // see https://react-select.com/styles#the-styles-prop
+  // `provided` here corresponds to `baseStyles` in the docs
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
     control: (provided, state) => ({
       ...provided,
       display: "flex",
       flexDirection: "row",
-      width: "max-content",
       padding: "8px 0",
       backgroundColor: "initial",
       border: 0,
+      borderRadius: "4px",
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
         ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
+          color: COLORS["core-fleet-blue"],
         },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
@@ -173,6 +181,8 @@ const TeamsDropdown = ({
       paddingLeft: 0,
       paddingRight: "8px",
       margin: 0,
+      // omit grid-column-end for automatic width
+      gridArea: "1/1/2",
     }),
     dropdownIndicator: (provided) => ({
       ...provided,
@@ -210,7 +220,9 @@ const TeamsDropdown = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "14px",
+      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: state.isSelected ? "bold" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
@@ -220,7 +232,7 @@ const TeamsDropdown = ({
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-vibrant-blue-25"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],

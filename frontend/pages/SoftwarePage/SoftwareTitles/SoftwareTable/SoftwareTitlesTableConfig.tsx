@@ -75,18 +75,20 @@ const getSoftwareNameCellData = (
   if (software_package) {
     hasPackage = true;
     isSelfService = software_package.self_service;
-    if (
+    installType =
       software_package.automatic_install_policies &&
       software_package.automatic_install_policies.length > 0
-    ) {
-      installType = "automatic";
-    } else {
-      installType = "manual";
-    }
+        ? "automatic"
+        : "manual";
   } else if (app_store_app) {
     hasPackage = true;
     isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
+    installType =
+      app_store_app.automatic_install_policies &&
+      app_store_app.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
   }
 
   const isAllTeams = teamId === undefined;

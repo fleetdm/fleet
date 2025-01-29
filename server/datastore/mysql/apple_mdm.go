@@ -3551,27 +3551,6 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 
-func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
-	})
-}
-
-func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
-	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
-			}
-		} else {
-			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
-		}
-	}
-	return nil
-}
-
 func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
 	if teamID == nil {
 		teamID = ptr.Uint(0)
@@ -3601,23 +3580,6 @@ WHERE
 		return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
 	}
 	return &profile, nil
-}
-
-func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	query, args, err := sqlx.In(
-		"DELETE FROM host_disk_encryption_keys WHERE host_id IN (?)",
-		hostIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query")
-	}
-
-	_, err = tx.ExecContext(ctx, query, args...)
-	return err
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
@@ -4222,142 +4184,60 @@ WHERE h.uuid = ?
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
-	incomingDeclarations []*fleet.MDMAppleDeclaration,
-) (declarations []*fleet.MDMAppleDeclaration, updatedDB bool, err error) {
-	const insertStmt = `
-INSERT INTO mdm_apple_declarations (
-	declaration_uuid,
-	identifier,
-	name,
-	raw_json,
-	secrets_updated_at,
-	uploaded_at,
-	team_id
-)
-VALUES (
-	?,?,?,?,?,CURRENT_TIMESTAMP(),?
-)
-ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
-  secrets_updated_at = VALUES(secrets_updated_at),
-  name = VALUES(name),
-  identifier = VALUES(identifier),
-  raw_json = VALUES(raw_json)
-`
+	incomingDeclarations []*fleet.MDMAppleDeclaration) (updatedDB bool, err error) {
 
-	fmtDeleteStmt := `
-DELETE FROM
-  mdm_apple_declarations
-WHERE
-  team_id = ? AND %s
-`
-	andNameNotInList := "name NOT IN (?)" // added to fmtDeleteStmt if needed
-
-	const loadExistingDecls = `
-SELECT
-  name,
-  declaration_uuid,
-  raw_json
-FROM
-  mdm_apple_declarations
-WHERE
-  team_id = ? AND
-  name IN (?)
-`
-
-	var declTeamID uint
-	if tmID != nil {
-		declTeamID = *tmID
-	}
-
-	// build a list of names for the incoming declarations, will keep the
-	// existing ones if there's a match and no change
+	// First, build a list of names (which are usually filenames) for the incoming declarations.
+	// We will keep the existing ones if there's a match and no change.
+	// At the same time, index the incoming declarations keyed by name for ease of processing.
 	incomingNames := make([]string, len(incomingDeclarations))
-	// at the same time, index the incoming declarations keyed by name for ease
-	// or processing
-	incomingDecls := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
+	incomingDeclarationsMap := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
 	for i, p := range incomingDeclarations {
 		incomingNames[i] = p.Name
-		incomingDecls[p.Name] = p
+		incomingDeclarationsMap[p.Name] = p
 	}
 
-	var existingDecls []*fleet.MDMAppleDeclaration
-
-	if len(incomingNames) > 0 {
-		// load existing declarations that match the incoming declarations by names
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &existingDecls, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, false, ctxerr.Wrap(ctx, err, "load existing declarations")
-		}
+	teamIDOrZero := ds.teamIDPtrToUint(tmID)
+	existingDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load existing declarations")
 	}
 
-	// figure out if we need to delete any declarations
-	keepNames := make([]string, 0, len(incomingNames))
+	// figure out which declarations we should not delete, and put those into keepNames list
+	keepNames := make([]string, 0, len(existingDecls)+len(fleetmdm.ListFleetReservedMacOSDeclarationNames()))
 	for _, p := range existingDecls {
-		if newP := incomingDecls[p.Name]; newP != nil {
+		if newP := incomingDeclarationsMap[p.Name]; newP != nil {
 			keepNames = append(keepNames, p.Name)
 		}
 	}
 	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
 
-	var delArgs []any
-	var delStmt string
-	if len(keepNames) == 0 {
-		// delete all declarations for the team
-		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
-		delArgs = []any{declTeamID}
-	} else {
-		// delete the obsolete declarations (all those that are not in keepNames)
-		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andNameNotInList), declTeamID, keepNames)
-		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
-		}
-		delStmt = stmt
-		delArgs = args
+	deletedDeclarations, err := ds.deleteObsoleteDeclarations(ctx, tx, keepNames, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 
-	var result sql.Result
-	if result, err = tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
-		"delete") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
-		return nil, false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
-	}
-	if result != nil {
-		rows, _ := result.RowsAffected()
-		updatedDB = rows > 0
+	insertedOrUpdatedDeclarations, err := ds.insertOrUpdateDeclarations(ctx, tx, incomingDeclarations, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "insert/update declarations")
 	}
 
-	for _, d := range incomingDeclarations {
-		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-		if result, err = tx.ExecContext(ctx, insertStmt,
-			declUUID,
-			d.Identifier,
-			d.Name,
-			d.RawJSON,
-			d.SecretsUpdatedAt,
-			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
-		}
-		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
+	updatedLabels, err := ds.updateDeclarationsLabelAssociations(ctx, tx, incomingDeclarationsMap, teamIDOrZero)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update declaration label associations")
 	}
 
-	incomingLabels := []fleet.ConfigurationProfileLabel{}
-	if len(incomingNames) > 0 {
-		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
+	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels, nil
+}
+
+func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx sqlx.ExtContext,
+	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint) (updatedDB bool, err error) {
+	var incomingLabels []fleet.ConfigurationProfileLabel
+	if len(incomingDeclarationsMap) > 0 {
+		incomingNames := make([]string, 0, len(incomingDeclarationsMap))
+		for _, p := range incomingDeclarationsMap {
+			incomingNames = append(incomingNames, p.Name)
+		}
+
 		// load current declarations (again) that match the incoming declarations by name to grab their uuids
 		// this is an easy way to grab the identifiers for both the existing declarations and the new ones we generated.
 		//
@@ -4365,18 +4245,16 @@ WHERE
 		// information without this extra request in the previous DB
 		// calls. Due to time constraints, I'm leaving that
 		// optimization for a later iteration.
-		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingNames)
+		newlyInsertedDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, teamID)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedDecls, stmt, args...); err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
+			return false, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
 		}
 
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
-			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Name]
+			incomingDecl, ok := incomingDeclarationsMap[newlyInsertedDecl.Name]
 			if !ok {
-				return nil, false, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
+				return false, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming",
+					newlyInsertedDecl.Name)
 			}
 
 			for _, label := range incomingDecl.LabelsIncludeAll {
@@ -4400,16 +4278,129 @@ WHERE
 		}
 	}
 
-	var updatedLabels bool
-	if updatedLabels, err = batchSetDeclarationLabelAssociationsDB(ctx, tx,
+	if updatedDB, err = batchSetDeclarationLabelAssociationsDB(ctx, tx,
 		incomingLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, false, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
+		return false, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
+	}
+	return updatedDB, err
+}
+
+func (ds *Datastore) insertOrUpdateDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingDeclarations []*fleet.MDMAppleDeclaration,
+	teamID uint) (updatedDB bool, err error) {
+	const insertStmt = `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	identifier,
+	name,
+	raw_json,
+	secrets_updated_at,
+	uploaded_at,
+	team_id
+)
+VALUES (
+	?,?,?,?,?,NOW(6),?
+)
+ON DUPLICATE KEY UPDATE
+  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+  secrets_updated_at = VALUES(secrets_updated_at),
+  name = VALUES(name),
+  identifier = VALUES(identifier),
+  raw_json = VALUES(raw_json)
+`
+
+	for _, d := range incomingDeclarations {
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		var result sql.Result
+		if result, err = tx.ExecContext(ctx, insertStmt,
+			declUUID,
+			d.Identifier,
+			d.Name,
+			d.RawJSON,
+			d.SecretsUpdatedAt,
+			teamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
+		}
+		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
+	}
+	return updatedDB, nil
+}
+
+// deleteObsoleteDeclarations deletes all declarations that are not in the keepNames list.
+func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.ExtContext, keepNames []string, teamID uint) (updatedDB bool,
+	err error) {
+	const fmtDeleteStmt = `
+DELETE FROM
+  mdm_apple_declarations
+WHERE
+  team_id = ? AND name NOT IN (?)
+`
+
+	delStmt, delArgs, err := sqlx.In(fmtDeleteStmt, teamID, keepNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 	}
 
-	return incomingDeclarations, updatedDB || updatedLabels, nil
+	var result sql.Result
+	if result, err = tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
+		"delete") {
+		if err == nil {
+			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+		}
+		return false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+	}
+	if result != nil {
+		rows, _ := result.RowsAffected()
+		updatedDB = rows > 0
+	}
+	return updatedDB, nil
+}
+
+func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingNames []string,
+	teamID uint) ([]*fleet.MDMAppleDeclaration, error) {
+	const loadExistingDecls = `
+SELECT
+  name,
+  declaration_uuid,
+  raw_json
+FROM
+  mdm_apple_declarations
+WHERE
+  team_id = ? AND
+  name IN (?)
+`
+	var existingDecls []*fleet.MDMAppleDeclaration
+	if len(incomingNames) > 0 {
+		// load existing declarations that match the incoming declarations by names
+		loadExistingDeclsStmt, args, err := sqlx.In(loadExistingDecls, teamID, incomingNames)
+		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
+			"inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &existingDecls, loadExistingDeclsStmt,
+			args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "load existing declarations")
+		}
+	}
+	return existingDecls, nil
+}
+
+func (ds *Datastore) teamIDPtrToUint(tmID *uint) uint {
+	if tmID != nil {
+		return *tmID
+	}
+	return 0
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -4443,7 +4434,7 @@ INSERT INTO mdm_apple_declarations (
 	raw_json,
 	secrets_updated_at,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,?,NOW(6) FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
@@ -4452,7 +4443,7 @@ INSERT INTO mdm_apple_declarations (
 )
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
-	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND NULLIF(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, CURRENT_TIMESTAMP()),
+	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)

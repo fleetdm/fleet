@@ -10,7 +10,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
@@ -19,9 +21,14 @@ import (
 )
 
 type TestOrbitClient struct {
-	downloadInstallerFn   func(uint, string) (string, error)
-	getInstallerDetailsFn func(string) (*fleet.SoftwareInstallDetails, error)
-	saveInstallerResultFn func(*fleet.HostSoftwareInstallResultPayload) error
+	downloadInstallerFn        func(uint, string) (string, error)
+	downloadInstallerFromURLFn func(url string, filename string, downloadDir string) (string, error)
+	getInstallerDetailsFn      func(string) (*fleet.SoftwareInstallDetails, error)
+	saveInstallerResultFn      func(*fleet.HostSoftwareInstallResultPayload) error
+}
+
+func (oc *TestOrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string) (string, error) {
+	return oc.downloadInstallerFromURLFn(url, filename, downloadDir)
 }
 
 func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
@@ -130,24 +137,6 @@ func TestPreconditionCheck(t *testing.T) {
 	require.False(t, success)
 	require.Error(t, err)
 	require.Equal(t, "", output)
-}
-
-type mockOrbitClient struct {
-	getInstallerDetails       func(installID string) (*fleet.SoftwareInstallDetails, error)
-	downloadSoftwareInstaller func(installerID uint, downloadDir string) (string, error)
-	saveInstallerResult       func(payload *fleet.HostSoftwareInstallResultPayload) error
-}
-
-func (f *mockOrbitClient) GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error) {
-	return f.getInstallerDetails(installID)
-}
-
-func (f *mockOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
-	return f.downloadSoftwareInstaller(installerID, downloadDir)
-}
-
-func (f *mockOrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error {
-	return f.saveInstallerResult(payload)
 }
 
 func TestInstallerRun(t *testing.T) {
@@ -435,16 +424,9 @@ func TestInstallerRun(t *testing.T) {
 	t.Run("failed installer download", func(t *testing.T) {
 		resetAll()
 
-		oc := &mockOrbitClient{
-			getInstallerDetails: func(installID string) (*fleet.SoftwareInstallDetails, error) {
-				return &fleet.SoftwareInstallDetails{}, nil
-			},
-			downloadSoftwareInstaller: func(installerID uint, downloadDir string) (string, error) {
-				return "", errors.New("failed to download installer")
-			},
-			saveInstallerResult: func(payload *fleet.HostSoftwareInstallResultPayload) error { return nil },
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			return "", errors.New("failed to download installer")
 		}
-		r.OrbitClient = oc
 
 		err := r.run(context.Background(), &config)
 		require.Error(t, err)
@@ -452,6 +434,254 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, removeAllFnCalled)
 		require.True(t, tmpDirFnCalled)
 		require.Equal(t, tmpDir, removedDir)
+	})
+	t.Run("failed results upload", func(t *testing.T) {
+		var retries int
+		// set a shorter interval to speed up tests
+		r.retryOpts = []retry.Option{retry.WithInterval(250 * time.Millisecond), retry.WithMaxAttempts(5)}
+
+		testCases := []struct {
+			desc                    string
+			expectedRetries         int
+			expectedErr             string
+			saveInstallerResultFunc func(payload *fleet.HostSoftwareInstallResultPayload) error
+		}{
+			{
+				desc:            "multiple retries, eventual success",
+				expectedRetries: 4,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					if retries != 4 {
+						return errors.New("save results error")
+					}
+
+					return nil
+				},
+			},
+
+			{
+				desc:            "multiple retries, eventual failure",
+				expectedRetries: 5,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					return errors.New("save results error")
+				},
+				expectedErr: "save results error",
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				resetAll()
+				t.Cleanup(func() { retries = 0 })
+				oc.saveInstallerResultFn = tc.saveInstallerResultFunc
+				err := r.run(context.Background(), &config)
+				if tc.expectedErr != "" {
+					require.ErrorContains(t, err, tc.expectedErr)
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, tc.expectedRetries, retries)
+			})
+		}
+	})
+}
+
+func TestInstallerRunWithInstallerFromURL(t *testing.T) {
+	oc := &TestOrbitClient{}
+
+	var getInstallerDetailsFnCalled bool
+	var installIdRequested string
+	installDetails := &fleet.SoftwareInstallDetails{
+		ExecutionID:       "exec1",
+		InstallerID:       1337,
+		InstallScript:     "script1",
+		PostInstallScript: "script2",
+		SoftwareInstallerURL: &fleet.SoftwareInstallerURL{
+			URL:      "https://example.com/ABC",
+			Filename: "installer.pkg",
+		},
+	}
+	getInstallerDetailsDefaultFn := func(installID string) (*fleet.SoftwareInstallDetails, error) {
+		getInstallerDetailsFnCalled = true
+		installIdRequested = installID
+		return installDetails, nil
+	}
+	oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
+
+	var downloadInstallerFromURLFnCalled bool
+	downloadInstallerFromURLDefaultFn := func(url string, filename string, downloadDir string) (string, error) {
+		assert.Equal(t, installDetails.SoftwareInstallerURL.URL, url)
+		downloadInstallerFromURLFnCalled = true
+		return filepath.Join(downloadDir, filename), nil
+	}
+	oc.downloadInstallerFromURLFn = downloadInstallerFromURLDefaultFn
+
+	var downloadInstallerFnCalled bool
+	downloadInstallerDefaultFn := func(installerID uint, downloadDir string) (string, error) {
+		downloadInstallerFnCalled = true
+		return filepath.Join(downloadDir, fmt.Sprint(installerID)+".pkg"), nil
+	}
+	oc.downloadInstallerFn = downloadInstallerDefaultFn
+
+	var savedInstallerResult *fleet.HostSoftwareInstallResultPayload
+	oc.saveInstallerResultFn = func(hsirp *fleet.HostSoftwareInstallResultPayload) error {
+		savedInstallerResult = hsirp
+		return nil
+	}
+
+	resetTestOrbitClient := func() {
+		getInstallerDetailsFnCalled = false
+		installIdRequested = ""
+		oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
+		installDetails = &fleet.SoftwareInstallDetails{
+			ExecutionID:       "exec1",
+			InstallerID:       1337,
+			InstallScript:     "script1",
+			PostInstallScript: "script2",
+			SoftwareInstallerURL: &fleet.SoftwareInstallerURL{
+				URL:      "https://example.com/ABC",
+				Filename: "installer.pkg",
+			},
+		}
+		downloadInstallerFnCalled = false
+		downloadInstallerFromURLFnCalled = false
+		oc.downloadInstallerFromURLFn = downloadInstallerFromURLDefaultFn
+		savedInstallerResult = nil
+	}
+
+	r := &Runner{
+		OrbitClient:    oc,
+		scriptsEnabled: func() bool { return true },
+	}
+
+	var execCalled bool
+	var executedScripts []string
+	var execEnv []string
+	var execErr error
+	execOutput := []byte("execOutput")
+	execExitCode := 0
+	execCmdDefaultFn := func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+		execCalled = true
+		execEnv = env
+		executedScripts = append(executedScripts, scriptPath)
+		return execOutput, execExitCode, execErr
+	}
+	r.execCmdFn = execCmdDefaultFn
+
+	var tmpDirFnCalled bool
+	var tmpDir string
+	r.tempDirFn = func(dir, pattern string) (string, error) {
+		tmpDirFnCalled = true
+		tmpDir = os.TempDir()
+		return tmpDir, nil
+	}
+
+	var removeAllFnCalled bool
+	var removedDir string
+	r.removeAllFn = func(s string) error {
+		removedDir = s
+		removeAllFnCalled = true
+		return nil
+	}
+
+	resetRunner := func() {
+		execCalled = false
+		executedScripts = nil
+		execEnv = nil
+		execOutput = []byte("execOutput")
+		execExitCode = 0
+		execErr = nil
+		r.execCmdFn = execCmdDefaultFn
+
+		tmpDirFnCalled = false
+		tmpDir = ""
+	}
+
+	var config fleet.OrbitConfig
+	config.Notifications.PendingSoftwareInstallerIDs = []string{installDetails.ExecutionID}
+
+	resetConfig := func() {
+		config.Notifications.PendingSoftwareInstallerIDs = []string{installDetails.ExecutionID}
+	}
+
+	resetAll := func() {
+		resetTestOrbitClient()
+		resetRunner()
+		resetConfig()
+	}
+
+	t.Run("everything good", func(t *testing.T) {
+		resetAll()
+
+		err := r.run(context.Background(), &config)
+		require.NoError(t, err)
+
+		assert.True(t, removeAllFnCalled)
+		assert.Equal(t, tmpDir, removedDir)
+
+		assert.True(t, tmpDirFnCalled)
+
+		assert.True(t, execCalled)
+		scriptExtension := ".sh"
+		if runtime.GOOS == "windows" {
+			scriptExtension = ".ps1"
+		}
+		assert.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
+		assert.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
+		assert.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, installDetails.SoftwareInstallerURL.Filename))
+
+		assert.NotNil(t, savedInstallerResult)
+		assert.Equal(t, execExitCode, *savedInstallerResult.InstallScriptExitCode)
+		assert.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		assert.Equal(t, execExitCode, *savedInstallerResult.PostInstallScriptExitCode)
+		assert.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+		assert.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+
+		assert.True(t, downloadInstallerFromURLFnCalled)
+		assert.False(t, downloadInstallerFnCalled)
+
+		assert.True(t, getInstallerDetailsFnCalled)
+		assert.Equal(t, installDetails.ExecutionID, installIdRequested)
+	})
+
+	t.Run("CDN fails and we fall back to Fleet download", func(t *testing.T) {
+		resetAll()
+
+		oc.downloadInstallerFromURLFn = func(url string, filename string, downloadDir string) (string, error) {
+			assert.Equal(t, installDetails.SoftwareInstallerURL.URL, url)
+			downloadInstallerFromURLFnCalled = true
+			return "bozo", errors.New("test error")
+		}
+
+		err := r.run(context.Background(), &config)
+		require.NoError(t, err)
+
+		assert.True(t, removeAllFnCalled)
+		assert.Equal(t, tmpDir, removedDir)
+
+		assert.True(t, tmpDirFnCalled)
+
+		assert.True(t, execCalled)
+		scriptExtension := ".sh"
+		if runtime.GOOS == "windows" {
+			scriptExtension = ".ps1"
+		}
+		assert.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
+		assert.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
+		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, fmt.Sprint(installDetails.InstallerID)+".pkg"))
+
+		assert.NotNil(t, savedInstallerResult)
+		assert.Equal(t, execExitCode, *savedInstallerResult.InstallScriptExitCode)
+		assert.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		assert.Equal(t, execExitCode, *savedInstallerResult.PostInstallScriptExitCode)
+		assert.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+		assert.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+
+		assert.True(t, downloadInstallerFromURLFnCalled)
+		assert.True(t, downloadInstallerFnCalled)
+
+		assert.True(t, getInstallerDetailsFnCalled)
+		assert.Equal(t, installDetails.ExecutionID, installIdRequested)
 	})
 }
 

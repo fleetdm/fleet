@@ -1,29 +1,16 @@
 .software-card {
+  .card-header {
+    font-weight: $bold;
+    margin: 0 0 $pad-large 0;
+  }
+
   .table-container__search-input {
     width: 325px; // Custom to fit placeholder text
   }
 
   .host-software-table {
-    .controls {
-      // software filter
-      .Select {
-        .Select-menu-outer {
-          width: 364px;
-          max-height: min-content;
-
-          .Select-menu {
-            max-height: none;
-          }
-        }
-        .Select-value {
-          padding-left: $pad-medium;
-          padding-right: $pad-medium;
-        }
-
-        .dropdown__custom-value-label {
-          width: 155px; // Override 105px for longer text options
-        }
-      }
+    &__software-filter {
+      min-width: 235px;
     }
 
     .data-table-block {
@@ -95,5 +82,18 @@
         }
       }
     }
+  }
+}
+
+.device-software {
+  .card-header {
+    font-weight: $regular;
+    margin: 0 0 $pad-small 0;
+  }
+
+  .card-subheader {
+    margin: 0 0 $pad-large 0;
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
   }
 }

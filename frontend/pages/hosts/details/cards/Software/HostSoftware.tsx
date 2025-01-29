@@ -306,19 +306,7 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
-            // supported for iPad/iPhone, by the end of next sprint
-            data={
-              vulnFilterAndNotSupported
-                ? ({
-                    count: 0,
-                    meta: {
-                      has_next_results: false,
-                      has_previous_results: false,
-                    },
-                  } as IGetHostSoftwareResponse)
-                : data
-            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
+            data={data}
             platform={platform}
             router={router}
             tableConfig={tableConfig}
@@ -343,9 +331,14 @@ const HostSoftware = ({
       borderRadiusSize="xxlarge"
       paddingSize="xxlarge"
       includeShadow
-      className={baseClass}
+      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <p className="card__header">Software</p>
+      <div className={`card-header`}>Software</div>
+      {isMyDevicePage && (
+        <div className={`card-subheader`}>
+          Software installed on your device.
+        </div>
+      )}
       {renderHostSoftware()}
     </Card>
   );

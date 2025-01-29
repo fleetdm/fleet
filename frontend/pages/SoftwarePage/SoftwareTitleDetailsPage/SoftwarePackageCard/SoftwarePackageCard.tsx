@@ -8,7 +8,11 @@ import React, {
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { ISoftwarePackage } from "interfaces/software";
+import {
+  ISoftwarePackage,
+  IAppStoreApp,
+  isSoftwarePackage,
+} from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -26,6 +30,8 @@ import Tag from "components/Tag";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import CustomLink from "components/CustomLink";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -131,19 +137,19 @@ const STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-interface IPackageStatusCountProps {
+interface IInstallerStatusCountProps {
   softwareId: number;
   status: SoftwareInstallDisplayStatus;
   count: number;
   teamId?: number;
 }
 
-const PackageStatusCount = ({
+const InstallerStatusCount = ({
   softwareId,
   status,
   count,
   teamId,
-}: IPackageStatusCountProps) => {
+}: IInstallerStatusCountProps) => {
   const displayData = STATUS_DISPLAY_OPTIONS[status];
   const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     software_title_id: softwareId,
@@ -177,14 +183,14 @@ const PackageStatusCount = ({
 };
 
 interface IActionsDropdownProps {
-  isSoftwarePackage: boolean;
+  isPackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
 }
 
 const SoftwareActionsDropdown = ({
-  isSoftwarePackage,
+  isPackage,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
@@ -212,7 +218,7 @@ const SoftwareActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         options={
-          isSoftwarePackage
+          isPackage
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
             : [...APP_STORE_APP_DROPDOWN_OPTIONS]
         }
@@ -222,9 +228,9 @@ const SoftwareActionsDropdown = ({
   );
 };
 
-interface ISoftwarePackageCardProps {
+interface ISoftwareInstallerCardProps {
   name: string;
-  version: string;
+  version: string | null;
   uploadedAt: string; // TODO: optional?
   status: {
     installed: number;
@@ -234,8 +240,7 @@ interface ISoftwarePackageCardProps {
   isSelfService: boolean;
   softwareId: number;
   teamId: number;
-  // NOTE: we will only have this if we are working with a software package.
-  softwarePackage?: ISoftwarePackage;
+  softwareInstaller: ISoftwarePackage | IAppStoreApp;
   onDelete: () => void;
   refetchSoftwareTitle: () => void;
 }
@@ -243,18 +248,19 @@ interface ISoftwarePackageCardProps {
 // NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
-const SoftwarePackageCard = ({
+const SoftwareInstallerCard = ({
   name,
   version,
   uploadedAt,
   status,
   isSelfService,
-  softwarePackage,
+  softwareInstaller,
   softwareId,
   teamId,
   onDelete,
   refetchSoftwareTitle,
-}: ISoftwarePackageCardProps) => {
+}: ISoftwareInstallerCardProps) => {
+  const isPackage = isSoftwarePackage(softwareInstaller);
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -304,19 +310,40 @@ const SoftwarePackageCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const renderIcon = () => {
-    return softwarePackage ? (
+    return isPackage ? (
       <Graphic name="file-pkg" />
     ) : (
       <SoftwareIcon name="appStore" size="medium" />
     );
   };
 
+  const versionInfo = version ? (
+    <span>{version}</span>
+  ) : (
+    <TooltipWrapper
+      tipContent={
+        <span>
+          Fleet couldn&apos;t read the version from ${name}.{" "}
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+            text="Learn more"
+            color="core-fleet-white"
+            iconColor="core-fleet-white"
+          />
+        </span>
+      }
+    >
+      Version (unknown)
+    </TooltipWrapper>
+  );
+
   const renderDetails = () => {
     return !uploadedAt ? (
-      <span>Version {version}</span>
+      versionInfo
     ) : (
       <>
-        <span>Version {version} &bull; </span>
+        {versionInfo} &bull;{" "}
         <TooltipWrapper
           tipContent={internationalTimeFormat(new Date(uploadedAt))}
           underline={false}
@@ -338,13 +365,13 @@ const SoftwarePackageCard = ({
         <div className={`${baseClass}__main-info`}>
           {renderIcon()}
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwarePackage?.name || name} />
+            <SoftwareName name={softwareInstaller?.name || name} />
             <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
-          {softwarePackage?.automatic_install_policies &&
-            softwarePackage?.automatic_install_policies.length > 0 && (
+          {softwareInstaller?.automatic_install_policies &&
+            softwareInstaller?.automatic_install_policies.length > 0 && (
               <TooltipWrapper
                 showArrow
                 position="top"
@@ -361,7 +388,7 @@ const SoftwarePackageCard = ({
           {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
-              isSoftwarePackage={!!softwarePackage}
+              isPackage={isPackage}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
               onEditSoftwareClick={onEditSoftwareClick}
@@ -369,31 +396,31 @@ const SoftwarePackageCard = ({
           )}
         </div>
       </div>
-      <div className={`${baseClass}__package-statuses`}>
-        <PackageStatusCount
+      <div className={`${baseClass}__installer-statuses`}>
+        <InstallerStatusCount
           softwareId={softwareId}
           status="installed"
           count={status.installed}
           teamId={teamId}
         />
-        <PackageStatusCount
+        <InstallerStatusCount
           softwareId={softwareId}
           status="pending"
           count={status.pending}
           teamId={teamId}
         />
-        <PackageStatusCount
+        <InstallerStatusCount
           softwareId={softwareId}
           status="failed"
           count={status.failed}
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && softwarePackage && (
+      {showEditSoftwareModal && isPackage && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}
-          software={softwarePackage}
+          software={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
@@ -401,18 +428,18 @@ const SoftwarePackageCard = ({
       {showDeleteModal && (
         <DeleteSoftwareModal
           softwareId={softwareId}
-          softwarePackageName={softwarePackage?.name}
+          softwareInstallerName={softwareInstaller?.name}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
         />
       )}
       {showAutomaticInstallModal &&
-        softwarePackage?.automatic_install_policies &&
-        softwarePackage?.automatic_install_policies.length > 0 && (
+        softwareInstaller?.automatic_install_policies &&
+        softwareInstaller?.automatic_install_policies.length > 0 && (
           <AutomaticInstallModal
             teamId={teamId}
-            policies={softwarePackage.automatic_install_policies}
+            policies={softwareInstaller.automatic_install_policies}
             onExit={() => setShowAutomaticInstallModal(false)}
           />
         )}
@@ -420,4 +447,4 @@ const SoftwarePackageCard = ({
   );
 };
 
-export default SoftwarePackageCard;
+export default SoftwareInstallerCard;

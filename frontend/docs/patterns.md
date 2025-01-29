@@ -137,22 +137,27 @@ We use functional components with React instead of class comonents. We do this
 as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
+
 We tend to use explicit assignment of prop values, instead of object spread syntax:
-```
+
+```tsx
 <ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
 
 ### Naming handlers
+
 When defining component props for handlers, we prefer naming with a more general `onAction`. When
 naming the handler passed into that prop or used in the same component it's defined, we prefer
 either the same `onAction` or, if useful, a more specific `onMoreSpecifiedAction`. E.g.:
 
 ```tsx
 <BigSecretComponent
-  onSubmit={onSubmit} 
+  onSubmit={onSubmit}
 />
 ```
+
 or
+
 ```tsx
 <BigSecretComponent
   onSubmit={onUpdateBigSecret}
@@ -195,32 +200,46 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 export default PackComposerPage;
 ```
 
-
 ## Forms
+
+### Form submission
+
+When building a React-controlled form:
+- Use the native HTML `form` element to wrap the form.
+- Use a `Button` component with `type="submit"` for its submit button.
+- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
+React.FormEvent<HTMLFormElement>` argument and, critically, calls `evt.preventDefault()` in its
+body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
+handler's logic.
+- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
 ### Data validation
 
 #### How to validate
+
 Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
 new and possibly former form data) and whose output is an object of formFieldName:errorMessage
 key-value pairs (`Record<string,string>`) e.g.
 
-```
+```tsx
 const validate = (newFormData: IFormData) => {
   const errors = {};
   ...
   return errors;
 }
 ```
+
 The output of `validate` should be used by the calling handler to set a `formErrors`
 state.
 
 #### When to validate
+
 Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
 an "optimistic" user experience. The user is only told they have an error once they navigate
 away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
 an error as soon as possible, that is, as soon as they make the fixing change. e.g.
-```
+
+```tsx
 const onInputChange = ({ name, value }: IFormField) => {
   const newFormData = { ...formData, [name]: value };
   setFormData(newFormData);
@@ -240,15 +259,15 @@ const onInputChange = ({ name, value }: IFormField) => {
 
 ,
 
-```
+```tsx
 const onInputBlur = () => {
   setFormErrors(validateFormData(formData));
 };
 ```
 
-, and 
+, and
 
-```
+```tsx
 const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
   evt.preventDefault();
 
@@ -268,7 +287,7 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
-  
+
 ```typescript
 import React, { useState, useEffect } from "React";
 
@@ -301,15 +320,18 @@ View currently working contexts in the [context directory](../context).
 
 ## Fleet API calls
 
+### Making API calls
+
 The [services](../services) directory stores all API calls and is to be used in two ways:
+
 - A direct `async/await` assignment
 - Using `react-query` if requirements call for loading data right away or based on dependencies.
 
 Examples below:
 
-**Direct assignment**
+#### Direct assignment
 
-```typescript
+```tsx
 // page
 import ...
 import queriesAPI from "services/entities/queries";
@@ -331,12 +353,12 @@ const PageOrComponent = (props) => {
 };
 ```
 
-**React Query**
+#### React Query
 
 [react-query](https://react-query.tanstack.com/overview) is a data-fetching library that
 gives us the ability to fetch, cache, sync and update data with a myriad of options and properties.
 
-```typescript
+```tsx
 import ...
 import { useQuery, useMutation } from "react-query";
 import queriesAPI from "services/entities/queries";
@@ -370,6 +392,35 @@ const PageOrComponent = (props) => {
 };
 ```
 
+### Handling API errors
+
+We pull the logic for handling error message into a `getErrorMessage` handler that lives in a sibling
+`helpers.tsx` or `helpers.ts` file. This allow us to encapsulate the code for getting and formatting
+the API error message away from the component. This will keep put components cleaner and easier
+to read.
+
+```tsx
+/* In the component making a request */
+
+try {
+  await softwareAPI.install()
+  // successful messgae
+} catch (e) {
+  renderFlash("error", getErrorMessage(e))
+}
+
+/* in helpers.tsx */
+
+// This function is used to abstract away the details of getting and formatting
+// the error message we recieve from the API
+export const getErrorMessage = (e: unknown) => {
+  ...
+
+  // return a string or a JSX.Element
+  return "some error message"
+}
+```
+
 ## Page routing
 
 We use React Router directly to navigate between pages. For page components,
@@ -377,7 +428,7 @@ React Router (v3) supplies a `router` prop that can be easily accessed.
 When needed, the `router` object contains a `push` function that redirects
 a user to whatever page desired. For example:
 
-```typescript
+```tsx
 // page
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router/lib/Router";
@@ -403,18 +454,10 @@ const PageOrComponent = ({
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
 
-
-
 ### Modals
 
 1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
    be wrapped in the `modal-cta-wrap` class to keep unified styles.
-
-### Forms
-
-1) When creating a form, **not** in a modal, use the class `${baseClass}__button-wrap` for the
-   action buttons (cancel, save, delete, etc.) and proceed to style as needed.
-
 
 ## Icons and images
 
@@ -438,13 +481,10 @@ The icon should now be available to use with the `Icon` component from the given
 <Icon name="chevron" />
 ```
 
-
-
 ### File size
 
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible.
-
 
 ## Testing
 
