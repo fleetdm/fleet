@@ -249,31 +249,6 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// // TODO(uniq): we'll need to figure out how to actually mock the new flow for this; as it stands we
-	// // are missing the "activation" piece that actully inserts the record in the host_software_installs
-	// // table
-	// updateHostSoftwareInstall := func(t *testing.T, hostID uint, installerID uint, exitCode int) {
-	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 		r, err := q.ExecContext(ctx, `
-	// 				UPDATE host_software_installs SET install_script_exit_code = ? WHERE host_id = ? AND software_installer_id = ?`,
-	// 			exitCode, hostID, installerID)
-	// 		require.NoError(t, err)
-	// 		rows, err := r.RowsAffected()
-	// 		require.NoError(t, err)
-	// 		require.Equal(t, int64(1), rows)
-	// 		return nil
-	// 	})
-	// }
-
-	// // TODO(uniq): refactor adhoc sql to use appropriate datastore method once it is implemented
-	// deleteUpcomingActivity := func(t *testing.T, ds *Datastore, execID string) {
-	// 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 		_, err = q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
-	// 		require.NoError(t, err)
-	// 		return nil
-	// 	})
-	// }
-
 	cases := map[string]*uint{
 		"no team": nil,
 		"team":    &team.ID,
@@ -418,7 +393,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostUninstalled.ID,
 				ExecutionID: execID,
-				ExitCode:    1,
+				ExitCode:    0,
 			})
 			require.NoError(t, err)
 
@@ -430,28 +405,34 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				User: &fleet.User{GlobalRole: ptr.String("admin")},
 			}
 
+			// for this test, teamID is nil for no-team, but the ListHosts filter
+			// returns "all teams" if TeamFilter = nil, it needs to use TeamFilter =
+			// 0 for "no team" only.
+			teamFilter := teamID
+			if teamFilter == nil {
+				teamFilter = ptr.Uint(0)
+			}
+
 			// list hosts with software install pending requests
 			expectStatus := fleet.SoftwareInstallPending
 			hosts, err := ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
 
-			// TODO(uniq): this is where it fails sometimes:
-			//
-			// --- FAIL: TestSoftwareInstallers (47.31s)
-			// --- FAIL: TestSoftwareInstallers/SoftwareInstallRequests (3.34s)
-			// --- FAIL: TestSoftwareInstallers/SoftwareInstallRequests/no_team (0.26s)
-			// software_installers_test.go:444:
-			// Error Trace:	/home/m/src/github.com/fleetdm/fleet/server/datastore/mysql/software_installers_test.go:444
-			// Error:      	"[0xc000984008 0xc000984408 0xc000984808 0xc000984c08 0xc000985008 0xc000985408]" should have 3 item(s), but has 6
-			// Test:       	TestSoftwareInstallers/SoftwareInstallRequests/no_team
-			require.Len(t, hosts, 3) // TODO(uniq): update this after implementing "activation" piece
-			// require.Len(t, hosts, 1)
-			// require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
+			// get the names of hosts, useful for debugging
+			getHostNames := func(hosts []*fleet.Host) []string {
+				hostNames := make([]string, len(hosts))
+				for _, h := range hosts {
+					hostNames = append(hostNames, h.Hostname)
+				}
+				return hostNames
+			}
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
 
 			// list hosts with all pending requests
 			expectStatus = fleet.SoftwarePending
@@ -459,11 +440,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 6) // TODO(uniq): update this after implementing "activation" piece
-			// assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+			require.Len(t, hosts, 2, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostPendingInstall.ID, hostPendingUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
 			// list hosts with software install failed requests
 			expectStatus = fleet.SoftwareInstallFailed
@@ -471,12 +452,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID}, []uint{hosts[0].ID})
 
 			// list hosts with all failed requests
 			expectStatus = fleet.SoftwareFailed
@@ -484,12 +464,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 2)
-			// 	assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
+			require.Len(t, hosts, 2, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedInstall.ID, hostFailedUninstall.ID}, []uint{hosts[0].ID, hosts[1].ID})
 
 			// list hosts with software installed
 			expectStatus = fleet.SoftwareInstalled
@@ -497,12 +476,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostInstalled.ID}, []uint{hosts[0].ID})
 
 			// list hosts with pending software uninstall requests
 			expectStatus = fleet.SoftwareUninstallPending
@@ -510,12 +488,11 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 3) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostPendingUninstall.ID}, []uint{hosts[0].ID})
 
 			// list hosts with failed software uninstall requests
 			expectStatus = fleet.SoftwareUninstallFailed
@@ -523,33 +500,30 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
 				SoftwareStatusFilter:  &expectStatus,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
-			require.Len(t, hosts, 0) // TODO(uniq): update this after implementing "activation" piece
-			// 	require.Len(t, hosts, 1)
-			// 	assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
+			require.Len(t, hosts, 1, getHostNames(hosts))
+			assert.ElementsMatch(t, []uint{hostFailedUninstall.ID}, []uint{hosts[0].ID})
 
 			// list all hosts with the software title that shows up in host_software (after fleetd software query is run)
 			hosts, err = ds.ListHosts(ctx, userTeamFilter, fleet.HostListOptions{
 				ListOptions:           fleet.ListOptions{PerPage: 100},
 				SoftwareTitleIDFilter: installerMeta.TitleID,
-				TeamFilter:            teamID,
+				TeamFilter:            teamFilter,
 			})
 			require.NoError(t, err)
 			assert.Empty(t, hosts)
 
-			//  // TODO(uniq): uncomment this once we have everything implemented
-			// 	// get software title includes status
-			// 	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
-			// 	require.NoError(t, err)
-			// 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{
-			// 		Installed:        1,
-			// 		PendingInstall:   1,
-			// 		FailedInstall:    1,
-			// 		PendingUninstall: 1,
-			// 		FailedUninstall:  1,
-			// 	}, *summary)
+			summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerMeta.InstallerID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.SoftwareInstallerStatusSummary{
+				Installed:        1,
+				PendingInstall:   1,
+				FailedInstall:    1,
+				PendingUninstall: 1,
+				FailedUninstall:  1,
+			}, *summary)
 		})
 	}
 }
