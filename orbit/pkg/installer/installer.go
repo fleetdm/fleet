@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -74,6 +75,8 @@ type Runner struct {
 	osqueryConnectionMutex sync.Mutex
 
 	rootDirPath string
+
+	retryOpts []retry.Option
 }
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
@@ -83,6 +86,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 		scriptsEnabled:            scriptsEnabled,
 		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
 		rootDirPath:               rootDirPath,
+		retryOpts:                 []retry.Option{retry.WithMaxAttempts(5)},
 	}
 
 	return r
@@ -139,9 +143,19 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 				continue
 			}
 		}
-		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+		attemptNum := 1
+		err = retry.Do(func() error {
+			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+				log.Debug().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				attemptNum++
+				return err
+			}
+			return nil
+		}, r.retryOpts...)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
+
 	}
 	if len(errs) != 0 {
 		return errors.Join(errs...)

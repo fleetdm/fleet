@@ -10,7 +10,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
@@ -418,6 +420,56 @@ func TestInstallerRun(t *testing.T) {
 		numPostInstallMatches := strings.Count(*savedInstallerResult.PostInstallScriptOutput, string(execOutput))
 		assert.Equal(t, 2, numPostInstallMatches)
 	})
+
+	t.Run("failed results upload", func(t *testing.T) {
+		var retries int
+		// set a shorter interval to speed up tests
+		r.retryOpts = []retry.Option{retry.WithInterval(250 * time.Millisecond), retry.WithMaxAttempts(5)}
+
+		testCases := []struct {
+			desc                    string
+			expectedRetries         int
+			expectedErr             string
+			saveInstallerResultFunc func(payload *fleet.HostSoftwareInstallResultPayload) error
+		}{
+			{
+				desc:            "multiple retries, eventual success",
+				expectedRetries: 4,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					if retries != 4 {
+						return errors.New("save results error")
+					}
+
+					return nil
+				},
+			},
+
+			{
+				desc:            "multiple retries, eventual failure",
+				expectedRetries: 5,
+				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
+					retries++
+					return errors.New("save results error")
+				},
+				expectedErr: "save results error",
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				resetAll()
+				t.Cleanup(func() { retries = 0 })
+				oc.saveInstallerResultFn = tc.saveInstallerResultFunc
+				err := r.run(context.Background(), &config)
+				if tc.expectedErr != "" {
+					require.ErrorContains(t, err, tc.expectedErr)
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, tc.expectedRetries, retries)
+			})
+		}
+	})
 }
 
 func TestInstallerRunWithInstallerFromURL(t *testing.T) {
@@ -630,7 +682,6 @@ func TestScriptsDisabled(t *testing.T) {
 	}
 
 	qc.queryFn = func(ctx context.Context, s string) (*QueryResponse, error) {
-
 		queryFnResMap := make(map[string]string, 0)
 		queryFnResMap["col"] = "true"
 		queryFnResArr := []map[string]string{queryFnResMap}
