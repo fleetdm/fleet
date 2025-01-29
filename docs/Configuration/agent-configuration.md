@@ -56,7 +56,7 @@ To see a description for all available settings, first [enroll your host](https:
 osquery > SELECT name, default_value, value, description FROM osquery_flags; 
 ```
 
-> Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in `Agent options`. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query through Fleet.
+> Running the interactive osquery shell s a standalone instance of osquery, with a default configuration rather than the one set in `Agent options`. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query through Fleet.
 
 > If you revoked an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
@@ -84,7 +84,7 @@ fleetctl apply --force -f config.yaml
 
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
-- `load` is are queries you want to update values when the configuration loads.
+- `load` are queries you want to update values when the configuration loads.
 - `always` are queries to update every time a scheduled query is run.
 - `interval` are queries you want to update on a schedule.
 
