@@ -1,0 +1,19 @@
+- name: Windows - Screen saver after 20 minutes enabled
+  query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceLock/MaxInactivityTimeDeviceLock</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) <= 20;
+  critical: false
+  description: This policy checks if maximum amount of time (in minutes) the device is allowed to sit idle before the screen is locked. End users can select any value less than the specified maximum.
+  resolution: "As an IT admin, to deploy a Windows profile with the MaxInactivityTimeDeviceLock option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock#maxinactivitytimedevicelock"
+  platform: windows
+- name: Windows - 10 character password required
+  query: SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceLock/DevicePasswordEnabled</LocURI></Target></Item></Get></SyncBody>" and CAST(mdm_command_output AS INT) = 0;
+  critical: false
+  description: This policy checks if you are required to enter a password, with at least 10 characters, to unlock this device.
+  resolution: "Update your password to include at least 10 characters"
+  platform: windows
+- name: Windows - Antivirus signatures up to date
+  query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
+  critical: false
+  description: Checks the status of antivirus and signature updates from the Windows Security Center.
+  resolution: "Run all available Windows updates."
+  platform: windows
+  
