@@ -258,7 +258,7 @@ if [ "$SIMULATE_NEW_TUF_OUTAGE" = "1" ]; then
     prompt "Please check for errors in orbit logs that new TUF server is still unavailable (404s errors). Errors should be shown every 10s."
 
     echo "Checking version of orbit (to check device is responding even if TUF server is down)..."
-    for host_hostname in "${hostnames[@]}"; do
+    for host_hostname in "${all_hostnames[@]}"; do
         ORBIT_VERSION=""
         until [ "$ORBIT_VERSION" = "\"$NEW_FULL_VERSION\"" ]; do
             sleep 1
@@ -417,6 +417,7 @@ for host_hostname in "${all_hostnames[@]}"; do
     done
 done
 
+prompt "Check that your orbit is on 1.38.2 on all your devices"
 echo "Downgrading to $OLD_FULL_VERSION..."
 cat << EOF > downgrade.yml
 ---
@@ -502,8 +503,26 @@ for pkgType in "${pkgTypes[@]}"; do
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
+    if [ "$pkgType" == "deb" ] || [ "$pkgType" == "rpm" ]; then
+        ./build/fleetctl-v4.60.0 package --type="$pkgType" \
+            --arch=arm64 \
+            --enable-scripts \
+            --fleet-desktop \
+            --fleet-url="$FLEET_URL" \
+            --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
+            --debug \
+            --update-roots="$ROOT_KEYS1" \
+            --update-url=$OLD_TUF_URL \
+            --disable-open-folder \
+            --disable-keystore \
+            --update-interval=30s
+    fi
 done
 
+echo "Uninstalling fleetd package from macOS..."
+sudo ./orbit/tools/cleanup/cleanup_macos.sh
+echo "Sleeping 60 seconds..."
+sleep 60
 echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 
@@ -610,8 +629,24 @@ for pkgType in "${pkgTypes[@]}"; do
         --disable-open-folder \
         --disable-keystore \
         --update-interval=30s
+    if [ "$pkgType" == "deb" ] || [ "$pkgType" == "rpm" ]; then
+        ./build/fleetctl package --type="$pkgType" \
+            --arch=arm64 \
+            --enable-scripts \
+            --fleet-desktop \
+            --fleet-url="$FLEET_URL" \
+            --enroll-secret="$NO_TEAM_ENROLL_SECRET" \
+            --debug \
+            --disable-open-folder \
+            --disable-keystore \
+            --update-interval=30s
+    fi
 done
 
+echo "Uninstalling fleetd package from macOS..."
+sudo ./orbit/tools/cleanup/cleanup_macos.sh
+echo "Sleeping 60 seconds..."
+sleep 60
 echo "Installing fleetd package on macOS..."
 sudo installer -pkg fleet-osquery.pkg -verbose -target /
 

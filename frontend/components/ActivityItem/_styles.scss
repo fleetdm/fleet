@@ -1,0 +1,170 @@
+.activity-item {
+  display: grid; // Grid system is used to create variable solid line lengths
+  grid-template-columns: 16px 16px 8px 1fr;
+  grid-template-rows: max-content;
+
+  &__avatar-wrapper {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 16px 16px;
+    grid-template-rows: 8px 32px 1fr;
+    grid-column-start: 1;
+    grid-column-end: 3;
+
+    .avatar-wrapper {
+      grid-column-start: 1;
+      grid-column-end: 3;
+      grid-row-start: 2;
+      grid-row-end: 3;
+    }
+  }
+
+  &__avatar-upper-dash {
+    border-right: 1px solid $ui-fleet-black-10;
+    grid-column-start: 1;
+    grid-column-end: 2;
+    grid-row-start: 1;
+    grid-row-end: 2;
+  }
+
+  &__avatar-lower-dash {
+    border-right: 1px solid $ui-fleet-black-10;
+    grid-column-start: 1;
+    grid-column-end: 2;
+    grid-row-start: 3;
+    grid-row-end: 4;
+  }
+
+  &__details-wrapper {
+    display: flex;
+    gap: $pad-medium;
+    justify-content: space-between;
+    align-items: center;
+    grid-column-start: 4;
+    grid-row-start: 1;
+    padding: $pad-small;
+    margin-bottom: $pad-large;
+
+    .premium-icon-tip {
+      position: relative;
+      top: 4px;
+      padding-right: $pad-xsmall;
+    }
+
+    .activity-details {
+      margin: 0;
+      line-height: 16px;
+    }
+
+    &:hover {
+      border-radius: $border-radius-large;
+      background-color: $ui-off-white;
+      cursor: pointer;
+
+      .activity-item__details-actions {
+        visibility: visible;
+      }
+    }
+
+    .button {
+      height: 16px;
+
+      &--icon svg {
+        padding: 0;
+      }
+    }
+  }
+
+  &__details-actions {
+    visibility: hidden;
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__close-icon {
+    cursor: pointer;
+    &:hover {
+      svg {
+        path {
+          stroke: $core-vibrant-blue;
+        }
+      }
+    }
+  };
+
+  &__details-topline {
+    font-size: $x-small;
+    overflow-wrap: anywhere;
+  }
+
+  &__details-content {
+    margin-right: $pad-xsmall;
+  }
+
+  &__details-bottomline {
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+  }
+
+  &__show-query-icon {
+    margin-left: $pad-xsmall;
+  }
+
+  &:first-child {
+    .activity-item__avatar-upper-dash {
+      border-right: none;
+    }
+  }
+
+  &:last-child {
+    .activity-item__avatar-lower-dash {
+      border-right: none;
+    }
+  }
+
+  /**
+   * Starting here are the styles for the activity item when it is the
+   * only activity that is being displayed (controlled by the `soloActivity prop`.
+   * We switch from grid to flexbox since we don't need the solid lines anymore.
+   * we also dont show to actions on hover
+   */
+  &__solo-activity {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    padding: $pad-medium;
+    display: flex;
+    gap: $pad-medium;
+
+    .activity-item__avatar-wrapper {
+      display: block;
+    }
+
+    .activity-item__avatar-lower-dash {
+      display: none;
+    }
+
+    .activity-item__details-wrapper {
+      display: block;
+      padding: 0;
+      margin-bottom: 0;
+
+      &:hover {
+        cursor: auto;
+        background-color: transparent;
+      }
+    }
+
+    .activity-item__details-actions {
+      display: none;
+    }
+  }
+
+  &__no-details {
+    .activity-item__details-wrapper {
+      &:hover {
+        cursor: auto;
+        background-color: transparent;
+      }
+    }
+  }
+}

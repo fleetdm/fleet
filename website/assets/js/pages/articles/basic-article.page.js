@@ -37,6 +37,30 @@ parasails.registerPage('basic-article', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+
+    let headingsOnThisPage = $('[purpose="article-content"]').find(':header');
+    for(let key in Object.values(headingsOnThisPage)){
+      let heading = headingsOnThisPage[key];
+      // Find the child <a> element
+      let linkElementNestedInThisHeading = _.first($(heading).find('a.markdown-link'));
+      $(linkElementNestedInThisHeading).click(()=> {
+        if(typeof navigator.clipboard !== 'undefined') {
+          // If this heading has already been clicked and still has the copied class we'll just ignore this click
+          if(!$(heading).hasClass('copied')){
+            // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+            if(linkElementNestedInThisHeading.href) {
+              navigator.clipboard.writeText(linkElementNestedInThisHeading.href);
+            } else {
+              navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+            }
+            // Add the copied class to the header to notify the user that the link has been copied.
+            $(heading).addClass('copied');
+            // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+            setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
+          }
+        }
+      });
+    }
     // Add an event listener to add a class to the right sidebar when the header is hidden.
     window.addEventListener('scroll', this.handleScrollingInArticle);
 

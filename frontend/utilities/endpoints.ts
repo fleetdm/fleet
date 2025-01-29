@@ -9,6 +9,9 @@ export default {
   HOST_UPCOMING_ACTIVITIES: (id: number): string => {
     return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
   },
+  HOST_CANCEL_ACTIVITY: (hostId: number, uuid: string): string => {
+    return `/${API_VERSION}/fleet/hosts/${hostId}/activities/upcoming/${uuid}`;
+  },
 
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
@@ -60,6 +63,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+  INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
 
   // labels
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,

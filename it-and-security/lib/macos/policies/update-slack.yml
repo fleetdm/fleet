@@ -1,0 +1,7 @@
+- name: macOS - Slack up to date
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE name = 'Slack.app') OR EXISTS (SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.42.116') >= 0);
+  critical: false
+  description: The host may be running an outdated version of Slack, which could pose security vulnerabilities or compatibility issues.
+  resolution: Slack can be updated by downloading the latest version from the App Store or by using Slack's built-in update functionality.
+  platform: darwin
+  calendar_events_enabled: false

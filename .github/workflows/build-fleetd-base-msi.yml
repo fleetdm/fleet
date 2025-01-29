@@ -1,0 +1,109 @@
+# This workflow can be used to build a fleetd-base.msi package
+# that can be hosted on a local server to test Autopilot workflows.
+#
+# Output is the fleetd-base.msi itself and the corresponding meta.json.
+# Both files should be served at the stable/ path.
+name: Build and codesign fleetd-base.msi
+
+on:
+  workflow_dispatch: # allow manual action
+    inputs:
+      orbit-channel:
+        description: "TUF channel for the orbit component"
+        required: false
+        default: "stable"
+        type: string
+      osqueryd-channel:
+        description: "TUF channel for the osqueryd component"
+        required: false
+        default: "stable"
+        type: string
+      desktop-channel:
+        description: "TUF channel for the Fleet Desktop component"
+        required: false
+        default: "stable"
+        type: string
+      base-url:
+        description: "URL that will host the generated fleetd-base.msi and meta.json at stable/"
+        required: true
+        type: string
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build MSI
+        id: build-msi
+        run: |
+          fleetctl package --type msi \
+            --fleet-desktop \
+            --fleet-url dummy \
+            --enroll-secret dummy \
+            --orbit-channel ${{ github.event.inputs.orbit-channel }} \
+            --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
+            --desktop-channel ${{ github.event.inputs.desktop-channel }}
+          mv fleet-osquery*.msi fleetd-base.msi
+
+      - name: Upload fleetd-base.msi for code signing
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: unsigned-windows
+          path: fleetd-base.msi
+
+  code-sign:
+    needs: build
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleetd-base.msi
+      upload_name: fleetd-base-msi
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+
+  generate:
+    needs: [build, code-sign]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed artifact
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          name: fleetd-base-msi
+        
+      - name: Hash fleetd-base.msi
+        run: |
+          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_ENV
+
+      - name: Generate meta.json
+        run: |
+          
+          echo '{
+            "fleetd_base_msi_url": "${{ github.event.inputs.base-url }}/stable/fleetd-base.msi",
+            "fleetd_base_msi_sha256": "${{ env.fleetd_base_msi_sha256 }}"
+          }' > meta.json
+          : # Check that meta.json is valid
+          jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
+
+      - name: Upload meta.json
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: meta.json
+          path: meta.json

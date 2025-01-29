@@ -58,7 +58,7 @@
           </div>
           <div purpose="app-check">
             <h3>Is <%- thisApp.name %> up to date?</h3>
-            <p>Run this query in Fleet to find old versions of 1Password across all your computers:</p>
+            <p>Run this query in Fleet to find old versions of <%- thisApp.name %> across all your computers:</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
               <pre><code class="hljs sql">SELECT 1 FROM apps WHERE bundle_identifier = '<%= thisApp.bundleIdentifier %>' AND bundle_short_version <= '<%- thisApp.version %>';</code></pre>

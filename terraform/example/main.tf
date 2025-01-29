@@ -63,8 +63,8 @@ module "fleet" {
 
   fleet_config = {
     # To avoid pull-rate limiting from dockerhub, consider using our quay.io mirror
-    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.62.2"
-    image = "fleetdm/fleet:v4.62.2" # override default to deploy the image you desire
+    # for the Fleet image. e.g. "quay.io/fleetdm/fleet:v4.62.3"
+    image = "fleetdm/fleet:v4.62.3" # override default to deploy the image you desire
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for appropriate scaling
     # memory and cpu.
     autoscaling = {

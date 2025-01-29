@@ -1,8 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-
 import { ScheduledQueryablePlatform } from "interfaces/platform";
 import PlatformCell from "./PlatformCell";
 

@@ -1468,7 +1468,7 @@ const ManageHostsPage = ({
           className={`${baseClass}__status-filter`}
           options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          tableFilter
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1685,7 +1685,7 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
               {!isSandboxMode && canEnrollHosts && !hasErrors && (

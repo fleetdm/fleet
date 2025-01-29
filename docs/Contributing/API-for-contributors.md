@@ -4201,7 +4201,7 @@ _Available in Fleet Premium._
     },
     {
       "app_store_id": "497799835",
-      "self_service": true,
+      "self_service": true
     }
   ]
 }
@@ -4209,7 +4209,32 @@ _Available in Fleet Premium._
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "app_store_apps": [
+    {
+      "team_id": 1,
+      "title_id": 123,
+      "app_store_id": "597799333",
+      "platform": "darwin"
+    },
+    {
+      "team_id": 1,
+      "title_id": 124,
+      "app_store_id": "597799333",
+      "platform": "ios"
+    },
+    {
+      "team_id": 1,
+      "title_id": 125,
+      "app_store_id": "597799333",
+      "platform": "ipados"
+    }
+  ]
+}
+```
 
 ### Get token to download package
 
