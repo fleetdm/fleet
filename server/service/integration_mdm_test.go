@@ -11072,7 +11072,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.True(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
 
+		// Add a non-VPP software
 		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
 			InstallScript: "install",
 			Filename:      "ruby.deb",
@@ -11094,18 +11096,32 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		nonVPPTitleID := resp.SoftwareTitles[0].ID
 
 		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l2.Name}}
-		// TODO: is this the right error?
+
+		// Attempt to update the non-VPP software using the VPP path. Should fail.
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", nonVPPTitleID), updateAppReq, http.StatusNotFound)
 
+		// Attempt tp update a non-existent app. Should fail.
 		s.Do("PATCH", "/api/latest/fleet/software/titles/9999/app_store_app", updateAppReq, http.StatusNotFound)
 
-		// Update App2
+		// Update App2. Unset self service,
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK)
 
 		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityUpdatedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+
+		// check that our updates worked
+		getSWTitle = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
+		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
+		require.False(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
+
+		// Attempt to delete a non-existent app. Should fail.
+		s.Do("DELETE", "/api/latest/fleet/software/titles/9999/available_for_install", nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", team.ID))
 
 		// delete the VPP app
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
