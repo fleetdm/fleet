@@ -1417,29 +1417,39 @@ WHERE
   team_id = ?
 `
 
-	// TODO(uniq): this deletes from host_script_results but is related to software installs
-	// must add deletion from upcoming queue (here and many others below)
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)
 		)
 `
-	const deleteAllPendingSoftwareInstalls = `
+	const deleteAllPendingSoftwareInstallsHSI = `
 		DELETE FROM host_software_installs
-		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
+	const deleteAllPendingSoftwareInstallsUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND 
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
 `
 	const markAllSoftwareInstallsAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
-			WHERE status IS NOT NULL AND host_deleted_at IS NULL
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ?
-			   )
+		WHERE status IS NOT NULL AND host_deleted_at IS NULL
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
 `
 
 	const deleteAllInstallersInTeam = `
@@ -1452,17 +1462,28 @@ WHERE
 	const deletePendingUninstallScriptExecutionsNotInList = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			   )
+			AND software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
 		)
 `
-	const deletePendingSoftwareInstallsNotInList = `
+	const deletePendingSoftwareInstallsNotInListHSI = `
 		DELETE FROM host_software_installs
-		   WHERE status IN('pending_install', 'pending_uninstall')
-				AND software_installer_id IN (
-					SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
-			   )
+		WHERE status IN('pending_install', 'pending_uninstall')
+		AND software_installer_id IN (
+			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+		)
+`
+	const deletePendingSoftwareInstallsNotInListUA = `
+		DELETE FROM upcoming_activities
+		USING upcoming_activities
+		INNER JOIN software_install_upcoming_activities siua 
+			ON upcoming_activities.id = siua.upcoming_activity_id
+		WHERE 
+			activity_type IN ('software_install', 'software_uninstall') AND 
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
 `
 	const markSoftwareInstallsNotInListAsRemoved = `
 		UPDATE host_software_installs SET removed = TRUE
@@ -1635,8 +1656,12 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstalls, globalOrTeamID); err != nil {
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all upcoming pending host software install records")
 			}
 
 			if _, err := tx.ExecContext(ctx, markAllSoftwareInstallsAsRemoved, globalOrTeamID); err != nil {
@@ -1699,12 +1724,20 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
 		}
 
-		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build statement to delete pending software installs")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
+		}
+
+		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete upcoming pending software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete upcoming pending host software install records")
 		}
 
 		stmt, args, err = sqlx.In(markSoftwareInstallsNotInListAsRemoved, globalOrTeamID, titleIDs)
