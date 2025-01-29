@@ -118,12 +118,13 @@ const TeamsDropdown = ({
     );
   };
 
+  // see https://react-select.com/styles#the-styles-prop
+  // `provided` here corresponds to `baseStyles` in the docs
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
     control: (provided, state) => ({
       ...provided,
       display: "flex",
       flexDirection: "row",
-      width: "max-content",
       padding: "8px 0",
       backgroundColor: "initial",
       border: 0,
@@ -180,6 +181,8 @@ const TeamsDropdown = ({
       paddingLeft: 0,
       paddingRight: "8px",
       margin: 0,
+      // omit grid-column-end for automatic width
+      gridArea: "1/1/2",
     }),
     dropdownIndicator: (provided) => ({
       ...provided,

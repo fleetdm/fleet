@@ -10,6 +10,5 @@ RUN addgroup -S fleet && adduser -S fleet -G fleet
 USER fleet
 
 COPY fleet /usr/bin/
-COPY fleetctl /usr/bin/
 
 CMD ["fleet", "serve"]

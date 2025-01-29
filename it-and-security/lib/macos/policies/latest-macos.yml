@@ -1,5 +1,5 @@
 - name: macOS - Operating system up to date
-  query: SELECT 1 FROM os_version WHERE version >= '15.2';
+  query: SELECT 1 FROM os_version WHERE version >= '15.3';
   critical: true
   description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
   resolution: Please find time to run Software Update.  > System Settings > Software Update
