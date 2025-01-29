@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
-import { ITeamSummary } from "interfaces/team";
+import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
@@ -55,33 +55,42 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState = () => {
-    const emptyPolicies: IEmptyTableProps = {
-      graphicName: "empty-policies",
-      header: "You don't have any policies",
-      info:
-        "Add policies to detect device health issues and trigger automations.",
-    };
-    if (canAddOrDeletePolicy) {
-      emptyPolicies.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${baseClass}__select-policy-button`}
-          onClick={onAddPolicyClick}
-        >
-          Add policy
-        </Button>
-      );
-    }
-    if (searchQuery) {
-      delete emptyPolicies.graphicName;
-      delete emptyPolicies.primaryButton;
-      emptyPolicies.header = "No matching policies";
-      emptyPolicies.info = "No policies match the current filters.";
-    }
-
-    return emptyPolicies;
+  const emptyState: IEmptyTableProps = {
+    graphicName: "empty-policies",
+    header: "You don't have any policies",
+    info:
+      "Add policies to detect device health issues and trigger automations.",
   };
+
+  if (
+    currentTeam?.id === null ||
+    currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+  ) {
+    emptyState.header += " that apply to all teams";
+  } else {
+    emptyState.header += " that apply to this team";
+  }
+
+  if (canAddOrDeletePolicy) {
+    emptyState.primaryButton = (
+      <Button
+        variant="brand"
+        className={`${baseClass}__select-policy-button`}
+        onClick={onAddPolicyClick}
+      >
+        Add policy
+      </Button>
+    );
+  } else {
+    emptyState.info = "";
+  }
+
+  if (searchQuery) {
+    delete emptyState.graphicName;
+    delete emptyState.primaryButton;
+    emptyState.header = "No matching policies";
+    emptyState.info = "No policies match the current filters.";
+  }
 
   const searchable = !(policiesList?.length === 0 && searchQuery === "");
 
@@ -120,11 +129,11 @@ const PoliciesTable = ({
         }}
         emptyComponent={() =>
           EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
+            graphicName: emptyState.graphicName,
+            header: emptyState.header,
+            info: emptyState.info,
+            additionalInfo: emptyState.additionalInfo,
+            primaryButton: emptyState.primaryButton,
           })
         }
         renderCount={renderPoliciesCount}
