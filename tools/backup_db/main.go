@@ -9,6 +9,12 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
+type snapshot struct {
+	Name string
+	Date string
+	Path string
+}
+
 func main() {
 	// Determine the path to the top-level directory (where the Makefile resides).
 	repoRoot, err := getRepoRoot()
@@ -44,27 +50,35 @@ func main() {
 
 	// Walk the ~/.fleet/db-backups directory if it exists.
 	files, err := os.ReadDir(backupsDir)
-	fileNames := make([]string, len(files))
+	fileNames := make([]snapshot, len(files))
 	for i, file := range files {
-		fileNames[i] = file.Name()
+		fileNames[i].Name = file.Name()
 		fileInfo, err := file.Info()
 		if err == nil {
-			fileNames[i] += " (" + fileInfo.ModTime().String() + ")"
+			fileNames[i].Date = fileInfo.ModTime().String()
+			fileNames[i].Path = filepath.Join(backupsDir, file.Name())
 		}
 	}
 
-	prompt := promptui.Select{
-		Label: "Select snapshot to restore",
-		Items: fileNames,
+	templates := &promptui.SelectTemplates{
+		Label:    "{{ .Name }}",
+		Active:   "> {{ .Name }} ({{ .Date }})",
+		Inactive: "{{ .Name }} ({{ .Date }})",
 	}
 
-	_, result, err := prompt.Run()
+	prompt := promptui.Select{
+		Label:     "Select snapshot to restore",
+		Items:     fileNames,
+		Templates: templates,
+	}
+
+	index, _, err := prompt.Run()
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
 		return
 	}
 
-	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/restore.sh", result)
+	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/restore.sh", fileNames[index].Path)
 
 	// Use the same stdin, stdout, and stderr as the parent process.
 	cmd.Stdin = os.Stdin
@@ -73,6 +87,8 @@ func main() {
 
 	// Run the command.
 	err = cmd.Run()
+	output, _ := cmd.CombinedOutput()
+	fmt.Println(string(output))
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
