@@ -1,6 +1,6 @@
 import React from "react";
 
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
@@ -26,7 +26,7 @@ const ShowQueryModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        <FleetAce
+        <SQLEditor
           value={query}
           name="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}

@@ -5,7 +5,7 @@ import classnames from "classnames";
 import { IAceEditor } from "react-ace/lib/types";
 import { noop } from "lodash";
 
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 import CustomLink from "components/CustomLink";
 
 interface IFleetMarkdownProps {
@@ -33,7 +33,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
           return <CustomLink text={String(children)} url={href} newTab />;
         },
 
-        // Overrides code display to use FleetAce with Readonly overrides.
+        // Overrides code display to use SQLEditor with Readonly overrides.
         code: ({ inline, children, ...props }) => {
           const onEditorBlur = (editor?: IAceEditor) => {
             editor && editor.clearSelection();
@@ -57,7 +57,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
           // full code blocks we want to use Fleet Ace.
           // e.g. ```SELECT * FROM USERS```
           return (
-            <FleetAce
+            <SQLEditor
               wrapperClassName={`${baseClass}__ace-display`}
               value={String(children).replace(/\n/, "")}
               showGutter={false}

@@ -2,13 +2,13 @@ import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
-import FleetAce from ".";
+import SQLEditor from ".";
 
 import "../../index.scss";
 
-const meta: Meta<typeof FleetAce> = {
-  component: FleetAce,
-  title: "Components/FleetAce",
+const meta: Meta<typeof SQLEditor> = {
+  component: SQLEditor,
+  title: "Components/SQLEditor",
   args: {
     label: "Type some SQL here...",
     value: "SELECT 1 FROM TABLE_NAME;",
@@ -29,6 +29,6 @@ const meta: Meta<typeof FleetAce> = {
 
 export default meta;
 
-type Story = StoryObj<typeof FleetAce>;
+type Story = StoryObj<typeof SQLEditor>;
 
 export const Default: Story = {};

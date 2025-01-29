@@ -22,7 +22,7 @@ import {
 import "./mode";
 import "./theme";
 
-export interface IFleetAceProps {
+export interface ISQLEditorProps {
   focus?: boolean;
   error?: string | null;
   fontSize?: number;
@@ -46,9 +46,9 @@ export interface IFleetAceProps {
   handleSubmit?: () => void;
 }
 
-const baseClass = "fleet-ace";
+const baseClass = "sql-editor";
 
-const FleetAce = ({
+const SQLEditor = ({
   focus,
   error,
   fontSize = 14,
@@ -69,7 +69,7 @@ const FleetAce = ({
   onLoad,
   onChange,
   handleSubmit = noop,
-}: IFleetAceProps): JSX.Element => {
+}: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
   const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
@@ -308,4 +308,4 @@ const FleetAce = ({
   );
 };
 
-export default FleetAce;
+export default SQLEditor;
