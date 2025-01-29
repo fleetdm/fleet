@@ -337,15 +337,14 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
+			execID, err := ds.InsertSoftwareInstallRequest(ctx, hostFailedInstall.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET install_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostFailedInstall.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostFailedInstall.ID,
+				InstallUUID:           execID,
+				InstallScriptExitCode: ptr.Int(1),
+			})
+			require.NoError(t, err)
 
 			// Host with software install successful
 			tag = "-installed"
@@ -358,15 +357,14 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
+			execID, err = ds.InsertSoftwareInstallRequest(ctx, hostInstalled.ID, si.InstallerID, fleet.HostSoftwareInstallOptions{})
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET install_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostInstalled.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                hostInstalled.ID,
+				InstallUUID:           execID,
+				InstallScriptExitCode: ptr.Int(0),
+			})
+			require.NoError(t, err)
 
 			// Host with pending uninstall
 			tag = "-pending_uninstall"
@@ -393,15 +391,15 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostFailedUninstall.ID, si.InstallerID)
+			execID = "uuid" + tag + tc
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID)
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET uninstall_script_exit_code = 1 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostFailedUninstall.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostFailedUninstall.ID,
+				ExecutionID: execID,
+				ExitCode:    1,
+			})
+			require.NoError(t, err)
 
 			// Host with successful uninstall
 			tag = "-uninstalled"
@@ -414,15 +412,15 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostUninstalled.ID, si.InstallerID)
+			execID = "uuid" + tag + tc
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID)
 			require.NoError(t, err)
-			// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			// 	_, err = q.ExecContext(ctx, `
-			// 		UPDATE host_software_installs SET uninstall_script_exit_code = 0 WHERE host_id = ? AND software_installer_id = ?`,
-			// 		hostUninstalled.ID, si.InstallerID)
-			// 	require.NoError(t, err)
-			// 	return nil
-			// })
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostUninstalled.ID,
+				ExecutionID: execID,
+				ExitCode:    1,
+			})
+			require.NoError(t, err)
 
 			// Uninstall request with unknown host
 			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
@@ -441,6 +439,16 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamFilter:            teamID,
 			})
 			require.NoError(t, err)
+
+			// TODO(uniq): this is where it fails sometimes:
+			//
+			// --- FAIL: TestSoftwareInstallers (47.31s)
+			// --- FAIL: TestSoftwareInstallers/SoftwareInstallRequests (3.34s)
+			// --- FAIL: TestSoftwareInstallers/SoftwareInstallRequests/no_team (0.26s)
+			// software_installers_test.go:444:
+			// Error Trace:	/home/m/src/github.com/fleetdm/fleet/server/datastore/mysql/software_installers_test.go:444
+			// Error:      	"[0xc000984008 0xc000984408 0xc000984808 0xc000984c08 0xc000985008 0xc000985408]" should have 3 item(s), but has 6
+			// Test:       	TestSoftwareInstallers/SoftwareInstallRequests/no_team
 			require.Len(t, hosts, 3) // TODO(uniq): update this after implementing "activation" piece
 			// require.Len(t, hosts, 1)
 			// require.Equal(t, hostPendingInstall.ID, hosts[0].ID)
