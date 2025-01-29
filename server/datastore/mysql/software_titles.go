@@ -414,8 +414,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	// if excluding fleet maintained apps, join on the fleet_library_apps table by bundle ID
 	// and filter out any row from software_titles that has a matching row in fleet_library_apps.
 	if opt.ExcludeFleetMaintainedApps {
-		softwareJoin += ` LEFT JOIN fleet_library_apps fla ON st.bundle_identifier = fla.bundle_identifier`
-		additionalWhere += " AND fla.id is NULL"
+		additionalWhere += " AND NOT EXISTS ( SELECT FALSE FROM fleet_library_apps AS fla WHERE fla.bundle_identifier = st.bundle_identifier )"
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
