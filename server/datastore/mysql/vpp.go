@@ -67,7 +67,9 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	// TODO(uniq): do we need to handle host_deleted_at and removed similar to GetSummaryHostSoftwareInstalls?
+	// TODO(sarah): do we need to handle host_deleted_at similar to GetSummaryHostSoftwareInstalls?
+	// Currently there is no host_deleted_at in host_vpp_software_installs, so
+	// not handling it as part of the unified queue work.
 
 	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as below
 
@@ -111,6 +113,7 @@ past AS (
 		AND hvsi.platform = :platform
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hvsi.removed = 0
 	GROUP BY
 		host_id
 )
