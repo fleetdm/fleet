@@ -882,7 +882,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <>
             {isHostSummaryFetching && (
               <Card paddingSize="medium">
-                <Spinner includeContainer={false} />
+                <Spinner includeContainer={false} verticalPadding="small" />
               </Card>
             )}
             {HostCountCards}
