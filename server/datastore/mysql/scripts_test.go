@@ -543,6 +543,7 @@ func testListScripts(t *testing.T, ds *Datastore) {
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
 	names := []string{"script-1.sh", "script-2.sh", "script-3.sh", "script-4.sh", "script-5.sh"}
 	for _, r := range append(names[1:], names[0]) {
@@ -565,28 +566,53 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	require.Len(t, scripts, 6)
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
-		stmt := `
-INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
-VALUES
-	(%s ?,?,?,?,?)`
-
-		args := []interface{}{}
-		if script.ID == 0 {
-			stmt = fmt.Sprintf(stmt, "", "")
-		} else {
-			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
-			args = append(args, script.ID)
+		var scriptID *uint
+		if script.ID != 0 {
+			scriptID = &script.ID
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, "")
-
+		hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+			HostID:   hostID,
+			ScriptID: scriptID,
+		})
+		require.NoError(t, err)
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, stmt, args...)
+			_, err := tx.ExecContext(ctx, `UPDATE upcoming_activities SET execution_id = ?, created_at = ? WHERE execution_id = ?`,
+				execID, createdAt, hsr.ExecutionID)
 			return err
 		})
+		if exitCode != nil {
+			ds.testActivateSpecificNextActivities = []string{execID}
+			act, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, "")
+			require.NoError(t, err)
+			require.ElementsMatch(t, act, ds.testActivateSpecificNextActivities)
+			ds.testActivateSpecificNextActivities = nil
+
+			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: execID,
+				ExitCode:    int(*exitCode),
+			})
+			require.NoError(t, err)
+
+			// force the test timestamp
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, `UPDATE host_script_results SET created_at = ? WHERE execution_id = ?`,
+					createdAt, execID)
+				return err
+			})
+		}
 	}
 
 	now := time.Now().UTC().Truncate(time.Second)
+
+	// add some results for an ad-hoc, non-saved script, should not be included in results
+	// create it first so that this one gets activated, and the other ones are never
+	// activated automatically.
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         42,
+		ScriptContents: "echo script-6",
+	})
+	require.NoError(t, err)
 
 	// add some results for script-1
 	insertResults(t, 42, scripts[0], now.Add(-3*time.Minute), "execution-1-1", nil)
@@ -605,8 +631,9 @@ VALUES
 	// add some results for script-4
 	insertResults(t, 42, scripts[3], now.Add(-1*time.Minute), "execution-4-1", ptr.Int64(-2)) // last execution for script-4, status "error"
 
-	// add some results for an ad-hoc, non-saved script, should not be included in results
-	insertResults(t, 42, &fleet.Script{Name: "script-6", ScriptContents: "echo script-6"}, now.Add(-1*time.Minute), "execution-6-1", ptr.Int64(0))
+	// add a pending and a completed script execution for script-5
+	insertResults(t, 42, scripts[4], now.Add(-2*time.Minute), "execution-5-1", ptr.Int64(0))
+	insertResults(t, 42, scripts[4], now.Add(-3*time.Minute), "execution-5-2", nil) // upcoming is always latest, regardless of timestamp
 
 	t.Run("results match expected formatting and filtering", func(t *testing.T) {
 		res, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{}, "")
@@ -640,7 +667,10 @@ VALUES
 				require.Equal(t, "error", r.LastExecution.Status)
 			case scripts[4].ID:
 				require.Equal(t, scripts[4].Name, r.Name)
-				require.Nil(t, r.LastExecution)
+				require.NotNil(t, r.LastExecution)
+				// require.Equal(t, now.Add(-3*time.Minute), r.LastExecution.ExecutedAt)
+				require.Equal(t, "execution-5-2", r.LastExecution.ExecutionID)
+				require.Equal(t, "pending", r.LastExecution.Status)
 			case scripts[5].ID:
 				require.Equal(t, scripts[5].Name, r.Name)
 				require.Nil(t, r.LastExecution)

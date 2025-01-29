@@ -665,9 +665,12 @@ FROM
 	upcoming_activities
 WHERE
 	host_id = ?
+	%s
 ORDER BY topmost DESC, priority DESC, created_at ASC
 LIMIT ?
 `
+
+	const findNextSpecificExecIDsClause = ` AND execution_id IN (?) `
 
 	const markActivatedStmt = `
 UPDATE upcoming_activities
@@ -694,7 +697,15 @@ WHERE
 		Priority     int        `db:"priority"`
 	}
 	var nextActivities []nextActivity
-	if err := sqlx.SelectContext(ctx, tx, &nextActivities, findNextStmt, hostID, maxMDMCommandActivations); err != nil {
+	stmt, args := fmt.Sprintf(findNextStmt, ""), []any{hostID, maxMDMCommandActivations}
+	if len(ds.testActivateSpecificNextActivities) > 0 {
+		stmt, args, err = sqlx.In(fmt.Sprintf(findNextStmt, findNextSpecificExecIDsClause),
+			hostID, ds.testActivateSpecificNextActivities, len(ds.testActivateSpecificNextActivities))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "prepare find next upcoming activities statement with test execution ids")
+		}
+	}
+	if err := sqlx.SelectContext(ctx, tx, &nextActivities, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find next upcoming activities to activate")
 	}
 
@@ -746,7 +757,7 @@ WHERE
 	}
 
 	// finally, mark the activities as activated
-	stmt, args, err := sqlx.In(markActivatedStmt, hostID, activatedExecIDs)
+	stmt, args, err = sqlx.In(markActivatedStmt, hostID, activatedExecIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare statement to mark upcoming activities as activated")
 	}
