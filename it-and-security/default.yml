@@ -83,7 +83,7 @@ org_settings:
 policies:
 queries:
   - path: ./lib/all/queries/collect-fleetd-update-channels.yml
-  - path: /lib/all/queries/collect-operating-system-information.yml
+  - path: ./lib/all/queries/collect-operating-system-information.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:
