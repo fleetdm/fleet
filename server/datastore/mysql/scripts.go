@@ -876,10 +876,19 @@ WHERE
 `
 	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
-	// TODO(uniq): must clear pending executions from upcoming_activities too
-	const clearAllPendingExecutions = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+	const clearAllPendingExecutionsHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+
+	const clearAllPendingExecutionsUA = `DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script' 
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
 	const unsetScriptsNotInListFromPolicies = `
 UPDATE policies SET script_id = NULL
@@ -894,10 +903,19 @@ WHERE
   name NOT IN (?)
 `
 
-	// TODO(uniq): must also clear pending executions from upcoming_activities
-	const clearPendingExecutionsNotInList = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+	const clearPendingExecutionsNotInListHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+
+	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities 
+		USING 
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script' 
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
 	const insertNewOrEditedScript = `
 INSERT INTO
@@ -910,10 +928,19 @@ ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id), id=LAST_INSERT_ID(id)
 `
 
-	// TODO(uniq): must also clear pending executions from upcoming_activities
-	const clearPendingExecutionsWithObsoleteScript = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id = ? AND script_content_id != ?`
+	const clearPendingExecutionsWithObsoleteScriptHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id = ? AND script_content_id != ?`
+
+	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities 
+		USING 
+			upcoming_activities 
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script' 
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id = ? AND sua.script_content_id != ?`
 
 	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`
 
@@ -964,6 +991,8 @@ ON DUPLICATE KEY UPDATE
 			policiesArgs   []any
 			executionsStmt string
 			executionsArgs []any
+			extraExecStmt  string
+			extraExecArgs  []any
 			err            error
 		)
 		if len(keepNames) > 0 {
@@ -978,9 +1007,14 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
 			}
 
-			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInList, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInListHSR, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
+			}
+
+			extraExecStmt, extraExecArgs, err = sqlx.In(clearPendingExecutionsNotInListUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to clear upcoming pending script executions from obsolete scripts")
 			}
 		} else {
 			scriptsStmt = deleteAllScriptsInTeam
@@ -989,14 +1023,20 @@ ON DUPLICATE KEY UPDATE
 			policiesStmt = unsetAllScriptsFromPolicies
 			policiesArgs = []any{globalOrTeamID}
 
-			executionsStmt = clearAllPendingExecutions
+			executionsStmt = clearAllPendingExecutionsHSR
 			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
+
+			extraExecStmt = clearAllPendingExecutionsUA
+			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
 		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
 		}
 		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
+		}
+		if _, err := tx.ExecContext(ctx, extraExecStmt, extraExecArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear obsolete upcoming script pending executions")
 		}
 		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
@@ -1014,8 +1054,11 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 			scriptID, _ := insertRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScript, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptHSR, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete pending script executions with name %q", s.Name)
+			}
+			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "clear obsolete upcoming pending script executions with name %q", s.Name)
 			}
 		}
 

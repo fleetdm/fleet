@@ -6966,7 +6966,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
-	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+
+	// this will create the row in both upcoming_activities and host_script_results as
+	// it will be activated immediately
+	hsr, err := ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+	require.NoError(t, err)
+
+	// set a script result so it is removed from upcoming_activities and the
+	// software install (later in the test) can be inserted in both
+	// upcoming_activities and host_software_installs
+	_, _, err = ds.SetHostScriptExecutionResult(context.Background(), &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: hsr.ExecutionID,
+	})
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`

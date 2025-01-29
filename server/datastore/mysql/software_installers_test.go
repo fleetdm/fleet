@@ -1480,7 +1480,16 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1LastInstall.Status)
 	require.Equal(t, fleet.SoftwareInstallPending, *host1LastInstall.Status)
 
-	// Set result of last installer1.pkg installation.
+	// Set result of last installer1.pkg installation, but first we need to set a
+	// result for installUUID2 so that this last installer1.pkg request is
+	// activated.
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:      host1.ID,
+		InstallUUID: installUUID2,
+
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:      host1.ID,
 		InstallUUID: installUUID3,
