@@ -1753,7 +1753,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 				mobileconfigForTest("N1", "I1"),
 				mobileconfigForTest("N1", "I2"),
 			},
-			SameProfileNameEditMacErrorMsg,
+			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 		},
 		{
 			"duplicate profile identifier",

@@ -4332,15 +4332,15 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	}{
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: SameProfileNameEditWindowsErrorMsg,
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: declBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: SameProfileNameEditWindowsErrorMsg,
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
-			expectErr: SameProfileNameEditWindowsErrorMsg,
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 	} {
 		// team profiles

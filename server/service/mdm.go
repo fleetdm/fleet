@@ -37,10 +37,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const (
-	SameProfileNameEditWindowsErrorMsg = "Couldn't edit window_settings.custom_settings. More than one configuration profile have the same name (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
-)
-
 ////////////////////////////////////////////////////////////////////////////////
 // GET /mdm/apple
 ////////////////////////////////////////////////////////////////////////////////
@@ -1786,22 +1782,22 @@ func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, apple
 	// ".mobileconfig" or ".json" or ".xml"
 	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
 	for i, p := range appleProfiles {
-		if v, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".mobileconfig", v))
+		if _, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
 			return ctxerr.Wrap(ctx, err, "duplicate mobileconfig profile by name")
 		}
 		extByName[p.Name] = ".mobileconfig"
 	}
 	for i, p := range windowsProfiles {
-		if v, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".xml", v))
+		if _, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("windowsProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
 			return ctxerr.Wrap(ctx, err, "duplicate xml by name")
 		}
 		extByName[p.Name] = ".xml"
 	}
 	for i, p := range appleDecls {
-		if v, ok := extByName[p.Name]; ok {
-			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name, ".json", v))
+		if _, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name))
 			return ctxerr.Wrap(ctx, err, "duplicate json by name")
 		}
 		extByName[p.Name] = ".json"
@@ -1810,39 +1806,9 @@ func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, apple
 	return nil
 }
 
-func fmtDuplicateNameErrMsg(name, fileType1, fileType2 string) string {
-	var part1 string
-	switch fileType1 {
-	case ".xml":
-		part1 = "Windows .xml file name"
-	case ".mobileconfig":
-		part1 = "macOS .mobileconfig PayloadDisplayName"
-	case ".json":
-		part1 = "macOS .json file name"
-	}
-
-	var part2 string
-	switch fileType2 {
-	case ".xml":
-		part2 = "Windows .xml file name"
-	case ".mobileconfig":
-		part2 = "macOS .mobileconfig PayloadDisplayName"
-	case ".json":
-		part2 = "macOS .json file name"
-	}
-
-	base := SameProfileNameEditWindowsErrorMsg
-	detail := ` (%s).`
-	switch {
-	case part1 == part2:
-		return fmt.Sprintf(base+detail, part1)
-	case part1 != "" && part2 != "":
-		return fmt.Sprintf(base+detail, fmt.Sprintf("%s or %s", part1, part2))
-	case part1 != "" || part2 != "":
-		return fmt.Sprintf(base+detail, part1+part2)
-	default:
-		return base + "." // should never happen
-	}
+func fmtDuplicateNameErrMsg(name string) string {
+	const SameProfileNameErrorMsg = "Couldn't edit custom_settings. More than one configuration profile have the same name '%s' (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+	return fmt.Sprintf(SameProfileNameErrorMsg, name)
 }
 
 func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
@@ -2015,13 +1981,13 @@ func getAppleProfiles(
 
 		if mdmProf.Name != prof.Name {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, SameProfileNameEditWindowsErrorMsg),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = "mobileconfig"
@@ -2029,7 +1995,7 @@ func getAppleProfiles(
 		// TODO: confirm error messages
 		if _, ok := byIdent[mdmProf.Identifier]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = "mobileconfig"

@@ -372,8 +372,8 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			}
 
 			// check for duplicate names across all profiles
-			if e, isDuplicate := extByName[name]; isDuplicate {
-				return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
+			if _, isDuplicate := extByName[name]; isDuplicate {
+				return nil, errors.New(fmtDuplicateNameErrMsg(name))
 			}
 			extByName[name] = ext
 
