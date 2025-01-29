@@ -2263,7 +2263,10 @@ func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
 	queryReportsDisabled bool,
-) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+) (
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2444,10 +2447,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 		return
 	}
 
-	// Filter results to only the most recent for each query.
-	filtered := getMostRecentResults(unmarshaledResults)
+	// Transform results that are in "event format" to "snapshot format".
+	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=false`
+	// in their agent options.
+	unmarshaledResultsFiltered := transformEventFormatToSnapshotFormat(unmarshaledResults)
 
-	for _, result := range filtered {
+	// Filter results to only the most recent for each query.
+	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
+
+	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -2485,6 +2493,79 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 	}
+}
+
+// transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
+// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=false`
+// in their agent options.
+//
+// "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
+//
+//	[
+//		{
+//			"snapshot":[
+//				{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},
+//				{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}
+//			],
+//			"action":"snapshot",
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 22:17:17 2025 UTC",
+//			"unixTime":1738189037,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
+//		}
+//	]
+//
+// "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
+//
+//	[
+//		{"name":"pack/Global/All USB devices","hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
+//		{"name":"pack/Global/All USB devices","hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`
+//	]
+func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
+	isEventFormat := func(result *fleet.ScheduledQueryResult) bool {
+		return result != nil && result.Action == "snapshot" && len(result.Snapshot) == 0 && len(result.Columns) > 0
+	}
+
+	resultsInEventFormat := make(map[string]*fleet.ScheduledQueryResult)
+	for _, result := range results {
+		if !isEventFormat(result) {
+			continue
+		}
+		allResults, ok := resultsInEventFormat[result.QueryName]
+		if !ok {
+			// All snapshot results in "event format" for the same query have the same `hostIdentifier` and `unixTime`.
+			resultsInEventFormat[result.QueryName] = &fleet.ScheduledQueryResult{
+				QueryName:     result.QueryName,
+				OsqueryHostID: result.OsqueryHostID,
+				Snapshot:      []*json.RawMessage{&result.Columns},
+				UnixTime:      result.UnixTime,
+			}
+		} else {
+			resultsInEventFormat[allResults.QueryName].Snapshot = append(resultsInEventFormat[allResults.QueryName].Snapshot, &result.Columns)
+		}
+	}
+
+	if len(resultsInEventFormat) == 0 {
+		return results
+	}
+
+	replaced := make(map[string]struct{})
+	var filteredResults []*fleet.ScheduledQueryResult
+	for _, result := range results {
+		if isEventFormat(result) {
+			if _, ok := replaced[result.QueryName]; !ok {
+				filteredResults = append(filteredResults, resultsInEventFormat[result.QueryName])
+				replaced[result.QueryName] = struct{}{}
+			}
+			continue
+		}
+		filteredResults = append(filteredResults, result)
+	}
+	return filteredResults
 }
 
 // overwriteResultRows deletes existing and inserts the new results for a query and host.
