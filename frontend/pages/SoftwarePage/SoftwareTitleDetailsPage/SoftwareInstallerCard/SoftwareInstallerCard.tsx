@@ -42,7 +42,7 @@ import {
 } from "./helpers";
 import AutomaticInstallModal from "../AutomaticInstallModal";
 
-const baseClass = "software-package-card";
+const baseClass = "software-installer-card";
 
 /** TODO: pull this hook and SoftwareName component out. We could use this other places */
 function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
@@ -156,6 +156,7 @@ const InstallerStatusCount = ({
     software_status: status,
     team_id: teamId,
   })}`;
+
   return (
     <DataSet
       className={`${baseClass}__status`}
@@ -416,13 +417,14 @@ const SoftwareInstallerCard = ({
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && isPackage && (
+      {showEditSoftwareModal && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}
           software={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
+          isPackage={isPackage}
         />
       )}
       {showDeleteModal && (

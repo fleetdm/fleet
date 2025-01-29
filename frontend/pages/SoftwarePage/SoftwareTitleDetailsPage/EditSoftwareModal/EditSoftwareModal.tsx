@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
-import { ISoftwarePackage } from "interfaces/software";
+import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
@@ -21,6 +21,7 @@ import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import SoftwareVppForm from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm";
 import {
   generateSelectedLabels,
   getCustomTarget,
@@ -39,9 +40,10 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  software: ISoftwarePackage; // TODO
+  software: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
+  isPackage: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -50,6 +52,7 @@ const EditSoftwareModal = ({
   software,
   onExit,
   refetchSoftwareTitle,
+  isPackage,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -138,7 +141,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
-        orignalPackage: software,
+        orignalPackage: software as ISoftwarePackage,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -161,24 +164,25 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software));
+      renderFlash("error", getErrorMessage(e, software as ISoftwarePackage));
     }
     setIsUpdatingSoftware(false);
   };
 
-  const onEditSoftware = (formData: IPackageFormData) => {
+  const onEditPackage = (formData: IPackageFormData) => {
+    const softwarePackage = software as ISoftwarePackage;
     // Check for changes to conditionally confirm save changes modal
     const updates = deepDifference(formData, {
       software,
-      installScript: software.install_script || "",
-      preInstallQuery: software.pre_install_query || "",
-      postInstallScript: software.post_install_script || "",
-      uninstallScript: software.uninstall_script || "",
-      selfService: software.self_service || false,
-      installType: getInstallType(software),
-      targetType: getTargetType(software),
-      customTarget: getCustomTarget(software),
-      labelTargets: generateSelectedLabels(software),
+      installScript: softwarePackage.install_script || "",
+      preInstallQuery: softwarePackage.pre_install_query || "",
+      postInstallScript: softwarePackage.post_install_script || "",
+      uninstallScript: softwarePackage.uninstall_script || "",
+      selfService: softwarePackage.self_service || false,
+      installType: getInstallType(softwarePackage),
+      targetType: getTargetType(softwarePackage),
+      customTarget: getCustomTarget(softwarePackage),
+      labelTargets: generateSelectedLabels(softwarePackage),
     });
 
     setPendingUpdates(formData);
@@ -199,6 +203,36 @@ const EditSoftwareModal = ({
     onSaveSoftwareChanges(pendingUpdates);
   };
 
+  const renderForm = () => {
+    if (isPackage) {
+      const softwarePackage = software as ISoftwarePackage;
+      return (
+        <PackageForm
+          labels={labels ?? []}
+          className={`${baseClass}__package-form`}
+          isEditingSoftware
+          onCancel={onExit}
+          onSubmit={onEditPackage}
+          defaultSoftware={software}
+          defaultInstallScript={softwarePackage.install_script}
+          defaultPreInstallQuery={softwarePackage.pre_install_query}
+          defaultPostInstallScript={softwarePackage.post_install_script}
+          defaultUninstallScript={softwarePackage.uninstall_script}
+          defaultSelfService={softwarePackage.self_service}
+        />
+      );
+    }
+
+    return (
+      <SoftwareVppForm
+        labels={labels || []}
+        teamId={teamId}
+        softwareVppForEdit={software as IAppStoreApp}
+        onCancel={onExit}
+      />
+    );
+  };
+
   return (
     <>
       <Modal
@@ -207,19 +241,7 @@ const EditSoftwareModal = ({
         onExit={onExit}
         width="large"
       >
-        <PackageForm
-          labels={labels ?? []}
-          className={`${baseClass}__package-form`}
-          isEditingSoftware
-          onCancel={onExit}
-          onSubmit={onEditSoftware}
-          defaultSoftware={software}
-          defaultInstallScript={software.install_script}
-          defaultPreInstallQuery={software.pre_install_query}
-          defaultPostInstallScript={software.post_install_script}
-          defaultUninstallScript={software.uninstall_script}
-          defaultSelfService={software.self_service}
-        />
+        {renderForm()}
       </Modal>
       {showConfirmSaveChangesModal && (
         <ConfirmSaveChangesModal

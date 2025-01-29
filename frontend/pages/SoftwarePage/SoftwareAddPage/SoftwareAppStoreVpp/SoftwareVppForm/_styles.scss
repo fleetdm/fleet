@@ -1,4 +1,4 @@
-.add-software-vpp-form {
+.software-vpp-form {
   position: relative;
 
   &__overlay {
@@ -31,26 +31,28 @@
     gap: $pad-medium;
   }
 
-
-
   // enable and no software message styles
-  &__enable-vpp-card, &__no-software-card {
+  &__enable-vpp-card,
+  &__no-software-card {
     padding: $pad-xxxlarge auto;
   }
 
-  &__enable-vpp-message, &__no-software-message {
+  &__enable-vpp-message,
+  &__no-software-message {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
     align-items: center;
   }
 
-  &__enable-vpp-title, &__no-software-title {
+  &__enable-vpp-title,
+  &__no-software-title {
     font-weight: $bold;
     margin: 0;
   }
 
-  &__enable-vpp-description, &__no-software-description {
+  &__enable-vpp-description,
+  &__no-software-description {
     margin: 0;
     color: $ui-fleet-black-75;
   }

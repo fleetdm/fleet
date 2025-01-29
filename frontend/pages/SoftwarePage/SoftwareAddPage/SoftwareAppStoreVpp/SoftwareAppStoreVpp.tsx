@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import PATHS from "router/paths";
 
 import mdmAppleAPI, {
   IGetVppTokensResponse,
@@ -14,8 +15,9 @@ import { ILabelSummary } from "interfaces/label";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { buildQueryStringFromParams } from "utilities/url";
 
-import AddSoftwareVppForm from "./AddSoftwareVppForm";
+import SoftwareVppForm from "./SoftwareVppForm";
 import { teamHasVPPToken } from "./helpers";
 
 const baseClass = "software-app-store-vpp";
@@ -78,6 +80,15 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
+  const goBackToSoftwareTitles = (availableInstall?: boolean) => {
+    router.push(
+      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+        team_id: currentTeamId,
+        available_for_install: availableInstall,
+      })}`
+    );
+  };
+
   const renderContent = () => {
     if (!isPremiumTier) {
       return (
@@ -95,9 +106,9 @@ const SoftwareAppStoreVpp = ({
 
     return (
       <div className={`${baseClass}__content`}>
-        <AddSoftwareVppForm
+        <SoftwareVppForm
           labels={labels || []}
-          router={router}
+          onCancel={goBackToSoftwareTitles}
           teamId={currentTeamId}
           hasVppToken={hasVppToken}
           noVppTokenUploaded={noVppTokenUploaded}

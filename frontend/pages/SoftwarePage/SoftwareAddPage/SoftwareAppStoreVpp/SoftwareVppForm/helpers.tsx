@@ -1,7 +1,7 @@
 import React from "react";
 import { getErrorReason } from "interfaces/errors";
 import { IVppApp } from "services/entities/mdm_apple";
-import { IVPPAppFormData, IFormValidation } from "./AddSoftwareVppForm";
+import { IVPPAppFormData, IFormValidation } from "./SoftwareVppForm";
 
 const ADD_SOFTWARE_ERROR_PREFIX = "Couldn’t add software.";
 const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
