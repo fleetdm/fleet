@@ -463,4 +463,5 @@ export interface IFleetMaintainedAppDetails {
   install_script: string;
   post_install_script: string; // TODO: is this needed?
   uninstall_script: string;
+  url: string;
 }

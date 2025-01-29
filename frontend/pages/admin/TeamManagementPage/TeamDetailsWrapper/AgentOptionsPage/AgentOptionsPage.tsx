@@ -68,6 +68,7 @@ const AgentOptionsPage = ({
         setTeamName(data.name);
       },
       onError: (error) => handlePageError(error),
+      refetchOnWindowFocus: false,
     }
   );
 

@@ -155,7 +155,7 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }//ﬁ
+        }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
@@ -289,7 +289,7 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }//ﬁ
+        }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.policies = policies;

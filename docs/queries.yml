@@ -43,7 +43,7 @@ kind: built-in
 spec:
   name: Disk encryption (Linux)
   platform: linux
-  description: Retrieves the disk encryption status of a device running Linux.
+  description: "Retrieves the default disk's (/) encryption status of a device running Linux."
   query: |
     SELECT 
       de.encrypted, m.path 
