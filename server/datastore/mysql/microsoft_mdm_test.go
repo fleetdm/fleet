@@ -562,6 +562,49 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			// Check that filtered lists do include macOS hosts
 			checkListHostsFilterDiskEncryption(t, nil, fleet.DiskEncryptionFailed, []uint{hosts[1].ID, hosts[5].ID})
 			checkListHostsFilterOSSettings(t, nil, fleet.OSSettingsFailed, []uint{hosts[1].ID, hosts[5].ID})
+
+			// delete the macOS host profile
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`, hosts[5].UUID, mobileconfig.FleetFileVaultPayloadIdentifier)
+				return err
+			})
+		})
+
+		t.Run("BitLocker host disks updated", func(t *testing.T) {
+			// confirm our initial state is as expected
+			// hosts[2] is was transferred to a team and is not counted
+			// hosts[3] is a Windows server and is not counted
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{hosts[4].ID},
+			})
+
+			// simulate host[4] previously reported encrypted for disk encryption detail query
+			// results
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[4].ID, true))
+			// manualy update host_disks for hosts[3] to encrypted and ensure updated_at
+			// timestamp is in the past
+			updateHostDisks(t, hosts[4].ID, true, time.Now().Add(-3*time.Hour))
+
+			// simulate host[4] reporting disk encryption key
+			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[4], "test-key", "", ptr.Bool(true)))
+
+			// check that host[4] is now counted as verifying (not verified because host_disks still needs to be updated)
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				fleet.DiskEncryptionVerifying: []uint{hosts[4].ID},
+			})
+
+			// simulate host[4] reporting detail query results for disk encryption
+			require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[4].ID, true))
+			// status for hosts[4] now verified because SetOrUpdateHostDisksEncryption always sets host_disks.updated_at
+			// to the current timestamp even if the `encrypted` value hasn't changed
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified: []uint{hosts[0].ID, hosts[4].ID},
+				fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+			})
 		})
 	})
 }
@@ -859,6 +902,36 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				expected[fleet.MDMDeliveryVerified] = []uint{hosts[0].ID}
 				expected[fleet.MDMDeliveryVerifying] = []uint{}
 				checkExpected(t, nil, expected)
+
+				cleanupTables(t)
+			})
+
+			t.Run("bitlocker host disk updated", func(t *testing.T) {
+				// all hosts are pending because no profiles and disk encryption is enabled
+				checkExpected(t, nil, hostIDsByProfileStatus{
+					fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+				})
+
+				// simulate host already has encrypted disks
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				// manualy update host_disks for hosts[0] to encrypted and ensure updated_at
+				// timestamp is in the past
+				updateHostDisks(t, hosts[0].ID, true, time.Now().Add(-2*time.Hour))
+
+				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+				// status is verifying because hosts_disks hasn't been updated again
+				checkExpected(t, nil, hostIDsByProfileStatus{
+					fleet.MDMDeliveryVerifying: []uint{hosts[0].ID},
+					fleet.MDMDeliveryPending:   []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+				})
+
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
+				// status for hosts[0] now verified because SetOrUpdateHostDisksEncryption always sets host_disks.updated_at
+				// to the current timestamp even if the `encrypted` value hasn't changed
+				checkExpected(t, nil, hostIDsByProfileStatus{
+					fleet.MDMDeliveryVerified: []uint{hosts[0].ID},
+					fleet.MDMDeliveryPending:  []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+				})
 
 				cleanupTables(t)
 			})
@@ -2460,11 +2533,11 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 			atomicCommandUUID)
 	})
 	assert.Empty(t, count, "All devices have responded, so the command should be completely removed from the queue")
-
 }
 
 func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindowsEnrolledDevice, atomicCommandUUID string,
-	replaceCommandUUID string) fleet.EnrichedSyncML {
+	replaceCommandUUID string,
+) fleet.EnrichedSyncML {
 	rawResponse := fmt.Sprintf(`
 <SyncML
     xmlns="SYNCML:SYNCML1.2">

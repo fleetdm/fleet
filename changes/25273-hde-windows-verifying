@@ -1,0 +1,2 @@
+- Fixed issue where Windows disk encryption where status updates from "Verifying" to "Verified" were
+  sometimes stuck in the "Verifying" state.
