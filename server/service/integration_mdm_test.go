@@ -11053,19 +11053,39 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
 
-		// TODO: attempt to update non-vpp software (should fail)
-		// TODO: attempt to update non-existent app (should fail)
+		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "install",
+			Filename:      "ruby.deb",
+			SelfService:   false,
+			TeamID:        &team.ID,
+		}
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusOK, "")
+
+		resp := listSoftwareTitlesResponse{}
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &resp,
+			"query", "ruby",
+			"team_id", fmt.Sprintf("%d", team.ID),
+		)
+
+		require.Len(t, resp.SoftwareTitles, 1)
+		nonVPPTitleID := resp.SoftwareTitles[0].ID
+
+		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l2.Name}}
+		// TODO: is this the right error?
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", nonVPPTitleID), updateAppReq, http.StatusNotFound)
+
+		s.Do("PATCH", "/api/latest/fleet/software/titles/9999/app_store_app", updateAppReq, http.StatusNotFound)
 
 		// Update App2
-		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l2.Name}}
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK)
 
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mysql.DumpTable(t, q, "vpp_apps_teams")
-			fmt.Println()
-			mysql.DumpTable(t, q, "vpp_apps")
-			return nil
-		})
+		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}]}`
+		s.lastActivityMatches(fleet.ActivityUpdatedAppStoreApp{}.ActivityName(),
+			fmt.Sprintf(activityData, team.Name,
+				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
 		// delete the VPP app
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
