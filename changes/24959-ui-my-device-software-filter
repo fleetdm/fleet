@@ -1,0 +1,2 @@
+- Fixed UI bug in "My device" page where the "Software" tab included filter elements that did not
+  match the expected design.

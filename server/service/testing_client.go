@@ -558,6 +558,16 @@ func (ts *withServer) uploadSoftwareInstaller(
 	expectedStatus int,
 	expectedError string,
 ) {
+	ts.uploadSoftwareInstallerWithErrorNameReason(t, payload, expectedStatus, expectedError, "")
+}
+
+func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
+	t *testing.T,
+	payload *fleet.UploadSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedErrorReason string,
+	expectedErrorName string,
+) {
 	t.Helper()
 
 	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
@@ -621,9 +631,14 @@ func (ts *withServer) uploadSoftwareInstaller(
 	r := ts.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
 	defer r.Body.Close()
 
-	if expectedError != "" {
-		errMsg := extractServerErrorText(r.Body)
-		require.Contains(t, errMsg, expectedError)
+	if expectedErrorReason != "" || expectedErrorName != "" {
+		errName, errReason := extractServerErrorNameReason(r.Body)
+		if expectedErrorName != "" {
+			require.Equal(t, expectedErrorName, errName)
+		}
+		if expectedErrorReason != "" {
+			require.Contains(t, errReason, expectedErrorReason)
+		}
 	}
 }
 
@@ -675,6 +690,16 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("self_service", "true"))
 		} else {
 			require.NoError(t, w.WriteField("self_service", "false"))
+		}
+	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
 

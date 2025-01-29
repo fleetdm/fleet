@@ -99,14 +99,10 @@ After an account is marked "[Research-ready](https://fleetdm.lightning.force.com
 
 The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
-1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
-  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
-  - Create date: The date by which the DRI will start crafting the content.
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
-  - Primary buying situation: The intended audience.
   - DRI: Person(s) responsible for the project management of this content.
-  - Author: Person(s) responsible for the creation of this content.
-  - Related event?: Related community or Fleet event, if any.
+  - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
@@ -125,6 +121,17 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
+
+
+### Respond to a "Contact us" submission
+
+1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
+2. Mark submission as seen with the "👀" emoji.
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
+5. Mark the Slack message as complete with the "✅" emoji.
+
+> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Book an event

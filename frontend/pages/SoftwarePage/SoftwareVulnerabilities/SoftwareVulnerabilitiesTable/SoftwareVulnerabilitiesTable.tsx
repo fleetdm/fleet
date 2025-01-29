@@ -13,13 +13,14 @@ import {
 } from "utilities/constants";
 import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
 
@@ -165,7 +166,7 @@ const SoftwareVulnerabilitiesTable = ({
   }, [data, router, teamId]);
 
   const handleExploitedVulnFilterDropdownChange = (
-    isFilterExploited: boolean
+    isFilterExploited: string
   ) => {
     router.replace(
       getNextLocationPath({
@@ -176,7 +177,7 @@ const SoftwareVulnerabilitiesTable = ({
           team_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
-          exploit: isFilterExploited.toString(),
+          exploit: isFilterExploited,
           page: 0, // resets page index
         },
       })
@@ -236,13 +237,15 @@ const SoftwareVulnerabilitiesTable = ({
   // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
-      <Dropdown
-        value={showExploitedVulnerabilitiesOnly}
-        className={`${baseClass}__exploited-vulnerabilities-dropdown`}
+      <DropdownWrapper
+        name="exploited-vuln-filter"
+        value={showExploitedVulnerabilitiesOnly.toString()}
+        className={`${baseClass}__exploited-vulnerabilities-filter`}
         options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
-        searchable={false}
-        onChange={handleExploitedVulnFilterDropdownChange}
-        iconName="filter"
+        onChange={(newValue: SingleValue<CustomOptionType>) =>
+          newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
+        }
+        variant="table-filter"
       />
     );
   };
@@ -280,6 +283,7 @@ const SoftwareVulnerabilitiesTable = ({
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
+        stackControls
         renderCount={renderVulnerabilityCount}
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect

@@ -172,7 +172,7 @@ func (u UpdatesData) String() string {
 }
 
 func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
-	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, "tuf-metadata.json"))
+	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, update.MetadataFileName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
@@ -234,6 +234,17 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
 			return nil, fmt.Errorf("failed to get %s version: %w", constant.DesktopTUFTargetName, err)
 		}
+	}
+
+	// Copy the new metadata file to the old location (pre-migration) to
+	// support orbit downgrades to 1.37.0 or lower.
+	//
+	// Once https://tuf.fleetctl.com is brought down (which means downgrades to 1.37.0 or
+	// lower won't be possible), we can remove this copy.
+	oldMetadataPath := filepath.Join(updateOpt.RootDirectory, update.OldMetadataFileName)
+	newMetadataPath := filepath.Join(updateOpt.RootDirectory, update.MetadataFileName)
+	if err := file.Copy(newMetadataPath, oldMetadataPath, constant.DefaultFileMode); err != nil {
+		return nil, fmt.Errorf("failed to create %s copy: %w", oldMetadataPath, err)
 	}
 
 	return &UpdatesData{

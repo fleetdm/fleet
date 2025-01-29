@@ -35,7 +35,7 @@
     font-size: $xx-small;
   }
 
-  &__package-statuses {
+  &__installer-statuses {
     display: flex;
     align-items: flex-start;
     align-self: stretch;
@@ -85,20 +85,6 @@
     justify-content: flex-end;
     gap: $pad-medium;
     align-items: center;
-  }
-
-  &__actions {
-    @include button-dropdown;
-    color: $core-fleet-black;
-    .Select-multi-value-wrapper {
-      width: 55px;
-    }
-    .Select > .Select-menu-outer {
-      left: -120px;
-    }
-    .Select-placeholder {
-      color: $core-fleet-black;
-    }
   }
 
   &__download-icon {

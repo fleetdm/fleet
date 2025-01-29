@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -113,11 +112,11 @@ func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
 // IsLessThanVersion returns true if the current version is less than the target version.
 // If either version is invalid, an error is returned.
 func IsLessThanVersion(current string, target string) (bool, error) {
-	cv, err := semver.NewVersion(current)
+	cv, err := fleet.VersionToSemverVersion(current)
 	if err != nil {
 		return false, fmt.Errorf("invalid current version: %w", err)
 	}
-	tv, err := semver.NewVersion(target)
+	tv, err := fleet.VersionToSemverVersion(target)
 	if err != nil {
 		return false, fmt.Errorf("invalid target version: %w", err)
 	}

@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -94,6 +104,15 @@
   },
   {
     "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["docker"],
       "source": ["python_packages"]
     },
@@ -157,6 +176,116 @@
     },
     "filter": {
       "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.PhpStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["phpstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.aqua/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["aqua"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.CLion/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["clion"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.datagrip/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["datagrip"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.dataspell/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["dataspell"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.goland/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["goland"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rider/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rider"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rubymine/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rubymine"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rustrover/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rustrover"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.WebStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["webstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.mps/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["mps"],
       "vendor": ["jetbrains"]
     }
   },
@@ -434,6 +563,16 @@
     "filter": {
       "product": ["cli"],
       "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["iterm2"],
+      "vendor": ["iterm2"]
     }
   }
 ]

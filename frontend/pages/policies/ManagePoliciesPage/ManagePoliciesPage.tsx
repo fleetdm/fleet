@@ -22,7 +22,7 @@ import {
   IPolicy,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -38,12 +38,15 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -82,7 +85,7 @@ const [
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
 ] = [
   "Successfully updated policy automations.",
-  "Could not update policy automations. Please try again.",
+  "Could not update policy automations.",
 ];
 
 const baseClass = "manage-policies-page";
@@ -488,8 +491,8 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
-  const onSelectAutomationOption = (option: string) => {
-    switch (option) {
+  const onSelectAutomationOption = (option: SingleValue<CustomOptionType>) => {
+    switch (option?.value) {
       case "calendar_events":
         toggleCalendarEventsModal();
         break;
@@ -776,22 +779,43 @@ const ManagePolicyPage = ({
     }
   }
 
-  const renderPoliciesCount = (count?: number) => {
+  const renderPoliciesCountAndLastUpdated = (
+    count?: number,
+    policies?: IPolicyStats[]
+  ) => {
     // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
     const isFetchingCount = !isAllTeamsSelected
       ? isFetchingTeamCountMergeInherited
       : isFetchingGlobalCount;
 
-    const hideCount =
+    const hide =
       isFetchingCount ||
       policiesErrors ||
       (!policyResults && searchQuery === "");
 
-    if (hideCount) {
+    if (hide) {
       return null;
     }
+    // Figure the time since the host counts were updated by finding first policy item with host_count_updated_at.
+    const updatedAt =
+      policies?.find((p) => !!p.host_count_updated_at)?.host_count_updated_at ||
+      "";
 
-    return <TableCount name="policies" count={count} />;
+    return (
+      <>
+        <TableCount name="policies" count={count} />
+        <LastUpdatedText
+          lastUpdatedAt={updatedAt}
+          customTooltipText={
+            <>
+              Counts are updated hourly. Click host
+              <br />
+              counts for the most up-to-date count.
+            </>
+          }
+        />
+      </>
+    );
   };
 
   const renderMainTable = () => {
@@ -815,7 +839,12 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
-          renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
+          renderPoliciesCount={() =>
+            renderPoliciesCountAndLastUpdated(
+              globalPoliciesCount,
+              globalPolicies
+            )
+          }
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -844,7 +873,10 @@ const ManagePolicyPage = ({
           currentTeam={currentTeamSummary}
           currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
-            renderPoliciesCount(teamPoliciesCountMergeInherited)
+            renderPoliciesCountAndLastUpdated(
+              teamPoliciesCountMergeInherited,
+              teamPolicies
+            )
           }
           isPremiumTier={isPremiumTier}
           searchQuery={searchQuery}
@@ -909,25 +941,25 @@ const ManagePolicyPage = ({
       );
     }
 
-    const options: IDropdownOption[] = [
+    const options: CustomOptionType[] = [
       {
         label: "Calendar events",
         value: "calendar_events",
-        disabled: !!disabledCalendarTooltipContent,
+        isDisabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Install software",
         value: "install_software",
-        disabled: !!disabledInstallTooltipContent,
+        isDisabled: !!disabledInstallTooltipContent,
         helpText: "Install software to resolve failing policies.",
         tooltipContent: disabledInstallTooltipContent,
       },
       {
         label: "Run script",
         value: "run_script",
-        disabled: !!disabledRunScriptTooltipContent,
+        isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
@@ -938,7 +970,7 @@ const ManagePolicyPage = ({
       options.push({
         label: "Other workflows",
         value: "other_workflows",
-        disabled: false,
+        isDisabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
       });
     }
@@ -989,12 +1021,14 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {showAutomationsDropdown && (
                 <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <Dropdown
+                  <DropdownWrapper
                     className={`${baseClass}__manage-automations-dropdown`}
+                    name="policy-automations"
                     onChange={onSelectAutomationOption}
                     placeholder="Manage automations"
-                    searchable={false}
                     options={getAutomationsDropdownOptions(!!automationsConfig)}
+                    variant="button"
+                    nowrapMenu
                   />
                 </div>
               )}

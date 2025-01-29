@@ -89,7 +89,11 @@ export const InstallTypeSection = ({
           name="install-type"
           label="Manual"
           onChange={onChangeInstallType}
-          helpText="Manually install on Host details page for each host."
+          helpText={
+            <>
+              Manually install on the <b>Host details</b> page for each host.
+            </>
+          }
         />
         <Radio
           checked={installType === "automatic"}
@@ -124,7 +128,7 @@ export const InstallTypeSection = ({
           color="yellow"
           cta={
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/automatic-software-install-policies`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
               text="Learn more"
               newTab
             />

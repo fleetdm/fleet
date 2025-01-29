@@ -4,7 +4,6 @@ import {
   isSoftwarePackage,
   aggregateInstallStatusCounts,
 } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 /**
  * Generates the data needed to render the package card. It differentiates between
@@ -25,12 +24,12 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
   const isPackage = isSoftwarePackage(packageData);
 
   return {
-    softwarePackage: isPackage ? packageData : undefined,
+    softwarePackage: packageData,
     name: (isPackage && packageData.name) || softwareTitle.name,
     version:
       (isSoftwarePackage(packageData)
         ? packageData.version
-        : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
+        : packageData.latest_version) || null,
     uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
     status: isSoftwarePackage(packageData)
       ? aggregateInstallStatusCounts(packageData.status)

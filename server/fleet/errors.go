@@ -19,6 +19,7 @@ var (
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
+	ErrNotConfigured         = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
@@ -62,6 +63,14 @@ type ErrWithRetryAfter interface {
 	RetryAfter() int
 }
 
+// ErrWithIsClientError is an interface for errors that explicitly specify
+// whether they are client errors or not. By default, errors are treated as
+// server errors.
+type ErrWithIsClientError interface {
+	error
+	IsClientError() bool
+}
+
 type invalidArgWithStatusError struct {
 	InvalidArgumentError
 	code int
@@ -101,7 +110,7 @@ func (e *ErrorWithUUID) UUID() string {
 }
 
 // InvalidArgumentError is the error returned when invalid data is presented to
-// a service method.
+// a service method. It is a client error.
 type InvalidArgumentError struct {
 	Errors []InvalidArgument
 
@@ -120,6 +129,10 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	var invalid InvalidArgumentError
 	invalid.Append(name, reason)
 	return &invalid
+}
+
+func (e InvalidArgumentError) IsClientError() bool {
+	return true
 }
 
 func (e *InvalidArgumentError) Append(name, reason string) {
@@ -350,6 +363,14 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// NotConfiguredError is a generic "not configured" error that can be used
+// when expected configuration is missing.
+type NotConfiguredError struct{}
+
+func (e *NotConfiguredError) Error() string {
+	return "not configured"
+}
+
 // GatewayError is an error type that generates a 502 or 504 status code.
 type GatewayError struct {
 	Message string
@@ -466,6 +487,15 @@ var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
 // error message.
 func IsJSONUnknownFieldError(err error) bool {
 	return rxJSONUnknownField.MatchString(err.Error())
+}
+
+func GetJSONUnknownField(err error) *string {
+	errCause := Cause(err)
+	if IsJSONUnknownFieldError(errCause) {
+		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
+		return &substr[1]
+	}
+	return nil
 }
 
 // UserMessage implements the user-friendly translation of the error if its

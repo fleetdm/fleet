@@ -397,7 +397,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// so pass in the current working directory.
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
-			_, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsScripts)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+			_, _, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 			if err != nil {
 				return err
 			}
@@ -762,7 +763,7 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
-			if err := os.RemoveAll(filepath.Join(orbitDir, "tuf-metadata.json")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, update.MetadataFileName)); err != nil {
 				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
 			}
 			if err := os.RemoveAll(filepath.Join(orbitDir, "bin")); err != nil {

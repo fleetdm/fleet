@@ -20,6 +20,7 @@ export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
+
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const QUERYABLE_PLATFORMS: QueryablePlatform[] = [
@@ -34,12 +35,27 @@ export const isQueryablePlatform = (
 ): platform is QueryablePlatform =>
   QUERYABLE_PLATFORMS.includes(platform as QueryablePlatform);
 
+export const SCHEDULED_QUERYABLE_PLATFORMS: ScheduledQueryablePlatform[] = [
+  "darwin",
+  "windows",
+  "linux",
+];
+
+export type ScheduledQueryablePlatform = Exclude<QueryablePlatform, "chrome">;
+
+export const isScheduledQueryablePlatform = (
+  platform: string | undefined
+): platform is ScheduledQueryablePlatform =>
+  SCHEDULED_QUERYABLE_PLATFORMS.includes(
+    platform as ScheduledQueryablePlatform
+  );
+
 // TODO - add "iOS" and "iPadOS" once we support them
 export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
-export type SelectedPlatformString =
+export type CommaSeparatedPlatformString =
   | ""
   | QueryablePlatform
   | `${QueryablePlatform},${QueryablePlatform}`

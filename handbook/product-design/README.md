@@ -8,7 +8,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                             | Contributor(s)           |
 |:---------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Design           | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
-| Product Designer (onboarding)    | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Product Designer                 | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
@@ -57,18 +56,18 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
 4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
-  - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
-  - Add a link to the issue in the PR description.
-  - Attach the `~api-or-yaml-design` label.
-  - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
-  - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
+   - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
+   - Add a link to the issue in the PR description.
+   - Attach the `~api-or-yaml-design` label.
+   - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
+   - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
 5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
 6. Draft changes to the Fleet product that solve the problem specified in the story.
-- Constantly place yourself in the shoes of a user while drafting changes.
-- Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
-- Engage engineering to gain insight into technical costs and feasibility.
+   - Constantly place yourself in the shoes of a user while drafting changes.
+   - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
+   - Engage engineering to gain insight into technical costs and feasibility.
 
 Additionally:
 
@@ -122,8 +121,8 @@ You'll know it's time for expedited drafting when:
 
 What happens during expedited drafting?
 1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 

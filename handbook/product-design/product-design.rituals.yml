@@ -16,7 +16,7 @@
   task: "Design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, create upcoming reference docs release branch, and align on priorities." 
+  description: "Create stories for feature requests prioritized during Feature fest and add these stories to the Drafting board, assign stories to product designers, create upcoming reference docs release branch, and align on priorities." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -44,7 +44,7 @@
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
   frequency: "Monthly" 
-  description: "Every quarter, Head of Product Design (HPD) writes a short blog post with the theme and an embedded YouTube video in which HPD walks through this." 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
   moreInfoUrl: "" 
   dri: "noahtalerman"
   autoIssue:   
@@ -83,4 +83,10 @@
   startedOn: "2024-02-27" 
   frequency: "Triweekly"
   description: "Align on priorities for upcoming sprint."
+  dri: "noahtalerman"
+-
+  task: "User story review"
+  startedOn: "2025-01-16"
+  frequency: "Weekly"
+  description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
   dri: "noahtalerman"

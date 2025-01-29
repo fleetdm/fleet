@@ -1529,11 +1529,12 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
+		decryptable *bool) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
-		if host.ID != hostID {
+		if host.ID != incomingHost.ID {
 			return errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
@@ -2020,6 +2021,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 				result[p.Name] = p
 			}
 			return result, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
 		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)

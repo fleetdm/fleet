@@ -1,5 +1,5 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
@@ -24,6 +24,7 @@ import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateFormValidation,
+  generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
@@ -172,11 +173,14 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onChangeInstallType = (value: string) => {
-    const installType = value as InstallType;
-    const newData = { ...formData, installType };
-    setFormData(newData);
-  };
+  const onChangeInstallType = useCallback(
+    (value: string) => {
+      const installType = value as InstallType;
+      const newData = { ...formData, installType };
+      setFormData(newData);
+    },
+    [formData]
+  );
 
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
@@ -219,7 +223,7 @@ const PackageForm = ({
     if (isExePackage && formData.installType === "automatic") {
       onChangeInstallType("manual");
     }
-  }, [isExePackage]);
+  }, [formData.installType, isExePackage, onChangeInstallType]);
 
   return (
     <div className={classNames}>
@@ -237,12 +241,14 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
         />
-        <InstallTypeSection
-          isCustomPackage
-          isExeCustomPackage={isExePackage}
-          installType={formData.installType}
-          onChangeInstallType={onChangeInstallType}
-        />
+        {!isEditingSoftware && (
+          <InstallTypeSection
+            isCustomPackage
+            isExeCustomPackage={isExePackage}
+            installType={formData.installType}
+            onChangeInstallType={onChangeInstallType}
+          />
+        )}
         <TargetLabelSelector
           selectedTargetType={formData.targetType}
           selectedCustomTarget={formData.customTarget}
@@ -253,6 +259,10 @@ const PackageForm = ({
           onSelectCustomTarget={onSelectCustomTarget}
           onSelectLabel={onSelectLabel}
           labels={labels || []}
+          dropdownHelpText={
+            formData.targetType === "Custom" &&
+            generateHelpText(formData.installType, formData.customTarget)
+          }
         />
         <Checkbox
           value={formData.selfService}

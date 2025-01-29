@@ -54,8 +54,9 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 
@@ -184,7 +185,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canEditActivityFeedAutomations =
-    (isGlobalAdmin || isGlobalMaintainer) && teamIdForApi === API_ALL_TEAMS_ID;
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
@@ -322,7 +323,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve="software"
+                customTooltipText={
+                  <>
+                    Fleet periodically queries all hosts to
+                    <br />
+                    retrieve software. Click to view
+                    <br />
+                    hosts for the most up-to-date lists.
+                  </>
+                }
               />
             );
           setShowSoftwareCard(true);
@@ -875,14 +884,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
-          <Dropdown
+          <DropdownWrapper
+            name="platform-filter"
             value={selectedPlatform || ""}
-            className={`${baseClass}__platform_dropdown`}
+            className={`${baseClass}__platform-filter`}
             options={PLATFORM_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={(value: PlatformValueOptions) => {
+            onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
-                (platform) => platform.value === value
+                (platform) => platform.value === option?.value
               );
               router.push(
                 (selectedPlatformOption?.path || paths.DASHBOARD)

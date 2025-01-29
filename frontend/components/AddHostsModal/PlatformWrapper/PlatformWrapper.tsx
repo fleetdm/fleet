@@ -263,7 +263,7 @@ const PlatformWrapper = ({
             >
               Fleet command-line tool
             </a>{" "}
-            installed:
+            :
           </span>
         )}{" "}
         <span className="buttons">
@@ -338,6 +338,17 @@ const PlatformWrapper = ({
   }
 }`,
     };
+
+    let packageTypeHelpText = "";
+    if (packageType === "deb") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+    } else if (packageType === "msi") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
+    } else if (packageType === "pkg") {
+      packageTypeHelpText = "Install this package to add hosts to Fleet.";
+    }
 
     if (packageType === "chromeos") {
       return (
@@ -545,11 +556,7 @@ const PlatformWrapper = ({
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText={`Distribute your package to add hosts to Fleet.${
-            packageType === "deb"
-              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
-              : ""
-          }`}
+          helpText={packageTypeHelpText}
         />
       </>
     );

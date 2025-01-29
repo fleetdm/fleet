@@ -96,7 +96,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	preProcessUninstallScript(payload)
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", &payload.InstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", &payload.PostInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", &payload.UninstallScript, argErr)
+		if argErr != nil {
+			return argErr
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	installerID, titleID, err := svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -228,7 +238,17 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scripts); err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", payload.InstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -418,8 +438,39 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Get the hosts that are NOT in label scope currently (before the update happens)
+			var hostsNotInScope map[uint]struct{}
+			if dirty["Labels"] {
+				hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "getting hosts not in scope for installer")
+				}
+			}
+
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
+			}
+
+			if dirty["Labels"] {
+				// Get the hosts that are now IN label scope (after the update)
+				hostsInScope, err := svc.ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "getting hosts in scope for installer")
+				}
+
+				var hostsToClear []uint
+				for id := range hostsInScope {
+					if _, ok := hostsNotInScope[id]; ok {
+						// it was not in scope but now it is, so we should clear policy status
+						hostsToClear = append(hostsToClear, id)
+					}
+				}
+
+				// We clear the policy status here because otherwise the policy automation machinery
+				// won't pick this up and the software won't install.
+				if err := svc.ds.ClearAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+				}
 			}
 
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
@@ -461,6 +512,21 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
+	argErr *fleet.InvalidArgumentError,
+) *fleet.InvalidArgumentError {
+	if script != nil {
+		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
+			if argErr != nil {
+				argErr.Append(scriptName, errScript.Error())
+			} else {
+				argErr = fleet.NewInvalidArgumentError(scriptName, errScript.Error())
+			}
+		}
+	}
+	return argErr
 }
 
 func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
@@ -731,10 +797,70 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
 }
 
+func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
+	// Call the base (non-premium) service to get the software install details
+	details, err := svc.Service.GetSoftwareInstallDetails(ctx, installUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// SoftwareInstallersCloudFrontSigner can only be set if license.IsPremium()
+	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+		// Sign the URL for the installer
+		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
+		if err != nil {
+			// We log the error but continue to return the details without the signed URL because orbit can still
+			// try to download the installer via Fleet server.
+			level.Error(svc.logger).Log("msg", "error getting software installer URL; check CloudFront configuration", "err", err)
+		} else {
+			details.SoftwareInstallerURL = installerURL
+		}
+	}
+
+	return details, nil
+}
+
+func (svc *Service) getSoftwareInstallURL(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerURL, error) {
+	meta, err := svc.validateAndGetSoftwareInstallerMetadata(ctx, installerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software installer metadata for download")
+	}
+
+	// Note: we could check if the installer exists in the S3 store.
+	// However, if we fail and don't return a URL installer, the Orbit client will still try to download the installer via the Fleet server,
+	// and we will end up checking if the installer exists in the S3 store again.
+	// So, to reduce server load and speed up the "happy path" software install, we skip the check here and risk returning a URL that doesn't work.
+	// If CloudFront is misconfigured, the server and Orbit clients will experience a greater load since they'll be doing throw-away work.
+
+	// Get the signed URL
+	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing software installer URL")
+	}
+	return &fleet.SoftwareInstallerURL{
+		URL:      signedURL,
+		Filename: meta.Name,
+	}, nil
+}
+
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	meta, err := svc.validateAndGetSoftwareInstallerMetadata(ctx, installerID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating software installer metadata for download")
+	}
+
+	// Note that we do allow downloading an installer that is on a different team
+	// than the host's team, because the install request might have come while
+	// the host was on that team, and then the host got moved to a different team
+	// but the request is still pending execution.
+
+	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
+}
+
+func (svc *Service) validateAndGetSoftwareInstallerMetadata(ctx context.Context, installerID uint) (*fleet.SoftwareInstaller, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
@@ -754,13 +880,7 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
-
-	// Note that we do allow downloading an installer that is on a different team
-	// than the host's team, because the install request might have come while
-	// the host was on that team, and then the host got moved to a different team
-	// but the request is still pending execution.
-
-	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
+	return meta, nil
 }
 
 func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID string, filename string) (*fleet.DownloadSoftwareInstallerPayload, error) {
@@ -770,7 +890,8 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		return nil, ctxerr.Wrap(ctx, notFoundError{}, "does not exist in software installer store")
+		return nil, ctxerr.Wrapf(ctx, notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
+			filename)
 	}
 
 	// get the installer from the store
@@ -885,12 +1006,21 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) (string, error) {
+	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
+	if err != nil {
+		return "", err
+	}
+
+	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, selfService, nil)
+}
+
+func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
 	if !appleDevice {
 		return "", &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID},
 			),
 		}
 	}
@@ -914,7 +1044,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID},
 			),
 		}
 	}
@@ -924,7 +1054,11 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
 
-	// at this moment, neither the UI or the back-end are prepared to
+	return token, nil
+}
+
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, selfService bool, policyID *uint) (string, error) {
+	// at this moment, neither the UI nor the back-end are prepared to
 	// handle [asyncronous errors][1] on assignment, so before assigning a
 	// device to a license, we need to:
 	//
@@ -985,7 +1119,6 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
-
 	}
 
 	// add command to install
@@ -995,7 +1128,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
-	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService)
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService, policyID)
 	if err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
@@ -1026,18 +1159,6 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 }
 
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -1138,7 +1259,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if host.TeamID != nil {
 		teamID = *host.TeamID
 	}
-	// create the script execution request, the host will be notified of the
+	// create the script execution request; the host will be notified of the
 	// script execution request via the orbit config's Notifications mechanism.
 	request := fleet.HostScriptRequestPayload{
 		HostID:          host.ID,
@@ -1149,7 +1270,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		request.UserID = &ctxUser.ID
 	}
-	scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &request)
+	scriptResult, err := svc.ds.NewInternalScriptExecutionRequest(ctx, &request)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create script execution request")
 	}
@@ -1251,13 +1372,6 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			}
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
-	}
-
-	if meta.Version == "" {
-		return "", &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Fleet couldn't read the version from %s.", payload.Filename),
-			InternalErr: ctxerr.New(ctx, "extracting version from installer metadata"),
-		}
 	}
 
 	if len(meta.PackageIDs) == 0 {

@@ -352,13 +352,12 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
-  osquery_results_s3_bucket = {
-    name = "${local.customer}-osquery-results-archive"
-  }
-  osquery_status_s3_bucket = {
-    name = "${local.customer}-fleet-osquery-status-archive"
-  }
+  source                = "github.com/fleetdm/fleet//terraform/addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
+  firehose_results_name = "osquery_results"
+  firehose_status_name  = "osquery_status"
+  firehose_audit_name   = "fleet_audit"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003" 
+  region                = data.aws_region.current.name
 }
 
 module "osquery-carve" {
@@ -369,17 +368,33 @@ module "osquery-carve" {
 }
 
 module "monitoring" {
-  source                      = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.1.3"
-  customer_prefix             = local.customer
-  fleet_ecs_service_name      = module.main.byo-vpc.byo-db.byo-ecs.service.name
-  fleet_min_containers        = module.main.byo-vpc.byo-db.byo-ecs.service.desired_count
-  alb_name                    = module.main.byo-vpc.byo-db.alb.lb_dns_name
-  alb_target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
-  alb_target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
-  alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
+  source                 = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.5.1"
+  customer_prefix        = local.customer
+  fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
+  albs = [
+    {
+      name                    = module.main.byo-vpc.byo-db.alb.lb_dns_name,
+      target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
+      target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
+      arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
+      ecs_service_name        = module.main.byo-vpc.byo-db.byo-ecs.service.name
+      min_containers          = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+      alert_thresholds = {
+        HTTPCode_ELB_5XX_Count = {
+          period    = 3600
+          threshold = 2
+        },
+        HTTPCode_Target_5XX_Count = {
+          period    = 120
+          threshold = 0
+        }
+      }
+    }
+  ]
   sns_topic_arns_map = {
-    alb_httpcode_5xx = [module.notify_slack.slack_topic_arn]
-    cron_monitoring  = [module.notify_slack.slack_topic_arn]
+    alb_httpcode_5xx            = [module.notify_slack.slack_topic_arn]
+    cron_monitoring             = [module.notify_slack.slack_topic_arn]
+    cron_job_failure_monitoring = [module.notify_slack_p2.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -452,7 +467,11 @@ resource "aws_kms_key" "ecr" {
   enable_key_rotation     = true
 }
 
-variable "slack_webhook" {
+variable "slack_p1_webhook" {
+  type = string
+}
+
+variable "slack_p2_webhook" {
   type = string
 }
 
@@ -460,10 +479,22 @@ module "notify_slack" {
   source  = "terraform-aws-modules/notify-slack/aws"
   version = "5.5.0"
 
-  sns_topic_name = "fleet-dogfood"
+  sns_topic_name = "fleet-dogfood-p1-alerts"
 
-  slack_webhook_url = var.slack_webhook
+  slack_webhook_url = var.slack_p1_webhook
   slack_channel     = "#help-p1"
+  slack_username    = "monitoring"
+}
+
+module "notify_slack_p2" {
+  source  = "terraform-aws-modules/notify-slack/aws"
+  version = "5.5.0"
+
+  lambda_function_name = "notify_slack_p2"
+  sns_topic_name       = "fleet-dogfood-p2-alerts"
+
+  slack_webhook_url = var.slack_p2_webhook
+  slack_channel     = "#help-p2"
   slack_username    = "monitoring"
 }
 

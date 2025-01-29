@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"golang.org/x/text/unicode/norm"
 )
@@ -72,8 +73,8 @@ func Preprocess(input string) string {
 // An invalid semantic version string is considered less than a valid one. All invalid semantic
 // version strings compare equal to each other.
 func CompareVersions(a string, b string) int {
-	verA, errA := semver.NewVersion(a)
-	verB, errB := semver.NewVersion(b)
+	verA, errA := VersionToSemverVersion(a)
+	verB, errB := VersionToSemverVersion(b)
 	switch {
 	case errA != nil && errB != nil:
 		return 0
@@ -90,4 +91,18 @@ func CompareVersions(a string, b string) int {
 // of CompareVersions for version validity
 func IsAtLeastVersion(currentVersion string, minimumVersion string) bool {
 	return CompareVersions(currentVersion, minimumVersion) >= 0
+}
+
+var macOSRapidSecurityResponseVersionSuffix = regexp.MustCompile(` \([a-z]\)`)
+
+// VersionToSemvarVersion converts a version string to a semver version. This wrap semver.NewVersion
+// and applies some additional formatting to the version string.
+// Formatting applied:
+// - Strip mac rapid security response suffix - "13.3.1 (a)" -> "13.3.1"
+func VersionToSemverVersion(version string) (*semver.Version, error) {
+	ver, err := semver.NewVersion(macOSRapidSecurityResponseVersionSuffix.ReplaceAllString(version, ``))
+	if err != nil {
+		return nil, err
+	}
+	return ver, nil
 }

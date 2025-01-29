@@ -11,9 +11,9 @@ import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
+import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -46,7 +46,6 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -72,8 +71,9 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -95,7 +95,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  getHostSelectStatuses,
+  hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
@@ -143,10 +143,12 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
+    userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
+    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -174,11 +176,6 @@ const ManageHostsPage = ({
         newTeamId === API_ALL_TEAMS_ID,
     },
   });
-
-  const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
-  const storedHiddenColumns = hostHiddenColumns
-    ? JSON.parse(hostHiddenColumns)
-    : null;
 
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
@@ -212,7 +209,7 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    storedHiddenColumns || defaultHiddenColumns
+    userSettings?.hidden_host_columns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
@@ -467,6 +464,29 @@ const ManageHostsPage = ({
     }
   );
 
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (locallyHiddenCols) {
+    console.log("found local hidden columns: ", locallyHiddenCols);
+    console.log("migrating to server persistence...");
+    (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setHiddenColumns(parsed);
+    })();
+  }
+
   const refetchHosts = () => {
     refetchHostsAPI();
     refetchHostsCountAPI();
@@ -702,7 +722,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleStatusDropdownChange = (statusName: string) => {
+  const handleStatusDropdownChange = (
+    statusName: SingleValue<CustomOptionType>
+  ) => {
     handleResetPageIndex();
 
     router.replace(
@@ -712,7 +734,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName,
+          status: statusName?.value,
           page: 0, // resets page index
         },
       })
@@ -766,10 +788,23 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
-  const onSaveColumns = (newHiddenColumns: string[]) => {
-    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
-    setHiddenColumns(newHiddenColumns);
-    setShowEditColumnsModal(false);
+  const onSaveColumns = async (newHiddenColumns: string[]) => {
+    if (!currentUser) {
+      return;
+    }
+    try {
+      await usersAPI.update(currentUser.id, {
+        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+      });
+      // No success renderFlash, to make column setting more seamless
+      // only set state and close modal if server persist succeeds, keeping UI and server state in
+      // sync.
+      // Can also add local storage fallback behavior in next iteration if we want.
+      setHiddenColumns(newHiddenColumns);
+      setShowEditColumnsModal(false);
+    } catch (response) {
+      renderFlash("error", "Couldn't save column settings. Please try again.");
+    }
   };
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -1427,13 +1462,13 @@ const ManageHostsPage = ({
 
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
-        <Dropdown
+        <DropdownWrapper
+          name="status-filter"
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          options={getHostSelectStatuses(isSandboxMode)}
-          searchable={false}
+          className={`${baseClass}__status-filter`}
+          options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          iconName="filter"
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1650,7 +1685,7 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
               {!isSandboxMode && canEnrollHosts && !hasErrors && (

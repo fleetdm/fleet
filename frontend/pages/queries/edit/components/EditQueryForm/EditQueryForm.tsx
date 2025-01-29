@@ -45,7 +45,7 @@ import {
   ICreateQueryRequestBody,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 
 import queryAPI from "services/entities/queries";
 
@@ -184,6 +184,7 @@ const EditQueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [queryWasChanged, setQueryWasChanged] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -233,6 +234,7 @@ const EditQueryForm = ({
   };
 
   const onChangeQuery = (sqlString: string) => {
+    setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
   };
 
@@ -276,12 +278,12 @@ const EditQueryForm = ({
       // else if Remove OS if All is chosen
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as SelectedPlatformString
+          pull(valArray, "").join(",") as CommaSeparatedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setLastEditedQueryPlatforms("");
       } else {
-        setLastEditedQueryPlatforms(values as SelectedPlatformString);
+        setLastEditedQueryPlatforms(values as CommaSeparatedPlatformString);
       }
     },
     [setLastEditedQueryPlatforms]
@@ -882,7 +884,17 @@ const EditQueryForm = ({
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={() => {
-                  setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  // calling `setEditingExistingQuery` here prevents
+                  // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
+                  // this live run in performance impact. Since we DO want to count this run in those
+                  // stats if the query is the same as the saved one, only set below IF the query
+                  // has been changed.
+                  // TODO - product: should host details > action > query > <select existing query>
+                  // go to the host details page instead of the edit query page, where the user has
+                  // the choice to edit the query or run it live directly?
+                  if (queryWasChanged) {
+                    setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  }
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)

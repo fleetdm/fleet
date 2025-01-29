@@ -44,7 +44,17 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
-		return 0, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		// We redo the validation on each script to find out which script has the missing secret.
+		// This is done to provide a more informative error message to the UI user.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateEmbeddedSecretsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)

@@ -135,6 +135,14 @@ type ActivityHosts interface {
 	HostIDs() []uint
 }
 
+// AutomatableActivity is the optional additional interface that can be implemented
+// by activities that are sometimes the result of automation ("Fleet did X"), starting with
+// install/script run policy automations
+type AutomatableActivity interface {
+	ActivityDetails
+	WasFromAutomation() bool
+}
+
 type ActivityTypeEnabledActivityAutomations struct {
 	WebhookUrl string `json:"webhook_url"`
 }
@@ -1278,6 +1286,10 @@ func (a ActivityTypeRanScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeRanScript) WasFromAutomation() bool {
+	return a.PolicyID != nil
+}
+
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a script is sent to be run for a host.`,
 		`This activity contains the following fields:
@@ -1606,6 +1618,10 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
+	return a.PolicyID != nil
+}
+
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a software is installed on a host.`,
 		`This activity contains the following fields:
@@ -1909,12 +1925,13 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle string              `json:"software_title"`
-	AppStoreID    string              `json:"app_store_id"`
-	TeamName      *string             `json:"team_name"`
-	TeamID        *uint               `json:"team_id"`
-	Platform      AppleDevicePlatform `json:"platform"`
-	SelfService   bool                `json:"self_service"`
+	SoftwareTitle   string              `json:"software_title"`
+	SoftwareTitleId uint                `json:"software_title_id"`
+	AppStoreID      string              `json:"app_store_id"`
+	TeamName        *string             `json:"team_name"`
+	TeamID          *uint               `json:"team_id"`
+	Platform        AppleDevicePlatform `json:"platform"`
+	SelfService     bool                `json:"self_service"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1924,12 +1941,14 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
   "software_title": "Logic Pro",
+  "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
@@ -1966,13 +1985,15 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	SoftwareTitle   string `json:"software_title"`
-	AppStoreID      string `json:"app_store_id"`
-	CommandUUID     string `json:"command_uuid"`
-	Status          string `json:"status,omitempty"`
-	SelfService     bool   `json:"self_service"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	SoftwareTitle   string  `json:"software_title"`
+	AppStoreID      string  `json:"app_store_id"`
+	CommandUUID     string  `json:"command_uuid"`
+	Status          string  `json:"status,omitempty"`
+	SelfService     bool    `json:"self_service"`
+	PolicyID        *uint   `json:"policy_id"`
+	PolicyName      *string `json:"policy_name"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1983,6 +2004,10 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 	return "installed_app_store_app"
 }
 
+func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
+	return a.PolicyID != nil
+}
+
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
 - host_id: ID of the host on which the app was installed.
@@ -1990,13 +2015,18 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 - host_display_name: Display name of the host.
 - software_title: Name of the App Store app.
 - app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.`, `{
+- command_uuid: UUID of the MDM command used to install the app.
+- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
+- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
+`, `{
   "host_id": 42,
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
-  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "policy_id": 123,
+  "policy_name": "[Install Software] Logic Pro"
 }`
 }
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -316,16 +317,49 @@ type S3Config struct {
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
 
-	SoftwareInstallersBucket           string `yaml:"software_installers_bucket"`
-	SoftwareInstallersPrefix           string `yaml:"software_installers_prefix"`
-	SoftwareInstallersRegion           string `yaml:"software_installers_region"`
-	SoftwareInstallersEndpointURL      string `yaml:"software_installers_endpoint_url"`
-	SoftwareInstallersAccessKeyID      string `yaml:"software_installers_access_key_id"`
-	SoftwareInstallersSecretAccessKey  string `yaml:"software_installers_secret_access_key"`
-	SoftwareInstallersStsAssumeRoleArn string `yaml:"software_installers_sts_assume_role_arn"`
-	SoftwareInstallersStsExternalID    string `yaml:"software_installers_sts_external_id"`
-	SoftwareInstallersDisableSSL       bool   `yaml:"software_installers_disable_ssl"`
-	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
+	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
+	SoftwareInstallersRegion                          string        `yaml:"software_installers_region"`
+	SoftwareInstallersEndpointURL                     string        `yaml:"software_installers_endpoint_url"`
+	SoftwareInstallersAccessKeyID                     string        `yaml:"software_installers_access_key_id"`
+	SoftwareInstallersSecretAccessKey                 string        `yaml:"software_installers_secret_access_key"`
+	SoftwareInstallersStsAssumeRoleArn                string        `yaml:"software_installers_sts_assume_role_arn"`
+	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
+	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
+	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
+	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
+	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
+	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+}
+
+func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
+	if s.SoftwareInstallersCloudFrontURL != "" {
+		cloudfrontURL, err := url.Parse(s.SoftwareInstallersCloudFrontURL)
+		if err != nil {
+			initFatal(err, "S3 software installers cloudfront URL")
+			return
+		}
+		if cloudfrontURL.Scheme != "https" {
+			initFatal(errors.New("cloudfront url scheme must be https"), "S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" ||
+			s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set for URL signing."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set when CloudFront distribution URL is set."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+	} else if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" || s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_cloudfront_url` must be set to use `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key`."),
+			"S3 software installers cloudfront URL")
+		return
+	}
 }
 
 func (s S3Config) BucketsAndPrefixesMatch() bool {
@@ -343,7 +377,7 @@ func (s S3Config) BucketsAndPrefixesMatch() bool {
 }
 
 func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
-	return S3ConfigInternal{
+	configInternal := S3ConfigInternal{
 		Bucket:           s.SoftwareInstallersBucket,
 		Prefix:           s.SoftwareInstallersPrefix,
 		Region:           s.SoftwareInstallersRegion,
@@ -355,6 +389,14 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 	}
+	if s.SoftwareInstallersCloudFrontSigner != nil {
+		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
+			BaseURL:            s.SoftwareInstallersCloudFrontURL,
+			SigningPublicKeyID: s.SoftwareInstallersCloudFrontURLSigningPublicKeyID,
+			Signer:             s.SoftwareInstallersCloudFrontSigner,
+		}
+	}
+	return configInternal
 }
 
 // CarvesToInternalCfg creates an internal S3 config struct from the ingested S3 config. Note: we
@@ -418,6 +460,13 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	CloudFrontConfig *S3CloudFrontConfig
+}
+
+type S3CloudFrontConfig struct {
+	BaseURL            string
+	SigningPublicKeyID string
+	Signer             crypto.Signer
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -469,6 +518,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -1197,6 +1247,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1256,6 +1309,11 @@ func (man Manager) addConfigs() {
 		"vulnerabilities.disable_win_os_vulnerabilities",
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
+	)
+	man.addConfigInt(
+		"vulnerabilities.max_concurrency",
+		5,
+		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
 
 	// Upgrades
@@ -1528,6 +1586,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
@@ -1622,16 +1681,19 @@ func (man Manager) loadS3Config() S3Config {
 		DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 		ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 
-		SoftwareInstallersBucket:           man.getConfigString("s3.software_installers_bucket"),
-		SoftwareInstallersPrefix:           man.getConfigString("s3.software_installers_prefix"),
-		SoftwareInstallersRegion:           man.getConfigString("s3.software_installers_region"),
-		SoftwareInstallersEndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
-		SoftwareInstallersAccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
-		SoftwareInstallersSecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
-		SoftwareInstallersStsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
-		SoftwareInstallersStsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
-		SoftwareInstallersDisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
-		SoftwareInstallersForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersBucket:                          man.getConfigString("s3.software_installers_bucket"),
+		SoftwareInstallersPrefix:                          man.getConfigString("s3.software_installers_prefix"),
+		SoftwareInstallersRegion:                          man.getConfigString("s3.software_installers_region"),
+		SoftwareInstallersEndpointURL:                     man.getConfigString("s3.software_installers_endpoint_url"),
+		SoftwareInstallersAccessKeyID:                     man.getConfigString("s3.software_installers_access_key_id"),
+		SoftwareInstallersSecretAccessKey:                 man.getConfigString("s3.software_installers_secret_access_key"),
+		SoftwareInstallersStsAssumeRoleArn:                man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
+		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
+		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
+		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
 	}
 }
 

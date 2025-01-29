@@ -26,11 +26,13 @@ const DeleteLabelModal = ({
       <>
         <p>
           If a configuration profile uses this label as a custom target, the
-          profile will break: it won&apos;t be applied to new hosts.
+          profile will break. After deleting the label, remove broken profiles
+          and upload new profiles in their place.
         </p>
         <p>
-          To apply the profile to new hosts, you&apos;ll have to delete it and
-          upload a new profile.
+          If software uses this label as a custom target, the label will not be
+          able to be deleted. Please remove the label from the software target
+          first before deleting.
         </p>
         <div className="modal-cta-wrap">
           <Button

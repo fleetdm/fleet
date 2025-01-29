@@ -230,7 +230,7 @@ Want to hire? Use these steps to hire a [fleetie, not a consultant](https://flee
     - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
     - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
     - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
-
+  - If needed, you can override the default compensation range ($48,000 - $480,000) in the open position template page by adding a `onTargetEarnings` value to the open position. If provided, `onTargetEarnings` values should be a string containing the salary range for the the proposed position.
 
 A completed open position entry should look something like this:
 

@@ -101,11 +101,12 @@ $shadow-transition-width: 10px;
       th {
         padding: $pad-medium $pad-large;
         white-space: nowrap;
-        border-right: 1px solid $ui-fleet-black-10;
+        border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
 
         &:first-child {
           border-top-left-radius: 6px;
+          border-left: none;
         }
 
         &.selection__header {
@@ -114,8 +115,21 @@ $shadow-transition-width: 10px;
         }
 
         &:last-child {
-          border-right: none;
           border-top-right-radius: 6px;
+        }
+
+        &.actions__header,
+        &.id__header, // Same as actions__header on some pages
+        {
+          border-left: none;
+          width: 99px;
+        }
+
+        &.linkToFilteredHosts__header,
+        &.view-all-hosts__header // Same as linkToFilteredHosts__header on some pages
+        {
+          border-left: none;
+          max-width: 120px;
         }
 
         .column-header {
@@ -224,8 +238,19 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
-        &.linkToFilteredHosts__cell {
+        &.actions__cell,
+        &.id__cell // Same as actions__cell on some pages
+        {
+          display: flex;
+          justify-content: end; // Aligns actions dropdown to right of table
+          max-width: 99px;
+        }
+
+        &.linkToFilteredHosts__cell,
+        &.view-all-hosts__cell // Same as linkToFilteredHosts__cell on some pages
+        {
           text-align: right;
+          max-width: 140px;
         }
 
         &.selection__cell {

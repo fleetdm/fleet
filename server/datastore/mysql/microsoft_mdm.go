@@ -226,70 +226,28 @@ WHERE
 	return commands, nil
 }
 
-// TODO(roberto): much of this logic should be living in the service layer,
-// would be nice to get the time to properly plan and implement.
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
-	if len(fullResponse.Raw) == 0 {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error {
+	if len(enrichedSyncML.Raw) == 0 {
 		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	const (
-		findCommandsStmt    = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
-		saveFullRespStmt    = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
-
-		insertResultsStmt = `
-INSERT INTO windows_mdm_command_results
-    (enrollment_id, command_uuid, raw_result, response_id, status_code)
-VALUES %s
-ON DUPLICATE KEY UPDATE
-    raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
-`
-	)
-
-	enrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	enrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enrollment with device ID")
+		return ctxerr.Wrap(ctx, err, "getting enrolled device with device ID")
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// grab all the incoming UUIDs
-		var cmdUUIDs []string
-		uuidsToStatus := make(map[string]fleet.SyncMLCmd)
-		uuidsToResults := make(map[string]fleet.SyncMLCmd)
-		for _, protoOp := range fullResponse.GetOrderedCmds() {
-			// results and status should contain a command they're
-			// referencing
-			cmdRef := protoOp.Cmd.CmdRef
-			if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
-				continue
-			}
-
-			switch protoOp.Verb {
-			case fleet.CmdStatus:
-				uuidsToStatus[*cmdRef] = protoOp.Cmd
-				cmdUUIDs = append(cmdUUIDs, *cmdRef)
-			case fleet.CmdResults:
-				uuidsToResults[*cmdRef] = protoOp.Cmd
-				cmdUUIDs = append(cmdUUIDs, *cmdRef)
-			}
-		}
-
-		// no relevant commands to tracks is a noop
-		if len(cmdUUIDs) == 0 {
-			return nil
-		}
-
 		// store the full response
-		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrollment.ID, fullResponse.Raw)
+		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
+		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving full response")
 		}
 		responseID, _ := sqlResult.LastInsertId()
 
 		// find commands we sent that match the UUID responses we've got
-		stmt, params, err := sqlx.In(findCommandsStmt, cmdUUIDs)
+		const findCommandsStmt = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		stmt, params, err := sqlx.In(findCommandsStmt, enrichedSyncML.CmdRefUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
 		}
@@ -300,7 +258,8 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		if len(matchingCmds) == 0 {
-			ds.logger.Log("warn", "unmatched commands", "uuids", cmdUUIDs)
+			level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", enrichedSyncML.CmdRefUUIDs, "mdm_device_id",
+				deviceID)
 			return nil
 		}
 
@@ -317,7 +276,7 @@ ON DUPLICATE KEY UPDATE
 
 		for _, cmd := range matchingCmds {
 			statusCode := ""
-			if status, ok := uuidsToStatus[cmd.CommandUUID]; ok && status.Data != nil {
+			if status, ok := enrichedSyncML.CmdRefUUIDToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
 				if status.Cmd != nil && *status.Cmd == fleet.CmdAtomic {
 					// The raw MDM command may contain a $FLEET_SECRET_XXX, which should never be exposed or stored unencrypted.
@@ -331,7 +290,8 @@ ON DUPLICATE KEY UPDATE
 					// Secret may be found in the command, so we make a new struct with the expanded secret.
 					cmdWithSecret := cmd
 					cmdWithSecret.RawCommand = []byte(rawCommandWithSecret)
-					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, uuidsToStatus, enrollment.HostUUID)
+					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
+						enrolledDevice.HostUUID)
 					if err != nil {
 						return err
 					}
@@ -340,14 +300,14 @@ ON DUPLICATE KEY UPDATE
 			}
 
 			rawResult := []byte{}
-			if result, ok := uuidsToResults[cmd.CommandUUID]; ok && result.Data != nil {
+			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && result.Data != nil {
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {
 					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", cmd.CommandUUID)
 				}
 			}
-			args = append(args, enrollment.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
+			args = append(args, enrolledDevice.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
 
 			// if the command is a Wipe, keep track of it so we can update
@@ -363,6 +323,14 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// store the command results
+		const insertResultsStmt = `
+INSERT INTO windows_mdm_command_results
+    (enrollment_id, command_uuid, raw_result, response_id, status_code)
+VALUES %s
+ON DUPLICATE KEY UPDATE
+    raw_result = COALESCE(VALUES(raw_result), raw_result),
+    status_code = COALESCE(VALUES(status_code), status_code)
+`
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
@@ -370,7 +338,7 @@ ON DUPLICATE KEY UPDATE
 
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
-			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
+			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
 				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
@@ -382,7 +350,8 @@ ON DUPLICATE KEY UPDATE
 		for _, cmd := range matchingCmds {
 			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
 		}
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
+		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
+		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
 		}
@@ -543,7 +512,7 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereEncrypted        = `(hd.encrypted IS NOT NULL AND hd.encrypted = 1)`
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
-		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR))`
+		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 	)
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
@@ -1777,6 +1746,7 @@ WHERE
   team_id = ?
 `
 
+	// For Windows profiles, if team_id and name are the same, we do an update. Otherwise, we do an insert.
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (

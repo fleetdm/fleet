@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -26,6 +28,9 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 			"N3": {Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
 		}, nil
 	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
 
 	type wantStruct struct {
 		locURI      string
@@ -34,7 +39,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopHostMDMLocURIs(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -109,29 +114,11 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 	ctx := context.Background()
 	host := &fleet.Host{}
 
-	err := VerifyHostMDMProfiles(ctx, ds, host, []byte{})
+	err := VerifyHostMDMProfiles(ctx, log.NewNopLogger(), ds, host, []byte{})
 	require.ErrorIs(t, err, io.EOF)
 }
 
 func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
-	ds := new(mock.Store)
-	ctx := context.Background()
-	host := &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-	}
-
-	type osqueryReport struct {
-		Name   string
-		Status string
-		LocURI string
-		Data   string
-	}
-	type hostProfile struct {
-		Name        string
-		RawContents []byte
-		RetryCount  uint
-	}
-
 	cases := []struct {
 		name              string
 		hostProfiles      []hostProfile
@@ -153,6 +140,16 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			name: "single profile reported and verified",
 			hostProfiles: []hostProfile{
 				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
+			},
+			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "single profile with secret variables reported and verified",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{"L1": "$FLEET_SECRET_VALUE"}), 0},
 			},
 			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
 			toVerify: []string{"N1"},
@@ -227,6 +224,41 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{"N2", "N4"},
 			toRetry:  []string{"N1"},
 		},
+		{
+			name: "single profile with CDATA reported and verified",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{
+					"L1": `
+      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
+				}), 0},
+			},
+			report: []osqueryReport{{"N1", "200", "L1",
+				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "single profile with CDATA to retry",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData(map[string]string{
+					"L1": `
+      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
+				}), 0},
+			},
+			report: []osqueryReport{{"N1", "200", "L1",
+				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
 	}
 
 	for _, tt := range cases {
@@ -262,6 +294,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				}
 			}
 
+			ds := new(mock.Store)
 			ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 				installDate := host.DetailUpdatedAt.Add(-2 * time.Hour)
 				if tt.withinGracePeriod {
@@ -296,13 +329,33 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				return out, nil
 			}
 
+			ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_VALUE", "D1"), nil
+			}
+
 			out, err := xml.Marshal(msg)
 			require.NoError(t, err)
-			require.NoError(t, VerifyHostMDMProfiles(ctx, ds, host, out))
+			require.NoError(t,
+				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false
 			ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked = false
 		})
 	}
+}
+
+// osqueryReport is used by TestVerifyHostMDMProfilesHappyPaths
+type osqueryReport struct {
+	Name   string
+	Status string
+	LocURI string
+	Data   string
+}
+
+// hostProfile is used by TestVerifyHostMDMProfilesHappyPaths
+type hostProfile struct {
+	Name        string
+	RawContents []byte
+	RetryCount  uint
 }

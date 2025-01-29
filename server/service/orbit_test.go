@@ -42,7 +42,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -104,7 +104,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -194,8 +194,9 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		ds.ReportEscrowErrorFuncInvoked = false
 		passphrase, salt := "foo", ""
 		var keySlot *uint
-		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlotToPersist uint) error {
-			require.Equal(t, host.ID, hostID)
+		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
+			encryptedBase64Salt string, keySlotToPersist uint) error {
+			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
 
 			decryptedPassphrase, err := mdm.DecodeAndDecrypt(encryptedBase64Passphrase, key)
@@ -282,7 +283,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return os, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -363,7 +364,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -436,7 +437,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appCfg, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 
@@ -527,7 +528,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -554,7 +555,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appCfg, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {

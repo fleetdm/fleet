@@ -1,6 +1,6 @@
 # Automatically install software
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
+Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring Fleet for automatic installation of software on hosts using uploaded custom packages or Fleet-maintained apps and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
 
 Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
 
@@ -25,6 +25,8 @@ Current supported software deployment formats:
 
 Coming soon:
 - VPP for iOS and iPadOS
+
+> Note: starting with v4.62.0, you can have Fleet create an automatic install policy for you when you upload a package. If you use this "Automatic" installation mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
 
@@ -59,7 +61,7 @@ Upon failure of the selected policy, the selected software installation will be 
 
 ## Templates for policy queries
 
-Following are some templates for the policy SQL queries for each package type.
+Use the following policy templates to see if the software is already installed. Fleet uses these templates to automatically install software.
 
 ### macOS (pkg)
 
@@ -73,7 +75,7 @@ SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bund
 SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
 ```
 
-### Ubuntu (deb)
+### Debian-based (deb)
 
 ```sql
 SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -82,15 +84,15 @@ SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successful on RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform = 'rhel'
+   -- This will mark the policies as successful on non-Debian-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
 );
 ```
 
-### RHEL-based (rpm)
+### RPM-based (rpm)
 
 ```sql
 SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -99,9 +101,9 @@ SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successfull on non-RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform != 'rhel'
+   -- This will mark the policies as successful on non-RPM-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0
 );

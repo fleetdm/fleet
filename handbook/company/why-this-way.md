@@ -132,6 +132,7 @@ The only exceptions are:
 4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
+5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
@@ -313,7 +314,7 @@ In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized. However, words/phrases that follow step numbers in the documentation _should_ be capitalized (e.g. "Step 1: Create"), since the step number is merely acting as a label for the phrase that follows.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 

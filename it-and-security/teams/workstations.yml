@@ -11,7 +11,7 @@ team_settings:
   integrations:
     google_calendar:
       enable_calendar_events: true
-      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
+      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
@@ -57,6 +57,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/configuration-profiles/automatically-update-1Password.mobileconfig
+        labels_include_any:
+          - "Macs with 1Password8 installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -66,7 +69,7 @@ controls:
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-01-03"
+    deadline: "2025-01-07"
     minimum_version: "15.2"
   windows_settings:
     custom_settings: null
@@ -81,17 +84,12 @@ controls:
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
 policies:
   - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/cis.yml
+  - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/windows/policies/device-health.yml
   - path: ../lib/windows/policies/cis.yml
   - path: ../lib/linux/policies/linux-device-health.yml
-  - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
-    critical: true
-    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-    resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false
 queries:
   - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-usb-devices.yml

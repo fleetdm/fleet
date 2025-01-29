@@ -58,14 +58,14 @@ import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
 
-const PREMIUM_TABS = [
+const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
-const FREE_TABS = [
+const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
@@ -97,13 +97,10 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
-  const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [orgLogoURL, setOrgLogoURL] = useState("");
-  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -113,10 +110,6 @@ const DeviceUserPage = ({
     false
   );
   const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
-  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
-    null
-  );
-  const [hasSelfService, setSelfService] = useState(false);
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
@@ -172,7 +165,7 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: { host } = { host: undefined },
+    data: dupResponse,
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
@@ -189,22 +182,8 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      // TODO: refactor to use non-refetch data directly in the component and remove
-      // unnecesary derived states for values that aren't related to the refetch status
-      onSuccess: ({
-        license,
-        org_logo_url,
-        org_contact_url,
-        global_config,
-        host: responseHost,
-        self_service,
-      }) => {
+      onSuccess: ({ host: responseHost }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
-        setIsPremiumTier(license.tier === "premium");
-        setOrgLogoURL(org_logo_url);
-        setOrgContactURL(org_contact_url);
-        setGlobalConfig(global_config);
-        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -252,6 +231,16 @@ const DeviceUserPage = ({
       },
     }
   );
+
+  const {
+    host,
+    license,
+    org_logo_url: orgLogoURL = "",
+    org_contact_url: orgContactURL = "",
+    global_config: globalConfig = null as IDeviceGlobalConfig | null,
+    self_service: hasSelfService = false,
+  } = dupResponse || {};
+  const isPremiumTier = license?.tier === "premium";
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -355,9 +344,14 @@ const DeviceUserPage = ({
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
-    const tabPaths = isPremiumTier
-      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
-      : FREE_TABS.map((t) => t(deviceAuthToken));
+    let tabPaths = (isPremiumTier
+      ? PREMIUM_TAB_PATHS
+      : FREE_TAB_PATHS
+    ).map((t) => t(deviceAuthToken));
+    if (!hasSelfService) {
+      tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
@@ -520,6 +514,7 @@ const DeviceUserPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
+            hideInstallDetails
           />
         )}
       </div>

@@ -13,9 +13,9 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 import {
-  isQueryablePlatform,
-  QueryablePlatform,
-  SelectedPlatformString,
+  isScheduledQueryablePlatform,
+  ScheduledQueryablePlatform,
+  CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 
@@ -85,7 +85,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SelectedPlatformString;
+    value: CommaSeparatedPlatformString;
   };
 }
 
@@ -189,12 +189,18 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "platform",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        if (!cellProps.row.original.interval) {
+          // if the query isn't scheduled to run, return default empty call
+          return <TextCell />;
+        }
         const platforms = cellProps.cell.value
           .split(",")
           .map((s) => s.trim())
           // this casting is necessary because make generate for some reason doesn't recognize the
           // type guarding of `isQueryablePlatform` even though the language server in VSCode does
-          .filter((s) => isQueryablePlatform(s)) as QueryablePlatform[];
+          .filter((s) =>
+            isScheduledQueryablePlatform(s)
+          ) as ScheduledQueryablePlatform[];
         return <PlatformCell platforms={platforms} />;
       },
     },

@@ -61,6 +61,8 @@ func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	return ctx
 }
 
+// WithLevel forces a log level for the current request/context.
+// Level may still be upgraded to Error if an error is present.
 func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
 		logCtx.SetForceLevel(level)
@@ -115,7 +117,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	defer l.l.Unlock()
 
 	switch {
-	case len(l.Errs) > 0:
+	case l.setLevelError():
 		logger = level.Error(logger)
 	case l.ForceLevel != nil:
 		logger = l.ForceLevel(logger)
@@ -190,4 +192,19 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 	}
 
 	_ = logger.Log(keyvals...)
+}
+
+func (l *LoggingContext) setLevelError() bool {
+	if len(l.Errs) == 0 {
+		return false
+	}
+
+	if len(l.Errs) == 1 {
+		var ew fleet.ErrWithIsClientError
+		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
+			return false
+		}
+	}
+
+	return true
 }

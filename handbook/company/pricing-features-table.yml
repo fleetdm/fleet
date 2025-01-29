@@ -282,16 +282,14 @@
 #  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
-  description: Sync user accounts via Okta, AD, or any IDP. 
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
+  description: Sync macOS local user accounts via Okta, AD, or any IdP. 
+  documentationUrl: https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  waysToUse:
-    - description: Automatically set admin access to Fleet based on your IDP
 #
 #  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
 #  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
@@ -929,8 +927,8 @@
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
 - industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
   friendlyName: Scan files for zero days and malware signatures
-  description: Use YARA signatures to report and trigger automations when zero days, malware, or unexpected files are detected on a host.
-  documentationUrl: https://fleetdm.com/tables/yara
+  description: Deploy YARA signatures (rules) to report and trigger automations when zero days, malware, or unexpected files are detected on a host.  YARA rules can be deployed remotely and privately.
+  documentationUrl: https://fleetdm.com/guides/remote-yara-rules
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
@@ -1113,10 +1111,11 @@
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
-  usualDepartment: IT
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  waysToUse:
+    - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy

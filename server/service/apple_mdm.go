@@ -381,7 +381,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	// Expand and validate secrets in profile
-	expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(b))
+	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(b))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
@@ -392,12 +392,18 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
-	// Save the original unexpanded profile
-	cp.Mobileconfig = b
 
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
+	}
+
+	// Save the original unexpanded profile
+	cp.Mobileconfig = b
+	cp.SecretsUpdatedAt = secretsUpdatedAt
 
 	labelMap, err := svc.validateProfileLabels(ctx, labels)
 	if err != nil {
@@ -412,11 +418,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		cp.LabelsExcludeAny = labelMap
 	default:
 		// TODO what happens if mode is not set?s
-	}
-
-	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
@@ -512,25 +513,28 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(data)}); err != nil {
+	dataWithSecrets, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(data))
+	if err != nil {
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	if err := validateDeclarationFleetVariables(string(data)); err != nil {
+	if err := validateDeclarationFleetVariables(dataWithSecrets); err != nil {
 		return nil, err
 	}
 
 	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
-	rawDecl, err := fleet.GetRawDeclarationValues(data)
+	rawDecl, err := fleet.GetRawDeclarationValues([]byte(dataWithSecrets))
 	if err != nil {
 		return nil, err
 	}
+	// After validation, we should no longer need to keep the expanded secrets.
 
 	if err := rawDecl.ValidateUserProvided(); err != nil {
 		return nil, err
 	}
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
+	d.SecretsUpdatedAt = secretsUpdatedAt
 
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
@@ -1987,7 +1991,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			)
 		}
 		// Expand profile for validation
-		expanded, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(prof))
+		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(prof))
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
@@ -2007,6 +2011,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 		// Store original unexpanded profile
 		mdmProf.Mobileconfig = prof
+		mdmProf.SecretsUpdatedAt = secretsUpdatedAt
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
@@ -2371,7 +2376,11 @@ func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
 func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*bootstrapPackageMetadataRequest)
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("team_id",
+			"bootstrap package for this team does not exist").WithStatus(http.StatusNotFound)}, nil
+	case err != nil:
 		return bootstrapPackageMetadataResponse{Err: err}, nil
 	}
 	return bootstrapPackageMetadataResponse{MDMAppleBootstrapPackage: meta}, nil
@@ -3420,6 +3429,7 @@ func ReconcileAppleProfiles(
 					ProfileIdentifier: p.ProfileIdentifier,
 					ProfileName:       p.ProfileName,
 					Checksum:          p.Checksum,
+					SecretsUpdatedAt:  p.SecretsUpdatedAt,
 					OperationType:     pp.OperationType,
 					Status:            pp.Status,
 					CommandUUID:       pp.CommandUUID,
@@ -3451,22 +3461,31 @@ func ReconcileAppleProfiles(
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 		}
 		hostProfiles = append(hostProfiles, hostProfile)
 		hostProfilesToInstallMap[hostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
 	}
 
 	for _, p := range toRemove {
+		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
 
-		if p.DidNotInstallOnHost() {
-			// then we shouldn't send an additional remove command since it wasn't installed on the
-			// host.
+		if p.FailedInstallOnHost() {
+			// then we shouldn't send an additional remove command since it failed to install on the host.
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
+		}
+		if p.PendingInstallOnHost() {
+			// The profile most likely did not install on host. However, it is possible that the profile
+			// is currently being installed. So, we clean up the profile from the database, but also send
+			// a remove command to the host.
+			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			// IgnoreError is set since the removal command is likely to fail.
+			p.IgnoreError = true
 		}
 
 		target := removeTargets[p.ProfileUUID]
@@ -3488,6 +3507,8 @@ func ReconcileAppleProfiles(
 			ProfileIdentifier: p.ProfileIdentifier,
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
+			SecretsUpdatedAt:  p.SecretsUpdatedAt,
+			IgnoreError:       p.IgnoreError,
 		})
 	}
 
@@ -3496,6 +3517,16 @@ func ReconcileAppleProfiles(
 	// `InstallProfile` for the same identifier, which can cause race
 	// conditions. It's better to "update" the profile by sending a single
 	// `InstallProfile` command.
+	//
+	// Create a map of command UUIDs to host IDs
+	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
+	for _, hp := range hostProfilesToCleanup {
+		commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], hp.HostUUID)
+	}
+	// We need to delete commands from the nano queue so they don't get sent to device.
+	if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
@@ -4175,6 +4206,9 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
 
+	// Important: Timestamp must use format YYYY-mm-ddTHH:MM:SSZ (no milliseconds)
+	// Source: https://developer.apple.com/documentation/devicemanagement/synchronizationtokens?language=objc
+	tok.Timestamp = tok.Timestamp.Truncate(time.Second)
 	b, err := json.Marshal(fleet.MDMAppleDDMTokensResponse{
 		SyncTokens: *tok,
 	})
@@ -4260,7 +4294,7 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
   },
   "ServerToken": "%s",
   "Type": "com.apple.activation.simple"
-}`, parts[2], references, d.Checksum)
+}`, parts[2], references, d.Token)
 
 	return []byte(response), nil
 }
@@ -4283,7 +4317,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
-	tempd["ServerToken"] = d.Checksum
+	tempd["ServerToken"] = d.Token
 
 	b, err := json.Marshal(tempd)
 	if err != nil {
@@ -4317,7 +4351,7 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 			Status:        &status,
 			OperationType: fleet.MDMOperationTypeInstall,
 			Detail:        detail,
-			Checksum:      r.ServerToken,
+			Token:         r.ServerToken,
 		}
 	}
 

@@ -9,13 +9,15 @@ import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -89,6 +91,7 @@ const QueriesTable = ({
   const { currentUser } = useContext(AppContext);
 
   // Functions to avoid race conditions
+  // TODO - confirm these are still necessary
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
     (queryParams?.order_key as "name" | "updated_at" | "author") ??
@@ -151,12 +154,12 @@ const QueriesTable = ({
       router?.push(locationPath);
     },
     [
-      sortHeader,
-      sortDirection,
-      searchQuery,
       curTargetedPlatformFilter,
+      sortDirection,
+      sortHeader,
+      searchQuery,
+      queryParams,
       router,
-      page,
     ]
   );
 
@@ -201,7 +204,7 @@ const QueriesTable = ({
   ]);
 
   const handlePlatformFilterDropdownChange = useCallback(
-    (selectedTargetedPlatform: string) => {
+    (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_QUERIES,
@@ -211,9 +214,9 @@ const QueriesTable = ({
             platform:
               // separate URL & API 0-values of `platform` (undefined) from dropdown
               // 0-value of "all"
-              selectedTargetedPlatform === "all"
+              selectedTargetedPlatform?.value === "all"
                 ? undefined
-                : selectedTargetedPlatform,
+                : selectedTargetedPlatform?.value,
           },
         })
       );
@@ -223,13 +226,13 @@ const QueriesTable = ({
 
   const renderPlatformDropdown = useCallback(() => {
     return (
-      <Dropdown
+      <DropdownWrapper
         value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
+        name="platform-dropdown"
         options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
         onChange={handlePlatformFilterDropdownChange}
-        iconName="filter"
+        variant="table-filter"
       />
     );
   }, [curTargetedPlatformFilter, queryParams, router]);

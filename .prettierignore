@@ -34,3 +34,6 @@ website/
 # certain frontend files that are not meant to be formatted
 frontend/components/FleetAce/mode.ts
 frontend/components/FleetAce/theme.ts
+
+# github workflow yaml, which may contain shell scripts that shouldn't be formatted
+.github/workflows/*

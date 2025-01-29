@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
 
 import {
-  SelectedPlatformString,
+  CommaSeparatedPlatformString,
   QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
+import { IPolicySoftwareToInstall } from "interfaces/policy";
 
 import PlatformSelector from "components/PlatformSelector";
 
@@ -15,12 +16,16 @@ export interface IPlatformSelector {
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
   disabled?: boolean;
+  installSoftware?: IPolicySoftwareToInstall;
+  currentTeamId?: number;
 }
 
 const usePlatformSelector = (
-  platformContext: SelectedPlatformString | null | undefined,
+  platformContext: CommaSeparatedPlatformString | null | undefined,
   baseClass = "",
-  disabled = false
+  disabled = false,
+  installSoftware: IPolicySoftwareToInstall | undefined,
+  currentTeamId: number | undefined
 ): IPlatformSelector => {
   const [checkDarwin, setCheckDarwin] = useState(false);
   const [checkWindows, setCheckWindows] = useState(false);
@@ -73,6 +78,8 @@ const usePlatformSelector = (
         setCheckLinux={setCheckLinux}
         setCheckChrome={setCheckChrome}
         disabled={disabled}
+        installSoftware={installSoftware}
+        currentTeamId={currentTeamId}
       />
     );
   }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
