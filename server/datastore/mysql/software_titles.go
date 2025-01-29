@@ -298,7 +298,7 @@ LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND %s
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
--- placeholder for JOIN on software/software_cve/fleet_library_apps
+-- placeholder for JOIN on software/software_cve
 %s
 -- placeholder for optional extra WHERE filter
 WHERE %s
