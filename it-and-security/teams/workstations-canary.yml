@@ -89,7 +89,6 @@ controls:
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/automatically-update-1Password.mobileconfig
-      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
         labels_include_any:
           - "Macs with 1Password8 installed"
   macos_setup:
@@ -107,6 +106,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
       - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
       - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
+      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
