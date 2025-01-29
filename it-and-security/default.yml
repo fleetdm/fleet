@@ -63,19 +63,19 @@ org_settings:
     metadata_url: ""
   webhook_settings:
     failing_policies_webhook:
-      destination_url: ""
-      enable_failing_policies_webhook: false
+      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
+      enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids: []
+      policy_ids:
     host_status_webhook:
-      days_count: 1
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 25
-    interval: 1m0s
+      days_count: 5
+      destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
+      enable_host_status_webhook: true
+      host_percentage: 20
+    interval: 360m0s
     vulnerabilities_webhook:
-      destination_url: ""
-      enable_vulnerabilities_webhook: false
+      destination_url: $DOGFOOD_VULNERABILITIES_WEBHOOK_URL
+      enable_vulnerabilities_webhook: true
       host_batch_size: 0
     activities_webhook:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
@@ -83,6 +83,7 @@ org_settings:
 policies:
 queries:
   - path: ./lib/all/queries/collect-fleetd-update-channels.yml
+  - path: ./lib/all/queries/collect-operating-system-information.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:

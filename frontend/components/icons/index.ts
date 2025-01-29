@@ -28,6 +28,7 @@ import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
+import TotalHosts from "./TotalHosts";
 import Lightbulb from "./Lightbulb";
 
 import Apple from "./Apple";
@@ -92,6 +93,7 @@ export const ICON_MAP = {
   "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  "total-hosts": TotalHosts,
   lightbulb: Lightbulb,
   info: Info,
   "info-outline": InfoOutline,

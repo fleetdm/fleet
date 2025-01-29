@@ -1139,7 +1139,8 @@ func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, s
 /////////////////////////////////////////////////////////////////////////////////
 
 type orbitGetSoftwareInstallRequest struct {
-	OrbitNodeKey string `json:"orbot_node_key"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	OrbotNodeKey string `json:"orbot_node_key"` // legacy typo -- keep for backwards compatibility with orbit <= 1.38.0
 	InstallUUID  string `json:"install_uuid"`
 }
 
@@ -1150,7 +1151,10 @@ func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
+	if r.OrbitNodeKey != "" {
+		return r.OrbitNodeKey
+	}
+	return r.OrbotNodeKey
 }
 
 type orbitGetSoftwareInstallResponse struct {

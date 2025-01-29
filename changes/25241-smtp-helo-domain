@@ -1,0 +1,1 @@
+- Fixed mail being sent with the incorrect SMTP Domain (thank you mccormickt)
