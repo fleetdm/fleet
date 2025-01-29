@@ -451,19 +451,19 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) error {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
 
 	var teamName string
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.Team(ctx, *teamID)
 		if fleet.IsNotFound(err) {
-			return fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		} else if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if team exists")
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if team exists")
 		}
 
 		teamName = tm.Name
@@ -471,16 +471,16 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, labelsIncludeAny, labelsExcludeAny)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 	}
 
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
 	if selfService && meta.Platform != fleet.MacOSPlatform {
-		return fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
+		return nil, fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
 	}
 
 	appToWrite := &fleet.VPPApp{
@@ -503,7 +503,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
@@ -520,10 +520,17 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsExcludeAny: actLabelsExcl,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for update app store app")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")
 	}
 
-	return nil
+	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
+	}
+
+	updatedAppMeta.Platform = ""
+
+	return updatedAppMeta, nil
 }
 
 func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {

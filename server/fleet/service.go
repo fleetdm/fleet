@@ -685,7 +685,7 @@ type Service interface {
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) error
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*VPPAppStoreApp, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//

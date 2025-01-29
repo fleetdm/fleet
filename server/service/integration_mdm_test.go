@@ -11095,7 +11095,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Len(t, resp.SoftwareTitles, 1)
 		nonVPPTitleID := resp.SoftwareTitles[0].ID
 
-		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l2.Name}}
+		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false}
 
 		// Attempt to update the non-VPP software using the VPP path. Should fail.
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", nonVPPTitleID), updateAppReq, http.StatusNotFound)
@@ -11103,15 +11103,35 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// Attempt tp update a non-existent app. Should fail.
 		s.Do("PATCH", "/api/latest/fleet/software/titles/9999/app_store_app", updateAppReq, http.StatusNotFound)
 
-		// Update App2. Unset self service,
-		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK)
+		// Attempt to update with both types of labels. Should fail.
+		updateAppReq.LabelsIncludeAny = []string{l1.Name}
+		updateAppReq.LabelsExcludeAny = []string{l1.Name}
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_any" or "labels_exclude_any" can be included.`)
+
+		// Attempt to update with a non-existent label. Should fail.
+		updateAppReq.LabelsExcludeAny = []string{}
+		updateAppReq.LabelsIncludeAny = []string{"404_notfound"}
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "some or all the labels provided don't exist")
+
+		// Update App2. Unset self service and update the labels
+		updateAppReq.LabelsIncludeAny = []string{l2.Name}
+		var updateAppResp updateAppStoreAppResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
+
+		require.NotNil(t, updateAppResp.AppStoreApp)
+		require.Equal(t, updateAppResp.AppStoreApp.AdamID, excludeAnyApp.AdamID)
+		require.Equal(t, updateAppResp.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
+		require.False(t, updateAppResp.AppStoreApp.SelfService)
 
 		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityUpdatedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
-		// check that our updates worked
+		// double check that our updates worked
 		getSWTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)

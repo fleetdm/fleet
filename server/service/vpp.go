@@ -99,7 +99,8 @@ type updateAppStoreAppRequest struct {
 }
 
 type updateAppStoreAppResponse struct {
-	Err error `json:"error,omitempty"`
+	AppStoreApp *fleet.VPPAppStoreApp `json:"app_store_app,omitempty"`
+	Err         error                 `json:"error,omitempty"`
 }
 
 func (r updateAppStoreAppResponse) error() error { return r.Err }
@@ -107,19 +108,20 @@ func (r updateAppStoreAppResponse) error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
-	if err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny); err != nil {
+	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny)
+	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	return updateAppStoreAppResponse{}, nil
+	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) error {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -111,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+	ActivityUpdatedAppStoreApp{},
 
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
@@ -2077,14 +2078,14 @@ func (a ActivityUpdatedAppStoreApp) ActivityName() string {
 func (a ActivityUpdatedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "software_title_id": ID of the updated software title.
+- "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array`, `{
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
