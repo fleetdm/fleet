@@ -2,54 +2,15 @@ import React from "react";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import paths from "router/paths";
-import SummaryTile from "./SummaryTile";
+import HostCountCard from "./HostCountCard";
 
 const LOADING_OPACITY = 0.4;
 
-describe("SummaryTile - component", () => {
-  it("summary tile is hidden when showUI is false", () => {
-    render(
-      <SummaryTile
-        count={200}
-        isLoading={false}
-        showUI={false} // tested
-        title="Windows hosts"
-        iconName="windows"
-        tooltip="Hosts on any Windows device"
-        path={paths.MANAGE_HOSTS_LABEL(10)}
-      />
-    );
-
-    const tile = screen.getByTestId("tile");
-
-    expect(tile).not.toBeVisible();
-  });
-
-  it("renders loading state", () => {
-    render(
-      <SummaryTile
-        count={200}
-        isLoading // tested
-        showUI
-        title="Windows hosts"
-        iconName="windows"
-        tooltip="Hosts on any Windows device"
-        path={paths.MANAGE_HOSTS_LABEL(10)}
-      />
-    );
-
-    const tile = screen.getByTestId("tile");
-
-    expect(tile).toHaveStyle(`opacity: ${LOADING_OPACITY}`);
-    expect(tile).toBeVisible();
-  });
-
+describe("HostCountCard - component", () => {
   it("renders title, count, and image based on the information and data passed in", () => {
     render(
-      <SummaryTile
+      <HostCountCard
         count={200} // tested
-        isLoading={false}
-        showUI
         title="Windows hosts" // tested
         iconName="windows" // tested
         tooltip="Hosts on any Windows device"
@@ -68,10 +29,8 @@ describe("SummaryTile - component", () => {
 
   it("does not render icon if not provided", () => {
     render(
-      <SummaryTile
+      <HostCountCard
         count={200}
-        isLoading={false}
-        showUI
         title="Windows hosts"
         iconName="windows"
         path={paths.MANAGE_HOSTS_LABEL(10)}
@@ -85,10 +44,8 @@ describe("SummaryTile - component", () => {
 
   it("renders tooltip on title hover", async () => {
     render(
-      <SummaryTile
+      <HostCountCard
         count={200}
-        isLoading={false}
-        showUI
         title="Windows hosts"
         iconName="windows"
         tooltip="Hosts on any Windows device" // tested

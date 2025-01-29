@@ -5,22 +5,24 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import HostCountCard from "../HostCountCard";
 
-const baseClass = "hosts-missing";
+const baseClass = "hosts-total";
 
-interface IMissingHostsProps {
-  missingCount: number;
+interface ITotalHostsProps {
+  totalCount?: number;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
 }
 
-const MissingHosts = ({
-  missingCount,
+const TOOLTIP_TEXT = "Total number of hosts.";
+
+const TotalHosts = ({
+  totalCount,
   selectedPlatformLabelId,
   currentTeamId,
-}: IMissingHostsProps): JSX.Element => {
-  // build the manage hosts URL filtered by missing and platform
+}: ITotalHostsProps): JSX.Element => {
+  // build the manage hosts URL filtered by low disk space only
+  // currently backend cannot filter by both low disk space and label
   const queryParams = {
-    status: "missing",
     team_id: currentTeamId,
   };
   const queryString = buildQueryStringFromParams(queryParams);
@@ -31,10 +33,10 @@ const MissingHosts = ({
 
   return (
     <HostCountCard
-      iconName="missing-hosts"
-      count={missingCount}
-      title="Missing hosts"
-      tooltip="Hosts that have not been online in 30 days or more."
+      iconName="total-hosts"
+      count={totalCount || 0}
+      title="Total hosts"
+      tooltip={TOOLTIP_TEXT}
       path={path}
       className={baseClass}
       iconPosition="left"
@@ -42,4 +44,4 @@ const MissingHosts = ({
   );
 };
 
-export default MissingHosts;
+export default TotalHosts;
