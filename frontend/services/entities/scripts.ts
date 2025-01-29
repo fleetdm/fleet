@@ -131,6 +131,17 @@ export default {
     return sendRequest("GET", path);
   },
 
+  updateScript(id: number, contents: string, name: string) {
+    const { SCRIPT } = endpoints;
+    const path = `${SCRIPT(id)}`;
+
+    const file = new File([contents], name);
+    const formData = new FormData();
+    formData.append("script", file);
+
+    return sendRequest("PATCH", path);
+  },
+
   deleteScript(id: number) {
     const { SCRIPT } = endpoints;
     return sendRequest("DELETE", SCRIPT(id));
