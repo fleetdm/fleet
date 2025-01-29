@@ -54,6 +54,7 @@ func TestSoftwareInstallers(t *testing.T) {
 
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
 
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
@@ -129,6 +130,10 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// ensure that nothing gets automatically activated, we want to control
+	// specific activation for this test
+	ds.testActivateSpecificNextActivities = []string{"-"}
+
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
@@ -156,73 +161,82 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostInstall3, pendingHost2[0])
 	require.Equal(t, hostInstall4, pendingHost2[1])
 
-	_ = installerID3
+	// activate and set a result for hostInstall4 (installerID2)
+	ds.testActivateSpecificNextActivities = []string{hostInstall4}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
 
-	// TODO(mna): uncomment the rest of this test once execution of upcoming activities is implemented
-	/*
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                host2.ID,
-				InstallUUID:           hostInstall4,
-				InstallScriptExitCode: ptr.Int(0),
-			})
-			require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host2.ID,
+		InstallUUID:           hostInstall4,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
 
-			hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, false, nil)
-			require.NoError(t, err)
+	// create a new pending install request on host2 for installerID2
+	hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
 
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                    host2.ID,
-				InstallUUID:               hostInstall5,
-				PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
-			})
-			require.NoError(t, err)
+	ds.testActivateSpecificNextActivities = []string{hostInstall5}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
 
-			installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
-			require.NoError(t, err)
-			require.Equal(t, 2, len(installDetailsList1))
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host2.ID,
+		InstallUUID:               hostInstall5,
+		PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
+	})
+	require.NoError(t, err)
 
-			installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(installDetailsList2))
+	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(installDetailsList1))
 
-			require.Contains(t, installDetailsList1, hostInstall1)
-			require.Contains(t, installDetailsList1, hostInstall2)
+	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(installDetailsList2))
 
-			require.Contains(t, installDetailsList2, hostInstall3)
+	require.Contains(t, installDetailsList1, hostInstall1)
+	require.Contains(t, installDetailsList1, hostInstall2)
+	require.Contains(t, installDetailsList2, hostInstall3)
 
-			exec1, err := ds.GetSoftwareInstallDetails(ctx, hostInstall1)
-			require.NoError(t, err)
+	exec1, err := ds.GetSoftwareInstallDetails(ctx, hostInstall1)
+	require.NoError(t, err)
 
-			require.Equal(t, host1.ID, exec1.HostID)
-			require.Equal(t, hostInstall1, exec1.ExecutionID)
-			require.Equal(t, "hello DUCKY", exec1.InstallScript)
-			require.Equal(t, "world BIRD", exec1.PostInstallScript)
-			require.Equal(t, installerID1, exec1.InstallerID)
-			require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
-			require.False(t, exec1.SelfService)
-			assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
+	require.Equal(t, host1.ID, exec1.HostID)
+	require.Equal(t, hostInstall1, exec1.ExecutionID)
+	require.Equal(t, "hello DUCKY", exec1.InstallScript)
+	require.Equal(t, "world BIRD", exec1.PostInstallScript)
+	require.Equal(t, installerID1, exec1.InstallerID)
+	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
+	require.False(t, exec1.SelfService)
+	assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
 
-			hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true, nil)
-			require.NoError(t, err)
+	// add a self-service request for installerID3 on host1
+	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.NoError(t, err)
 
-			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-				HostID:                    host1.ID,
-				InstallUUID:               hostInstall6,
-				PreInstallConditionOutput: ptr.String("output"),
-			})
-			require.NoError(t, err)
+	ds.testActivateSpecificNextActivities = []string{hostInstall6}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host1.ID, "")
+	require.NoError(t, err)
 
-			exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
-			require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host1.ID,
+		InstallUUID:               hostInstall6,
+		PreInstallConditionOutput: ptr.String("output"),
+	})
+	require.NoError(t, err)
 
-		require.Equal(t, host1.ID, exec2.HostID)
-		require.Equal(t, hostInstall6, exec2.ExecutionID)
-		require.Equal(t, "banana", exec2.InstallScript)
-		require.Equal(t, "apple", exec2.PostInstallScript)
-		require.Equal(t, installerID3, exec2.InstallerID)
-		require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
-		require.True(t, exec2.SelfService)
-	*/
+	exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
+	require.NoError(t, err)
+
+	require.Equal(t, host1.ID, exec2.HostID)
+	require.Equal(t, hostInstall6, exec2.ExecutionID)
+	require.Equal(t, "banana", exec2.InstallScript)
+	require.Equal(t, "apple", exec2.PostInstallScript)
+	require.Equal(t, installerID3, exec2.InstallerID)
+	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
+	require.True(t, exec2.SelfService)
 
 	// Create install request, don't fulfil it, delete and restore host.
 	// Should not appear in list of pending installs for that host.

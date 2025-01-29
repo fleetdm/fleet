@@ -91,7 +91,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     siua.software_installer_id AS installer_id,
 		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
-    inst.cot could be nulntents AS install_script,
+    inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
   FROM
@@ -117,7 +117,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 `
 
 	result := &fleet.SoftwareInstallDetails{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), result, stmt, executionId, executionId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
@@ -1439,7 +1439,7 @@ WHERE
 		INNER JOIN software_install_upcoming_activities siua
 			ON upcoming_activities.id = siua.upcoming_activity_id
 		WHERE
-			activity_type IN ('software_install', 'software_uninstall') AND 
+			activity_type IN ('software_install', 'software_uninstall') AND
 			siua.software_installer_id IN (
 				SELECT id FROM software_installers WHERE global_or_team_id = ?
 		)
@@ -1477,10 +1477,10 @@ WHERE
 	const deletePendingSoftwareInstallsNotInListUA = `
 		DELETE FROM upcoming_activities
 		USING upcoming_activities
-		INNER JOIN software_install_upcoming_activities siua 
+		INNER JOIN software_install_upcoming_activities siua
 			ON upcoming_activities.id = siua.upcoming_activity_id
-		WHERE 
-			activity_type IN ('software_install', 'software_uninstall') AND 
+		WHERE
+			activity_type IN ('software_install', 'software_uninstall') AND
 			siua.software_installer_id IN (
 				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 			)
