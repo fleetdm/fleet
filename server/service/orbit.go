@@ -1047,7 +1047,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		decryptable = ptr.Bool(true)
 	}
 
-	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedEncryptionKey, clientError, decryptable); err != nil {
+	if err := svc.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, encryptedEncryptionKey, clientError, decryptable); err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
 	}
 
@@ -1110,7 +1110,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return err
 	}
 
-	return svc.ds.SaveLUKSData(ctx, host.ID, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	return svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
 }
 
 func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, salt string, keySlot *uint) (encryptedPassphrase string, encryptedSalt string, validatedKeySlot uint, err error) {
@@ -1138,7 +1138,8 @@ func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, s
 /////////////////////////////////////////////////////////////////////////////////
 
 type orbitGetSoftwareInstallRequest struct {
-	OrbitNodeKey string `json:"orbot_node_key"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	OrbotNodeKey string `json:"orbot_node_key"` // legacy typo -- keep for backwards compatibility with orbit <= 1.38.0
 	InstallUUID  string `json:"install_uuid"`
 }
 
@@ -1149,7 +1150,10 @@ func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
+	if r.OrbitNodeKey != "" {
+		return r.OrbitNodeKey
+	}
+	return r.OrbotNodeKey
 }
 
 type orbitGetSoftwareInstallResponse struct {

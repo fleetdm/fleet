@@ -1,5 +1,4 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 // @ts-ignore
@@ -7,23 +6,7 @@ import InputField from ".";
 
 import "../../../../index.scss";
 
-interface IInputFieldProps {
-  autofocus?: boolean;
-  readOnly?: boolean;
-  disabled?: boolean;
-  error?: string;
-  inputClassName?: string;
-  inputWrapperClass?: string;
-  inputOptions?: Record<string, unknown>; // other html input props
-  name?: string;
-  placeholder: string;
-  type?: string;
-  value: string;
-  onFocus?: () => void;
-  onChange?: (value: string) => void;
-}
-
-export default {
+const meta: Meta<typeof InputField> = {
   component: InputField,
   title: "Components/FormFields/Input",
   args: {
@@ -33,7 +16,7 @@ export default {
     error: "",
     inputClassName: "",
     inputWrapperClass: "",
-    inputOptions: "",
+    inputOptions: {},
     name: "",
     placeholder: "Type here...",
     type: "",
@@ -41,8 +24,10 @@ export default {
     onFocus: noop,
     onChange: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IInputFieldProps> = (props) => <InputField {...props} />;
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof InputField>;
+
+export const Default: Story = {};

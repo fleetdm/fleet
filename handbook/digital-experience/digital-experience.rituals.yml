@@ -6,9 +6,6 @@
   description: "Complete Digital Experience KPIs for this week"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
   dri: "SFriendLee"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: "fleet"
 - 
   task: "Confirm consultant hours"
   startedOn: "2024-09-30" 

@@ -19,17 +19,6 @@ export const getErrorMessage = (err: unknown, software: ISoftwarePackage) => {
 
   if (isTimeout) {
     return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-  } else if (reason.includes("Fleet couldn't read the version from")) {
-    return (
-      <>
-        Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-          text="Learn more"
-        />
-      </>
-    );
   } else if (reason.includes("selected package is")) {
     return (
       <>

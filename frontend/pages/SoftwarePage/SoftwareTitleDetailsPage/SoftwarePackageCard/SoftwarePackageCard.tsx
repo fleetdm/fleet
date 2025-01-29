@@ -30,6 +30,8 @@ import Tag from "components/Tag";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import CustomLink from "components/CustomLink";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -228,7 +230,7 @@ const SoftwareActionsDropdown = ({
 
 interface ISoftwareInstallerCardProps {
   name: string;
-  version: string;
+  version: string | null;
   uploadedAt: string; // TODO: optional?
   status: {
     installed: number;
@@ -315,12 +317,33 @@ const SoftwareInstallerCard = ({
     );
   };
 
+  const versionInfo = version ? (
+    <span>{version}</span>
+  ) : (
+    <TooltipWrapper
+      tipContent={
+        <span>
+          Fleet couldn&apos;t read the version from ${name}.{" "}
+          <CustomLink
+            newTab
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+            text="Learn more"
+            color="core-fleet-white"
+            iconColor="core-fleet-white"
+          />
+        </span>
+      }
+    >
+      Version (unknown)
+    </TooltipWrapper>
+  );
+
   const renderDetails = () => {
     return !uploadedAt ? (
-      <span>Version {version}</span>
+      versionInfo
     ) : (
       <>
-        <span>Version {version} &bull; </span>
+        {versionInfo} &bull;{" "}
         <TooltipWrapper
           tipContent={internationalTimeFormat(new Date(uploadedAt))}
           underline={false}

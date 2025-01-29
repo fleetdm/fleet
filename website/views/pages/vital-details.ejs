@@ -1,0 +1,145 @@
+<div id="vital-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
+        <div purpose="page-headline" class="d-flex flex-column">
+          <h2>Vitals</h2>
+          <p>Fleet’s built-in queries for collecting and storing important device information.</p>
+        </div>
+        <div purpose="vitals-search" id="docsearch-query" class="d-flex">
+          <div purpose="disabled-search" class="d-flex">
+            <div class="input-group d-flex flex-nowrap">
+              <div class="input-group-prepend">
+                <span class="input-group-text border-0 bg-transparent" >
+                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                </span>
+              </div>
+              <div class="form-control border-0 ">
+              <input class="docsearch-input pr-1"
+                placeholder="Search" aria-label="Search"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
+          <p class="d-flex align-items-center">
+          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+          <span class="d-none d-md-inline">Apple</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
+            <span class="d-none d-md-inline">Linux</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+            <span class="d-none d-md-inline">Windows</span>
+          </p>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
+          <p class="d-flex align-items-center">
+            <img src="/images/os-chromeos-dark-24x24@2x.png" alt="Chrome" class="d-inline">
+            <span class="d-none d-md-inline">ChromeOS</span>
+          </p>
+        </div>
+      </div>
+      <div purpose="vital-details-and-sidebar" class="d-flex flex-md-row flex-column">
+        <div purpose="table-of-contents" class="d-md-flex d-none">
+          <div v-if="selectedPlatform === 'apple'">
+            <% // macOS policies (server-side-rendered)
+              for(let vital of macOsVitals) {
+            %>
+              <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#apple"><%- vital.name %></a>
+            <% } %>
+          </div>
+          <div v-else-if="selectedPlatform === 'linux'">
+            <% // Linux policies (server-side-rendered)
+              for(let vital of linuxVitals) {
+            %>
+              <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#linux"><%- vital.name %></a>
+            <% } %>
+          </div>
+          <div v-else-if="selectedPlatform === 'windows'">
+            <% // Windows policies (server-side-rendered)
+              for(let vital of windowsVitals) {
+            %>
+              <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#windows"><%- vital.name %></a>
+            <% } %>
+          </div>
+          <div v-else-if="selectedPlatform === 'chrome'">
+            <% // Windows policies (server-side-rendered)
+              for(let vital of chromeVitals) {
+            %>
+            <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#chrome"><%- vital.name %></a>
+            <% } %>
+          </div>
+        </div>
+        <div class="d-flex d-md-none">
+          <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between align-items-center" @click="clickOpenTableOfContents()">
+            <div><p><%- thisVital.name %></p></div>
+            <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+          </div>
+        </div>
+        <div purpose="vital-details" class="d-flex flex-column">
+          <h2 purpose="vital-name"><%- thisVital.name %></h2>
+          <p purpose="vital-description"><%- thisVital.description %></p>
+          <div purpose="vital-check">
+            <div purpose="codeblock">
+              <div purpose="copy-button"></div>
+              <pre><code class="hljs sql"><%- thisVital.query %></code></pre>
+            </div>
+          </div>
+          <% if(thisVital.discovery) {%>
+            <div purpose="discovery-table-note">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>This query uses the <code><%- thisVital.discovery %></code> data table. <a href="/tables/<%- thisVital.discovery %>">Learn more</a></p>
+              </div>
+            </div>
+          <% } %>
+          <div purpose="edit-button-container">
+            <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">Suggest an edit <img src="/images/icon-external-link-13x13@2x.png" alt="external link"></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <modal purpose="table-of-contents-modal" v-if="modal === 'table-of-contents'" @close="closeModal()">
+    <p purpose="mobile-table-of-contents-header"><strong>Vitals</strong></p>
+      <div purpose="table-of-contents" v-if="selectedPlatform === 'apple'">
+        <% // macOS policies (server-side-rendered)
+          for(let vital of macOsVitals) {
+        %>
+          <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#apple"><%- vital.name %></a>
+        <% } %>
+      </div>
+      <div purpose="table-of-contents" v-else-if="selectedPlatform === 'linux'">
+        <% // Linux policies (server-side-rendered)
+          for(let vital of linuxVitals) {
+        %>
+          <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#linux"><%- vital.name %></a>
+        <% } %>
+      </div>
+      <div purpose="table-of-contents" v-else-if="selectedPlatform === 'windows'">
+        <% // Windows policies (server-side-rendered)
+          for(let vital of windowsVitals) {
+        %>
+          <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#windows"><%- vital.name %></a>
+        <% } %>
+      </div>
+      <div purpose="table-of-contents" v-else-if="selectedPlatform === 'chrome'">
+        <% // Windows policies (server-side-rendered)
+          for(let vital of chromeVitals) {
+        %>
+        <a class="d-block <%- vital.slug === thisVital.slug ? 'active' : '' %>" purpose="vital-link" href="/vitals/<%- vital.slug %>#chrome"><%- vital.name %></a>
+        <% } %>
+      </div>
+  </modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

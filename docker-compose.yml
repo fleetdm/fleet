@@ -128,7 +128,7 @@ services:
   # CAdvisor container allows monitoring other containers. Useful for
   # development.
   cadvisor:
-    image: google/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:latest
     ports:
       - "5678:8080"
     volumes:

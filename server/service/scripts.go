@@ -941,17 +941,12 @@ type lockHostRequest struct {
 }
 
 type lockHostResponse struct {
-	Err        error  `json:"error,omitempty"`
-	UnlockPIN  string `json:"unlock_pin,omitempty"`
-	StatusCode int    `json:"-"`
+	Err           error                     `json:"error,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
+	UnlockPIN     string                    `json:"unlock_pin,omitempty"`
 }
 
-func (r lockHostResponse) Status() int {
-	if r.StatusCode != 0 {
-		return r.StatusCode
-	}
-	return http.StatusNoContent
-}
 func (r lockHostResponse) error() error { return r.Err }
 
 func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -960,10 +955,13 @@ func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return lockHostResponse{Err: err}, nil
 	}
+	// We bail from locking if the host is locked or wiped, so we can assume the host is unlocked at this point
+	response := &lockHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionLock}
+
 	if req.ViewPin && unlockPIN != "" {
-		return lockHostResponse{UnlockPIN: unlockPIN, StatusCode: http.StatusOK}, nil
+		response.UnlockPIN = unlockPIN
 	}
-	return lockHostResponse{}, nil
+	return response, nil
 }
 
 func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error) {
@@ -983,19 +981,13 @@ type unlockHostRequest struct {
 }
 
 type unlockHostResponse struct {
-	HostID    *uint  `json:"host_id,omitempty"`
-	UnlockPIN string `json:"unlock_pin,omitempty"`
-	Err       error  `json:"error,omitempty"`
+	HostID        *uint                     `json:"host_id,omitempty"`
+	UnlockPIN     string                    `json:"unlock_pin,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
+	Err           error                     `json:"error,omitempty"`
 }
 
-func (r unlockHostResponse) Status() int {
-	if r.HostID != nil {
-		// there is a response body
-		return http.StatusOK
-	}
-	// no response body
-	return http.StatusNoContent
-}
 func (r unlockHostResponse) error() error { return r.Err }
 
 func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1005,11 +997,11 @@ func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return unlockHostResponse{Err: err}, nil
 	}
 
-	var resp unlockHostResponse
+	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
+	resp := unlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
 	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
 	// call triggers the unlocking without further user action.
 	if pin != "" {
-		resp.HostID = &req.HostID
 		resp.UnlockPIN = pin
 	}
 	return resp, nil
@@ -1032,10 +1024,11 @@ type wipeHostRequest struct {
 }
 
 type wipeHostResponse struct {
-	Err error `json:"error,omitempty"`
+	Err           error                     `json:"error,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
 }
 
-func (r wipeHostResponse) Status() int  { return http.StatusNoContent }
 func (r wipeHostResponse) error() error { return r.Err }
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1043,7 +1036,8 @@ func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return wipeHostResponse{Err: err}, nil
 	}
-	return wipeHostResponse{}, nil
+	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
+	return wipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
 func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {

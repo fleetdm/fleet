@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { AxiosResponse } from "axios";
 import { Location } from "history";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -25,12 +26,14 @@ import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Card from "components/Card";
-
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
+
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
+import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
 import {
   getErrorMessage,
@@ -39,36 +42,56 @@ import {
   getFleetAppPolicyQuery,
 } from "./helpers";
 
+const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+const REQUEST_TIMEOUT_ERROR_MESSAGE =
+  "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+const AUTOMATIC_POLICY_ERROR_MESSAGE =
+  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
+
 const baseClass = "fleet-maintained-app-details-page";
 
-interface ISoftwareSummaryProps {
+interface IFleetAppSummaryProps {
   name: string;
   platform: string;
   version: string;
+  onClickShowAppDetails: (event: MouseEvent) => void;
 }
 
 const FleetAppSummary = ({
   name,
   platform,
   version,
-}: ISoftwareSummaryProps) => {
+  onClickShowAppDetails,
+}: IFleetAppSummaryProps) => {
   return (
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
+      color="gray"
     >
-      <SoftwareIcon name={name} size="medium" />
-      <div className={`${baseClass}__fleet-app-summary--details`}>
-        <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
-        <div className={`${baseClass}__fleet-app-summary--info`}>
-          <div className={`${baseClass}__fleet-app-summary--details--platform`}>
-            {PLATFORM_DISPLAY_NAMES[platform as Platform]}
-          </div>
-          &bull;
-          <div className={`${baseClass}__fleet-app-summary--details--version`}>
-            {version}
+      <div className={`${baseClass}__fleet-app-summary--left`}>
+        <SoftwareIcon name={name} size="medium" />
+        <div className={`${baseClass}__fleet-app-summary--details`}>
+          <div className={`${baseClass}__fleet-app-summary--title`}>{name}</div>
+          <div className={`${baseClass}__fleet-app-summary--info`}>
+            <div
+              className={`${baseClass}__fleet-app-summary--details--platform`}
+            >
+              {PLATFORM_DISPLAY_NAMES[platform as Platform]}
+            </div>
+            &bull;
+            <div
+              className={`${baseClass}__fleet-app-summary--details--version`}
+            >
+              {version}
+            </div>
           </div>
         </div>
+      </div>
+      <div className={`${baseClass}__fleet-app-summary--show-details`}>
+        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+          <Icon name="info" /> Show details
+        </Button>
       </div>
     </Card>
   );
@@ -116,6 +139,7 @@ const FleetMaintainedAppDetailsPage = ({
     showAddFleetAppSoftwareModal,
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
+  const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
 
   const {
     data: fleetApp,
@@ -150,6 +174,10 @@ const FleetMaintainedAppDetailsPage = ({
 
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
+  };
+
+  const onClickShowAppDetails = () => {
+    setShowAppDetailsModal(true);
   };
 
   const backToAddSoftwareUrl = `${
@@ -196,7 +224,22 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       // quick exit if there was an error adding the software. Skip the policy
       // creation.
-      renderFlash("error", getErrorMessage(error));
+
+      const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
+
+      const errorMessage = getErrorMessage(ae);
+
+      if (
+        ae.status === 408 ||
+        errorMessage.includes("json decoder error") // 400 bad request when really slow
+      ) {
+        renderFlash("error", REQUEST_TIMEOUT_ERROR_MESSAGE);
+      } else if (errorMessage) {
+        renderFlash("error", errorMessage);
+      } else {
+        renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      }
+
       setShowAddFleetAppSoftwareModal(false);
       return;
     }
@@ -221,11 +264,9 @@ const FleetMaintainedAppDetailsPage = ({
           { persistOnPageChange: true }
         );
       } catch (e) {
-        renderFlash(
-          "error",
-          "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.",
-          { persistOnPageChange: true }
-        );
+        renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
+          persistOnPageChange: true,
+        });
       }
 
       // for automatic install we redirect on both a successful and error policy
@@ -268,6 +309,7 @@ const FleetMaintainedAppDetailsPage = ({
               name={fleetApp.name}
               platform={fleetApp.platform}
               version={fleetApp.version}
+              onClickShowAppDetails={onClickShowAppDetails}
             />
             <FleetAppDetailsForm
               labels={labels || []}
@@ -304,6 +346,15 @@ const FleetMaintainedAppDetailsPage = ({
         </SidePanelContent>
       )}
       {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
+      {showAppDetailsModal && fleetApp && (
+        <FleetAppDetailsModal
+          name={fleetApp.name}
+          platform={fleetApp.platform}
+          version={fleetApp.version}
+          url={fleetApp.url}
+          onCancel={() => setShowAppDetailsModal(false)}
+        />
+      )}
     </>
   );
 };

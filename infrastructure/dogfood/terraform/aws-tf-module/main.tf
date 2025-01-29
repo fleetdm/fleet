@@ -352,13 +352,12 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
-  osquery_results_s3_bucket = {
-    name = "${local.customer}-osquery-results-archive"
-  }
-  osquery_status_s3_bucket = {
-    name = "${local.customer}-fleet-osquery-status-archive"
-  }
+  source                = "github.com/fleetdm/fleet//terraform/addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
+  firehose_results_name = "osquery_results"
+  firehose_status_name  = "osquery_status"
+  firehose_audit_name   = "fleet_audit"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003" 
+  region                = data.aws_region.current.name
 }
 
 module "osquery-carve" {
