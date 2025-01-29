@@ -88,6 +88,7 @@ policies:
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/windows/policies/windows-device-health.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/update-slack.yml
 queries:
   - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-usb-devices.yml
