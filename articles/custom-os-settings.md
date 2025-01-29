@@ -32,7 +32,7 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 * **Verified**: hosts that applied all OS settings. Fleet verified by running an osquery query on Windows and macOS hosts (declarations profiles are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)). Currently, iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings.
 
-* Verifying: hosts that have acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied with osquery on macOS (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)) and Windows hosts. If the profile wasn't installed, Fleet will redeliver the profile.
+* Verifying: hosts that have acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied with osquery on Windows and macOS hosts (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)). If the profile wasn't installed, Fleet will redeliver the profile.
 
 * Pending: hosts that will receive MDM commands to apply OS settings when the hosts come online.
 
