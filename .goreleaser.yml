@@ -46,6 +46,7 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm64
     flags:
       - -trimpath
     ldflags:
