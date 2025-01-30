@@ -183,5 +183,6 @@
   "browserslist": [
     "defaults"
   ],
-  "license": "SEE LICENSE IN ./LICENSE"
+  "license": "SEE LICENSE IN ./LICENSE",
+  "packageManager": "yarn@1.22.21+sha512.ca75da26c00327d26267ce33536e5790f18ebd53266796fbb664d2a4a5116308042dd8ee7003b276a20eace7d3c5561c3577bdd71bcb67071187af124779620a"
 }
