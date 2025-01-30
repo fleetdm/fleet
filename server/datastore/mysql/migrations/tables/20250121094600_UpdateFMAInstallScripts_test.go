@@ -51,7 +51,25 @@ sudo cp -R "$TMPDIR/%s" "$APPDIR"
 	dockerSymLink := `/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"`
 	dockerInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Docker.app")+dockerSymLink)
 	require.NoError(t, err)
-	dockerUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall") // TODO include Docker uninstall script here
+	dockerUninstallScriptID, err := getOrInsertScript(txx, `
+		remove_launchctl_service 'com.docker.helper'
+		remove_launchctl_service 'com.docker.socket'
+		remove_launchctl_service 'com.docker.vmnetd'
+		quit_application 'com.docker.docker'
+		sudo rm -rf '/Library/PrivilegedHelperTools/com.docker.socket'
+		sudo rm -rf '/Library/PrivilegedHelperTools/com.docker.vmnetd'
+		sudo rmdir '~/.docker/bin'
+		sudo rm -rf "$APPDIR/Docker.app"
+		sudo rm -rf '/usr/local/bin/docker'
+		sudo rm -rf '/usr/local/bin/docker-credential-desktop'
+		sudo rm -rf '/usr/local/bin/docker-credential-ecr-login'
+		sudo rm -rf '/usr/local/bin/docker-credential-osxkeychain'
+		sudo rm -rf '/usr/local/bin/hub-tool'
+		sudo rm -rf '/usr/local/cli-plugins/docker-compose'
+		sudo rm -rf '/usr/local/bin/kubectl.docker'
+		sudo rmdir '~/Library/Caches/com.plausiblelabs.crashreporter.data'
+		sudo rmdir '~/Library/Caches/KSCrashReports'
+	`)
 	require.NoError(t, err)
 	boxInstallScriptID, err := getOrInsertScript(txx, "echo install")
 	require.NoError(t, err)
