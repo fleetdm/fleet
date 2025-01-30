@@ -2263,10 +2263,7 @@ func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
 	queryReportsDisabled bool,
-) (
-	unmarshaledResults []*fleet.ScheduledQueryResult,
-	queriesDBData map[string]*fleet.Query,
-) {
+) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2448,7 +2445,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 	}
 
 	// Transform results that are in "event format" to "snapshot format".
-	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=false`
+	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
 	// in their agent options.
 	unmarshaledResultsFiltered := transformEventFormatToSnapshotFormat(unmarshaledResults)
 
@@ -2496,7 +2493,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 }
 
 // transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
-// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=false`
+// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
 // in their agent options.
 //
 // "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
@@ -2522,8 +2519,56 @@ func (svc *Service) saveResultLogsToQueryReports(
 // "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
 //
 //	[
-//		{"name":"pack/Global/All USB devices","hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
-//		{"name":"pack/Global/All USB devices","hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns": {
+//				"class":"9",
+//				"model":"AppleUSBVHCIBCE Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		},
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns":{
+//				"class":"9",
+//				"model":"AppleUSBXHCI Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		}
 //	]
 func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
 	isEventFormat := func(result *fleet.ScheduledQueryResult) bool {
