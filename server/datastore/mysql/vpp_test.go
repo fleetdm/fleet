@@ -475,13 +475,18 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		// insert a VPP app with include_any labels
 		labeledApp := &fleet.VPPApp{
-			Name:             "vpp_app_labels_1" + t.Name(),
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "5", Platform: fleet.MacOSPlatform}},
-			BundleIdentifier: "b5",
-			ValidatedLabels: &fleet.LabelIdentsWithScope{
-				LabelScope: fleet.LabelScopeIncludeAny,
-				ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelID: label1.ID, LabelName: label1.Name}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+			Name: "vpp_app_labels_1" + t.Name(),
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "5", Platform: fleet.MacOSPlatform},
+				ValidatedLabels: &fleet.LabelIdentsWithScope{
+					LabelScope: fleet.LabelScopeIncludeAny,
+					ByName: map[string]fleet.LabelIdent{label1.Name: {
+						LabelID:   label1.ID,
+						LabelName: label1.Name,
+					}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+				},
 			},
+			BundleIdentifier: "b5",
 		}
 		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
 		require.NoError(t, err)
@@ -494,13 +499,18 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		// insert a VPP app with exclude_any labels
 		labeledApp = &fleet.VPPApp{
-			Name:             "vpp_app_labels_2" + t.Name(),
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "6", Platform: fleet.MacOSPlatform}},
-			BundleIdentifier: "b6",
-			ValidatedLabels: &fleet.LabelIdentsWithScope{
-				LabelScope: fleet.LabelScopeExcludeAny,
-				ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelID: label1.ID, LabelName: label1.Name}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+			Name: "vpp_app_labels_2" + t.Name(),
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "6", Platform: fleet.MacOSPlatform},
+				ValidatedLabels: &fleet.LabelIdentsWithScope{
+					LabelScope: fleet.LabelScopeExcludeAny,
+					ByName: map[string]fleet.LabelIdent{label1.Name: {
+						LabelID:   label1.ID,
+						LabelName: label1.Name,
+					}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+				},
 			},
+			BundleIdentifier: "b6",
 		}
 		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
 		require.NoError(t, err)
