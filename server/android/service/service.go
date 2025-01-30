@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/android"
+	"github.com/fleetdm/fleet/v4/server/android/interfaces"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,7 +24,7 @@ type Service struct {
 	authz   *authz.Authorizer
 	mgmt    *androidmanagement.Service
 	ds      android.Datastore
-	fleetDS fleet.Datastore
+	fleetDS interfaces.FleetDatastore
 }
 
 var (
@@ -38,7 +39,6 @@ var (
 func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
-	authz *authz.Authorizer,
 	ds android.Datastore,
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
@@ -48,17 +48,41 @@ func NewService(
 			"FLEET_ANDROID_SERVICE_CREDENTIALS, FLEET_ANDROID_PROJECT_ID, and FLEET_ANDROID_PUBSUB_TOPIC environment variables must be set to use Android management")
 		return nil, nil
 	}
+	authorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		return nil, fmt.Errorf("new authorizer: %w", err)
+	}
+
 	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating android management service")
 	}
 	return Service{
 		logger:  logger,
-		authz:   authz,
+		authz:   authorizer,
 		mgmt:    mgmt,
 		ds:      ds,
 		fleetDS: fleetDS,
 	}, nil
+}
+
+type androidResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r androidResponse) error() error { return r.Err }
+
+type androidEnterpriseSignupResponse struct {
+	*android.SignupDetails
+	androidResponse
+}
+
+func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) (errorer, error) {
+	result, err := svc.EnterpriseSignup(ctx)
+	if err != nil {
+		return androidResponse{Err: err}, nil
+	}
+	return androidEnterpriseSignupResponse{SignupDetails: result}, nil
 }
 
 func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
@@ -95,6 +119,17 @@ func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, 
 		Url:  signupURL.Url,
 		Name: signupURL.Name,
 	}, nil
+}
+
+type androidEnterpriseSignupCallbackRequest struct {
+	ID              uint   `url:"id"`
+	EnterpriseToken string `query:"enterpriseToken"`
+}
+
+func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
+	req := request.(*androidEnterpriseSignupCallbackRequest)
+	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
+	return androidResponse{Err: err}, nil
 }
 
 func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
@@ -136,6 +171,16 @@ func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpri
 	return nil
 }
 
+type androidPoliciesRequest struct {
+	EnterpriseID uint `url:"id"`
+}
+
+func androidPoliciesEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
+	req := request.(*androidPoliciesRequest)
+	err := svc.CreateOrUpdatePolicy(ctx, req.EnterpriseID)
+	return androidResponse{Err: err}, nil
+}
+
 func (s Service) CreateOrUpdatePolicy(ctx context.Context, fleetEnterpriseID uint) error {
 	s.authz.SkipAuthorization(ctx)
 
@@ -175,6 +220,24 @@ func (s Service) CreateOrUpdatePolicy(ctx context.Context, fleetEnterpriseID uin
 	}
 
 	return nil
+}
+
+type androidEnrollmentTokenRequest struct {
+	EnterpriseID uint `url:"id"`
+}
+
+type androidEnrollmentTokenResponse struct {
+	*android.EnrollmentToken
+	androidResponse
+}
+
+func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
+	req := request.(*androidEnrollmentTokenRequest)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnterpriseID)
+	if err != nil {
+		return androidResponse{Err: err}, nil
+	}
+	return androidEnrollmentTokenResponse{EnrollmentToken: token}, nil
 }
 
 func (s Service) CreateEnrollmentToken(ctx context.Context, fleetEnterpriseID uint) (*android.EnrollmentToken, error) {

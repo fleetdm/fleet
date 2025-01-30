@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -74,8 +73,6 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
-
-	Android() android.Service
 
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)

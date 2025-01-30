@@ -174,7 +174,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	svc, err := NewService(
 		ctx,
 		ds,
-		nil,
 		task,
 		rs,
 		logger,

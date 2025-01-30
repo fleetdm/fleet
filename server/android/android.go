@@ -15,6 +15,10 @@ func (e Enterprise) Name() string {
 	return "enterprises/" + e.EnterpriseID
 }
 
+func (e Enterprise) IsValid() bool {
+	return e.EnterpriseID != ""
+}
+
 type EnrollmentToken struct {
 	Value string `json:"value"`
 }

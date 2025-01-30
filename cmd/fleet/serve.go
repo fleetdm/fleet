@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/android"
+	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -785,7 +786,6 @@ the way that the Fleet server works.
 			svc, err := service.NewService(
 				ctx,
 				ds,
-				androidDS,
 				task,
 				resultStore,
 				logger,
@@ -811,6 +811,15 @@ the way that the Fleet server works.
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
+			}
+			androidSvc, err := android_service.NewService(
+				ctx,
+				logger,
+				androidDS,
+				ds,
+			)
+			if err != nil {
+				initFatal(err, "initializing android service")
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
@@ -1125,7 +1134,7 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
-			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+			var apiHandler, androidAPIHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
@@ -1135,6 +1144,7 @@ the way that the Fleet server works.
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
+				androidAPIHandler = android_service.MakeHandler(svc, androidSvc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1294,6 +1304,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+			rootMux.Handle("/api/{version}/fleet/android/", androidAPIHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

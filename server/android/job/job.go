@@ -39,6 +39,9 @@ func ReconcileDevices(ctx context.Context, ds fleet.Datastore, androidDS android
 	}
 
 	for _, enterprise := range enterprises {
+		if !enterprise.IsValid() {
+			continue
+		}
 		// Note: we can optimize this by using Fields to retrieve partial data https://developers.google.com/gdata/docs/2.0/basics#PartialResponse
 		// But actually this is not scalable for 100,000s devices, so we need to use PubSub.
 		devices, err := mgmt.Enterprises.Devices.List(enterprise.Name()).Do()
