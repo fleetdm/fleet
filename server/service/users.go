@@ -480,6 +480,9 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	}
 
 	if p.SSOEnabled != nil {
+		if !*p.SSOEnabled && p.NewPassword == nil {
+			return nil, fleet.NewInvalidArgumentError("missing password", "a new password must be provided when disabling SSO")
+		}
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
