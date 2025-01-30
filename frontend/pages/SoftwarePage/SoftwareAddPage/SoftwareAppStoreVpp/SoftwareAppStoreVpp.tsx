@@ -151,17 +151,11 @@ const SoftwareAppStoreVpp = ({
 
       goBackToSoftwareTitles;
     } catch (ae) {
-      const errorMessage = getErrorMessage(ae);
+      const errorMessage =
+        // getErrorMessage(ae) ||   FIX THIS
+        "Couldn't add. Please try again.";
 
-      renderFlash(
-        "error",
-        errorMessage || (
-          <>
-            Couldn&apos;t add <b>{formData.selectedApp.name}</b>. Please try
-            again.
-          </>
-        )
-      );
+      renderFlash("error", errorMessage);
     }
 
     // setIsUploading(false);

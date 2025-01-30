@@ -30,6 +30,12 @@ export interface IAddVppAppPostBody {
   labels_exclude_any?: string[];
 }
 
+export interface IEditVppAppPostBody {
+  self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+}
+
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
@@ -105,17 +111,10 @@ export default {
     return sendRequest("POST", MDM_APPLE_VPP_APPS, body);
   },
 
-  editVppApp: (teamId: number, formData: ISoftwareVppFormData) => {
-    const { MDM_APPLE_VPP_APPS } = endpoints;
+  editVppApp: (softwareId: number, formData: ISoftwareVppFormData) => {
+    const { EDIT_SOFTWARE_VPP } = endpoints;
 
-    if (!formData.selectedApp) {
-      throw new Error("Selected app is required. This should not happen.");
-    }
-
-    const body: IAddVppAppPostBody = {
-      app_store_id: formData.selectedApp.app_store_id,
-      team_id: teamId,
-      platform: formData.selectedApp?.platform,
+    const body: IEditVppAppPostBody = {
       self_service: formData.selfService,
     };
 
@@ -128,7 +127,7 @@ export default {
       }
     }
 
-    return sendRequest("PATCH", MDM_APPLE_VPP_APPS, body);
+    return sendRequest("PATCH", EDIT_SOFTWARE_VPP(softwareId), body);
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {
