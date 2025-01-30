@@ -184,6 +184,9 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		sb.Writef("quit_application '%s'", appName)
+		if appName == "com.docker.docker" {
+			sb.Writef("quit_application 'com.electron.dockerdesktop'")
+		}
 	})
 
 	// per the spec, signals can't have a different format. In the homebrew
