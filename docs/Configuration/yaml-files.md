@@ -69,7 +69,7 @@ policies:
   resolution: "Install Firefox version 129.0.2 or higher."
   query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
   install_software:
-    package_path: "../lib/linux-firefox.deb.package.yml"
+    package_path: "./linux-firefox.deb.package.yml"
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
