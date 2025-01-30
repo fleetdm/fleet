@@ -51,7 +51,7 @@ sudo cp -R "$TMPDIR/%s" "$APPDIR"
 	dockerSymLink := `/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"`
 	dockerInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Docker.app")+dockerSymLink)
 	require.NoError(t, err)
-	dockerUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	dockerUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall") // TODO include Docker uninstall script here
 	require.NoError(t, err)
 	boxInstallScriptID, err := getOrInsertScript(txx, "echo install")
 	require.NoError(t, err)
@@ -163,8 +163,9 @@ sudo cp -R "$TMPDIR/%s" "$APPDIR"
 	//
 	// ...
 	var scriptContents struct {
-		InstallScriptContents string `db:"contents"`
-		Checksum              string `db:"md5_checksum"`
+		InstallScriptContents   string `db:"contents"`
+		UninstallScriptContents string `db:"uninstall_contents"`
+		Checksum                string `db:"md5_checksum"`
 	}
 
 	selectStmt := `
@@ -175,6 +176,16 @@ FROM
 	fleet_library_apps fla 
 	JOIN script_contents sc 
 	ON fla.install_script_content_id = sc.id
+WHERE fla.token = ?`
+
+	uninstallSelectStmt := `
+SELECT 
+	sc.contents AS uninstall_contents,
+	HEX(sc.md5_checksum) AS md5_checksum
+FROM 
+	fleet_library_apps fla 
+	JOIN script_contents sc 
+	ON fla.uninstall_script_content_id = sc.id
 WHERE fla.token = ?`
 
 	expectedContentsTmpl := `
@@ -266,6 +277,10 @@ sudo cp -R "$TMPDIR/%[2]s" "$APPDIR"
 	require.NoError(t, err)
 	require.Contains(t, scriptContents.InstallScriptContents, "quit_application 'com.electron.dockerdesktop'")
 	require.Contains(t, scriptContents.InstallScriptContents, fmt.Sprintf(`[ -d "/usr/local/bin" ] && %s`, dockerSymLink))
+
+	err = sqlx.Get(db, &scriptContents, uninstallSelectStmt, "docker")
+	require.NoError(t, err)
+	require.Contains(t, scriptContents.UninstallScriptContents, "quit_application 'com.electron.dockerdesktop'")
 
 	err = sqlx.Get(db, &scriptContents, selectStmt, "box-drive")
 	require.NoError(t, err)

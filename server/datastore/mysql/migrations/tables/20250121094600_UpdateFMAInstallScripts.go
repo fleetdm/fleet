@@ -140,7 +140,7 @@ WHERE fla.token IN (?)
 		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appFileName))
 		// Add a call to our "quit_application" function
 		if sc.BundleID == "com.docker.docker" {
-			// Special casse for docker docker desktop
+			// Special case for Docker Desktop that isn't covered in Homebrew manifest; see #25874
 			lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application '%s'", "com.electron.dockerdesktop"))
 		}
 		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application '%s'", sc.BundleID))

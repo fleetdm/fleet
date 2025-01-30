@@ -113,6 +113,7 @@ trash() {
 remove_launchctl_service 'com.docker.helper'
 remove_launchctl_service 'com.docker.socket'
 remove_launchctl_service 'com.docker.vmnetd'
+quit_application 'com.electron.dockerdesktop'
 quit_application 'com.docker.docker'
 sudo rm -rf '/Library/PrivilegedHelperTools/com.docker.socket'
 sudo rm -rf '/Library/PrivilegedHelperTools/com.docker.vmnetd'
