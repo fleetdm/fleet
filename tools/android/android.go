@@ -42,6 +42,8 @@ func main() {
 		policiesList(mgmt, *enterpriseID)
 	case "devices.list":
 		devicesList(mgmt, *enterpriseID)
+	case "devices.delete":
+		devicesDelete(mgmt, *enterpriseID, *deviceID)
 	case "devices.issueCommand.RELINQUISH_OWNERSHIP":
 		devicesRelinquishOwnership(mgmt, *enterpriseID, *deviceID)
 	default:
@@ -110,6 +112,18 @@ func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
 		}
 		log.Println(string(data))
 	}
+	log.Printf("Total devices: %d", len(result.Devices))
+}
+
+func devicesDelete(mgmt *androidmanagement.Service, enterpriseID string, deviceID string) {
+	if enterpriseID == "" || deviceID == "" {
+		log.Fatalf("enterprise_id and device_id must be set")
+	}
+	_, err := mgmt.Enterprises.Devices.Delete("enterprises/" + enterpriseID + "/devices/" + deviceID).Do()
+	if err != nil {
+		log.Fatalf("Error listing devices: %v", err)
+	}
+	log.Printf("Device %s deleted", deviceID)
 }
 
 func devicesRelinquishOwnership(mgmt *androidmanagement.Service, enterpriseID, deviceID string) {
