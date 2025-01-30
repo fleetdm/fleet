@@ -787,7 +787,6 @@ const ManageHostsPage = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    console.log("handleRowSelect");
     if (row.original.id) {
       const path = PATHS.HOST_DETAILS(row.original.id);
 
