@@ -1645,7 +1645,7 @@ func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is installed on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is installed on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1686,7 +1686,7 @@ func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is uninstalled on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is uninstalled on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1722,7 +1722,7 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is added to Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
@@ -1766,7 +1766,7 @@ func (a ActivityTypeEditedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is updated in Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is edited in Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
@@ -1809,7 +1809,7 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet maintained app or custom package is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
@@ -2032,14 +2032,15 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
-- host_id: ID of the host on which the app was installed.
-- self_service: App installation was initiated by device owner.
-- host_display_name: Display name of the host.
-- software_title: Name of the App Store app.
-- app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.
-- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
-- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
+- "host_id": ID of the host on which the app was installed.
+- "self_service": App installation was initiated by device owner.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "status": Status of the App Store app installation.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 `, `{
   "host_id": 42,
   "self_service": true,
