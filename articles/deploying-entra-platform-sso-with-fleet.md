@@ -1,10 +1,10 @@
 # Deploying Entra Platform SSO with Fleet
-Apple’s Platform Single Sign-on, introduced at WWDC22 alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through that IdP.
+Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through that IdP.
 
 This guide details how to deploy Microsoft Entra’s platform SSO extension to your macOS hosts using Fleet.
 
 ## Why use Platform SSO?
-If your Identity Provider (IdP) supports Platform Single Sign-On (Platform SSO), deploying it in your environment offers a great and secure sign-in experience for your users.
+If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
 Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclaved-backed key.
 
