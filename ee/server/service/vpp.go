@@ -508,7 +508,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
-	act := fleet.ActivityUpdatedAppStoreApp{
+	act := fleet.ActivityEditedAppStoreApp{
 		TeamName:         &teamName,
 		TeamID:           teamID,
 		SelfService:      selfService,
@@ -527,8 +527,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
 	}
-
-	updatedAppMeta.Platform = ""
 
 	return updatedAppMeta, nil
 }

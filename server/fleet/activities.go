@@ -111,7 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
-	ActivityUpdatedAppStoreApp{},
+	ActivityEditedAppStoreApp{},
 
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
@@ -2059,7 +2059,7 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 }`
 }
 
-type ActivityUpdatedAppStoreApp struct {
+type ActivityEditedAppStoreApp struct {
 	SoftwareTitle    string                  `json:"software_title"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
 	AppStoreID       string                  `json:"app_store_id"`
@@ -2071,11 +2071,11 @@ type ActivityUpdatedAppStoreApp struct {
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
-func (a ActivityUpdatedAppStoreApp) ActivityName() string {
-	return "updated_app_store_app"
+func (a ActivityEditedAppStoreApp) ActivityName() string {
+	return "edited_app_store_app"
 }
 
-func (a ActivityUpdatedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+func (a ActivityEditedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.

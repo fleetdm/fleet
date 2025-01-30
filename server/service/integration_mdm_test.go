@@ -11125,9 +11125,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, updateAppResp.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
+		require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 
 		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}]}`
-		s.lastActivityMatches(fleet.ActivityUpdatedAppStoreApp{}.ActivityName(),
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
