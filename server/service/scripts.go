@@ -776,6 +776,10 @@ func (updateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "invalid script id"}
 	}
+	// Check if scriptID exceeds the maximum value for uint, code linter
+	if scriptID > uint64(^uint(0)) {
+		return nil, &fleet.BadRequestError{Message: "script id out of bounds"}
+	}
 
 	decoded.ScriptID = uint(scriptID)
 
