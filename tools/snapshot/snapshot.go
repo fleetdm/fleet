@@ -9,12 +9,16 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-type snapshot struct {
+// Represents a snapshot.
+// Snapshots are stored in folders named after the snapshot name.
+// Each snapshot folder contains a db.sql.gz file.
+type Snapshot struct {
 	Name string
 	Date string
-	Path string
+	Path string // The directory containing the snapshot.
 }
 
+// Which command to run.
 type Command int
 
 const (
@@ -38,7 +42,7 @@ func main() {
 	case "r", "restore":
 		command = CMD_RESTORE
 	default:
-		fmt.Println("Please specify whether to (b)ackup or (r)estore.")
+		fmt.Println("Please specify whether to (s)snapshot or (r)estore.")
 	}
 
 	// Determine the path to the top-level directory (where the Makefile resides).
@@ -61,14 +65,16 @@ func main() {
 		return
 	}
 
+	// Run the command.
 	switch command {
 	case CMD_SNAPSHOT:
-		backup(homedir)
+		snapshot(homedir)
 	case CMD_RESTORE:
 		restore(homedir)
 	}
 }
 
+// Restore a snapshot.
 func restore(homedir string) error {
 	snapshotsDir := filepath.Join(homedir, ".fleet", "snapshots")
 	_, err := os.Lstat(snapshotsDir)
@@ -84,7 +90,7 @@ func restore(homedir string) error {
 
 	// Walk the ~/.fleet/snapshots directory if it exists.
 	dirEntries, err := os.ReadDir(snapshotsDir)
-	var snapshots []snapshot
+	var snapshots []Snapshot
 	for _, entry := range dirEntries {
 		if entry.IsDir() {
 			// Ensure there's a db backup file.
@@ -93,7 +99,7 @@ func restore(homedir string) error {
 			if err != nil {
 				continue
 			}
-			snapshot := snapshot{
+			snapshot := Snapshot{
 				Name: entry.Name(),
 				Date: dbBackupFileInfo.ModTime().Format("Jan 02, 2006 03:04:05 PM"),
 				Path: dbBackupFile,
@@ -140,7 +146,8 @@ func restore(homedir string) error {
 	return nil
 }
 
-func backup(homedir string) error {
+// Create a snapshot.
+func snapshot(homedir string) error {
 	snapshotsDir := filepath.Join(homedir, ".fleet", "snapshots")
 
 	// Ensure the snapshots directory exists.
