@@ -1644,6 +1644,9 @@ type Datastore interface {
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
 
+	// UpdateScriptContents replaces the script contents of a script
+	UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*Script, error)
+
 	// Script returns the saved script corresponding to id.
 	Script(ctx context.Context, id uint) (*Script, error)
 

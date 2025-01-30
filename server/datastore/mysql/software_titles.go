@@ -410,6 +410,12 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
 	}
 
+	// if excluding fleet maintained apps, filter out any row from software_titles
+	// that has a matching row in fleet_library_apps.
+	if opt.ExcludeFleetMaintainedApps {
+		additionalWhere += " AND NOT EXISTS ( SELECT FALSE FROM fleet_library_apps AS fla WHERE fla.bundle_identifier = st.bundle_identifier )"
+	}
+
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args
 }

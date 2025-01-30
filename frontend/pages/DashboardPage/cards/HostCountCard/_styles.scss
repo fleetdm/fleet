@@ -1,30 +1,33 @@
-.summary-tile {
-  display: flex;
-  justify-content: space-around;
-
+.host-count-card {
+  // TODO: Figure out how to move this to Card/_styles.scss
   a {
     font-weight: normal;
     color: $core-fleet-black;
     text-decoration: none;
-    border-radius: 3px;
   }
+  // TODO: keyboard accessibility styling
 
-  &__tile {
+  &__card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: px-to-rem(12);
+    gap: $pad-small;
     text-align: left;
-    padding: $pad-medium;
     height: fit-content;
+    padding: $x-large;
+    border: 1px solid $ui-fleet-black-10;
+    background: $core-white;
+    //done
+
+    &:hover {
+      border-color: $core-vibrant-blue;
+    }
 
     &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
+      outline: 0px;
+      border-radius: $border-radius;
+      border-color: $core-vibrant-blue;
     }
-  }
-
-  &__tile-icon {
-    white-space: nowrap;
   }
 
   &__icon-count {
@@ -35,7 +38,7 @@
   }
 
   &__count {
-    font-size: $large;
+    font-size: $x-large;
     white-space: nowrap;
   }
 
@@ -55,15 +58,15 @@
     }
 
     .component__tooltip-wrapper__tip-text {
-      width: 200px;
+      max-width: 200px;
       white-space: initial;
     }
   }
 }
 
 @media (max-width: 980px) {
-  .summary-tile {
-    &__tile {
+  .host-count-card {
+    &__card {
       text-align: center;
       flex-direction: column;
       gap: 0.75rem;
@@ -72,7 +75,7 @@
       }
     }
 
-    &__tile-icon {
+    &__card-icon {
       margin-right: 0;
     }
   }

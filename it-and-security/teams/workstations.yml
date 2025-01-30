@@ -90,16 +90,8 @@ policies:
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/update-slack.yml
 queries:
-  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-usb-devices.yml
-  - path: ../lib/all/queries/collect-vs-code-extensions.yml
-  - name: Collect expiration date for MDM SCEP certificates
-    description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's MDM SCEP certs."
-    query: "SELECT common_name, datetime(not_valid_after,'unixepoch') AS expires FROM certificates WHERE 'common_name' LIKE '%FleetDM Identity%';"
-    platform: darwin
-    interval: 300
-    automations_enabled: false
-    observer_can_run: true
+  - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
