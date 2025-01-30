@@ -365,13 +365,13 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 	}
 
+	appID.ValidatedLabels = validatedLabels
 	app := &fleet.VPPApp{
 		VPPAppTeam:       appID,
 		BundleIdentifier: assetMD.BundleID,
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,
 		LatestVersion:    assetMD.Version,
-		ValidatedLabels:  validatedLabels,
 	}
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
@@ -488,11 +488,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			VPPAppID: fleet.VPPAppID{
 				AdamID: meta.AdamID, Platform: meta.Platform,
 			},
-			SelfService: selfService,
+			SelfService:     selfService,
+			ValidatedLabels: validatedLabels,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
-		ValidatedLabels:  validatedLabels,
 		BundleIdentifier: meta.BundleIdentifier,
 		Name:             meta.Name,
 		LatestVersion:    meta.LatestVersion,
