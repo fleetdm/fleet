@@ -2375,7 +2375,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			AND
 		    -- label membership check
 			(
-			 	-- do the label membership check only for software installers
+			 	-- do the label membership check for software installers and VPP apps
 				CASE WHEN (si.ID IS NOT NULL AND hsi.last_uninstalled_at IS NOT NULL AND hsr.exit_code = 0) THEN
 				(
 					EXISTS (
@@ -2502,7 +2502,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
 			-- label membership check
 			(
-			 	-- do the label membership check only for software installers
+			 	-- do the label membership check for software installers and VPP apps
 				CASE WHEN si.ID IS NOT NULL THEN
 				(
 					EXISTS (

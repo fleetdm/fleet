@@ -599,6 +599,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, a
 func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
 	stmt := `
 SELECT
+  vat.id,
   va.adam_id,
   va.bundle_identifier,
   va.icon_url,
