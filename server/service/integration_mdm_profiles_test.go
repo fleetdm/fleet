@@ -83,7 +83,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 
 	// invalid secrets
-	var invalidSecretsProfile = []byte(`
+	invalidSecretsProfile := []byte(`
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1351,8 +1351,10 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			// Profiles from previous team being deleted
 			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
-			{Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove,
-				Status: &fleet.MDMDeliveryPending},
+			{
+				Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, OperationType: fleet.MDMOperationTypeRemove,
+				Status: &fleet.MDMDeliveryPending,
+			},
 		},
 	})
 
@@ -2994,19 +2996,19 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	teamWinProfUUID := createWindowsProfile("win-team-profile", testTeam.ID, nil)
 
 	// Windows profile name conflicts with Apple's for no team
-	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// but no conflict for team 1
 	assertWindowsProfile("apple-global-profile.xml", "./Test", testTeam.ID, nil, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for no team
-	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// but no conflict for team 1
 	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, nil, http.StatusOK, "")
 	// Windows profile name conflicts with Apple's for team 1
-	assertWindowsProfile("apple-team-profile.xml", "./Test", testTeam.ID, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-team-profile.xml", "./Test", testTeam.ID, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// but no conflict for no-team
 	assertWindowsProfile("apple-team-profile.xml", "./Test", 0, nil, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for team 1
-	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// but no conflict for no-team
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
 
@@ -3023,9 +3025,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// name is pulled from filename, it conflicts with existing macOS config profile
 	assertAppleDeclaration("win-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "win-global-profile already exists")
 	// windows profile name conflicts with existing declaration
-	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// macOS profile name conflicts with existing declaration
-	assertAppleProfile("apple-declaration.mobileconfig", "apple-declaration", "test-declaration-ident", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("apple-declaration.mobileconfig", "apple-declaration", "test-declaration-ident", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 
 	// not an xml nor mobileconfig file
 	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
@@ -4330,15 +4332,15 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	}{
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: "More than one configuration profile have the same name 'N1' (Windows .xml file name or macOS .mobileconfig PayloadDisplayName).",
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: declBytes}, {Name: "N1", Contents: winBytes}},
-			expectErr: "More than one configuration profile have the same name 'N1' (macOS .json file name or Windows .xml file name).",
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 		{
 			payload:   []fleet.MDMProfileBatchPayload{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
-			expectErr: "More than one configuration profile have the same name 'N1' (macOS .json file name or macOS .mobileconfig PayloadDisplayName).",
+			expectErr: "More than one configuration profile have the same name 'N1'",
 		},
 	} {
 		// team profiles
@@ -5382,7 +5384,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 }
 
 func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
-	getProfileContents func(profileUUID string) string, fileExtension string, platform string) {
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string,
+) {
 	t := s.T()
 	const numProfiles = 2
 	var profiles [][]byte
@@ -5459,7 +5462,6 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Profiles)
-
 }
 
 // TestAppleConfigSecretVariablesUpload tests uploading Apple config profiles with secrets via the /configuration_profiles endpoint
@@ -5513,7 +5515,6 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	}
 
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
-
 }
 
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
@@ -5543,7 +5544,6 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 	}
 
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
-
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
@@ -5698,5 +5698,4 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
 	require.NoError(t, err)
 	assert.Len(t, profiles, 3)
-
 }
