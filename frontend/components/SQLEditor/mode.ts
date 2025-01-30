@@ -1,7 +1,14 @@
 /* eslint-disable */
 // @ts-nocheck
-import { osqueryTableNames, osqueryTableColumnNames } from "utilities/osquery_tables";
-import { sqlBuiltinFunctions, sqlDataTypes, sqlKeyWords } from "utilities/sql_tools";
+import {
+  osqueryTableNames,
+  osqueryTableColumnNames,
+} from "utilities/osquery_tables";
+import {
+  sqlBuiltinFunctions,
+  sqlDataTypes,
+  sqlKeyWords,
+} from "utilities/sql_tools";
 
 ace.define(
   "ace/mode/fleet_highlight_rules",
@@ -20,7 +27,7 @@ ace.define(
 
     var FleetHighlightRules = function () {
       var keywords = sqlKeyWords.join("|");
-      
+
       var builtinConstants = "true|false";
 
       var builtinFunctions = sqlBuiltinFunctions.join("|");
