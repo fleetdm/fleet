@@ -1,12 +1,12 @@
 # Deploying Entra Platform SSO with Fleet
-Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through that IdP.
+Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
 
-This guide details how to deploy Microsoft Entra’s platform SSO extension to your macOS hosts using Fleet.
+This guide details how to deploy Microsoft Entra’s macOS Platform SSO extension to your Fleet macOS hosts.
 
 ## Why use Platform SSO?
 If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
-Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclaved-backed key.
+Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclave-backed key.
 
 This speeds up the authentication process for your employees and is more resistant to phishing than a traditional username and password.
 
@@ -22,9 +22,9 @@ This speeds up the authentication process for your employees and is more resista
 ### Upload the Company Portal app to your Fleet server
 On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to **Software > Add software > Custom package > Choose file**.
 
-Select the CompanyPortal-Installer.pkg file on your computer, then click the **Add software** button.
+Select the `CompanyPortal-Installer.pkg` file on your computer, then click the **Add software** button.
 
-Choose if you want to manually install the Company Portal app on your hosts or have Fleet automatically do it. If you select **Automatic**, Fleet will create a policy to detect which of your hosts don't have the Company Portal app and install it on them. If you select **Manual**, you'll need to trigger the install on individual hosts from their host details page.
+Choose if you want to manually install the Company Portal app on your hosts or have Fleet automatically do it. If you select **Automatic**, Fleet will create a policy to detect which hosts do not have the Company Portal app and install it. If you select **Manual**, you'll need to trigger the install on individual hosts from the host's details page Actions menu.
 
 Next, let’s build the configuration profile that enables the Company Portal Platform SSO extension.
 
@@ -37,7 +37,7 @@ Next, find the **Extensible Single Sign-On** payload from the list of available 
 
 Before we start to add values to the payload, double-check to make sure that only macOS is selected in the toolbar at the top of the iMazing window. Some of the keys we’ll be using are macOS only and won’t appear if iOS, tvOS, or watchOS are also selected.
 
-Note: This profile uses the SecureEnclaveKey authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
+Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
 
 Enter the following values for the specified keys:
 **Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension
@@ -117,12 +117,12 @@ The finalized profile should look like this:
 </dict>
 </plist>
 ```
-Save the profile to your computer so you can upload it to Fleet in the next section. I named mine platform-sso-settings.mobileconfig. If you wish, you can sign the profile before uploading it, but that is not required.
+Save the profile to your computer so you can upload it to Fleet in the next section. I named mine `platform-sso-settings.mobileconfig`. If you wish, you can sign the profile before uploading it, but this is not required.
 
 ### Deploy the Configuration Profile to your Hosts
 Now that we have a configuration profile with our desired settings, we can upload it to Fleet to deploy it to our hosts and activate the Platform SSO extension.
 
-On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to Controls > OS Settings > Custom settings. Click the Add profile button, then find the platform-sso-settings.mobileconfig profile on your computer and upload it to Fleet.
+On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to Controls > OS Settings > Custom settings. Click the Add profile button, then find the `platform-sso-settings.mobileconfig` profile on your computer and upload it to Fleet.
 
 Uploading the profile to a team in Fleet will automatically deliver it to all macOS hosts enrolled in that team. If you wish to have more control over which hosts on the team receive the profile, you can use labels to target or exclude specific hosts.
 
@@ -142,4 +142,4 @@ Lastly, they’ll be prompted to enable the Company Portal app to be used as a P
 
 ![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
 
-Once registration is completely, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication used the Secure Enclave-backed key, leading to an authentication experience that is more convenient and secure than using a username and password.
+Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication using the Secure Enclave-backed key.
