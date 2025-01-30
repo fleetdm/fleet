@@ -1,12 +1,14 @@
 # Deploying Entra Platform SSO with Fleet
-Apple’s Platform Single Sign-on, introduced at WWDC22 alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once on their Apple device, then automatically access apps and websites that require authentication through that IdP. 
+Apple’s Platform Single Sign-on, introduced at WWDC22 alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through that IdP.
 
-This guide explains how to deploy Microsoft Entra’s platform SSO extension to your macOS hosts using Fleet.
+This guide details how to deploy Microsoft Entra’s platform SSO extension to your macOS hosts using Fleet.
 
 ## Why use Platform SSO?
-If your Identity Provider (IdP) supports Platform Single Sign-On (Platform SSO), deploying it to your hosts offers a great and secure sign-in experience for your users.
+If your Identity Provider (IdP) supports Platform Single Sign-On (Platform SSO), deploying it in your environment offers a great and secure sign-in experience for your users.
 
-Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclaved-backed key. This speeds up the authentication process for your employees and is more resistant to phishing than a traditional username and password, offering the best of security and convenience.
+Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclaved-backed key.
+
+This speeds up the authentication process for your employees and is more resistant to phishing than a traditional username and password.
 
 ## Requirements
 - macOS 13 or later
@@ -128,17 +130,16 @@ Uploading the profile to a team in Fleet will automatically deliver it to all ma
 ## End User Experience
 When the Company Portal app and Platform SSO configuration profile are deployed to a host, the end user will receive a notification that says **Registration Required: Please register with your identity provider**. You should direct your end users to interact with this notification by clicking the **Register** button that appears when they hover their mouse over the notification.
 
+![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification.png)
+
 After clicking the register button in the notification, a Platform Single Sign-On Registration window will appear. After clicking **Continue**, the user will be prompted for the password they use to log into their Mac (this might be different than their Entra ID password).
+
+![Registration Window](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-register-window.png)
 
 Next, they’ll be prompted to sign into Microsoft Entra ID. This is what associates the user’s device to their Microsoft Entra ID account.
 
 Lastly, they’ll be prompted to enable the Company Portal app to be used as a Passkey. The notification will direct them to System Settings and enable the toggle next to the Company Portal app.
 
-Once registration is completely, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication used the Secure Enclave-backed key, leading to an authentication experience that is more convenient and secure than using a username and password.
+![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
 
-<meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="ddribeiro">
-<meta name="authorFullName" value="Dale Ribeiro">
-<meta name="publishedOn" value="2024-07-03">
-<meta name="articleTitle" value="Deploying Platform SSO with Microsoft Entra ID">
-<meta name="description" value="Learn how to use Fleet to deploy the Microsoft Entra ID Platfrom SSO Extension">
+Once registration is completely, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication used the Secure Enclave-backed key, leading to an authentication experience that is more convenient and secure than using a username and password.
