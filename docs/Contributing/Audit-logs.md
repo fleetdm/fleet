@@ -1474,7 +1474,7 @@ This activity contains the following fields:
 }
 ```
 
-## updated_app_store_app
+## edited_app_store_app
 
 Generated when an App Store app is updated in Fleet.
 
