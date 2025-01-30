@@ -29,6 +29,7 @@ parasails.registerPage('homepage', {
       this.modal = 'unsubscribed';
       window.location.hash = '';
     }
+    this.animateHeroTicker();
   },
   mounted: async function() {
     //…
@@ -38,7 +39,23 @@ parasails.registerPage('homepage', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    animateHeroTicker: function() {
+      setInterval(()=>{
+        let currentTickerOption = $('[purpose="hero-ticker-option"].visible');
 
+        if (currentTickerOption.length === 0) {
+          currentTickerOption = $('[purpose="hero-ticker-option"]').first();
+          currentTickerOption.addClass('visible');
+          return;
+        }
+        let nextTickerOption = currentTickerOption.nextAll('[purpose="hero-ticker-option"]').first();
+        if (nextTickerOption.length === 0) {
+          nextTickerOption = $('span[purpose="hero-ticker-option"]').first();
+        }
+        currentTickerOption.removeClass('visible');
+        nextTickerOption.addClass('visible');
+      }, 12000);
+    },
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },

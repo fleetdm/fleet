@@ -42,23 +42,39 @@
   }
 
   [purpose='hero-background-image'] {
-    background: url('/images/homepage-hero-3227x920@2x.png');
-    background-size: auto 400px;
-    background-position: center bottom;
-    background-repeat: repeat-x;
+    background: url('/images/homepage-hero-1647x420@2x.png');
+    background-size: auto 100%;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 
   [purpose='homepage-hero'] {
-    padding-top: 64px;
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-bottom: 380px;
+    padding-top: 80px;
+    padding-left: 64px;
+    padding-bottom: 82px;
     max-width: 1200px;
+    height: 420px;
   }
-
+  [purpose='ticker-container'] {
+    overflow: hidden;
+    width: fit-content;
+    white-space: nowrap;
+  }
+  [purpose='hero-ticker-option'] {
+    color: #515774;
+    opacity: 0;
+    visibility: hidden;
+    position: absolute;
+    transition: opacity 0.3s ease-in-out;
+    &.visible {
+      opacity: 1;
+      visibility: visible;
+      position: relative;
+    }
+  }
   [purpose='hero-text'] {
-    min-width: 540px;
-    text-align: center;
+    max-width: 474px;
+    text-align: left;
     h1 {
       max-width: 640px;
       margin-bottom: 16px;
@@ -67,8 +83,13 @@
       }
     }
     p {
+      max-width: 404px;
       margin-bottom: 32px;
       font-size: 16px;
+    }
+    [purpose='button-row'] {
+      dispaly: flex;
+      flex-direction: row;
     }
   }
 
@@ -531,7 +552,7 @@
       border-radius: 8px;
       padding-left: 32px;
       padding-right: 32px;
-      height: 48px;
+      height: 40px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -822,13 +843,13 @@
   @media (max-width: 1199px) {
 
     [purpose='hero-background-image'] {
-      background-size: auto 400px;
-      background-position: center bottom;
-      background-repeat: no-repeat;
+      // background-size: auto 400px;
+      // background-position: center bottom;
+      // background-repeat: no-repeat;
     }
     [purpose='homepage-hero'] {
       max-width: 1080px;
-      padding-bottom: 380px;
+      // padding-bottom: 380px;
     }
 
     [purpose='hero-logos'] {
@@ -882,10 +903,14 @@
     }
     [purpose='homepage-hero'] {
       max-width: 100%;
-      padding-bottom: 380px;
+      padding-top: 64px;
+      padding-right: 32px;
+      height: 100%;
+      // padding-bottom: 380px;
     }
     [purpose='hero-background-image'] {
-      background-size: auto 400px;
+      // background-size: auto 400px;
+      background-position: calc(~'100% + -61%') center;
     }
 
     [purpose='homepage-content'] {
@@ -1079,27 +1104,29 @@
     }
 
     [purpose='homepage-hero'] {
-      padding-top: 64px;
-      padding-bottom: 360px;
+      padding-bottom: ;
+      padding: 48px 27px 330px 24px;
+      // height: 636px;
+    }
+    [purpose='hero-container'] {
+      background: linear-gradient(180deg, #FFF 0%, #EEF7F8 150px);
     }
     [purpose='hero-background-image'] {
-      background-size: auto 360px;
+      background: url('/images/homepage-hero-sm-767x347@2x.png');
+      background-size: auto 347px;
+      background-position: center bottom;
+      background-repeat: no-repeat;
     }
+
     [purpose='homepage-content'] {
       padding-right: 40px;
       padding-left: 40px;
     }
     [purpose='button-row'] {
-      width: 100%;
+      // width: 100%;
     }
     [purpose='hero-text'] {
       min-width: unset;
-      text-align: center;
-      p {
-        max-width: 550px;
-        margin-right: auto;
-        margin-left: auto;
-      }
     }
     [purpose='hero-logos'] {
       margin-bottom: 64px;
@@ -1408,9 +1435,9 @@
   //
   @media (max-width: 575px) {
 
-    h1 {
-      font-size: 32px;
-    }
+    // h1 {
+    //   font-size: 32px;
+    // }
     h4 {
       font-size: 14px;
     }
@@ -1422,8 +1449,8 @@
       height: 287px;
     }
     [purpose='homepage-hero'] {
-      padding-bottom: 320px;
-      padding-top: 32px;
+      padding-bottom: 307px;
+      padding-top: 48px;
       padding-left: 24px;
       padding-right: 24px;
     }
@@ -1464,15 +1491,19 @@
       background-size: auto 320px;
     }
     [purpose='hero-text'] {
+      [purpose='button-row'] {
+        a {
+          white-space: nowrap;
+        }
+        [purpose='cta-button'] {
+          margin-right: 24px;
+        }
+      }
       p {
         font-size: 16px;
       }
     }
-    [purpose='button-row'] {
-      max-width: 224px;
-      margin-left: auto;
-      margin-right: auto;
-    }
+
     [purpose='platform-block'] {
       margin-bottom: 100px;
     }
@@ -1537,13 +1568,18 @@
       padding-left: 24px;
     }
 
-    [purpose='button-row'] {
-       [purpose='cta-button'] {
-         cursor: pointer;
-         margin-right: 0px;
-         width: 100%;
-         margin-bottom: 12px;
-       }
+    [purpose='bottom-cta'] {
+      [purpose='button-row'] {
+        max-width: 224px;
+        margin-left: auto;
+        margin-right: auto;
+         [purpose='cta-button'] {
+           cursor: pointer;
+           margin-right: 0px;
+           width: 100%;
+           margin-bottom: 12px;
+         }
+      }
     }
 
     [purpose='two-column-features'] {
@@ -1639,29 +1675,42 @@
 
 
     h1 {
-      font-size: 32px;
+      font-size: 33.201px;
+      line-height: 120%;
     }
     h4 {
       font-size: 12px;
     }
-
 
     [purpose='truncated-vulnerability-management-text'] {
       display: none;
     }
 
     [purpose='homepage-hero'] {
-      padding-top: 40px;
-      padding-bottom: 220px;
+      padding-top: 44px;
+      padding-left: 16px;
+      padding-right: 17px;
+      padding-bottom: 187px;
+      height: 520px;
     }
 
     [purpose='hero-background-image'] {
       background-size: auto 220px;
     }
-
+    [purpose='ticker-container'] {
+      white-space: unset;
+    }
     [purpose='hero-text'] {
       p {
         font-size: 16px;
+      }
+      [purpose='button-row'] {
+        flex-direction: column;
+        [purpose='cta-button'] {
+          width: 100%;
+          margin-right: auto;
+          margin-bottom: 16px;
+        }
       }
     }
     [purpose='statistics'] {
