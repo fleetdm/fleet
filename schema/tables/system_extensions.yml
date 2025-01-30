@@ -1,8 +1,17 @@
 name: system_extensions
 examples: |-
-  Identify system extensions that are not managed via MDM and see their
-  signature status.
+  Identify the signature status system extensions not managed via MDM:
 
   ```
   SELECT se.identifier, se.bundle_path, se.category, se.state, s.signed FROM system_extensions se JOIN signature s on s.path = se.bundle_path WHERE se.mdm_managed='0';
+  ```
+
+  Perform a health check on a Jamf Protect installation:
+  
+  ```
+  SELECT 1 
+  WHERE 
+    (EXISTS (SELECT 1 FROM processes WHERE name = 'JamfProtectAgent') OR ( SELECT total_seconds FROM uptime ) <= 300 )
+    AND EXISTS (SELECT 1 FROM system_extensions WHERE identifier = 'com.jamf.protect.security-extension')
+    AND EXISTS (SELECT 1 FROM apps WHERE path = '/Applications/JamfProtect.app');
   ```
