@@ -2386,7 +2386,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						)
+						) OR NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
 						UNION
 
@@ -2503,8 +2503,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			-- label membership check
 			(
 			 	-- do the label membership check for software installers and VPP apps
-				CASE WHEN si.ID IS NOT NULL THEN
-				(
 					EXISTS (
 
 					SELECT 1 FROM (
@@ -2513,7 +2511,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						)
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
 						UNION
 
@@ -2553,11 +2551,44 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							AND sil.exclude = 1
 						HAVING
 							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 						) t
 					)
-				)
-				-- it's some other type of software that has been checked above
-				ELSE true END
 			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
