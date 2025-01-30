@@ -22,9 +22,18 @@ type VPPAppTeam struct {
 	// or the value to set to that VPP app when batch-setting it. When used to
 	// set the value, if nil it will keep the currently saved value (or default
 	// to false), while if not nil, it will update the flag's value in the DB.
-	InstallDuringSetup *bool    `db:"install_during_setup" json:"-"`
-	LabelsIncludeAny   []string `json:"labels_include_any"`
-	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	InstallDuringSetup *bool `db:"install_during_setup" json:"-"`
+	// LabelsIncludeAny are the names of labels associated with this app. If a host has any of
+	// these labels, the app is in scope for that host. If this field is set, LabelsExcludeAny
+	// cannot be set.
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	// LabelsExcludeAny are the names of labels associated with this app. If a host has any of
+	// these labels, the app is out of scope for that host. If this field is set, LabelsIncludeAny
+	// cannot be set.
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// ValidatedLabels are the labels (either include or exclude any) that have been validated by
+	// Fleet as being valid labels. This field is only used internally.
+	ValidatedLabels *LabelIdentsWithScope `json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -47,9 +56,8 @@ type VPPApp struct {
 	TeamID  *uint `db:"-" json:"team_id,omitempty"`
 	TitleID uint  `db:"title_id" json:"-"`
 
-	CreatedAt       time.Time `db:"created_at" json:"-"`
-	UpdatedAt       time.Time `db:"updated_at" json:"-"`
-	ValidatedLabels *LabelIdentsWithScope
+	CreatedAt time.Time `db:"created_at" json:"-"`
+	UpdatedAt time.Time `db:"updated_at" json:"-"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -75,6 +83,8 @@ type VPPAppStoreApp struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this app store app (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// BundleIdentifier is the bundle identifier for this app.
+	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

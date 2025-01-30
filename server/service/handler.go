@@ -394,6 +394,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
+	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_app", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
 
 	// Setup Experience
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})

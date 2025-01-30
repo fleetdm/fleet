@@ -1419,6 +1419,8 @@ This activity contains the following fields:
 - "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array
 
 #### Example
 
@@ -1428,7 +1430,17 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1459,6 +1471,45 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro"
+}
+```
+
+## edited_app_store_app
+
+Generated when an App Store app is updated in Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "software_title_id": ID of the updated app's software title.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "self_service": App installation can be initiated by device owner.
+- "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
+- "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "software_title_id": 123,
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "self_service": true,
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
