@@ -29,10 +29,12 @@ parasails.registerPage('homepage', {
       this.modal = 'unsubscribed';
       window.location.hash = '';
     }
-    this.animateHeroTicker();
   },
   mounted: async function() {
-    //…
+    await setTimeout(()=>{
+      this.animateHeroTicker();
+
+    }, 1200)
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -54,7 +56,7 @@ parasails.registerPage('homepage', {
         }
         currentTickerOption.removeClass('visible');
         nextTickerOption.addClass('visible');
-      }, 12000);
+      }, 1200);
     },
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
