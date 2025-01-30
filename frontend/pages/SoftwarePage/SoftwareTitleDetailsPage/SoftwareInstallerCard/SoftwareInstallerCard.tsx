@@ -184,14 +184,14 @@ const InstallerStatusCount = ({
 };
 
 interface IActionsDropdownProps {
-  isPackage: boolean;
+  installerType: "package" | "vpp";
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
 }
 
 const SoftwareActionsDropdown = ({
-  isPackage,
+  installerType,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
@@ -219,7 +219,7 @@ const SoftwareActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         options={
-          isPackage
+          installerType === "package"
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
             : [...APP_STORE_APP_DROPDOWN_OPTIONS]
         }
@@ -261,7 +261,10 @@ const SoftwareInstallerCard = ({
   onDelete,
   refetchSoftwareTitle,
 }: ISoftwareInstallerCardProps) => {
-  const isPackage = isSoftwarePackage(softwareInstaller);
+  const installerType = isSoftwarePackage(softwareInstaller)
+    ? "package"
+    : "vpp";
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -311,7 +314,7 @@ const SoftwareInstallerCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const renderIcon = () => {
-    return isPackage ? (
+    return installerType === "package" ? (
       <Graphic name="file-pkg" />
     ) : (
       <SoftwareIcon name="appStore" size="medium" />
@@ -389,7 +392,7 @@ const SoftwareInstallerCard = ({
           {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
-              isPackage={isPackage}
+              installerType={installerType}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
               onEditSoftwareClick={onEditSoftwareClick}
@@ -424,7 +427,7 @@ const SoftwareInstallerCard = ({
           software={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
-          isPackage={isPackage}
+          installerType={installerType}
         />
       )}
       {showDeleteModal && (

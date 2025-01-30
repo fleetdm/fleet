@@ -117,6 +117,7 @@ interface ISoftwareVppFormProps<T extends "add" | "edit"> {
   vppApps?: T extends "add" ? IVppApp[] : never;
   softwareVppForEdit?: T extends "edit" ? IAppStoreApp : never;
   onSubmit: (formData: ISoftwareVppFormData) => void;
+  isUploading?: boolean;
   onCancel: () => void;
 }
 
@@ -125,10 +126,9 @@ const SoftwareVppForm = <T extends "add" | "edit">({
   vppApps,
   softwareVppForEdit,
   onSubmit,
+  isUploading = false,
   onCancel,
 }: ISoftwareVppFormProps<T>) => {
-  const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
       ? {
@@ -147,7 +147,7 @@ const SoftwareVppForm = <T extends "add" | "edit">({
   );
 
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: true,
+    isValid: !!softwareVppForEdit, // Disables submit before VPP to add is selected
   });
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -157,8 +157,6 @@ const SoftwareVppForm = <T extends "add" | "edit">({
 
   const onSelectApp = (app: IVppApp) => {
     if ("selectedApp" in formData) {
-      setIsSubmitDisabled(false);
-
       const newFormData = {
         ...formData,
         selectedApp: app,
@@ -168,6 +166,7 @@ const SoftwareVppForm = <T extends "add" | "edit">({
             : formData.selfService,
       };
       setFormData(newFormData);
+      setFormValidation(generateFormValidation(newFormData));
     }
   };
 
@@ -190,6 +189,8 @@ const SoftwareVppForm = <T extends "add" | "edit">({
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
+
+  const isSubmitDisabled = !formValidation.isValid;
 
   const renderSelfServiceContent = (platform: string) => {
     if (platform !== "ios" && platform !== "ipados") {

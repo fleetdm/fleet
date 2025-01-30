@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
@@ -77,6 +77,7 @@ const SoftwareAppStoreVpp = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
+  const [isUploading, setIsUploading] = useState(false);
   const {
     data: vppInfo,
     isLoading: isLoadingVppInfo,
@@ -138,7 +139,7 @@ const SoftwareAppStoreVpp = ({
       return;
     }
 
-    // setIsUploading(true);
+    setIsUploading(true);
 
     try {
       await mdmAppleAPI.addVppApp(currentTeamId, formData);
@@ -146,10 +147,11 @@ const SoftwareAppStoreVpp = ({
         "success",
         <>
           <b>{formData.selectedApp.name}</b> successfully added.
-        </>
+        </>,
+        { persistOnPageChange: true }
       );
 
-      goBackToSoftwareTitles;
+      goBackToSoftwareTitles();
     } catch (ae) {
       const errorMessage =
         // getErrorMessage(ae) ||   FIX THIS
@@ -158,7 +160,7 @@ const SoftwareAppStoreVpp = ({
       renderFlash("error", errorMessage);
     }
 
-    // setIsUploading(false);
+    setIsUploading(false);
   };
 
   const renderContent = () => {
@@ -198,6 +200,7 @@ const SoftwareAppStoreVpp = ({
           labels={labels || []}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareTitles}
+          isUploading={isUploading}
           vppApps={vppApps || []}
         />
       </div>

@@ -27,13 +27,10 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     softwarePackage: installerData,
     name: (isPackage && installerData.name) || softwareTitle.name,
     version:
-      (isSoftwarePackage(installerData)
-        ? installerData.version
-        : installerData.latest_version) || null,
-    uploadedAt: isSoftwarePackage(installerData)
-      ? installerData.uploaded_at
-      : "",
-    status: isSoftwarePackage(installerData)
+      (isPackage ? installerData.version : installerData.latest_version) ||
+      null,
+    uploadedAt: isPackage ? installerData.uploaded_at : "",
+    status: isPackage
       ? aggregateInstallStatusCounts(installerData.status)
       : installerData.status,
     isSelfService: installerData.self_service,

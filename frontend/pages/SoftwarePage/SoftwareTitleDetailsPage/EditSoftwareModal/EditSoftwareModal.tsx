@@ -45,7 +45,7 @@ interface IEditSoftwareModalProps {
   software: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
-  isPackage: boolean;
+  installerType: "package" | "vpp";
 }
 
 const EditSoftwareModal = ({
@@ -54,7 +54,7 @@ const EditSoftwareModal = ({
   software,
   onExit,
   refetchSoftwareTitle,
-  isPackage,
+  installerType,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -203,7 +203,7 @@ const EditSoftwareModal = ({
   const onSaveVppChanges = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
-    // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
+    // Note: This TODO is copied over from onEditPackage
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await mdmAppleAPI.editVppApp(teamId, formData);
@@ -225,7 +225,6 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  // TODO
   const onEditVpp = async (formData: ISoftwareVppFormData) => {
     // Check for changes to conditionally confirm save changes modal
     const updates = deepDifference(formData, {
@@ -253,7 +252,7 @@ const EditSoftwareModal = ({
   };
 
   const renderForm = () => {
-    if (isPackage) {
+    if (installerType === "package") {
       const softwarePackage = software as ISoftwarePackage;
       return (
         <PackageForm
@@ -295,7 +294,8 @@ const EditSoftwareModal = ({
       {showConfirmSaveChangesModal && (
         <ConfirmSaveChangesModal
           onClose={toggleConfirmSaveChangesModal}
-          softwarePackageName={software?.name}
+          softwareInstallerName={software?.name}
+          installerType={installerType}
           onSaveChanges={onConfirmSoftwareChanges}
         />
       )}
