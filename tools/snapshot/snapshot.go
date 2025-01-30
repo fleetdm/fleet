@@ -83,14 +83,22 @@ func restore(homedir string) error {
 	}
 
 	// Walk the ~/.fleet/snapshots directory if it exists.
-	files, err := os.ReadDir(snapshotsDir)
-	fileNames := make([]snapshot, len(files))
-	for i, file := range files {
-		fileNames[i].Name = file.Name()
-		fileInfo, err := file.Info()
-		if err == nil {
-			fileNames[i].Date = fileInfo.ModTime().String()
-			fileNames[i].Path = filepath.Join(snapshotsDir, file.Name())
+	dirEntries, err := os.ReadDir(snapshotsDir)
+	var snapshots []snapshot
+	for _, entry := range dirEntries {
+		if entry.IsDir() {
+			// Ensure there's a db backup file.
+			dbBackupFile := filepath.Join(snapshotsDir, entry.Name(), "db.sql.gz")
+			dbBackupFileInfo, err := os.Lstat(dbBackupFile)
+			if err != nil {
+				continue
+			}
+			snapshot := snapshot{
+				Name: entry.Name(),
+				Date: dbBackupFileInfo.ModTime().Format("Jan 02, 2006 03:04:05 PM"),
+				Path: dbBackupFile,
+			}
+			snapshots = append(snapshots, snapshot)
 		}
 	}
 
@@ -99,10 +107,11 @@ func restore(homedir string) error {
 		Label:    "{{ .Name }}",
 		Active:   "> {{ .Name }} ({{ .Date }})",
 		Inactive: "{{ .Name }} ({{ .Date }})",
+		Selected: "{{ .Name }} ({{ .Date }})",
 	}
 	prompt := promptui.Select{
 		Label:     "Select snapshot to restore",
-		Items:     fileNames,
+		Items:     snapshots,
 		Templates: templates,
 	}
 	index, _, err := prompt.Run()
@@ -112,7 +121,7 @@ func restore(homedir string) error {
 	}
 
 	// Prepare the restore script with the selected snapshot.
-	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/restore.sh", fileNames[index].Path)
+	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/restore.sh", snapshots[index].Path)
 
 	// Use the same stdin, stdout, and stderr as the parent process.
 	cmd.Stdin = os.Stdin
@@ -165,7 +174,7 @@ func backup(homedir string) error {
 	// If the file exists, prompt the user to overwrite it.
 	if err == nil {
 		prompt := promptui.Prompt{
-			Label: "This file already exists. Overwrite? (Y/n)",
+			Label: "This snapshot already exists. Overwrite? (Y/n)",
 		}
 		result, err := prompt.Run()
 		if err != nil {
@@ -174,7 +183,7 @@ func backup(homedir string) error {
 		}
 		switch result {
 		case "Y", "y", "":
-			err = os.Remove(snapshotPath)
+			err = os.RemoveAll(snapshotPath)
 			if err != nil {
 				fmt.Printf("Error removing existing snapshot (%s): %v\n", result, err)
 				return err
@@ -187,8 +196,14 @@ func backup(homedir string) error {
 		return err
 	}
 
+	// Create the snapshot directory
+	err = os.Mkdir(snapshotPath, 0o755)
+	if err != nil {
+		fmt.Printf("Error creating snapshot directory (%s): %v\n", snapshotPath, err)
+	}
+
 	// Prepare the backup script with the snapshot path.
-	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/backup.sh", snapshotPath)
+	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/backup.sh", filepath.Join(snapshotPath, "db.sql.gz"))
 
 	// Use the same stdin, stdout, and stderr as the parent process.
 	cmd.Stdin = os.Stdin
