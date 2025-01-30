@@ -7203,7 +7203,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	// Update a script
 	updateScriptRep := updateScriptResponse{}
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "updated script"`), s.token, map[string][]string{"id": {fmt.Sprintf("%d", tmScriptID)}})
+		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
 	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
 	require.NoError(t, err)
@@ -7222,8 +7222,8 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	// Try updating a non-existant script
 	updateScriptRep = updateScriptResponse{}
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "updated script"`), s.token, map[string][]string{"id": {fmt.Sprintf("%d", 99999999999)}})
-	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusNotFound, headers)
+		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", 999999999999), body.Bytes(), http.StatusNotFound, headers)
 	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
 	require.NoError(t, err)
 

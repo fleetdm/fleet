@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/gorilla/mux"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -765,6 +766,18 @@ func (updateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 			InternalErr: err,
 		}
 	}
+
+	vars := mux.Vars(r)
+	scriptIDStr, ok := vars["script_id"]
+	if !ok {
+		return nil, &fleet.BadRequestError{Message: "missing script id"}
+	}
+	scriptID, err := strconv.ParseUint(scriptIDStr, 10, 64)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: "invalid script id"}
+	}
+
+	decoded.ScriptID = uint(scriptID)
 
 	fhs, ok := r.MultipartForm.File["script"]
 	if !ok || len(fhs) < 1 {
