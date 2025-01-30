@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
@@ -1012,8 +1010,6 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
 	}
-
-	slog.With("filename", "ee/server/service/software_installers.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking scope ", "vppAppTeamID", vppApp.VPPAppTeam.ID, "hostID", hostID, "scoped", scoped)
 
 	if !scoped {
 		return &fleet.BadRequestError{

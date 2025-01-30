@@ -1011,6 +1011,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
 			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
@@ -1970,6 +1972,19 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 				"msg", "failed to get VPP metadata",
 				"error", err,
 			)
+			continue
+		}
+
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.ID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
+		}
+
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since vpp app is out of scope for host")
 			continue
 		}
 

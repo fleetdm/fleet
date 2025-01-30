@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"math/rand"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -5347,13 +5345,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software)
-	slog.With("filename", "server/datastore/mysql/software_test.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: after software check 1", "software", func() string {
-		var st string
-		for _, s := range software {
-			st = st + s.Name + ","
-		}
-		return st
-	}())
 
 	// installer1 should be in scope since it has no labels
 	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5429,14 +5420,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, app1.Name) // vpp app is gone as it has the exclude any label
-
-	slog.With("filename", "server/datastore/mysql/software_test.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: after software check 2", "software", func() string {
-		var st string
-		for _, s := range software {
-			st = st + s.Name + ","
-		}
-		return st
-	}())
 
 	// Add an installer. No label yet.
 	installer2 := &fleet.UploadSoftwareInstallerPayload{

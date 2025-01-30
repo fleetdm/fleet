@@ -580,8 +580,19 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
 }
 
 func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
-	stmt := `SELECT va.adam_id, va.bundle_identifier, va.icon_url, va.name, va.title_id, va.platform, va.created_at, va.updated_at
-		FROM vpp_apps va WHERE va.adam_id = ? AND va.platform = ?
+	stmt := `
+	SELECT va.adam_id,
+	 va.bundle_identifier,
+	 va.icon_url,
+	 va.name,
+	 va.title_id,
+	 va.platform,
+	 va.created_at, 
+	 va.updated_at,
+	 vat.id
+	FROM vpp_apps va
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+	WHERE va.adam_id = ? AND va.platform = ?
   `
 
 	var dest fleet.VPPApp
