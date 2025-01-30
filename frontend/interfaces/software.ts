@@ -116,6 +116,8 @@ export interface IAppStoreApp {
     uninstalled_at: string;
   } | null;
   version?: string;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
 }
 
 export interface ISoftwareTitle {

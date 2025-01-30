@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
@@ -22,6 +23,7 @@ import Modal from "components/Modal";
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import SoftwareVppForm from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
 import {
   generateSelectedLabels,
   getCustomTarget,
@@ -124,7 +126,7 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSaveSoftwareChanges = async (formData: IEditPackageFormData) => {
+  const onSavePackageChanges = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -191,7 +193,53 @@ const EditSoftwareModal = ({
       Object.keys(updates).length === 1 && "selfService" in updates;
     if (onlySelfServiceUpdated) {
       // Proceed with saving changes (API expects only changes)
-      onSaveSoftwareChanges(formData);
+      onSavePackageChanges(formData);
+    } else {
+      // Open the confirm save changes modal
+      setShowConfirmSaveChangesModal(true);
+    }
+  };
+
+  const onSaveVppChanges = async (formData: ISoftwareVppFormData) => {
+    setIsUpdatingSoftware(true);
+
+    // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
+    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
+    try {
+      await mdmAppleAPI.editVppApp(teamId, formData);
+
+      renderFlash(
+        "success",
+        <>
+          Successfully edited <b>{formData.selectedApp?.name}</b>.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
+      onExit();
+      refetchSoftwareTitle();
+    } catch (e) {
+      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+    }
+    setIsUpdatingSoftware(false);
+  };
+
+  // TODO
+  const onEditVpp = async (formData: ISoftwareVppFormData) => {
+    // Check for changes to conditionally confirm save changes modal
+    const updates = deepDifference(formData, {
+      selfService: software.self_service || false,
+      targetType: getTargetType(software),
+      customTarget: getCustomTarget(software),
+      labelTargets: generateSelectedLabels(software),
+    });
+
+    const onlySelfServiceUpdated =
+      Object.keys(updates).length === 1 && "selfService" in updates;
+    if (onlySelfServiceUpdated) {
+      // Proceed with saving changes (API expects only changes)
+      onSaveVppChanges(formData);
     } else {
       // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
@@ -200,7 +248,8 @@ const EditSoftwareModal = ({
 
   const onConfirmSoftwareChanges = () => {
     setShowConfirmSaveChangesModal(false);
-    onSaveSoftwareChanges(pendingUpdates);
+    onSavePackageChanges(pendingUpdates);
+    // TODO: VPP changes
   };
 
   const renderForm = () => {
@@ -226,8 +275,8 @@ const EditSoftwareModal = ({
     return (
       <SoftwareVppForm
         labels={labels || []}
-        teamId={teamId}
         softwareVppForEdit={software as IAppStoreApp}
+        onSubmit={onEditVpp}
         onCancel={onExit}
       />
     );

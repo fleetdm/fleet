@@ -4,21 +4,24 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import { ILabelSummary } from "interfaces/label";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { AppContext } from "context/app";
-import { ILabelSummary } from "interfaces/label";
 
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { buildQueryStringFromParams } from "utilities/url";
-
 import SoftwareVppForm from "./SoftwareVppForm";
-import { teamHasVPPToken } from "./helpers";
+import { getErrorMessage, teamHasVPPToken } from "./helpers";
+import { ISoftwareVppFormData } from "./SoftwareVppForm/SoftwareVppForm";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -27,10 +30,51 @@ interface ISoftwareAppStoreProps {
   router: InjectedRouter;
 }
 
+const EnableVppCard = () => {
+  return (
+    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
+      <div className={`${baseClass}__enable-vpp-message`}>
+        <p className={`${baseClass}__enable-vpp-title`}>
+          Volume Purchasing Program (VPP) isn&apos;t enabled
+        </p>
+        <p className={`${baseClass}__enable-vpp-description`}>
+          To add App Store apps, first enable VPP.
+        </p>
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_VPP}
+          text="Enable VPP"
+          className={`${baseClass}__enable-vpp-link`}
+        />
+      </div>
+    </Card>
+  );
+};
+
+const EditVppCard = () => {
+  return (
+    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
+      <div className={`${baseClass}__enable-vpp-message`}>
+        <p className={`${baseClass}__enable-vpp-title`}>
+          This team isn&apos;t added to Volume Purchasing Program (VPP)
+        </p>
+        <p className={`${baseClass}__enable-vpp-description`}>
+          To add App Store apps, first add this team to VPP.
+        </p>
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_VPP}
+          text="Edit VPP"
+          className={`${baseClass}__enable-vpp-link`}
+        />
+      </div>
+    </Card>
+  );
+};
+
 const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
+  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
   const {
@@ -89,6 +133,40 @@ const SoftwareAppStoreVpp = ({
     );
   };
 
+  const onAddSoftware = async (formData: ISoftwareVppFormData) => {
+    if (!formData.selectedApp) {
+      return;
+    }
+
+    // setIsUploading(true);
+
+    try {
+      await mdmAppleAPI.addVppApp(currentTeamId, formData);
+      renderFlash(
+        "success",
+        <>
+          <b>{formData.selectedApp.name}</b> successfully added.
+        </>
+      );
+
+      goBackToSoftwareTitles;
+    } catch (ae) {
+      const errorMessage = getErrorMessage(ae);
+
+      renderFlash(
+        "error",
+        errorMessage || (
+          <>
+            Couldn&apos;t add <b>{formData.selectedApp.name}</b>. Please try
+            again.
+          </>
+        )
+      );
+    }
+
+    // setIsUploading(false);
+  };
+
   const renderContent = () => {
     if (!isPremiumTier) {
       return (
@@ -104,15 +182,29 @@ const SoftwareAppStoreVpp = ({
       return <DataError className={`${baseClass}__error`} />;
     }
 
+    if (noVppTokenUploaded) {
+      return (
+        <div className={`${baseClass}__content`}>
+          <EnableVppCard />
+        </div>
+      );
+    }
+
+    if (!hasVppToken) {
+      return (
+        <div className={`${baseClass}__content`}>
+          <EditVppCard />
+        </div>
+      );
+    }
+
     return (
       <div className={`${baseClass}__content`}>
         <SoftwareVppForm
           labels={labels || []}
+          onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareTitles}
-          teamId={currentTeamId}
-          hasVppToken={hasVppToken}
-          noVppTokenUploaded={noVppTokenUploaded}
-          vppApps={vppApps}
+          vppApps={vppApps || []}
         />
       </div>
     );

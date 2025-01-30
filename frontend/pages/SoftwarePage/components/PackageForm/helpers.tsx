@@ -1,7 +1,7 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { ISoftwarePackage } from "interfaces/software";
+import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
@@ -124,37 +124,44 @@ export const getInstallType = (softwarePackage: ISoftwarePackage) => {
   return softwarePackage.automatic_install_policies ? "automatic" : "manual";
 };
 
-export const getTargetType = (softwarePackage: ISoftwarePackage) => {
-  if (!softwarePackage) return "All hosts";
+export const getTargetType = (
+  softwareInstaller: ISoftwarePackage | IAppStoreApp
+) => {
+  if (!softwareInstaller) return "All hosts";
 
-  return !softwarePackage.labels_include_any &&
-    !softwarePackage.labels_exclude_any
+  return !softwareInstaller.labels_include_any &&
+    !softwareInstaller.labels_exclude_any
     ? "All hosts"
     : "Custom";
 };
 
-export const getCustomTarget = (softwarePackage: ISoftwarePackage) => {
-  if (!softwarePackage) return "labelsIncludeAny";
+export const getCustomTarget = (
+  softwareInstaller: ISoftwarePackage | IAppStoreApp
+) => {
+  if (!softwareInstaller) return "labelsIncludeAny";
 
-  return softwarePackage.labels_include_any
+  return softwareInstaller.labels_include_any
     ? "labelsIncludeAny"
     : "labelsExcludeAny";
 };
 
-export const generateSelectedLabels = (softwarePackage: ISoftwarePackage) => {
+export const generateSelectedLabels = (
+  softwareInstaller: ISoftwarePackage | IAppStoreApp
+) => {
   if (
-    !softwarePackage ||
-    (!softwarePackage.labels_include_any && !softwarePackage.labels_exclude_any)
+    !softwareInstaller ||
+    (!softwareInstaller.labels_include_any &&
+      !softwareInstaller.labels_exclude_any)
   ) {
     return {};
   }
 
-  const customTypeKey = softwarePackage.labels_include_any
+  const customTypeKey = softwareInstaller.labels_include_any
     ? "labels_include_any"
     : "labels_exclude_any";
 
   return (
-    softwarePackage[customTypeKey]?.reduce<Record<string, boolean>>(
+    softwareInstaller[customTypeKey]?.reduce<Record<string, boolean>>(
       (acc, label) => {
         acc[label.name] = true;
         return acc;

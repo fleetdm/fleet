@@ -150,6 +150,8 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
     pending: 2,
     failed: 3,
   },
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {

@@ -65,6 +65,8 @@ describe("SoftwareTitleDetailsPage helpers", () => {
             failed: 3,
           },
           icon_url: "https://example.com/icon.png",
+          labels_exclude_any: null,
+          labels_include_any: null,
         },
         source: "apps",
         hosts_count: 10,

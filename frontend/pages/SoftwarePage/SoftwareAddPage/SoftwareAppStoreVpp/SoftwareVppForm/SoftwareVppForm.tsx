@@ -1,12 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import PATHS from "router/paths";
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp } from "interfaces/software";
-import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
-import { NotificationContext } from "context/notification";
+import { IVppApp } from "services/entities/mdm_apple";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
@@ -17,54 +15,10 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
-import {
-  generateFormValidation,
-  getErrorMessage,
-  getUniqueAppId,
-} from "./helpers";
+import { generateFormValidation, getUniqueAppId } from "./helpers";
 import { CUSTOM_TARGET_OPTIONS } from "../../SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/helpers";
 
 const baseClass = "software-vpp-form";
-
-const EnableVppCard = () => {
-  return (
-    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
-      <div className={`${baseClass}__enable-vpp-message`}>
-        <p className={`${baseClass}__enable-vpp-title`}>
-          Volume Purchasing Program (VPP) isn&apos;t enabled
-        </p>
-        <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
-        </p>
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Enable VPP"
-          className={`${baseClass}__enable-vpp-link`}
-        />
-      </div>
-    </Card>
-  );
-};
-
-const EditVppCard = () => {
-  return (
-    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
-      <div className={`${baseClass}__enable-vpp-message`}>
-        <p className={`${baseClass}__enable-vpp-title`}>
-          This team isn&apos;t added to Volume Purchasing Program (VPP)
-        </p>
-        <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first add this team to VPP.
-        </p>
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Edit VPP"
-          className={`${baseClass}__enable-vpp-link`}
-        />
-      </div>
-    </Card>
-  );
-};
 
 const NoVppAppsCard = () => (
   <Card borderRadiusSize="medium" paddingSize="xxxlarge">
@@ -145,11 +99,12 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
   );
 };
 
-export interface IVPPAppFormData {
+export interface ISoftwareVppFormData {
   selfService: boolean;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
+  selectedApp?: IVppApp | null;
 }
 
 export interface IFormValidation {
@@ -157,75 +112,63 @@ export interface IFormValidation {
   customTarget?: { isValid: boolean };
 }
 
-interface ISoftwareVppFormProps {
+interface ISoftwareVppFormProps<T extends "add" | "edit"> {
   labels: ILabelSummary[] | null;
-  teamId: number;
-  noVppTokenUploaded?: boolean;
-  hasVppToken?: boolean;
-  vppApps?: IVppApp[];
-  softwareVppForEdit?: IAppStoreApp;
+  vppApps?: T extends "add" ? IVppApp[] : never;
+  softwareVppForEdit?: T extends "edit" ? IAppStoreApp : never;
+  onSubmit: (formData: ISoftwareVppFormData) => void;
   onCancel: () => void;
 }
 
-const SoftwareVppForm = ({
+const SoftwareVppForm = <T extends "add" | "edit">({
   labels,
-  teamId,
-  noVppTokenUploaded,
-  hasVppToken,
   vppApps,
   softwareVppForEdit,
+  onSubmit,
   onCancel,
-}: ISoftwareVppFormProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const [isSubmitDisabled, setIsSubmitDisabled] = useState(!softwareVppForEdit);
-  const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
+}: ISoftwareVppFormProps<T>) => {
+  const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [formData, setFormData] = useState<IVPPAppFormData>({
-    selfService: false,
-    targetType: "All hosts",
-    customTarget: "labelsIncludeAny",
-    labelTargets: {},
-  });
+  const [formData, setFormData] = useState<ISoftwareVppFormData>(
+    softwareVppForEdit
+      ? {
+          selfService: softwareVppForEdit.self_service || false,
+          targetType: "All hosts",
+          customTarget: "labelsIncludeAny",
+          labelTargets: {},
+        }
+      : {
+          selectedApp: null,
+          selfService: false,
+          targetType: "All hosts",
+          customTarget: "labelsIncludeAny",
+          labelTargets: {},
+        }
+  );
+
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
   });
 
-  const onSelectApp = (app: IVppApp) => {
-    setIsSubmitDisabled(false);
-    setSelectedApp(app);
-    if (app.platform === "ios" || app.platform === "ipados") {
-      setFormData({ ...formData, selfService: false });
-    }
+  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit(formData);
   };
 
-  const onAddSoftware = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    if (!selectedApp) {
-      return;
+  const onSelectApp = (app: IVppApp) => {
+    if ("selectedApp" in formData) {
+      setIsSubmitDisabled(false);
+
+      const newFormData = {
+        ...formData,
+        selectedApp: app,
+        selfService:
+          app.platform === "ios" || app.platform === "ipados"
+            ? false
+            : formData.selfService,
+      };
+      setFormData(newFormData);
     }
-
-    setIsUploading(true);
-
-    try {
-      await mdmAppleAPI.addVppApp(
-        teamId,
-        selectedApp.app_store_id,
-        selectedApp.platform,
-        formData
-      );
-      renderFlash(
-        "success",
-        <>
-          <b>{selectedApp.name}</b> successfully added.
-        </>
-      );
-
-      onCancel; // Goes back to software titles
-    } catch (e) {
-      renderFlash("error", getErrorMessage(e));
-    }
-
-    setIsUploading(false);
   };
 
   const onSelectTargetType = (value: string) => {
@@ -246,36 +189,6 @@ const SoftwareVppForm = ({
     };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
-  };
-
-  const onEditSoftware = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    if (!selectedApp) {
-      return;
-    }
-
-    setIsUploading(true);
-
-    try {
-      await mdmAppleAPI.addVppApp(
-        teamId,
-        selectedApp.app_store_id,
-        selectedApp.platform,
-        formData
-      );
-      renderFlash(
-        "success",
-        <>
-          <b>{selectedApp.name}</b> successfully added.
-        </>
-      );
-
-      onCancel; // Goes back to software titles
-    } catch (e) {
-      renderFlash("error", getErrorMessage(e));
-    }
-
-    setIsUploading(false);
   };
 
   const renderSelfServiceContent = (platform: string) => {
@@ -301,7 +214,6 @@ const SoftwareVppForm = ({
     return null;
   };
 
-  <SoftwareIcon name="appStore" size="medium" />;
   const renderContent = () => {
     if (softwareVppForEdit) {
       return (
@@ -311,11 +223,7 @@ const SoftwareVppForm = ({
             graphicName={"app-store"}
             message=".pkg, .msi, .exe, .deb, or .rpm"
             className={`${baseClass}__file-uploader`}
-            fileDetails={
-              softwareVppForEdit
-                ? { name: softwareVppForEdit.name, platform: "macOS" }
-                : undefined
-            }
+            fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
           />
           <TargetLabelSelector
             selectedTargetType={formData.targetType}
@@ -328,19 +236,9 @@ const SoftwareVppForm = ({
             onSelectLabel={onSelectLabel}
             labels={labels || []}
           />
-          {renderSelfServiceContent(
-            (selectedApp && selectedApp.platform) || ""
-          )}
+          {renderSelfServiceContent("macOS")}
         </div>
       );
-    }
-
-    if (noVppTokenUploaded) {
-      return <EnableVppCard />;
-    }
-
-    if (!hasVppToken) {
-      return <EditVppCard />;
     }
 
     if (vppApps) {
@@ -352,7 +250,7 @@ const SoftwareVppForm = ({
         <div className={`${baseClass}__form-fields`}>
           <VppAppList
             apps={vppApps}
-            selectedApp={selectedApp}
+            selectedApp={formData.selectedApp || null}
             onSelect={onSelectApp}
           />
           <div className={`${baseClass}__help-text`}>
@@ -360,8 +258,22 @@ const SoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
+          <TargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            className={`${baseClass}__target`}
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTargetOption}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+          />
           {renderSelfServiceContent(
-            (selectedApp && selectedApp.platform) || ""
+            ("selectedApp" in formData &&
+              formData.selectedApp &&
+              formData.selectedApp.platform) ||
+              ""
           )}
         </div>
       );
@@ -375,10 +287,7 @@ const SoftwareVppForm = ({
   });
 
   return (
-    <form
-      className={baseClass}
-      onSubmit={softwareVppForEdit ? onEditSoftware : onAddSoftware}
-    >
+    <form className={baseClass} onSubmit={onFormSubmit}>
       {isUploading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
         {!softwareVppForEdit && (
