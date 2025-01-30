@@ -1178,7 +1178,7 @@ This activity contains the following fields:
 
 ## installed_software
 
-Generated when a software is installed on a host.
+Generated when a Fleet-maintained app or custom package is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1210,7 +1210,7 @@ This activity contains the following fields:
 
 ## uninstalled_software
 
-Generated when a software is uninstalled on a host.
+Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1233,7 +1233,7 @@ This activity contains the following fields:
 
 ## added_software
 
-Generated when a software installer is uploaded to Fleet.
+Generated when a Fleet-maintained app or custom package is added to Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1270,7 +1270,7 @@ This activity contains the following fields:
 
 ## edited_software
 
-Generated when a software installer is updated in Fleet.
+Generated when a Fleet-maintained app or custom package is edited in Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1307,7 +1307,7 @@ This activity contains the following fields:
 
 ## deleted_software
 
-Generated when a software installer is deleted from Fleet.
+Generated when a Fleet maintained app or custom package is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1425,14 +1425,15 @@ This activity contains the following fields:
 Generated when an App Store app is installed on a device.
 
 This activity contains the following fields:
-- host_id: ID of the host on which the app was installed.
-- self_service: App installation was initiated by device owner.
-- host_display_name: Display name of the host.
-- software_title: Name of the App Store app.
-- app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.
-- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
-- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
+- "host_id": ID of the host on which the app was installed.
+- "self_service": App installation was initiated by device owner.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "status": Status of the App Store app installation.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 
 
 #### Example
