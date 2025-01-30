@@ -1690,13 +1690,21 @@ WHERE global_or_team_id = ?
 }
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
+	return ds.isSoftwareLabelScoped(ctx, installerID, hostID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
+}
+
+func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
 	stmt := `
 		SELECT 1 FROM (
 
 			-- no labels
 			SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 			WHERE NOT EXISTS (
-				SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = :installer_id
+				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = :software_id
 			)
 
 			UNION
@@ -1707,11 +1715,11 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 				COUNT(lm.label_id) AS count_host_labels,
 				0 as count_host_updated_after_labels
 			FROM
-				software_installer_labels sil
+				%[1]s_labels sil
 				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 				AND lm.host_id = :host_id
 			WHERE
-				sil.software_installer_id = :installer_id
+				sil.%[1]s_id = :software_id
 				AND sil.exclude = 0
 			HAVING
 				count_installer_labels > 0 AND count_host_labels > 0
@@ -1732,25 +1740,27 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 					0
 				END) as count_host_updated_after_labels
 			FROM
-				software_installer_labels sil
+				%[1]s_labels sil
 				LEFT OUTER JOIN labels lbl
 					ON lbl.id = sil.label_id
 				LEFT OUTER JOIN label_membership lm
 					ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 			WHERE
-				sil.software_installer_id = :installer_id
+				sil.%[1]s_id = :software_id
 				AND sil.exclude = 1
 			HAVING
 				count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 			) t
 	`
+
+	stmt = fmt.Sprintf(stmt, swType)
 	namedArgs := map[string]any{
-		"host_id":      hostID,
-		"installer_id": installerID,
+		"host_id":     hostID,
+		"software_id": softwareID,
 	}
 	stmt, args, err := sqlx.Named(stmt, namedArgs)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build named query for is software installer label scoped")
+		return false, ctxerr.Wrap(ctx, err, "build named query for is software label scoped")
 	}
 
 	var res bool
@@ -1759,7 +1769,7 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 			return false, nil
 		}
 
-		return false, ctxerr.Wrap(ctx, err, "is software installer label scoped")
+		return false, ctxerr.Wrap(ctx, err, "is software label scoped")
 	}
 
 	return res, nil

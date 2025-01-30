@@ -5258,7 +5258,18 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	app1, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
 
 	// create a software installer
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
@@ -5298,17 +5309,31 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			Version:     installer1.Version,
 			SelfService: ptr.Bool(false),
 		},
+		app1.Name: {
+			AppStoreID: app1.AdamID,
+		},
 	}
 
 	checkSoftware := func(swList []*fleet.HostSoftwareWithInstaller, excludeNames ...string) {
 		for _, got := range swList {
 			want, ok := expectedInstallers[got.SoftwarePackage.Name]
-			if slices.Contains(excludeNames, got.SoftwarePackage.Name) {
-				require.False(t, ok)
-				continue
+			if got.IsPackage() {
+				if slices.Contains(excludeNames, got.SoftwarePackage.Name) {
+					require.False(t, ok)
+					continue
+				}
+				require.True(t, ok)
+				require.Equal(t, want, got.SoftwarePackage)
 			}
-			require.True(t, ok)
-			require.Equal(t, want, got.SoftwarePackage)
+
+			if got.IsAppStoreApp() {
+				if slices.Contains(excludeNames, got.AppStoreApp.AppStoreID) {
+					require.False(t, ok)
+					continue
+				}
+				require.True(t, ok)
+				require.Equal(t, want, got.AppStoreApp)
+			}
 		}
 	}
 
@@ -5318,6 +5343,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	// installer1 should be in scope since it has no labels
 	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, app1.VPPAppTeam.ID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
 

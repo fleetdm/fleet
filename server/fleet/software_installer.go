@@ -459,6 +459,14 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
+func (h *HostSoftwareWithInstaller) IsPackage() bool {
+	return h.SoftwarePackage != nil
+}
+
+func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
+	return h.AppStoreApp != nil
+}
+
 type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
