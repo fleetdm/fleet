@@ -83,13 +83,12 @@ controls:
     - path: ../lib/windows/scripts/remove-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
 policies:
-  - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
-  - path: ../lib/macos/policies/cis.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/windows/policies/device-health.yml
-  - path: ../lib/windows/policies/cis.yml
-  - path: ../lib/linux/policies/linux-device-health.yml
+  - path: ../lib/windows/policies/windows-device-health.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/update-slack.yml
 queries:
   - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-usb-devices.yml

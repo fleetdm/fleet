@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 type Size = "x-small" | "small" | "medium";
+type PaddingSize = "small" | "medium";
 
 interface ISpinnerProps {
   small?: boolean;
@@ -9,6 +10,8 @@ interface ISpinnerProps {
   white?: boolean;
   /** The size of the spinner. defaults: `"medium"` */
   size?: Size;
+  /** The size of the spinner padding. `"medium"` 120px (default), `"small"` 60px */
+  verticalPadding?: PaddingSize;
   /** Include the background container styling for the spinner. defaults: `true` */
   includeContainer?: boolean;
   /** Center the spinner in its parent. defaults: `true` */
@@ -21,6 +24,7 @@ const Spinner = ({
   button,
   white,
   size = "medium",
+  verticalPadding = "medium",
   includeContainer = true,
   centered = true,
   className,
@@ -30,6 +34,7 @@ const Spinner = ({
     button,
     white,
     centered,
+    "small-padding": verticalPadding === "small",
     "include-container": includeContainer,
   });
   return (

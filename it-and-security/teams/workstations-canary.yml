@@ -106,6 +106,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
       - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
       - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
+      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -121,12 +122,12 @@ controls:
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
 policies:
-  - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/windows/policies/device-health.yml
-  - path: ../lib/linux/policies/linux-device-health.yml
+  - path: ../lib/windows/policies/windows-device-health.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
   - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-fleetd-information.yml
