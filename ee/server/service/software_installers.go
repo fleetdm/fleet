@@ -1865,6 +1865,17 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 	}
 
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+		}
+	}
+
 	platform := host.FleetPlatform()
 	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
 
