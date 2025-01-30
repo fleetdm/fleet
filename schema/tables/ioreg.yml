@@ -2,17 +2,19 @@ name: ioreg
 description: Get values from macOS ioreg command. Columns are input options for the command. They match the ioreg command line tool.
 evented: false
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - darwin
 examples: |-
   Find HID Device Protocol data:
 
   ```
- WITH protocols as (
-  SELECT 
-   MAX (case WHEN key = "USB Address" THEN value END) as usb_address,
-   MAX (case WHEN key = "bDeviceProtocol" THEN value END) as protocol
-  from ioreg where r=true and c="IOUSBDevice" group by parent
-) 
-SELECT * FROM usb_devices join protocols using (usb_address)
+  WITH protocols as (
+    SELECT 
+     MAX (case WHEN key = "USB Address" THEN value END) as usb_address,
+     MAX (case WHEN key = "bDeviceProtocol" THEN value END) as protocol
+    from ioreg where r=true and c="IOUSBDevice" group by parent
+  ) 
+  SELECT * FROM usb_devices join protocols using (usb_address)
   ```
 columns:
   - name: c
