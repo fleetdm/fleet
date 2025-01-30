@@ -492,6 +492,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium()); err != nil {
+			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
