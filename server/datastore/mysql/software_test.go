@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"math/rand"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -5261,9 +5263,9 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
 	require.NoError(t, err)
 	tok1, err := ds.InsertVPPToken(ctx, dataToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
 
@@ -5302,6 +5304,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			TestSecondaryOrderKey: "source",
 		},
 		IncludeAvailableForInstall: true,
+		IsMDMEnrolled:              true,
 	}
 	expectedInstallers := map[string]*fleet.SoftwarePackageOrApp{
 		installer1.Filename: {
@@ -5310,14 +5313,17 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			SelfService: ptr.Bool(false),
 		},
 		app1.Name: {
-			AppStoreID: app1.AdamID,
+			AppStoreID:  app1.AdamID,
+			SelfService: ptr.Bool(false),
 		},
 	}
 
 	checkSoftware := func(swList []*fleet.HostSoftwareWithInstaller, excludeNames ...string) {
+		expectedLen := len(expectedInstallers) - len(excludeNames)
+		require.Equal(t, len(swList), expectedLen)
 		for _, got := range swList {
-			want, ok := expectedInstallers[got.SoftwarePackage.Name]
 			if got.IsPackage() {
+				want, ok := expectedInstallers[got.SoftwarePackage.Name]
 				if slices.Contains(excludeNames, got.SoftwarePackage.Name) {
 					require.False(t, ok)
 					continue
@@ -5327,6 +5333,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			}
 
 			if got.IsAppStoreApp() {
+				want, ok := expectedInstallers[got.Name]
 				if slices.Contains(excludeNames, got.AppStoreApp.AppStoreID) {
 					require.False(t, ok)
 					continue
@@ -5340,6 +5347,13 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software)
+	slog.With("filename", "server/datastore/mysql/software_test.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: after software check 1", "software", func() string {
+		var st string
+		for _, s := range software {
+			st = st + s.Name + ","
+		}
+		return st
+	}())
 
 	// installer1 should be in scope since it has no labels
 	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5371,10 +5385,10 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	}, softwareTypeInstaller)
 	require.NoError(t, err)
 
-	// should be empty as the installer label is "exclude any"
+	// should contain only the VPP app as the installer label is "exclude any"
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Empty(t, software)
+	checkSoftware(software, installer1.Filename)
 
 	hostsNotInScope, err := ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID1)
 	require.NoError(t, err)
@@ -5400,6 +5414,29 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
+
+	// de-scope vpp app
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), app1.VPPAppTeam.ID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	}, softwareTypeVPP)
+	require.NoError(t, err)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, app1.VPPAppTeam.ID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	software, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	checkSoftware(software, app1.Name) // vpp app is gone as it has the exclude any label
+
+	slog.With("filename", "server/datastore/mysql/software_test.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: after software check 2", "software", func() string {
+		var st string
+		for _, s := range software {
+			st = st + s.Name + ","
+		}
+		return st
+	}())
 
 	// Add an installer. No label yet.
 	installer2 := &fleet.UploadSoftwareInstallerPayload{
@@ -5430,7 +5467,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// There's 2 installers now: installerID1 and installerID2 (because it has no labels associated)
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	checkSoftware(software)
+	checkSoftware(software, app1.Name)
 
 	// Add "exclude any" labels to installer2
 	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2" + t.Name()})
@@ -5458,7 +5495,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// List should be back to just installer1
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	checkSoftware(software, installer2.Filename)
+	checkSoftware(software, installer2.Filename, app1.Name)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5532,7 +5569,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// now has 2 software (installer1 and 3)
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	checkSoftware(software, installer2.Filename)
+	checkSoftware(software, installer2.Filename, app1.Name)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
@@ -5554,7 +5591,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	// We should have [installerID1]
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	checkSoftware(software, installer2.Filename, installer3.Filename)
+	checkSoftware(software, installer2.Filename, installer3.Filename, app1.Name)
 
 	// installer1 is still in scope
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
