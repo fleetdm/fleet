@@ -33,8 +33,7 @@ parasails.registerPage('homepage', {
   mounted: async function() {
     await setTimeout(()=>{
       this.animateHeroTicker();
-
-    }, 1200)
+    }, 1200);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
