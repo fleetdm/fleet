@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -115,6 +117,18 @@ WHERE fla.token IN (?)
 			}
 		}
 
+		for i, l := range lines {
+			if strings.Contains(l, `/bin/ln`) {
+				target := regexp.MustCompile(`.*"([^"]*)"$`).FindStringSubmatch(l)
+				if len(target) > 1 {
+					file := target[1]
+					pathname := filepath.Dir(file)
+					newLine := fmt.Sprintf(`[ -d "%s" ] && %s`, pathname, strings.TrimSpace(l))
+					lines[i] = newLine
+				}
+			}
+		}
+
 		// Default to using the name we pulled + ".app". We know that is incorrect for some apps
 		// though, so look them up in our map of known good names and use that if it exists.
 		appFileName := fmt.Sprintf("%s.app", sc.AppName)
@@ -125,7 +139,12 @@ WHERE fla.token IN (?)
 		// This line will move the old version of the .app (if it exists) to the temporary directory
 		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appFileName))
 		// Add a call to our "quit_application" function
-		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application %s", sc.BundleID))
+		if sc.BundleID == "com.docker.docker" {
+			// Special casse for docker docker desktop
+			lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application '%s'", "com.electron.dockerdesktop"))
+		}
+		lines = slices.Insert(lines, copyLineNumber, fmt.Sprintf("quit_application '%s'", sc.BundleID))
+
 		// Add the "quit_application" function to the script
 		lines = slices.Insert(lines, 2, quitApplicationFunc)
 

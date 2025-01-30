@@ -2,6 +2,7 @@ package maintainedapps
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -25,6 +26,9 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
 			sb.Writef("quit_application '%s'", app.BundleIdentifier)
+			if cask.Token == "docker" {
+				sb.Writef("quit_application 'com.electron.dockerdesktop'")
+			}
 			includeQuitFunc = true
 			for _, appPath := range artifact.App {
 				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
@@ -319,7 +323,8 @@ sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
-	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
+	pathname := filepath.Dir(target)
+	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
 }
 
 // String generates the final script as a string.

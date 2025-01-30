@@ -48,6 +48,11 @@ sudo cp -R "$TMPDIR/%s" "$APPDIR"
 	require.NoError(t, err)
 	braveUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
 	require.NoError(t, err)
+	dockerSymLink := `/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"`
+	dockerInstallScriptID, err := getOrInsertScript(txx, fmt.Sprintf(originalContents, "Docker.app")+dockerSymLink)
+	require.NoError(t, err)
+	dockerUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
+	require.NoError(t, err)
 	boxInstallScriptID, err := getOrInsertScript(txx, "echo install")
 	require.NoError(t, err)
 	boxUninstallScriptID, err := getOrInsertScript(txx, "echo uninstall")
@@ -117,6 +122,21 @@ sudo cp -R "$TMPDIR/%s" "$APPDIR"
 		"com.brave.Browser",
 		braveInstallScriptID,
 		braveUninstallScriptID,
+	)
+
+	execNoErr(
+		t,
+		db,
+		`INSERT INTO fleet_library_apps (name, token, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"Docker Desktop",
+		"docker",
+		"4.37.2,179585",
+		"darwin",
+		"https://desktop.docker.com/mac/main/arm64/179585/Docker.dmg",
+		"624dec2ae9fc2269e07533921f5905c53514d698858dde25ab10f28f80e333c7",
+		"com.docker.docker",
+		dockerInstallScriptID,
+		dockerUninstallScriptID,
 	)
 
 	// Insert Box Drive, should be unaffected
@@ -205,7 +225,7 @@ TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
-quit_application %[1]s
+quit_application '%[1]s'
 sudo [ -d "$APPDIR/%[2]s" ] && sudo mv "$APPDIR/%[2]s" "$TMPDIR/%[2]s.bkp"
 sudo cp -R "$TMPDIR/%[2]s" "$APPDIR"
 	`
@@ -241,6 +261,11 @@ sudo cp -R "$TMPDIR/%[2]s" "$APPDIR"
 	expectedChecksum = md5ChecksumScriptContent(expectedContents)
 	require.Equal(t, expectedContents, scriptContents.InstallScriptContents)
 	require.Equal(t, expectedChecksum, scriptContents.Checksum)
+
+	err = sqlx.Get(db, &scriptContents, selectStmt, "docker")
+	require.NoError(t, err)
+	require.Contains(t, scriptContents.InstallScriptContents, "quit_application 'com.electron.dockerdesktop'")
+	require.Contains(t, scriptContents.InstallScriptContents, fmt.Sprintf(`[ -d "/usr/local/bin" ] && %s`, dockerSymLink))
 
 	err = sqlx.Get(db, &scriptContents, selectStmt, "box-drive")
 	require.NoError(t, err)
