@@ -223,10 +223,10 @@ const TableContainer = <T,>({
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
-    if (resetPageIndex && !isClientSidePagination) {
+    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
       onPaginationChange(0);
     }
-  }, [resetPageIndex, isClientSidePagination]);
+  }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   useDeepEffect(() => {
     if (!onQueryChange) {

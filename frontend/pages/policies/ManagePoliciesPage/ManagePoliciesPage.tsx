@@ -159,10 +159,6 @@ const ManagePolicyPage = ({
   ] = useState<IPolicyStats[]>([]);
   // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
   // this prop.
-
-  // Therefore, this should always be a) set to true in conjunction with changing all page-related state
-  // at this level, and b) set back to `false` AFTER that effect has run. If immediately set back to
-  // false, that effect will not see a change and so won't run.
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
@@ -398,7 +394,7 @@ const ManagePolicyPage = ({
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-  }, []);
+  }, [queryParams, page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
@@ -413,10 +409,6 @@ const ManagePolicyPage = ({
     );
     // change in state triggers effect in TableContainer (see comment above this state definition)
     setResetPageIndex(true);
-    // timeout ensures effect in TableContainer runs before setting it back to false here. Without
-    // timeout, the effect doesn't see a change.
-    setTimeout(() => setResetPageIndex(false), 1);
-    // TODO - improve this system for handling page index reset
   };
 
   const onTeamChange = useCallback(
