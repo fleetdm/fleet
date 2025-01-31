@@ -294,7 +294,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	for _, appFleet := range appFleets {
-		// upsert it if it does not exist or SelfService or InstallDuringSetup flags are changed
+		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
 		var labelsChanged bool
 		if isExistingApp {
