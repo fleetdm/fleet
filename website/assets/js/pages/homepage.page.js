@@ -53,8 +53,11 @@ parasails.registerPage('homepage', {
         if (nextTickerOption.length === 0) {
           nextTickerOption = $('span[purpose="hero-ticker-option"]').first();
         }
-        currentTickerOption.removeClass('visible');
+        currentTickerOption.removeClass('visible').addClass('animating-out');
         nextTickerOption.addClass('visible');
+        setTimeout(()=>{
+          currentTickerOption.removeClass('animating-out');
+        }, 1000);
       }, 1200);
     },
     clickOpenVideoModal: function(modalName) {

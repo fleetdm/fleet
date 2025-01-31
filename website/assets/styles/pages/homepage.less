@@ -60,16 +60,26 @@
     width: fit-content;
     white-space: nowrap;
   }
+  [purpose='option-container'] {
+    height: 57.6px;
+  }
+
   [purpose='hero-ticker-option'] {
     color: #515774;
-    opacity: 0;
     visibility: hidden;
-    position: absolute;
-    transition: opacity 0.3s ease-in-out;
+    height: 0px;
+    transform: translateY(75px);
+    transition: transform 0.3s ease-in-out;
     &.visible {
-      opacity: 1;
+      // opacity: 1;
       visibility: visible;
       position: relative;
+      transition: transform 0.3s ease-in-out;
+      transform: translateY(0%);
+    }
+    &.animating-out {
+      visibility: visible;
+      transform: translateY(-75px);
     }
   }
   [purpose='hero-text'] {
@@ -900,7 +910,7 @@
       max-width: 100%;
       padding-top: 64px;
       padding-right: 32px;
-      height: 100%;
+
       // padding-bottom: 380px;
     }
     [purpose='hero-background-image'] {
@@ -1099,7 +1109,7 @@
     }
 
     [purpose='homepage-hero'] {
-      padding-bottom: ;
+      height: 100%;
       padding: 48px 27px 330px 24px;
     }
     [purpose='hero-container'] {
@@ -1674,6 +1684,9 @@
     }
     h4 {
       font-size: 12px;
+    }
+    [purpose='option-container'] {
+      height: 33.6px;
     }
 
     [purpose='truncated-vulnerability-management-text'] {
