@@ -33,6 +33,7 @@ parasails.registerPage('homepage', {
   mounted: async function() {
     await setTimeout(()=>{
       this.animateHeroTicker();
+      this.animateBottomTicker();
     }, 1200);
   },
 
@@ -52,6 +53,25 @@ parasails.registerPage('homepage', {
         let nextTickerOption = currentTickerOption.nextAll('[purpose="hero-ticker-option"]').first();
         if (nextTickerOption.length === 0) {
           nextTickerOption = $('span[purpose="hero-ticker-option"]').first();
+        }
+        currentTickerOption.removeClass('visible').addClass('animating-out');
+        nextTickerOption.addClass('visible');
+        setTimeout(()=>{
+          currentTickerOption.removeClass('animating-out');
+        }, 1000);
+      }, 1200);
+    },
+    animateBottomTicker: function() {
+      setInterval(()=>{
+        let currentTickerOption = $('[purpose="bottom-cta-ticker-option"].visible');
+        if (currentTickerOption.length === 0) {
+          currentTickerOption = $('[purpose="bottom-cta-ticker-option"]').first();
+          currentTickerOption.addClass('visible');
+          return;
+        }
+        let nextTickerOption = currentTickerOption.nextAll('[purpose="bottom-cta-ticker-option"]').first();
+        if (nextTickerOption.length === 0) {
+          nextTickerOption = $('span[purpose="bottom-cta-ticker-option"]').first();
         }
         currentTickerOption.removeClass('visible').addClass('animating-out');
         nextTickerOption.addClass('visible');
