@@ -92,11 +92,7 @@ const EditScriptModal = ({
     return (
       <>
         <form>
-          <Editor
-            value={scriptFormData}
-            onChange={onChange}
-            isFormField
-          />
+          <Editor value={scriptFormData} onChange={onChange} isFormField />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
             <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
@@ -112,7 +108,12 @@ const EditScriptModal = ({
               <Button onClick={onCancel} variant="inverse">
                 Cancel
               </Button>
-              <Button onClick={onSave} variant="brand" isLoading={submitting} disabled={submitting}>
+              <Button
+                onClick={onSave}
+                variant="brand"
+                isLoading={submitting}
+                disabled={submitting}
+              >
                 Save
               </Button>
             </>
