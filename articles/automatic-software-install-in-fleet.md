@@ -1,15 +1,6 @@
 # Automatically install software
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring Fleet for automatic installation of software on hosts using uploaded custom packages or Fleet-maintained apps and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
-
-Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
-
-> Currently, Fleet-maintained apps can be automatically installed on macOS hosts and custom packages can be automatically installed on macOS, Windows, and Linux hosts. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
-
-## Prerequisites
-
-* Fleet premium with Admin permissions.
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater.
+In Fleet, you can automatically and remotely install software on hosts. This guide will walk you through the process of configuring Fleet to install software on your.
 
 ## Step-by-step instructions
 
@@ -22,9 +13,6 @@ Current supported software deployment formats:
 - macOS: .pkg
 - Windows: .msi, .exe
 - Linux: .deb, .rpm
-
-Coming soon:
-- VPP for iOS and iPadOS
 
 > Note: starting with v4.62.0, you can have Fleet create an automatic install policy for you when you upload a package. If you use this "Automatic" installation mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
 
