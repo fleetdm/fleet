@@ -218,7 +218,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
       {showEditScripsModal && selectedScript.current && (
         <EditScriptModal
           scriptId={selectedScript.current.id}
-          onCancel={onCancelScriptDetails}
+          scriptName={selectedScript.current.name}
+          onCancel={onCancelEditScript}
         />
       )}
     </div>
