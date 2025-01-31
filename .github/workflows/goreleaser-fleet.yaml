@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "fleet-*"
+      - "rc-fleetctl-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

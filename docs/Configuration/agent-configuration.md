@@ -84,7 +84,7 @@ fleetctl apply --force -f config.yaml
 
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
-- `load` is are queries you want to update values when the configuration loads.
+- `load` are queries you want to update values when the configuration loads.
 - `always` are queries to update every time a scheduled query is run.
 - `interval` are queries you want to update on a schedule.
 
