@@ -216,6 +216,7 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
+// TODO(JVE): make sure to handle the update (app already exists) flow!!!!
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
@@ -270,8 +271,15 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			if _, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID); err != nil {
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+
+			if toAdd.ValidatedLabels != nil {
+				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps setOrUpdateSoftwareInstallerLabelsDB transaction")
+				}
 			}
 		}
 
