@@ -433,7 +433,7 @@
             : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-it') ? 'One agent for every ' : // eo-it
             'One agent for every '// mdm or default (no buying situation)
           %>
-          <% if(typeof primaryBuyingSituation !== 'undefined' || primaryBuyingSituation === undefined || ['eo-it', 'mdm'].includes(primaryBuyingSituation)){%>
+            <% if(['eo-it', 'mdm', undefined].includes(primaryBuyingSituation)){%>
             <br>
               <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
                 <div purpose="option-container" class="pl-2 d-flex flex-column">
@@ -462,7 +462,7 @@
                   <span purpose="bottom-cta-ticker-option">local LLM</span>
                 </div>
               </div>
-              <% } %>
+          <% } %>
         </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Try it yourself</a>
