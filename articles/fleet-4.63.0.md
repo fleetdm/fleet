@@ -1,4 +1,4 @@
-# Fleet 4.63.0 | Automatically install software, fleetctl on Linux ARM, faster employee onboarding
+# Fleet 4.63.0 | Automatically install software, fleetctl for Linux ARM, faster employee onboarding
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
@@ -15,11 +15,11 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Automatically install software
 
-Fleet can now automatically install App Store (VPP) apps when a macOS host fails a policy. This removes the need for third-party automation tools, making large-scale app deployment easier and more reliable.
+Fleet can now automatically install App Store (VPP) apps when a macOS host fails a policy. This removes the need for third-party automation tools, making large-scale app deployment easier and more reliable. Learn more about installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-### Fleetctl on Linux ARM
+### Fleetctl for Linux ARM
 
-IT admins using Linux ARM workstations can now use the fleetctl command-line interface (CLI) to manage hosts, execute queries, and run scripts. This expands Fleet’s CLI capabilities, allowing more teams to integrate Fleet into their workflows.
+Fleet users with Linux ARM workstations can now use the fleetctl command-line interface (CLI) to run scripts, queries, and more. This expands Fleet’s CLI capabilities, allowing users to manage hosts on their preferred operating system (OS). Learn more about fleetctl [here](https://fleetdm.com/guides/fleetctl).
 
 ### Faster employee onboarding
 
