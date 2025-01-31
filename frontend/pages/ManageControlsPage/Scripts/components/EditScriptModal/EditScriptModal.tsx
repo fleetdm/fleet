@@ -62,7 +62,7 @@ const EditScriptModal = ({
     setScriptFormData(scriptContent);
   }, [scriptContent]);
 
-  const handleOnChange = (value: string) => {
+  const onChange = (value: string) => {
     setScriptFormData(value);
   };
 
@@ -70,7 +70,7 @@ const EditScriptModal = ({
     onCancel();
   };
 
-  const handleOnSave = async () => {
+  const onSave = async () => {
     try {
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
       renderFlash("success", "Successfully saved script.");
@@ -94,7 +94,7 @@ const EditScriptModal = ({
         <form>
           <Editor
             value={scriptFormData}
-            onChange={handleOnChange}
+            onChange={onChange}
             isFormField
           />
           <div className="form-field__help-text">
@@ -112,7 +112,7 @@ const EditScriptModal = ({
               <Button onClick={onCancel} variant="inverse">
                 Cancel
               </Button>
-              <Button onClick={handleOnSave} variant="brand">
+              <Button onClick={onSave} variant="brand">
                 Save
               </Button>
             </>
