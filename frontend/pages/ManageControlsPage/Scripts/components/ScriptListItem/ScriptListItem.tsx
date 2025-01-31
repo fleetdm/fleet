@@ -102,7 +102,7 @@ const ScriptListItem = ({
             variant="text-icon"
             onClick={() => onEdit(script)}
           >
-            <Icon name="pencil" />
+            <Icon name="pencil" color="ui-fleet-black-75" />
           </Button>
           <Button
             className={`${baseClass}__action-button`}
