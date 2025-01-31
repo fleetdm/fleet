@@ -42,6 +42,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     animateHeroTicker: function() {
+      // Animate the ticker in the top heading.
       setInterval(()=>{
         let currentTickerOption = $('[purpose="hero-ticker-option"].visible');
         if(currentTickerOption) {
@@ -52,6 +53,10 @@ parasails.registerPage('homepage', {
           }
           // [?]:https://api.jquery.com/nextAll/#nextAll-selector
           let nextTickerOption = currentTickerOption.nextAll('[purpose="hero-ticker-option"]').first();
+          // If we've reached the end of the list, pick the first option to be the next ticker option
+          if (nextTickerOption.length === 0) {
+            nextTickerOption = $('span[purpose="hero-ticker-option"]').first();
+          }
           currentTickerOption.removeClass('visible').addClass('animating-out');
           nextTickerOption.addClass('visible');
           setTimeout(()=>{
@@ -61,6 +66,7 @@ parasails.registerPage('homepage', {
       }, this.animationDelayInMs);
     },
     animateBottomTicker: function() {
+      // Animate the bottom Heading on the page (Currently only agnostic, mdm, and eo-it personalized views)
       setInterval(()=>{
         let currentTickerOption = $('[purpose="bottom-cta-ticker-option"].visible');
         if(currentTickerOption) {
@@ -71,6 +77,10 @@ parasails.registerPage('homepage', {
           }
           // [?]:https://api.jquery.com/nextAll/#nextAll-selector
           let nextTickerOption = currentTickerOption.nextAll('[purpose="bottom-cta-ticker-option"]').first();
+          // If we've reached the end of the list, pick the first option to be the next ticker option
+          if (nextTickerOption.length === 0) {
+            nextTickerOption = $('span[purpose="bottom-cta-ticker-option"]').first();
+          }
           currentTickerOption.removeClass('visible').addClass('animating-out');
           nextTickerOption.addClass('visible');
           setTimeout(()=>{
