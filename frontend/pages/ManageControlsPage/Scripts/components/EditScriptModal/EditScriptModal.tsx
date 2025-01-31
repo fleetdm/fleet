@@ -1,15 +1,10 @@
-import { format } from "date-fns";
 import React, { useContext, useEffect, useState } from "react";
 import {
-  QueryObserverResult,
-  RefetchOptions,
-  RefetchQueryFilters,
   useQuery,
 } from "react-query";
 
 import { NotificationContext } from "context/notification";
-import { IApiError } from "interfaces/errors";
-import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
+import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -28,14 +23,12 @@ interface IEditScriptModal {
   onCancel: () => void;
   scriptId: number;
   scriptName: string;
-  isHidden?: boolean;
 }
 
 const EditScriptModal = ({
   scriptId,
   scriptName,
   onCancel,
-  isHidden,
 }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -129,7 +122,6 @@ const EditScriptModal = ({
       title={scriptName}
       width="large"
       onExit={onCancel}
-      isHidden={isHidden}
     >
       {renderContent()}
     </Modal>
