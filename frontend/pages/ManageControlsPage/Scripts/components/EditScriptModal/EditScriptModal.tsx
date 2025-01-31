@@ -71,10 +71,10 @@ const EditScriptModal = ({
     }
   };
 
-    const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      onSave();
-    }
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onSave();
+  };
 
   const renderContent = () => {
     if (isLoadingSelectedScriptContent) {
