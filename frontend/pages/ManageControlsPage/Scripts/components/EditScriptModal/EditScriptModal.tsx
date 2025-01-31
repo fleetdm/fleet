@@ -88,8 +88,18 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
     setScriptFormData(value);
   }
 
-  const handleOnSave = () => {
-    scriptAPI.updateScript(scriptId, scriptFormData, scriptName)
+  const onUpload = () => {
+    onCancel();
+  }
+
+  const handleOnSave = async () => {
+    try {
+      await scriptAPI.updateScript(scriptId, scriptFormData, scriptName)
+      renderFlash("success", "Script updated!");
+      onUpload();
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
+    }
   }
 
   return (
@@ -112,9 +122,9 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
             </Button>
           }
           primaryButtons={
-              <Button onClick={handleOnSave} variant="brand">
-                Save
-              </Button>
+            <Button onClick={handleOnSave} variant="brand">
+              Save
+            </Button>
           }
         />
       </>
