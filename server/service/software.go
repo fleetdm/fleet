@@ -30,7 +30,7 @@ type listSoftwareResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r listSoftwareResponse) error() error { return r.Err }
+func (r listSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -63,7 +63,7 @@ type listSoftwareVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r listSoftwareVersionsResponse) error() error { return r.Err }
+func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
@@ -143,7 +143,7 @@ type getSoftwareResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r getSoftwareResponse) error() error { return r.Err }
+func (r getSoftwareResponse) Error() error { return r.Err }
 
 func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareRequest)
@@ -215,7 +215,7 @@ type countSoftwareResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countSoftwareResponse) error() error { return r.Err }
+func (r countSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.

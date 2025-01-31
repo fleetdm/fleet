@@ -15,7 +15,7 @@ type applyUserRoleSpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyUserRoleSpecsResponse) error() error { return r.Err }
+func (r applyUserRoleSpecsResponse) Error() error { return r.Err }
 
 func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyUserRoleSpecsRequest)

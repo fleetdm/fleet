@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -253,7 +254,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 
 type stringErrorer string
 
-func (s stringErrorer) error() error { return nil }
+func (s stringErrorer) Error() error { return nil }
 
 func TestEndpointer(t *testing.T) {
 	r := mux.NewRouter()
@@ -284,7 +285,7 @@ func TestEndpointer(t *testing.T) {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(svc),
+			auth.SetRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
 		kithttp.ServerErrorEncoder(encodeError),
@@ -404,7 +405,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,
-			setRequestsContexts(svc),
+			auth.SetRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
 		kithttp.ServerErrorEncoder(encodeError),

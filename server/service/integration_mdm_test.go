@@ -12659,7 +12659,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	var respPutSetupExperience putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
-	require.Nil(t, respPutSetupExperience.error())
+	require.Nil(t, respPutSetupExperience.Error())
 
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)

@@ -116,7 +116,7 @@ type enrollAgentResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r enrollAgentResponse) error() error { return r.Err }
+func (r enrollAgentResponse) Error() error { return r.Err }
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enrollAgentRequest)
@@ -334,7 +334,7 @@ type getClientConfigResponse struct {
 	Err    error `json:"error,omitempty"`
 }
 
-func (r getClientConfigResponse) error() error { return r.Err }
+func (r getClientConfigResponse) Error() error { return r.Err }
 
 // MarshalJSON implements json.Marshaler.
 //
@@ -580,7 +580,7 @@ type getDistributedQueriesResponse struct {
 	Err        error             `json:"error,omitempty"`
 }
 
-func (r getDistributedQueriesResponse) error() error { return r.Err }
+func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
@@ -884,7 +884,7 @@ type submitDistributedQueryResultsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
 func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
@@ -2203,7 +2203,7 @@ type submitLogsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitLogsResponse) error() error { return r.Err }
+func (r submitLogsResponse) Error() error { return r.Err }
 
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*submitLogsRequest)
@@ -2683,7 +2683,7 @@ type getYaraResponse struct {
 	Content string
 }
 
-func (r getYaraResponse) error() error { return r.Err }
+func (r getYaraResponse) Error() error { return r.Err }
 
 func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
