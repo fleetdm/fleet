@@ -1103,7 +1103,7 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		SeenTime:        time.Now().Add(-1 * time.Minute),
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Hostname:        fmt.Sprintf("%sfoo.local"+uuid.NewString(), t.Name()),
 		Platform:        "darwin",
 		HardwareModel:   "MacBookPro16,1",
 
@@ -10987,7 +10987,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		team := newTeamResp.Team
 
 		// Add an MDM macOS host to the team
-		host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+		host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		orbitKey := setOrbitEnrollment(t, host, s.ds)
 		host.OrbitNodeKey = &orbitKey
 		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -11149,9 +11149,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		// Attempt an install on the host. This should fail because the host doesn't have the label
 		// l2.
-
 		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
-		// require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't install. To install App Store app, turn on MDM for this host.")
+		require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
+
+		// Add l2 to the host. Attempt install again, should succeed
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", l2.ID), &fleet.ModifyLabelPayload{Hosts: []string{host.HardwareSerial}}, http.StatusOK, &createLabelResp)
+
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmDevice.SerialNumber)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
 
 		// Attempt to delete a non-existent app. Should fail.
 		s.Do("DELETE", "/api/latest/fleet/software/titles/9999/available_for_install", nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", team.ID))
@@ -11907,9 +11913,34 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
+	// Create a couple of hosts
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost, s.ds)
+	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost2, s.ds)
+	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, selfServiceHost, s.ds)
+	selfServiceToken := "selfservicetoken"
+	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
+
+	// Add serial number to our fake Apple server
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial, mdmHost2.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, mdmHost2.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	var createLabelResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label1" + t.Name(), Hosts: []string{mdmHost.HardwareSerial}}, http.StatusOK, &createLabelResp)
+	l1 := createLabelResp.Label
+	require.NotNil(t, l1)
+
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label2" + t.Name(), Hosts: []string{mdmHost2.HardwareSerial}}, http.StatusOK, &createLabelResp)
+	l2 := createLabelResp.Label
 
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
@@ -11999,7 +12030,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	// Add an app store app to team 1
 	addedApp := expectedApps[0]
 	var addedMacOSApp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addedMacOSApp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, Platform: addedApp.Platform, AppStoreID: addedApp.AdamID, SelfService: true, LabelsIncludeAny: []string{l1.Name}}, http.StatusOK, &addedMacOSApp)
 
 	// list the software titles for that team, to get the title id of the VPP app
 	var listSw listSoftwareTitlesResponse
@@ -12008,6 +12039,14 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
 
+	scoped, err := s.ds.IsVPPAppLabelScoped(ctx, 1, mdmHost.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
+	scoped, err = s.ds.IsVPPAppLabelScoped(ctx, 1, mdmHost2.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
 	// Insert iPadOS app
 	addedApp = expectedApps[1]
 	addedIOSApp := addAppStoreAppResponse{}
@@ -12015,27 +12054,12 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform},
 		http.StatusOK, &addedIOSApp)
 
-	// Create a couple of hosts
-	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
-	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setOrbitEnrollment(t, mdmHost, s.ds)
-	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setOrbitEnrollment(t, selfServiceHost, s.ds)
-	selfServiceToken := "selfservicetoken"
-	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
-	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
-
-	// Add serial number to our fake Apple server
-	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
-	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
-
 	// Add all apps to the team
 	appSelfService := expectedApps[0]
 	// Add app 1 as self-service
 	addedMacOSApp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appSelfService.AdamID, Platform: appSelfService.Platform, SelfService: true},
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appSelfService.AdamID, Platform: appSelfService.Platform, SelfService: true, LabelsIncludeAny: []string{l1.Name}},
 		http.StatusOK, &addedMacOSApp)
 	// Add remaining as non-self-service
 	for _, app := range expectedApps[1:] {
@@ -12177,6 +12201,32 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	// MDM host failing policy should queue install
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
+		map[uint]*bool{
+			policy1Team1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// App is out of scope for mdmHost2, so we do not enqueue an install.
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		mdmHost2,
+		map[uint]*bool{
+			policy1Team1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// Update the app to exclude any with l2. We should not enqueue an install here because mdmHost2
+	// has l2.
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{l2.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
+
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		mdmHost2,
 		map[uint]*bool{
 			policy1Team1.ID: ptr.Bool(false),
 		},
