@@ -51,10 +51,7 @@ const EditScriptModal = ({
     }
   );
 
-  useEffect(() => {
-    if (isSelectedScriptContentError != null) {
-    }
-  }, [isSelectedScriptContentError]);
+  const [submitting, setSubmitting] = useState(false);
 
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
@@ -72,11 +69,14 @@ const EditScriptModal = ({
 
   const onSave = async () => {
     try {
+      setSubmitting(true);
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
       renderFlash("success", "Successfully saved script.");
       onUpload();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -112,7 +112,7 @@ const EditScriptModal = ({
               <Button onClick={onCancel} variant="inverse">
                 Cancel
               </Button>
-              <Button onClick={onSave} variant="brand">
+              <Button onClick={onSave} variant="brand" isLoading={submitting} disabled={submitting}>
                 Save
               </Button>
             </>
