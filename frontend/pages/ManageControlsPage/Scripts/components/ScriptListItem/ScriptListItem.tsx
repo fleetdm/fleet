@@ -1,13 +1,13 @@
-import React, { useContext } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import FileSaver from "file-saver";
+import React, { useContext } from "react";
 
 import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
 import { IScript } from "interfaces/script";
+import scriptAPI from "services/entities/scripts";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 
@@ -17,6 +17,7 @@ interface IScriptListItemProps {
   script: IScript;
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
+  onEdit: (script: IScript) => void;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -73,6 +74,7 @@ const ScriptListItem = ({
   script,
   onDelete,
   onClickScript,
+  onEdit,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -95,6 +97,7 @@ const ScriptListItem = ({
       }
       actions={
         <>
+          <Button onClick={() => onEdit(script)}>Edit</Button>
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"

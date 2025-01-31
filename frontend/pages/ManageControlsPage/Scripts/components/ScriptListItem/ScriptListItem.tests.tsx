@@ -1,6 +1,6 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { IScript } from "interfaces/script";
+import React from "react";
 import ScriptListItem from "./ScriptListItem";
 
 const MAC_SCRIPT: IScript = {
@@ -22,6 +22,7 @@ const WINDOWS_SCRIPT: IScript = {
 describe("ScriptListItem", () => {
   const onDelete = jest.fn();
   const onClickScript = jest.fn();
+  const onEdit = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -32,6 +33,7 @@ describe("ScriptListItem", () => {
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
+        onEdit={onEdit}
         onClickScript={onClickScript}
       />
     );
@@ -44,6 +46,7 @@ describe("ScriptListItem", () => {
       <ScriptListItem
         script={WINDOWS_SCRIPT}
         onDelete={onDelete}
+        onEdit={onEdit}
         onClickScript={onClickScript}
       />
     );
@@ -56,6 +59,7 @@ describe("ScriptListItem", () => {
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
+        onEdit={onEdit}
         onClickScript={onClickScript}
       />
     );
@@ -69,6 +73,7 @@ describe("ScriptListItem", () => {
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
+        onEdit={onEdit}
         onClickScript={onClickScript}
       />
     );

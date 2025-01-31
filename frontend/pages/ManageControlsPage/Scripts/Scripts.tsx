@@ -1,26 +1,27 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
+import { IScript } from "interfaces/script";
 import PATHS from "router/paths";
 import scriptAPI, {
   IListScriptsQueryKey,
   IScriptsResponse,
 } from "services/entities/scripts";
-import { IScript } from "interfaces/script";
 
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import InfoBanner from "components/InfoBanner";
+import Spinner from "components/Spinner";
+import UploadList from "../components/UploadList";
+import DeleteScriptModal from "./components/DeleteScriptModal";
+import EditScriptModal from "./components/EditScriptModal";
+import ScriptDetailsModal from "./components/ScriptDetailsModal";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import ScriptListPagination from "./components/ScriptListPagination";
-import DeleteScriptModal from "./components/DeleteScriptModal";
-import ScriptDetailsModal from "./components/ScriptDetailsModal";
-import UploadList from "../components/UploadList";
 import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
@@ -37,6 +38,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [showEditScripsModal, setShowEditScriptModal] = useState(false);
   const [goBackToScriptDetails, setGoBackToScriptDetails] = useState(false); // Used for onCancel in delete modal
 
   const selectedScript = useRef<IScript | null>(null);
@@ -93,6 +95,16 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     setGoBackToScriptDetails(false);
   };
 
+  const onEditScript = (script: IScript) => {
+    selectedScript.current = script;
+    setShowEditScriptModal(true);
+  }
+
+  const onCancelEditScript = () => {
+    selectedScript.current = null;
+    setShowEditScriptModal(false);
+  }
+
   const onClickDelete = (script: IScript) => {
     selectedScript.current = script;
     setShowDeleteScriptModal(true);
@@ -142,6 +154,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
               script={listItem}
               onDelete={onClickDelete}
               onClickScript={onClickScript}
+              onEdit={onEditScript}
             />
           )}
         />
@@ -200,6 +213,12 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
             setGoBackToScriptDetails(true);
           }}
           runScriptHelpText
+        />
+      )}
+      {showEditScripsModal && selectedScript.current && (
+        <EditScriptModal
+          scriptId={selectedScript.current.id}
+          onCancel={onCancelScriptDetails}
         />
       )}
     </div>
