@@ -336,12 +336,16 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
+      ensure: present
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
+      ensure: present
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+Use `ensure` to determine how apps are installed. Use `present` to automatically install apps on all hosts.
 
 ### packages
 
@@ -351,6 +355,7 @@ Use `labels_include_any` to target hosts that have any label in the array or `la
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+-  `ensure` determines how apps are installed. Use `present` to automatically install apps on all hosts.
 
 #### Example
 
@@ -365,6 +370,7 @@ uninstall_script:
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
 self_service: true
+ensure: present
 ```
 
 ### app_store_apps
@@ -374,6 +380,7 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+-  `ensure` determines how apps are installed. Use `present` to automatically install apps on all hosts.
 
 ## org_settings and team_settings
 
@@ -383,6 +390,7 @@ The `features` section of the configuration YAML lets you define what predefined
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
+- 
 
 #### Example
 
