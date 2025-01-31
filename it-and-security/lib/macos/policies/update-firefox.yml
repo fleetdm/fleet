@@ -1,6 +1,6 @@
-- name: macOS - Update Firefox
+- name: macOS - Firefox up to date
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE name = 'Firefox.app') OR EXISTS (SELECT 1 FROM apps WHERE name = 'Firefox.app' AND version_compare(bundle_short_version, '134.0.2') >= 0);
   critical: false
-  description: The host may have an outdated or non-existent version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-  resolution: Download the latest version from self-service or check for updates using Firefox's built-in update functionality.
+  description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
+  resolution: Download the latest version from self-service or check for updates using Firefox's built-in update functionality. You can also delete Firefox if you are no longer using it. 
   platform: darwin

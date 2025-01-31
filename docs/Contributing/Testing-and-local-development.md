@@ -612,9 +612,13 @@ signed fleetd-base.msi installer.
 
 You will also need to serve the `meta.json` for the fleetd-base.msi installer. 
 
+Moreover, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
+For that reason, currently the only way to test this flow is to use Dogfood, which already has this configured.
+
 #### Pre-requisites
 
 - An ngrok URL for serving the `fleetd-base.msi` installer and the `meta.json` file under the `stable/` path.
+- Perform a Dogfood deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the ngrok URL.
 
 #### Building a signed fleetd-base.msi installer from `edge`
 
@@ -646,7 +650,7 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
 5. Start your second ngrok tunnel and forward to http://localhost:8085.
 	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
-6. Start your fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL.
+6. Perform a Dogfood deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL (the environment variable is set on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`).
 	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
 7. Enroll your Windows device with Autopilot. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 

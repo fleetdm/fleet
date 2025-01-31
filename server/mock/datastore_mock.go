@@ -137,7 +137,7 @@ type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint)
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint) (err error)
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
@@ -1050,6 +1050,8 @@ type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
+
+type UpdateScriptContentsFunc func(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error)
 
 type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
 
@@ -2757,6 +2759,9 @@ type DataStore struct {
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
 
+	UpdateScriptContentsFunc        UpdateScriptContentsFunc
+	UpdateScriptContentsFuncInvoked bool
+
 	ScriptFunc        ScriptFunc
 	ScriptFuncInvoked bool
 
@@ -3406,11 +3411,11 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error) {
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	s.mu.Lock()
 	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds)
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
@@ -6603,6 +6608,13 @@ func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet
 	s.NewScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewScriptFunc(ctx, script)
+}
+
+func (s *DataStore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.UpdateScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateScriptContentsFunc(ctx, scriptID, scriptContents)
 }
 
 func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) {

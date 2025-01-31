@@ -3,7 +3,10 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
-import { getLabelHandler } from "test/handlers/label-handlers";
+import {
+  getLabelHandler,
+  getLabelHostsHandler,
+} from "test/handlers/label-handlers";
 
 import EditLabelPage from "./EditLabelPage";
 
@@ -60,6 +63,28 @@ describe("EditLabelPage", () => {
 
   it("renders the ManualLabelForm when the label is manual", async () => {
     mockServer.use(getLabelHandler({ label_membership_type: "manual" }));
+    mockServer.use(
+      getLabelHostsHandler([
+        {
+          hostname: "hosty numero uno",
+          display_name: "Test host #1",
+          team_id: 2,
+          team_name: "Mobile",
+          platform: "ios",
+          os_version: "iOS 14.7.1",
+          hardware_serial: "test-serial-1",
+        },
+        {
+          hostname: "hosty numero dos",
+          display_name: "Test host #2",
+          team_id: 2,
+          team_name: "Mobile",
+          platform: "ios",
+          os_version: "iOS 14.7.1",
+          hardware_serial: "test-serial-2",
+        },
+      ])
+    );
     const render = createCustomRenderer({ withBackendMock: true });
 
     const routerProps = generateMockRouterProps({
@@ -71,5 +96,11 @@ describe("EditLabelPage", () => {
     const selectHostsLabel = await screen.findByText("Select hosts");
 
     expect(selectHostsLabel).toBeInTheDocument();
+
+    // expect host info to be on the page
+    const host1 = await screen.findByText("Test host #1");
+    const host2 = await screen.findByText("Test host #2");
+    expect(host1).toBeInTheDocument();
+    expect(host2).toBeInTheDocument();
   });
 });

@@ -7,7 +7,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -89,36 +88,15 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
-	// Next, if membership type is manual, use ApplyLabelSpecs to create label
-	// memberships. Must resolve the host identifiers to hostname so that
-	// ApplySpecs can be used.
 	var hostIDs []uint
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		spec := fleet.LabelSpec{
-			Name:                label.Name,
-			Description:         label.Description,
-			Query:               label.Query,
-			Platform:            label.Platform,
-			LabelType:           label.LabelType,
-			LabelMembershipType: label.LabelMembershipType,
-		}
-		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, p.Hosts)
+		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
-		spec.Hosts = hostnames
-		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
-			return nil, nil, err
-		}
-
-		// must reload it to get the host IDs, refresh its count
-		ctx = ctxdb.RequirePrimary(ctx, true)
-		label, hostIDs, err = svc.ds.Label(ctx, label.ID, filter)
-		if err != nil {
-			return nil, nil, err
-		}
+		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter)
 	}
-	return label, hostIDs, nil
+	return label, nil, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +174,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds); err != nil {
+		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds, filter); err != nil {
 			return nil, nil, err
 		}
 	}
