@@ -46,17 +46,6 @@ interface IEditScriptModal {
 }
 
 const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHostScripts }: IEditScriptModal) => {
-  // For scrollable modal
-  const [isTopScrolling, setIsTopScrolling] = useState(false);
-  const topDivRef = useRef<HTMLDivElement>(null);
-  const checkScroll = () => {
-    if (topDivRef.current) {
-      const isScrolling =
-        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
-      setIsTopScrolling(isScrolling);
-    }
-  };
-
   const { renderFlash } = useContext(NotificationContext);
 
   const {
@@ -71,18 +60,17 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
     },
   );
 
+  useEffect(() => {
+    if (isSelectedScriptContentError != null) {
+
+    }
+  }, [isSelectedScriptContentError])
+
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
   useEffect(() => {
     setScriptFormData(scriptContent)
   }, [scriptContent]);
-
-  // For scrollable modal
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener("resize", checkScroll);
-    return () => window.removeEventListener("resize", checkScroll);
-  }, [scriptContent, scriptFormData]); // Re-run when data changes
 
   const handleOnChange = (value: string) => {
     setScriptFormData(value);
@@ -102,17 +90,19 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
     }
   }
 
-  return (
-    <Modal
-      className={baseClass}
-      title={scriptName}
-      width="large"
-      onExit={onCancel}
-      isHidden={isHidden}
-    >
+  const renderContent = () => {
+    if (isLoadingSelectedScriptContent) {
+      return <Spinner />;
+    }
+
+    if (isSelectedScriptContentError) {
+      return <DataError description="Close this modal and try again." />;
+    }
+
+    return (
       <>
         <form>
-          <Editor value={scriptFormData} onChange={handleOnChange}></Editor>
+          <Editor value={scriptFormData} onChange={handleOnChange} isFormField={true}></Editor>
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
             <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
@@ -123,7 +113,6 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
           </div>
         </form>
         <ModalFooter
-          isTopScrolling={isTopScrolling}
           primaryButtons={
             <>
               <Button onClick={onCancel} variant="inverse">
@@ -136,6 +125,18 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
           }
         />
       </>
+    )
+  };
+
+  return (
+    <Modal
+      className={baseClass}
+      title={scriptName}
+      width="large"
+      onExit={onCancel}
+      isHidden={isHidden}
+    >
+      {renderContent()}
     </Modal>
   )
 };
