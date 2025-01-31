@@ -102,7 +102,11 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
     return (
       <>
         <form>
-          <Editor value={scriptFormData} onChange={handleOnChange} isFormField={true}></Editor>
+          <Editor
+            value={scriptFormData}
+            onChange={handleOnChange}
+            isFormField={true}
+          />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
             <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
