@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -297,9 +295,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	for _, appFleet := range appFleets {
 		// upsert it if it does not exist or SelfService or InstallDuringSetup flags are changed
-		existingFleet, ok := existingApps[appFleet.VPPAppID]
+		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
 		var labelsChanged bool
-		if ok {
+		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
@@ -308,13 +306,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
 		}
 
-		if !ok ||
-			existingFleet.SelfService != appFleet.SelfService ||
+		if !isExistingApp ||
+			existingApp.SelfService != appFleet.SelfService ||
 			labelsChanged ||
 			appFleet.InstallDuringSetup != nil &&
-				existingFleet.InstallDuringSetup != nil &&
-				*appFleet.InstallDuringSetup != *existingFleet.InstallDuringSetup {
-			slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: app in toAddApps ", "adamID", appFleet.AdamID)
+				existingApp.InstallDuringSetup != nil &&
+				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
 			toAddApps = append(toAddApps, appFleet)
 		}
 	}
@@ -336,7 +333,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 			if toAdd.ValidatedLabels != nil {
 				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
-					return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps setOrUpdateSoftwareInstallerLabelsDB transaction")
+					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
 				}
 			}
 		}
