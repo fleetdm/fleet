@@ -11150,7 +11150,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// Attempt an install on the host. This should fail because the host doesn't have the label
 		// l2.
 		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
+		require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. This host isn't a member of the labels defined for this software title.")
 
 		// Add l2 to the host. Attempt install again, should succeed
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", l2.ID), &fleet.ModifyLabelPayload{Hosts: []string{host.HardwareSerial}}, http.StatusOK, &createLabelResp)
