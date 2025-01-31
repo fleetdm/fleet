@@ -5559,7 +5559,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
 	require.NoError(t, err)
-	vppAppTeamID := vppApp.VPPAppTeam.ID
+	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
 
 	// create a software installer
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
@@ -5642,7 +5642,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// vppApp should be in scope since it has no labels
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -5711,7 +5711,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -5725,7 +5725,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -5746,7 +5746,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -5761,7 +5761,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
 }

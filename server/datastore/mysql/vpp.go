@@ -308,7 +308,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
-		app.VPPAppTeam.ID = vppAppTeamID
+		app.VPPAppTeam.AppTeamID = vppAppTeamID
 
 		if app.ValidatedLabels != nil {
 			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, softwareTypeVPP); err != nil {
@@ -579,29 +579,36 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
 	return &info, nil
 }
 
-func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	stmt := `
 	SELECT va.adam_id,
 	 va.bundle_identifier,
 	 va.icon_url,
 	 va.name,
+	 va.platform,
 	 va.title_id,
 	 va.platform,
 	 va.created_at, 
 	 va.updated_at,
 	 vat.id
 	FROM vpp_apps va
-	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
 	WHERE va.adam_id = ? AND va.platform = ?
   `
 
+	// when team id is not nil, we need to filter by the global or team id given.
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
 	var dest fleet.VPPApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, adamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, adamID, platform)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata by team")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata by team")
 	}
 
 	return &dest, nil

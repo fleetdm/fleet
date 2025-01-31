@@ -1794,9 +1794,9 @@ type Datastore interface {
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
-	// GetVPPAppMetadataByAdamIDAndPlatform returns the VPP app corresponding to the specified ADAM ID and platform.
-	// Note that this doesn't include the self-service flag as the app isn't in the context of a team.
-	GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform AppleDevicePlatform) (*VPPApp, error)
+	// GetVPPAppMetadataByAdamIDPlatformTeamID returns the VPP app correspoding to the specified
+	// ADAM ID, platform within the context of the specified team. It includes the vpp_app_team_id value.
+	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform AppleDevicePlatform, teamID *uint) (*VPPApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error

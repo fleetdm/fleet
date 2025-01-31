@@ -1127,7 +1127,7 @@ type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[st
 
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
-type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
+type GetVPPAppMetadataByAdamIDPlatformTeamIDFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
@@ -2873,8 +2873,8 @@ type DataStore struct {
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
-	GetVPPAppMetadataByAdamIDAndPlatformFunc        GetVPPAppMetadataByAdamIDAndPlatformFunc
-	GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked bool
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFunc        GetVPPAppMetadataByAdamIDPlatformTeamIDFunc
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked bool
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
@@ -6876,11 +6876,11 @@ func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsT
 	return s.GetTitleInfoFromVPPAppsTeamsIDFunc(ctx, vppAppsTeamsID)
 }
 
-func (s *DataStore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+func (s *DataStore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
-	s.GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked = true
+	s.GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppMetadataByAdamIDAndPlatformFunc(ctx, adamID, platform)
+	return s.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc(ctx, adamID, platform, teamID)
 }
 
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {

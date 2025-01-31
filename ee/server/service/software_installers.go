@@ -972,7 +972,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install software. Host has a pending install/uninstall request.",
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -1006,14 +1006,14 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	// check the label scoping for this VPP app and host
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, hostID)
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
 	}
 
 	if !scoped {
 		return &fleet.BadRequestError{
-			Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 		}
 	}
 
@@ -1865,14 +1865,14 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 	}
 
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.ID, host.ID)
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
 	}
 
 	if !scoped {
 		return &fleet.BadRequestError{
-			Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+			Message: "Couldn't install. This software is not available for this host.",
 		}
 	}
 

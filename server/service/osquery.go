@@ -1966,7 +1966,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get VPP metadata",
@@ -1975,7 +1975,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.ID, hostID)
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
 		}
