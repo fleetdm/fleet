@@ -1,10 +1,7 @@
 import { format } from "date-fns";
-import FileSaver from "file-saver";
 import React, {
-  useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import {
@@ -14,24 +11,21 @@ import {
   useQuery,
 } from "react-query";
 
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IApiError, getErrorReason } from "interfaces/errors";
-import { IHostScript } from "interfaces/script";
+import { IApiError } from "interfaces/errors";
 import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
 
-import ActionsDropdown from "components/ActionsDropdown";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Editor from "components/Editor";
-import Icon from "components/Icon";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
-import Textarea from "components/Textarea";
-import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
 import paths from "router/paths";
+
+import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "edit-script-modal";
 
@@ -83,10 +77,10 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
   const handleOnSave = async () => {
     try {
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName)
-      renderFlash("success", "Script updated!");
+      renderFlash("success", "Successfully saved script.");
       onUpload();
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", getErrorMessage(e) );
     }
   }
 
