@@ -12,7 +12,8 @@ parasails.registerPage('homepage', {
     formRules: {
       emailAddress: {isEmail: true, required: true},
     },
-
+    initialAnimationDelayInMs: 1200,
+    animationDelayInMs: 1200,
     syncing: false,
 
     // Server error state for the form
@@ -34,7 +35,7 @@ parasails.registerPage('homepage', {
     await setTimeout(()=>{
       this.animateHeroTicker();
       this.animateBottomTicker();
-    }, 1200);
+    }, this.initialAnimationDelayInMs);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -59,7 +60,7 @@ parasails.registerPage('homepage', {
         setTimeout(()=>{
           currentTickerOption.removeClass('animating-out');
         }, 1000);
-      }, 1200);
+      }, this.animationDelayInMs);
     },
     animateBottomTicker: function() {
       setInterval(()=>{
@@ -78,7 +79,7 @@ parasails.registerPage('homepage', {
         setTimeout(()=>{
           currentTickerOption.removeClass('animating-out');
         }, 1000);
-      }, 1200);
+      }, this.animationDelayInMs);
     },
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
