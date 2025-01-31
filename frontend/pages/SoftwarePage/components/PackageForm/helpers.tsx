@@ -2,6 +2,7 @@ import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import { InstallType } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
@@ -120,7 +121,9 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
-export const getInstallType = (softwarePackage: ISoftwarePackage) => {
+export const getInstallType = (
+  softwarePackage: ISoftwarePackage
+): InstallType => {
   return softwarePackage.automatic_install_policies ? "automatic" : "manual";
 };
 

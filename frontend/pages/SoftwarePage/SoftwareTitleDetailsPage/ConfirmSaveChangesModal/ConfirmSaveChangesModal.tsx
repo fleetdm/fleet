@@ -38,6 +38,7 @@ const ConfirmSaveChangesModal = ({
           Installs or uninstalls currently running on a host will still
           complete, but results won&apos;t appear in Fleet.
         </p>
+        <p>You cannot undo this action.</p>
       </>
     ) : (
       <p>When targets change, pending installs will still complete.</p>
@@ -47,7 +48,6 @@ const ConfirmSaveChangesModal = ({
     <Modal title="Save changes?" onExit={onClose}>
       <form className={`${baseClass}__form`}>
         {warningText}
-        <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"

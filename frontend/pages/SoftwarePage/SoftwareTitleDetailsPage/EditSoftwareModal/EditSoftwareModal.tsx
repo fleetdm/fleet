@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
-import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
@@ -66,9 +66,21 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<IEditPackageFormData>({
+  const [
+    pendingPackageUpdates,
+    setPendingPackageUpdates,
+  ] = useState<IEditPackageFormData>({
     software: null,
     installScript: "",
+    selfService: false,
+    targetType: "",
+    customTarget: "",
+    labelTargets: {},
+  });
+  const [
+    pendingVppUpdates,
+    setPendingVppUpdates,
+  ] = useState<ISoftwareVppFormData>({
     selfService: false,
     targetType: "",
     customTarget: "",
@@ -91,12 +103,12 @@ const EditSoftwareModal = ({
       classnames(baseClass, {
         [`${baseClass}--hidden`]:
           showConfirmSaveChangesModal ||
-          (!!pendingUpdates.software && isUpdatingSoftware),
+          (!!pendingPackageUpdates.software && isUpdatingSoftware),
       })
     );
   }, [
     showConfirmSaveChangesModal,
-    pendingUpdates.software,
+    pendingPackageUpdates.software,
     isUpdatingSoftware,
   ]);
 
@@ -122,11 +134,11 @@ const EditSoftwareModal = ({
   }, [isUpdatingSoftware]);
 
   const toggleConfirmSaveChangesModal = () => {
-    // open and closes save changes modal
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSavePackageChanges = async (formData: IEditPackageFormData) => {
+  // Edit package API call
+  const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -138,8 +150,6 @@ const EditSoftwareModal = ({
       return;
     }
 
-    // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
-    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
@@ -171,11 +181,15 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const onEditPackage = (formData: IPackageFormData) => {
+  const isOnlySelfServiceUpdated = (updates: Record<string, any>) => {
+    return Object.keys(updates).length === 1 && "selfService" in updates;
+  };
+
+  const onClickSavePackage = (formData: IPackageFormData) => {
     const softwarePackage = software as ISoftwarePackage;
-    // Check for changes to conditionally confirm save changes modal
-    const updates = deepDifference(formData, {
-      software,
+
+    const currentData = {
+      software: null,
       installScript: softwarePackage.install_script || "",
       preInstallQuery: softwarePackage.pre_install_query || "",
       postInstallScript: softwarePackage.post_install_script || "",
@@ -185,26 +199,23 @@ const EditSoftwareModal = ({
       targetType: getTargetType(softwarePackage),
       customTarget: getCustomTarget(softwarePackage),
       labelTargets: generateSelectedLabels(softwarePackage),
-    });
+    };
 
-    setPendingUpdates(formData);
+    setPendingPackageUpdates(formData);
 
-    const onlySelfServiceUpdated =
-      Object.keys(updates).length === 1 && "selfService" in updates;
-    if (onlySelfServiceUpdated) {
-      // Proceed with saving changes (API expects only changes)
-      onSavePackageChanges(formData);
+    const updates = deepDifference(formData, currentData);
+
+    if (isOnlySelfServiceUpdated(updates)) {
+      onEditPackage(formData);
     } else {
-      // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
     }
   };
 
-  const onSaveVppChanges = async (formData: ISoftwareVppFormData) => {
+  // Edit VPP API call
+  const onEditVpp = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
-    // Note: This TODO is copied over from onEditPackage
-    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await mdmAppleAPI.editVppApp(teamId, formData);
 
@@ -225,30 +236,32 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const onEditVpp = async (formData: ISoftwareVppFormData) => {
-    // Check for changes to conditionally confirm save changes modal
-    const updates = deepDifference(formData, {
+  const onClickSaveVpp = async (formData: ISoftwareVppFormData) => {
+    const currentData = {
       selfService: software.self_service || false,
       targetType: getTargetType(software),
       customTarget: getCustomTarget(software),
       labelTargets: generateSelectedLabels(software),
-    });
+    };
 
-    const onlySelfServiceUpdated =
-      Object.keys(updates).length === 1 && "selfService" in updates;
-    if (onlySelfServiceUpdated) {
-      // Proceed with saving changes (API expects only changes)
-      onSaveVppChanges(formData);
+    setPendingVppUpdates(formData);
+
+    const updates = deepDifference(formData, currentData);
+
+    if (isOnlySelfServiceUpdated(updates)) {
+      onEditVpp(formData);
     } else {
-      // Open the confirm save changes modal
       setShowConfirmSaveChangesModal(true);
     }
   };
 
-  const onConfirmSoftwareChanges = () => {
+  const onClickConfirmChanges = () => {
     setShowConfirmSaveChangesModal(false);
-    onSavePackageChanges(pendingUpdates);
-    // TODO: VPP changes
+    if (installerType === "package") {
+      onEditPackage(pendingPackageUpdates);
+    } else {
+      onEditVpp(pendingVppUpdates);
+    }
   };
 
   const renderForm = () => {
@@ -260,7 +273,7 @@ const EditSoftwareModal = ({
           className={`${baseClass}__package-form`}
           isEditingSoftware
           onCancel={onExit}
-          onSubmit={onEditPackage}
+          onSubmit={onClickSavePackage}
           defaultSoftware={software}
           defaultInstallScript={softwarePackage.install_script}
           defaultPreInstallQuery={softwarePackage.pre_install_query}
@@ -275,7 +288,7 @@ const EditSoftwareModal = ({
       <SoftwareVppForm
         labels={labels || []}
         softwareVppForEdit={software as IAppStoreApp}
-        onSubmit={onEditVpp}
+        onSubmit={onClickSaveVpp}
         onCancel={onExit}
       />
     );
@@ -296,12 +309,12 @@ const EditSoftwareModal = ({
           onClose={toggleConfirmSaveChangesModal}
           softwareInstallerName={software?.name}
           installerType={installerType}
-          onSaveChanges={onConfirmSoftwareChanges}
+          onSaveChanges={onClickConfirmChanges}
         />
       )}
-      {!!pendingUpdates.software && isUpdatingSoftware && (
+      {!!pendingPackageUpdates.software && isUpdatingSoftware && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingUpdates.software)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}
