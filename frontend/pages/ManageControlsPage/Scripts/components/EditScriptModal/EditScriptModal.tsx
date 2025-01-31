@@ -52,7 +52,7 @@ const EditScriptModal = ({
   );
 
   const validate = (scriptContent: string) => {
-    if (scriptContent.trim() == "") {
+    if (scriptContent.trim() === "") {
       setFormError("Script cannot be empty");
     } else {
       setFormError(null);
