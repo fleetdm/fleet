@@ -1,9 +1,5 @@
 import { format } from "date-fns";
-import React, {
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   QueryObserverResult,
   RefetchOptions,
@@ -14,7 +10,6 @@ import {
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
-
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -36,7 +31,12 @@ interface IEditScriptModal {
   isHidden?: boolean;
 }
 
-const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScriptModal) => {
+const EditScriptModal = ({
+  scriptId,
+  scriptName,
+  onCancel,
+  isHidden,
+}: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const {
@@ -48,38 +48,37 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScri
     () => scriptAPI.downloadScript(scriptId),
     {
       refetchOnWindowFocus: false,
-    },
+    }
   );
 
   useEffect(() => {
     if (isSelectedScriptContentError != null) {
-
     }
-  }, [isSelectedScriptContentError])
+  }, [isSelectedScriptContentError]);
 
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
   useEffect(() => {
-    setScriptFormData(scriptContent)
+    setScriptFormData(scriptContent);
   }, [scriptContent]);
 
   const handleOnChange = (value: string) => {
     setScriptFormData(value);
-  }
+  };
 
   const onUpload = () => {
     onCancel();
-  }
+  };
 
   const handleOnSave = async () => {
     try {
-      await scriptAPI.updateScript(scriptId, scriptFormData, scriptName)
+      await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
       renderFlash("success", "Successfully saved script.");
       onUpload();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e) );
+      renderFlash("error", getErrorMessage(e));
     }
-  }
+  };
 
   const renderContent = () => {
     if (isLoadingSelectedScriptContent) {
@@ -96,7 +95,7 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScri
           <Editor
             value={scriptFormData}
             onChange={handleOnChange}
-            isFormField={true}
+            isFormField
           />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
@@ -120,7 +119,7 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScri
           }
         />
       </>
-    )
+    );
   };
 
   return (
@@ -133,7 +132,7 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScri
     >
       {renderContent()}
     </Modal>
-  )
+  );
 };
 
 export default EditScriptModal;
