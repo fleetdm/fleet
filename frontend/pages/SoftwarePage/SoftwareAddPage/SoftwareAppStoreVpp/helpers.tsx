@@ -39,11 +39,12 @@ const generateAlreadyAvailableMessage = (msg: string): ReactNode => {
   const match = msg.match(regex);
 
   if (match) {
-    return "TODO: FIX THIS since it wont let me fix this";
-    // <>
-    //   {ADD_SOFTWARE_ERROR_PREFIX} <b>{match[1]}</b> already has software
-    //   available for install on the <b>{match[2]}</b> team.{" "}
-    // </>
+    return (
+      <>
+        {ADD_SOFTWARE_ERROR_PREFIX} <b>{match[1]}</b> already has software
+        available for install on the <b>{match[2]}</b> team.{" "}
+      </>
+    );
   }
 
   if (msg.includes("VPPApp")) {
