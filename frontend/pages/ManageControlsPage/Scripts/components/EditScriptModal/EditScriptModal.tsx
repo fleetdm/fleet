@@ -1,7 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
-import {
-  useQuery,
-} from "react-query";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 import scriptAPI from "services/entities/scripts";
@@ -56,7 +54,7 @@ const EditScriptModal = ({
     setScriptFormData(value);
   };
 
-  const onUpload = () => {
+  const onUploaded = () => {
     onCancel();
   };
 
@@ -65,13 +63,18 @@ const EditScriptModal = ({
       setSubmitting(true);
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
       renderFlash("success", "Successfully saved script.");
-      onUpload();
+      onUploaded();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     } finally {
       setSubmitting(false);
     }
   };
+
+    const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      onSave();
+    }
 
   const renderContent = () => {
     if (isLoadingSelectedScriptContent) {
@@ -84,7 +87,7 @@ const EditScriptModal = ({
 
     return (
       <>
-        <form>
+        <form onSubmit={onSubmit}>
           <Editor value={scriptFormData} onChange={onChange} isFormField />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
