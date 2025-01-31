@@ -34,7 +34,7 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 * Verifying: hosts that have acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied with osquery on Windows and macOS hosts (declarations are verified with [DDM](https://support.apple.com/en-gb/guide/deployment/depb1bab77f8/web)). If the profile wasn't installed, Fleet will redeliver the profile.
 
-* Pending: hosts that will receive MDM commands to apply OS settings when the hosts come online.
+* Pending: hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
 
 * Failed: hosts that failed to apply OS settings. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
