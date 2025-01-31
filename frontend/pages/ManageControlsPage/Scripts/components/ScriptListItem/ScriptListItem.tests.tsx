@@ -81,4 +81,18 @@ describe("ScriptListItem", () => {
     fireEvent.click(screen.getByTestId("trash-icon"));
     expect(onDelete).toHaveBeenCalledWith(MAC_SCRIPT);
   });
+
+  it("calls onEdit when pencil button is clicked", () => {
+    render(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("pencil-icon"));
+    expect(onEdit).toHaveBeenCalledWith(MAC_SCRIPT);
+  });
 });

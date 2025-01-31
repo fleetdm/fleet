@@ -13,12 +13,14 @@ import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import paths from "router/paths";
 
+import { ScriptContent } from "interfaces/script";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "edit-script-modal";
 
 interface IEditScriptModal {
-  onCancel: () => void;
+  onExit: () => void;
   scriptId: number;
   scriptName: string;
 }
@@ -26,48 +28,55 @@ interface IEditScriptModal {
 const EditScriptModal = ({
   scriptId,
   scriptName,
-  onCancel,
+  onExit,
 }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  // Editable script content
+  const [scriptFormData, setScriptFormData] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const {
-    data: scriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
-  } = useQuery<any, Error>(
+  } = useQuery<ScriptContent, Error>(
     [scriptId],
     () => scriptAPI.downloadScript(scriptId),
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      onSuccess: (scriptContent) => {
+        setScriptFormData(scriptContent);
+      },
     }
   );
 
-  const [submitting, setSubmitting] = useState(false);
-
-  // Editable script content
-  const [scriptFormData, setScriptFormData] = useState("");
-  useEffect(() => {
-    setScriptFormData(scriptContent);
-  }, [scriptContent]);
+  const validate = (scriptContent: string) => {
+    if (scriptContent.trim() == "") {
+      setFormError("Script cannot be empty");
+    } else {
+      setFormError(null);
+    }
+  };
 
   const onChange = (value: string) => {
     setScriptFormData(value);
-  };
-
-  const onUploaded = () => {
-    onCancel();
+    validate(value);
   };
 
   const onSave = async () => {
+    if (isSubmitting) {
+      return;
+    }
     try {
-      setSubmitting(true);
+      setIsSubmitting(true);
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
       renderFlash("success", "Successfully saved script.");
-      onUploaded();
+      onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -88,7 +97,12 @@ const EditScriptModal = ({
     return (
       <>
         <form onSubmit={onSubmit}>
-          <Editor value={scriptFormData} onChange={onChange} isFormField />
+          <Editor
+            value={scriptFormData}
+            onChange={onChange}
+            isFormField
+            error={formError}
+          />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
             <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
@@ -101,15 +115,10 @@ const EditScriptModal = ({
         <ModalFooter
           primaryButtons={
             <>
-              <Button onClick={onCancel} variant="inverse">
+              <Button onClick={onExit} variant="inverse">
                 Cancel
               </Button>
-              <Button
-                onClick={onSave}
-                variant="brand"
-                isLoading={submitting}
-                disabled={submitting}
-              >
+              <Button onClick={onSave} variant="brand" isLoading={isSubmitting}>
                 Save
               </Button>
             </>
@@ -124,7 +133,7 @@ const EditScriptModal = ({
       className={baseClass}
       title={scriptName}
       width="large"
-      onExit={onCancel}
+      onExit={onExit}
     >
       {renderContent()}
     </Modal>
