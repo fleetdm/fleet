@@ -236,6 +236,10 @@ func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
 		return true
 	}
 
+	if len(l.ByName) != len(other.ByName) {
+		return false
+	}
+
 	for k, v := range l.ByName {
 		otherV, ok := other.ByName[k]
 		if !ok {
