@@ -374,13 +374,13 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 	maxRoutines int,
 ) ([]hostCount, error) {
 	const (
-		batchSize = 20
+		batchSize = 10
 	)
 
 	// Fetch distinct CVEs
 	allCVEs, err := ds.distinctCVEs(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetching distinct CVEs: %w", err)
 	}
 
 	query := getVulnHostCountQuery(scope)
