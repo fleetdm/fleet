@@ -741,8 +741,6 @@ The `yara_rules` section lets you define [YARA rules](https://virustotal.github.
 YARA rule functionality. Learn more about authenticated YARA rules in Fleet
 [here](https://fleetdm.com/guides/remote-yara-rules).
 
-Each entry should be the relative path to a valid YARA rule file.
-
 ##### Example
 
 ```yaml
