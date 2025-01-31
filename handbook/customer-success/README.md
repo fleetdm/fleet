@@ -183,6 +183,14 @@ Escalation of alarms will be done manually by the first responder according to t
 
 All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
 
+### Feedback on prioritized customer requests
+
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Head of Product Design (HPD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+
+Sometimes during drafting or after the user story is released, the HPD will ask the appropriate Customer Success Manager (CSM) to bring wireframes or released improvements to the customer for feedback. When this happens, HPD assigns the CSM and adds the `#g-customer-success` label.
+
+If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the HPD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the HPD, and unsassign themselves from the request issue.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
