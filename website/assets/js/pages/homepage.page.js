@@ -32,7 +32,7 @@ parasails.registerPage('homepage', {
   },
   mounted: async function() {
     this.animateHeroTicker();
-    if(this.primaryBuyingSituation && !['vm', 'eo-security'].includes(this.primaryBuyingSituation)){
+    if(['mdm', 'eo-it', undefined].includes(this.primaryBuyingSituation)){
       this.animateBottomTicker();
     }
   },
@@ -45,6 +45,11 @@ parasails.registerPage('homepage', {
       setInterval(()=>{
         let currentTickerOption = $('[purpose="hero-ticker-option"].visible');
         if(currentTickerOption) {
+          if (currentTickerOption.length === 0) {
+            currentTickerOption = $('[purpose="hero-ticker-option"]').first();
+            currentTickerOption.addClass('visible');
+            return;
+          }
           // [?]:https://api.jquery.com/nextAll/#nextAll-selector
           let nextTickerOption = currentTickerOption.nextAll('[purpose="hero-ticker-option"]').first();
           currentTickerOption.removeClass('visible').addClass('animating-out');
@@ -59,6 +64,11 @@ parasails.registerPage('homepage', {
       setInterval(()=>{
         let currentTickerOption = $('[purpose="bottom-cta-ticker-option"].visible');
         if(currentTickerOption) {
+          if (currentTickerOption.length === 0) {
+            currentTickerOption = $('[purpose="bottom-cta-ticker-option"]').first();
+            currentTickerOption.addClass('visible');
+            return;
+          }
           // [?]:https://api.jquery.com/nextAll/#nextAll-selector
           let nextTickerOption = currentTickerOption.nextAll('[purpose="bottom-cta-ticker-option"]').first();
           currentTickerOption.removeClass('visible').addClass('animating-out');
