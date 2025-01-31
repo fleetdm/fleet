@@ -88,6 +88,10 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
     setScriptFormData(value);
   }
 
+  const handleOnSave = () => {
+    scriptAPI.updateScript(scriptId, scriptFormData, scriptName)
+  }
+
   return (
     <Modal
       className={baseClass}
@@ -108,8 +112,8 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
             </Button>
           }
           primaryButtons={
-              <Button onClick={onCancel} variant="brand">
-                Done
+              <Button onClick={handleOnSave} variant="brand">
+                Save
               </Button>
           }
         />
