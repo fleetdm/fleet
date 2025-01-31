@@ -82,9 +82,9 @@ Disk encryption keys are used to login to workstations (hosts) when they're retu
 
 1. With the macOS host in front of you, restart the host and select the end user's account.
 
-2. Select the question mark icon **(?)** next to the password field and select TODO. If you don't see the **(?)** icon, try entering any incorrect password several times.
+2. Select the question mark icon **(?)** next to the password field and select **Restart and show password reset options**. If you don't see the **(?)** icon, try entering any incorrect password several times.
 
-3. Follow the instructions on the Mac to enter the disk encryption (FileVault recovery) key.
+3. Follow the instructions on the Mac to enter the disk encryption (recovery) key.
 
 ### Windows
 
