@@ -7,7 +7,7 @@ In Fleet, you can automatically and remotely install software on hosts. This gui
 1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
 Current supported software deployment formats:
-- macOS: .pkg and App Store (VPP)
+- macOS: .pkg and App Store (VPP) app
 - Windows: .msi, .exe
 - Linux: .deb, .rpm
 
