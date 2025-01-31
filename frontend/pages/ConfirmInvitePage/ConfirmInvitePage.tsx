@@ -41,9 +41,8 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     "invite",
     () => inviteAPI.verify(invite_token),
     {
-      select: (resp: IValidateInviteResp) => resp.invite,
       ...DEFAULT_USE_QUERY_OPTIONS,
-      // retry: (failureCount, error) => failureCount < 4 && error.status !== 404,
+      select: (resp: IValidateInviteResp) => resp.invite,
     }
   );
 

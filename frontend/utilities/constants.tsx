@@ -4,8 +4,6 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IconNames } from "components/icons";
-import { useQuery } from "react-query";
-import { isAxiosError } from "axios";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -430,13 +428,13 @@ export const HOST_OSQUERY_DATA = [
   "distributed_interval",
 ];
 
-type UseQueryOptions = Parameters<typeof useQuery>[2];
-export const DEFAULT_USE_QUERY_OPTIONS: Partial<UseQueryOptions> = {
+export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
-  retry: (failureCount, error) => {
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
     let isBadRequestErr = false;
-    if (isAxiosError(error) && error.status !== undefined) {
-      isBadRequestErr = error.status >= 400 && error.status < 500;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
     }
     return failureCount < 4 && !isBadRequestErr;
   },
