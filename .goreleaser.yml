@@ -2,9 +2,9 @@ version: 2
 
 project_name: fleet
 
-monorepo:
-  tag_prefix: fleet-
-  dir: .
+# monorepo:
+#  tag_prefix: fleet-
+#  dir: .
 
 before:
   hooks:
