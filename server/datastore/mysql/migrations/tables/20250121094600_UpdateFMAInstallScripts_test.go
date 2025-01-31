@@ -298,6 +298,7 @@ sudo cp -R "$TMPDIR/%[2]s" "$APPDIR"
 
 	err = sqlx.Get(db, &scriptContents, uninstallSelectStmt, "docker")
 	require.NoError(t, err)
+	require.Contains(t, scriptContents.UninstallScriptContents, "quit_application 'com.docker.docker'")
 	require.Contains(t, scriptContents.UninstallScriptContents, "quit_application 'com.electron.dockerdesktop'")
 
 	err = sqlx.Get(db, &scriptContents, selectStmt, "box-drive")
