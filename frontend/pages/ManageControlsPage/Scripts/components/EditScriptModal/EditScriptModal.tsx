@@ -34,12 +34,9 @@ interface IEditScriptModal {
   scriptId: number;
   scriptName: string;
   isHidden?: boolean;
-  refetchHostScripts?: <TPageData>(
-    options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined,
-  ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
 }
 
-const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHostScripts }: IEditScriptModal) => {
+const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const {
