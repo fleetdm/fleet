@@ -76,23 +76,61 @@ How to view the disk encryption key:
 
 ## Use disk encryption key to login
 
+Disk encryption keys are used to login to workstations (hosts) when they're returned to the organization, after an employee leaves, or when the end user forgot their password.
+
 ### macOS
 
 1. With the macOS host in front of you, restart the host and select the end user's account.
 
-2. Select the question mark icon **(?)** next to the password field and select TODO. If you don't see the question makr icon, try entering any incorrect password several times.
+2. Select the question mark icon **(?)** next to the password field and select TODO. If you don't see the **(?)** icon, try entering any incorrect password several times.
 
 3. Follow the instructions on the Mac to enter the disk encryption (FileVault recovery) key.
 
 ### Windows
 
-1. In Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. If it had an **On (automatic)** status continue to step 2. If it has an **On (manual)** status continue to step TODO
+1. In Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. 
 
-2. TODO
+If it has an **On (automatic)** status follow the first set of instructions. If it has an **On (manual)** status follow the second set of instructions.
+
+#### On (automatic)
+
+1. You don't need the disk encryption key. Instead login to [Microsoft Azure](portal.azure.com) (Entra) and head to Users
+
+2. Select the end user's user and select **Reset password**.
+
+3. Use the new password to login to the Windows workstation.
+
+#### On (manual)
+
+1. With the Windows host in front of you, hold the **Shift** key and restart the host.
+
+2. Select **Troubleshoot > Advanced options > Command Prompt** and enter the disk encryption (BitLocker) key when prompted.
+
+3. Run the following command to list the local users accounts:
+
+```
+TODO
+```
+
+4. Identify the end user's account and run this command to reset the end user's password:
+
+```
+TODO
+```
+
+5. Use the new password to login to the Windows workstation.
 
 ### Linux 
 
-TODO
+1. With the Linux host in front of you, plug in a USB drive and boot up the host.
+
+2. Run the following command to prompt for the disk encryption key: 
+
+```
+cryptsetup reencrypt –decrypt
+```
+
+3. Enter the disk encryption key and mount the now decryped partition into a new folder.
 
 #### 
 
