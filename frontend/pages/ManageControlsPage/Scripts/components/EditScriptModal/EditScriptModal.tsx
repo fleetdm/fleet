@@ -113,26 +113,26 @@ const EditScriptModal = ({ scriptId, scriptName, onCancel, isHidden, refetchHost
       <>
         <form>
           <Editor value={scriptFormData} onChange={handleOnChange}></Editor>
+          <div className="form-field__help-text">
+            To run this script on a host, go to the{" "}
+            <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
+            a host.
+            <br />
+            To run the script across multiple hosts, add a policy automation on
+            the <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
+          </div>
         </form>
-        <div className="form-field__help-text">
-          To run this script on a host, go to the{" "}
-          <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
-          a host.
-          <br />
-          To run the script across multiple hosts, add a policy automation on
-          the <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
-        </div>
         <ModalFooter
           isTopScrolling={isTopScrolling}
-          secondaryButtons={
-            <Button onClick={onCancel}>
-              Cancel
-            </Button>
-          }
           primaryButtons={
-            <Button onClick={handleOnSave} variant="brand">
-              Save
-            </Button>
+            <>
+              <Button onClick={onCancel} variant="inverse">
+                Cancel
+              </Button>
+              <Button onClick={handleOnSave} variant="brand">
+                Save
+              </Button>
+            </>
           }
         />
       </>
