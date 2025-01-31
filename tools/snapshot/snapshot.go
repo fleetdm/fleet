@@ -127,7 +127,7 @@ func restore(homedir string) error {
 	}
 
 	// Prepare the restore script with the selected snapshot.
-	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/restore.sh", snapshots[index].Path)
+	cmd := exec.Command("./tools/backup_db/restore.sh", snapshots[index].Path)
 
 	// Use the same stdin, stdout, and stderr as the parent process.
 	cmd.Stdin = os.Stdin
@@ -190,7 +190,7 @@ func snapshot(homedir string) error {
 		}
 		switch result {
 		case "Y", "y", "":
-			err = os.RemoveAll(snapshotPath)
+			err = os.Remove(filepath.Join(snapshotPath, "db.sql.gz"))
 			if err != nil {
 				fmt.Printf("Error removing existing snapshot (%s): %v\n", result, err)
 				return err
@@ -205,12 +205,12 @@ func snapshot(homedir string) error {
 
 	// Create the snapshot directory
 	err = os.Mkdir(snapshotPath, 0o755)
-	if err != nil {
+	if err != nil && !os.IsExist(err) {
 		fmt.Printf("Error creating snapshot directory (%s): %v\n", snapshotPath, err)
 	}
 
 	// Prepare the backup script with the snapshot path.
-	cmd := exec.Command("/Users/scott/Development/fleet/tools/backup_db/backup.sh", filepath.Join(snapshotPath, "db.sql.gz"))
+	cmd := exec.Command("./tools/backup_db/backup.sh", filepath.Join(snapshotPath, "db.sql.gz"))
 
 	// Use the same stdin, stdout, and stderr as the parent process.
 	cmd.Stdin = os.Stdin
