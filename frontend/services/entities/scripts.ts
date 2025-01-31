@@ -1,4 +1,4 @@
-import { IScript, IHostScript } from "interfaces/script";
+import { IHostScript, IScript } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -139,7 +139,7 @@ export default {
     const formData = new FormData();
     formData.append("script", file);
 
-    return sendRequest("PATCH", path);
+    return sendRequest("PATCH", path, formData);
   },
 
   deleteScript(id: number) {
