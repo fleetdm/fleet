@@ -82,7 +82,9 @@ org_settings:
       enable_activities_webhook: true
 policies:
 queries:
-  - path: ./lib/all/queries/collect-fleetd-update-channels.yml
+  - path: ./lib/all/queries/collect-fleetd-information.yml
+  - path: ./lib/all/queries/collect-operating-system-information.yml
+  - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:

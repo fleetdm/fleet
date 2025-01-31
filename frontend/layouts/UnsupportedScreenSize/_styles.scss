@@ -9,32 +9,31 @@
   align-items: center;
   justify-content: center;
   gap: $pad-medium;
-  
+
   // Overlay below 768px
   @media (min-width: $break-xs) {
     display: none;
   }
-  
+
   // No overlay when printing
   @media print {
     display: none;
   }
-  
+
   img {
     width: 160px;
   }
-  
+
   &__text {
     text-align: center;
-  
+
     h1 {
       font-size: $small;
       font-weight: $bold;
     }
-  
+
     p {
       font-size: $xx-small;
     }
   }
-
 }

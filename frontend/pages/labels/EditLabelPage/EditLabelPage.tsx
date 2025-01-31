@@ -4,8 +4,10 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
-import labelsAPI, { IGetLabelResonse } from "services/entities/labels";
-import hostAPI from "services/entities/hosts";
+import labelsAPI, {
+  IGetHostsInLabelResponse,
+  IGetLabelResonse,
+} from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
@@ -49,21 +51,18 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     }
   );
 
-  // TODO: clean this up when API allows getting hosts by
-  // host ids in a single request. We need to make another request when
-  // the label is manual to get the host data for the targeted hosts.
   const {
     data: targetedHosts,
     isLoading: isLoadingHosts,
     isError: isErrorHosts,
-  } = useQuery<{ host: IHost }[], AxiosError, IHost[]>(
+  } = useQuery<IGetHostsInLabelResponse, AxiosError, IHost[]>(
     ["hosts"],
     () => {
-      return hostAPI.getHosts(label?.host_ids ?? []);
+      return labelsAPI.getHostsInLabel(labelId);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (res) => res.map((host) => host.host),
+      select: (data) => data.hosts,
       enabled: label?.label_membership_type === "manual",
     }
   );

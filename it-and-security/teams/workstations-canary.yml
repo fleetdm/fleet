@@ -122,20 +122,17 @@ controls:
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
 policies:
-  - path: ../lib/macos/policies/device-health.yml
+  - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/windows/policies/device-health.yml
-  - path: ../lib/linux/policies/linux-device-health.yml
+  - path: ../lib/macos/policies/update-1password.yml
+  - path: ../lib/windows/policies/windows-device-health.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
-  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
   - path: ../lib/all/queries/collect-fleetd-information.yml
   - path: ../lib/all/queries/collect-usb-devices.yml
-  - path: ../lib/all/queries/collect-vs-code-extensions.yml
-  - path: ../lib/macos/queries/collect-software-permissions-system.yml
-  - path: ../lib/macos/queries/collect-software-permissions-user.yml
-  - path: ../lib/all/queries/collect-crowdstrike-info.yml
+  - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)

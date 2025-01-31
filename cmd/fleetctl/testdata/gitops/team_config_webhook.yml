@@ -1,0 +1,15 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+    secrets:
+    - secret: "SampleSecret123-team"
+    - secret: "ABC-team"
+    webhook_settings:
+        host_status_webhook:
+            enable_host_status_webhook: true
+            destination_url: http://coolwebhook.biz
+            days_count: 1
+            host_percentage: 50
+software:
+queries:
+policies:
+agent_options:
