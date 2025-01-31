@@ -117,6 +117,16 @@ const createMockHost = (overrides?: Partial<IHost>): IHost => {
 
 export const createMockHostResponse = { host: createMockHost() };
 
+export const createMockHostsResponse = (overrides?: Partial<IHost>[]) => {
+  const numHosts = overrides?.length || 1;
+  const hosts = Array(numHosts)
+    .fill(null)
+    .map((_, i) => createMockHost(overrides?.[i]));
+  return {
+    hosts,
+  };
+};
+
 export const createMockIosHostResponse = {
   host: createMockHost({
     hostname: "Test device (iPhone)",
