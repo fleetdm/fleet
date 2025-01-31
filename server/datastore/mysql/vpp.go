@@ -586,6 +586,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 va.icon_url,
 	 va.name,
 	 va.platform,
+	 vat.self_service,
 	 va.title_id,
 	 va.platform,
 	 va.created_at, 
