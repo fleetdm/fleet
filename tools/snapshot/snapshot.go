@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/manifoldco/promptui"
+	// Force promptui to use our newer x/sys package,
+	// which doesn't have security vulnerabilities.
+	_ "golang.org/x/sys/unix"
 )
 
 // Represents a snapshot.
