@@ -38,6 +38,9 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
   ActivityType.DeletedSoftware,
+  ActivityType.AddedAppStoreApp,
+  ActivityType.EditedAppStoreApp,
+  ActivityType.DeletedAppStoreApp,
   ActivityType.InstalledSoftware,
   ActivityType.UninstalledSoftware,
   ActivityType.EnabledActivityAutomations,
@@ -988,6 +991,25 @@ const TAGGED_TEMPLATES = {
         {" "}
         added <b>{swTitle}</b>{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  editedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        edited <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}

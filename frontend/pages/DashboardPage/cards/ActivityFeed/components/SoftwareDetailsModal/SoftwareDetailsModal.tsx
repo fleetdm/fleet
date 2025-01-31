@@ -15,7 +15,24 @@ interface ITargetValueProps {
   labelExcludeAny?: ILabelSoftwareTitle[];
 }
 
-const TargetValue = ({
+// Shared with global activity VPP details modal
+export const TargetTitle = ({
+  labelIncludeAny,
+  labelExcludeAny,
+}: ITargetValueProps) => {
+  let suffix = "";
+
+  if (labelIncludeAny) {
+    suffix = " (include any)";
+  } else if (labelExcludeAny) {
+    suffix = " (exclude any)";
+  }
+
+  return <>Target{suffix}</>;
+};
+
+// Shared with global activity VPP details modal
+export const TargetValue = ({
   labelIncludeAny,
   labelExcludeAny,
 }: ITargetValueProps) => {
@@ -23,16 +40,19 @@ const TargetValue = ({
     return <>All hosts</>;
   }
 
-  let valueText = "";
   let labels: ILabelSoftwareTitle[] = [];
   if (labelIncludeAny) {
-    valueText = "Custom - include any label";
     labels = labelIncludeAny;
   } else if (labelExcludeAny) {
-    valueText = "Custom - exclude any label";
     labels = labelExcludeAny;
   }
 
+  // Single label targeted: Show label name
+  if (labels.length === 1) {
+    return <>{labels[0].name}</>;
+  }
+
+  // Multiple labels targeted: Show label count with tooltip of targeted label names
   return (
     <TooltipWrapper
       tipContent={labels.map((label) => (
@@ -42,7 +62,7 @@ const TargetValue = ({
         </>
       ))}
     >
-      {valueText}
+      {labels.length} labels
     </TooltipWrapper>
   );
 };
@@ -75,7 +95,12 @@ const SoftwareDetailsModal = ({
             value={details.self_service ? "Yes" : "No"}
           />
           <DataSet
-            title="Target"
+            title={
+              <TargetValue
+                labelIncludeAny={labels_include_any}
+                labelExcludeAny={labels_exclude_any}
+              />
+            }
             value={
               <TargetValue
                 labelIncludeAny={labels_include_any}
