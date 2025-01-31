@@ -97,7 +97,12 @@ const ScriptListItem = ({
       }
       actions={
         <>
-          <Button onClick={() => onEdit(script)}>Edit</Button>
+          <Button
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+            onClick={() => onEdit(script)}>
+            <Icon name="pencil" />
+          </Button>
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
