@@ -66,7 +66,7 @@ parasails.registerPage('homepage', {
       }, this.animationDelayInMs);
     },
     animateBottomTicker: function() {
-      // Animate the bottom Heading on the page (Currently only agnostic, mdm, and eo-it personalized views)
+      // Animate the ticker in the bottom heading on the page (Currently only agnostic, mdm, and eo-it personalized views)
       setInterval(()=>{
         let currentTickerOption = $('[purpose="bottom-cta-ticker-option"].visible');
         if(currentTickerOption) {
