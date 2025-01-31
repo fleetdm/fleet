@@ -31,6 +31,7 @@ export interface IAddVppAppPostBody {
 }
 
 export interface IEditVppAppPostBody {
+  team_id: number;
   self_service?: boolean;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
@@ -111,11 +112,16 @@ export default {
     return sendRequest("POST", MDM_APPLE_VPP_APPS, body);
   },
 
-  editVppApp: (softwareId: number, formData: ISoftwareVppFormData) => {
+  editVppApp: (
+    softwareId: number,
+    teamId: number,
+    formData: ISoftwareVppFormData
+  ) => {
     const { EDIT_SOFTWARE_VPP } = endpoints;
 
     const body: IEditVppAppPostBody = {
       self_service: formData.selfService,
+      team_id: teamId,
     };
 
     if (formData.targetType === "Custom") {

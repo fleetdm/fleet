@@ -217,7 +217,7 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(true);
 
     try {
-      await mdmAppleAPI.editVppApp(teamId, formData);
+      await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
 
       renderFlash(
         "success",
