@@ -23,7 +23,7 @@ Fleet users with Linux ARM workstations can now use the fleetctl command-line in
 
 ### Faster employee onboarding
 
-During new employee onboarding, Macs now download bootstrap packages and software from the nearest CloudFront region. This speeds up onboarding for new employees, ensuring they get the tools they need without unnecessary delays.
+During new employee onboarding, Macs can now optionally download bootstrap packages and software from the nearest CloudFront region. This speeds up onboarding for organizations that onboard new employees at different headquarters across the world. Learn more [here](https://fleetdm.com/guides/cdn-signed-urls).
 
 ## Changes
 
