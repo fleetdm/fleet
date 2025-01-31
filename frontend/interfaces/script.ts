@@ -8,6 +8,8 @@ export interface IScript {
   updated_at: string;
 }
 
+export type ScriptContent = string;
+
 export const isScriptSupportedPlatform = (hostPlatform: string) =>
   ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
 
