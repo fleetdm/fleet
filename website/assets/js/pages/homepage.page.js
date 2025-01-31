@@ -12,7 +12,6 @@ parasails.registerPage('homepage', {
     formRules: {
       emailAddress: {isEmail: true, required: true},
     },
-    initialAnimationDelayInMs: 1200,
     animationDelayInMs: 1200,
     syncing: false,
 
@@ -32,10 +31,8 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
-    await setTimeout(()=>{
-      this.animateHeroTicker();
-      this.animateBottomTicker();
-    }, this.initialAnimationDelayInMs);
+    this.animateHeroTicker();
+    this.animateBottomTicker();
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
