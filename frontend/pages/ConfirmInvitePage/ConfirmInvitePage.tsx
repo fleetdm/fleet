@@ -18,6 +18,7 @@ import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
 import { getErrorReason } from "interfaces/errors";
 import { AxiosError } from "axios";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 interface IConfirmInvitePageProps {
   router: InjectedRouter; // v3
@@ -40,8 +41,8 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     "invite",
     () => inviteAPI.verify(invite_token),
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       select: (resp: IValidateInviteResp) => resp.invite,
-      retry: (failureCount, error) => failureCount < 4 && error.status !== 404,
     }
   );
 
