@@ -12,11 +12,11 @@ import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
+import Radio from "components/forms/fields/Radio";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
@@ -75,7 +75,9 @@ const PlatformWrapper = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
+  const [hostType, setHostType] = useState<"workstation" | "server">(
+    "workstation"
+  );
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
@@ -224,7 +226,7 @@ const PlatformWrapper = ({
           config && !config.server_settings.scripts_disabled
             ? "--enable-scripts "
             : ""
-        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
+        }${hostType === "workstation" ? "--fleet-desktop " : ""}--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
@@ -530,24 +532,31 @@ const PlatformWrapper = ({
     }
 
     return (
-      <>
+      // "form" className applies the global form styling
+      <div className="form">
         {packageType !== "pkg" && (
-          <Checkbox
-            name="include-fleet-desktop"
-            onChange={(value: boolean) => setIncludeFleetDesktop(value)}
-            value={includeFleetDesktop}
-          >
-            <>
-              Include&nbsp;
-              <TooltipWrapper
-                tipContent={
-                  "Include Fleet Desktop if you're adding workstations."
-                }
-              >
-                Fleet Desktop
-              </TooltipWrapper>
-            </>
-          </Checkbox>
+          // Windows & Linux
+          <div className="form-field">
+            <div className="form-field__label">Type</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Workstation"
+              id="workstation-host"
+              checked={hostType === "workstation"}
+              value="workstation"
+              name="host-typ"
+              onChange={() => setHostType("workstation")}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Server"
+              id="server-host"
+              checked={hostType === "server"}
+              value="server"
+              name="host-type"
+              onChange={() => setHostType("server")}
+            />
+          </div>
         )}
         <InputField
           readOnly
@@ -558,7 +567,7 @@ const PlatformWrapper = ({
           value={renderInstallerString(packageType)}
           helpText={packageTypeHelpText}
         />
-      </>
+      </div>
     );
   };
 
