@@ -68,7 +68,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// create no-team app
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, nil)
 	require.NoError(t, err)
 	vpp1, titleID1 := va1.VPPAppID, va1.TitleID
@@ -78,7 +78,20 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK for comparison purposes
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1", SelfService: true}, meta)
+
+	// Check that getting metadata in team context works for no team
+	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, nil)
+	require.ErrorContains(t, err, "not found")
+
+	gotMeta, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, meta.AdamID, meta.Platform, nil)
+	require.NoError(t, err)
+	require.Equal(t, "com.app.vpp1", gotMeta.BundleIdentifier)
+	require.Equal(t, "vpp1", gotMeta.Name)
+	require.Equal(t, titleID1, gotMeta.TitleID)
+	require.Equal(t, va1.VPPAppTeam.AppTeamID, gotMeta.VPPAppTeam.AppTeamID)
+	require.Equal(t, fleet.VPPAppID{Platform: fleet.MacOSPlatform, AdamID: meta.AdamID}, gotMeta.VPPAppTeam.VPPAppID)
+	require.True(t, gotMeta.SelfService)
 
 	// try to add the same app again, update self_service field
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -142,7 +155,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// create the same app for team2
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, &team2.ID)
 	require.NoError(t, err)
 
@@ -154,7 +167,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// create another no-team app
 	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -199,16 +212,22 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// but still found for team2
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	expectedVPPAppsTeamsID := meta.VPPAppsTeamsID
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
-	appMeta, err := ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, meta.AdamID, meta.Platform)
-	require.NoError(t, err)
-	require.Equal(t, appMeta.AdamID, meta.AdamID)
-	require.Equal(t, appMeta.Platform, meta.Platform)
-
-	_, err = ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, "foo", meta.Platform)
+	// Check that getting metadata in team context works
+	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, &team2.ID)
 	require.ErrorContains(t, err, "not found")
+
+	gotMeta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, meta.AdamID, meta.Platform, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "com.app.vpp2", gotMeta.BundleIdentifier)
+	require.Equal(t, "vpp2", gotMeta.Name)
+	require.Equal(t, titleID2, gotMeta.TitleID)
+	require.Equal(t, expectedVPPAppsTeamsID, gotMeta.VPPAppTeam.AppTeamID)
+	require.Equal(t, fleet.VPPAppID{Platform: fleet.MacOSPlatform, AdamID: meta.AdamID}, gotMeta.VPPAppTeam.VPPAppID)
+	require.True(t, gotMeta.SelfService)
 
 	// mark it as install_during_setup for team 2
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

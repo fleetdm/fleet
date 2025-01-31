@@ -16,6 +16,7 @@ type VPPAppID struct {
 type VPPAppTeam struct {
 	VPPAppID
 
+	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
 
 	// InstallDuringSetup is either the stored value of that flag for the VPP app
