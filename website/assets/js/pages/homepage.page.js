@@ -32,7 +32,9 @@ parasails.registerPage('homepage', {
   },
   mounted: async function() {
     this.animateHeroTicker();
-    this.animateBottomTicker();
+    if(this.primaryBuyingSituation && !['vm', 'eo-security'].includes(this.primaryBuyingSituation)){
+      this.animateBottomTicker();
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
