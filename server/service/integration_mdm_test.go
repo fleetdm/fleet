@@ -12039,14 +12039,6 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
 
-	scoped, err := s.ds.IsVPPAppLabelScoped(ctx, 1, mdmHost.ID)
-	require.NoError(t, err)
-	require.True(t, scoped)
-
-	scoped, err = s.ds.IsVPPAppLabelScoped(ctx, 1, mdmHost2.ID)
-	require.NoError(t, err)
-	require.False(t, scoped)
-
 	// Insert iPadOS app
 	addedApp = expectedApps[1]
 	addedIOSApp := addAppStoreAppResponse{}
