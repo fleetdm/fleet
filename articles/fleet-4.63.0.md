@@ -11,7 +11,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 - Automatically install software
 - Fleetctl on Linux ARM
-- faster employee onboarding
+- Faster employee onboarding
 
 ### Automatically install software
 
