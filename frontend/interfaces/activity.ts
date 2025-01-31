@@ -74,6 +74,7 @@ export enum ActivityType {
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",

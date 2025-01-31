@@ -1,12 +1,12 @@
-import React from "react";
 import { find, lowerCase, noop, trimEnd } from "lodash";
+import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
-import { getInstallStatusPredicate } from "interfaces/software";
 import {
   AppleDisplayPlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
+import { getInstallStatusPredicate } from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -698,6 +698,31 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  updatedScript: (activity: IActivity) => {
+    const scriptName = activity.details?.script_name;
+    return (
+      <>
+        {" "}
+        edited{" "}
+        {scriptName ? (
+          <>
+            script <b>{scriptName}</b>{" "}
+          </>
+        ) : (
+          "a script "
+        )}
+        for{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
   deletedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -1174,6 +1199,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
+    }
+    case ActivityType.UpdatedScript: {
+      return TAGGED_TEMPLATES.updatedScript(activity);
     }
     case ActivityType.DeletedScript: {
       return TAGGED_TEMPLATES.deletedScript(activity);
