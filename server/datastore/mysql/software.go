@@ -2386,7 +2386,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						) OR NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
 						UNION
 
