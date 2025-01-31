@@ -4,58 +4,60 @@ In Fleet, you can automatically and remotely install software on hosts. This gui
 
 ## Step-by-step instructions
 
-1. **Adding software**: Add any software to be available for installation. Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) document with instructions how to do it. Note that all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
-
-
-![Add software](../website/assets/images/articles/automatic-software-install-add-software.png)
+1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
 Current supported software deployment formats:
-- macOS: .pkg
+- macOS: .pkg and App Store (VPP)
 - Windows: .msi, .exe
 - Linux: .deb, .rpm
 
-> Note: starting with v4.62.0, you can have Fleet create an automatic install policy for you when you upload a package. If you use this "Automatic" installation mode, you do not have to create your own policy. See our [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide for more details.
+> As of v4.62.0, Fleet can create an automatic install policy for you when you upload a custom package or add a Fleet Maintained App. If you use this "Automatic" installation mode, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
 SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
-Note: In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query SELECT * from apps;
+> In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query `SELECT * from apps;`
 
-
-3. **Manage automation**: Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
+3. **Open the software install automation modal**: In the **Policies** tab, click the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
 
 ![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage.png)
 
-4. **Select policy**: Select (click the check box of) your newly created policy. To the right of it select from the
+4. **Select policy**: Click the checkbox next to your newly created policy's name. To the right of it select from the
    drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
 Upon failure of the selected policy, the selected software installation will be triggered.
 
-> Adding software to a policy will reset the policy's host counts.
+> Adding a software automation to a policy, or changing the automated software title, will reset the policy's host counts.
 
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
-* The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* The policy check mechanism runs on a typical one-hour cadence on all online hosts. 
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
+
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry installing the app on the host's **Host details** page (learn how [here](https://fleetdm.com/guides/deploy-software-packages#install-the-package)). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+
+Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is coming soon.
 
 ## Templates for policy queries
 
 Use the following policy templates to see if the software is already installed. Fleet uses these templates to automatically install software.
 
-### macOS (pkg)
+### macOS (pkg and VPP)
 
 ```sql
 SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
+
+> `SOFTWARE_TITLE_NAME` includes the `.app` extension. You can also use `bundle_identifier` for a more precise match that works if an end user renames the app on their machine.
 
 ### Windows (msi and exe)
 
@@ -97,13 +99,13 @@ SELECT 1 WHERE EXISTS (
 );
 ```
 
-## Using the REST API for self-service software packages
+## Via the API
 
-Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
+Fleet provides a REST API for managing policies, including software install automations. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
 
-## Managing self-service software packages with GitOps
+## Via GitOps
 
-To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
+To manage software automations using Fleet's best practice GitOps, check out the `install_software` key in the [policies section of the GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
 
 ## Conclusion
 
@@ -117,5 +119,5 @@ By automating software deployment, you can gain greater control over what's inst
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-23">
+<meta name="publishedOn" value="2025-01-21">
 <meta name="description" value="A guide to workflows using automatic software installation in Fleet.">

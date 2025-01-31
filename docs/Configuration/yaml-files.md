@@ -63,13 +63,21 @@ policies:
   calendar_event_enabled: false
   run_script:
     path: "../lib/disable-guest-account.sh"
-- name: Firefox on Linux installed and up to date
-  platform: linux
-  description: "This policy checks that Firefox is installed and up to date."
-  resolution: "Install Firefox version 129.0.2 or higher."
-  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+- name: Install Firefox on macOS
+  platform: darwin
+  description: "This policy checks that Firefox is installed."
+  resolution: "Install Firefox app if not installed."
+  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "../lib/linux-firefox.deb.package.yml"
+    package_path: "../lib/firefox.package.yml"
+- name: [Install software] Logic Pro
+  platform: darwin
+  description: "This policy checks that Logic Pro is installed"
+  resolution: "Install Logic Pro App Store app if not installed"
+  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  install_software:
+    package_path: ../lib/linux-firefox.deb.package.yml
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -339,6 +347,9 @@ software:
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
+      labels_include_any:
+        - Product
+        - Marketing
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.

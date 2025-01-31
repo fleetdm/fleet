@@ -1806,6 +1806,11 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
+| software.app_store_apps                   | array   | body  | An array of objects with values below. |
+| software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
+| software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.packages                          | array   | body  | An array of objects with values below. |
 | software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
@@ -1815,9 +1820,6 @@ If the `name` is not already associated with an existing team, this API route cr
 | software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
 | software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
-| software.app_store_apps                   | array   | body  | An array of objects with values below. |
-| software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
-| software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -3775,6 +3777,8 @@ Body: <blob>
 
 `POST /api/fleet/orbit/software_install/details`
 
+> Note: The `installer_url` in the response will only be populated if AWS S3 and CloudFront URL signing are configured.
+
 ##### Parameters
 
 | Name           | Type   | In   | Description                                    |
@@ -3808,6 +3812,10 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "installer_url": {
+    "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
+    "filename": "my-installer.pkg"
+  }
 }
 ```
 
@@ -4170,8 +4178,11 @@ _Available in Fleet Premium._
 | team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -4182,7 +4193,11 @@ _Available in Fleet Premium._
   "app_store_apps": [
     {
       "app_store_id": "597799333",
-      "self_service": false
+      "self_service": false,
+      "labels_include_any": [
+        "Engineering",
+        "Customer Support"
+      ]
     },
     {
       "app_store_id": "497799835",

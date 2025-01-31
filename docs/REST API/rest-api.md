@@ -8368,6 +8368,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Add script](#add-script)
+- [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
@@ -8501,6 +8502,59 @@ echo "hello"
   "script_id": 1227
 }
 ```
+
+### Modify script
+
+Modifies an existing script.
+
+`PATCH /api/v1/fleet/scripts/:id`
+
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to modify. |
+| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
+
+#### Example
+
+`PATCH /api/v1/fleet/scripts/1`
+
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+
+echo "hello"
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
 
 ### Delete script
 
@@ -8686,6 +8740,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -8719,11 +8774,11 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin,windows`
 
 ##### Default response
 
@@ -9090,6 +9145,12 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 345,
+          "name": "[Install software] Logic Pro",
+        } 
+      ],
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9453,6 +9514,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9472,6 +9537,81 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ##### Default response
 
 `Status: 200`
+
+
+### Modify App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Modify App Store (VPP) app's options.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
+
+##### Request body
+
+```json
+{
+  "team_id": 2,
+  "self_service": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_app": {
+    "name": "Logic Pro",
+    "app_store_id": 1091189122,
+    "latest_version": "2.04",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "self_service": true,
+    "labels_include_any": [
+      {
+        "name": "Product",
+        "id": 12
+      },
+      {
+        "name": "Marketing",
+        "id": 17
+      }
+    ],
+    "automatic_install_policies": [
+      {
+        "id": 345,
+        "name": "[Install software] Logic Pro",
+      } 
+    ],
+    "status": {
+      "installed": 3,
+      "pending": 1,
+      "failed": 2,
+    }
+  }
+}
+```
 
 
 ### List Fleet-maintained apps
@@ -9553,8 +9693,10 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
+    "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "name": "1Password",
-    "version": "8.10.40",
+    "filename": "1Password-8.10.50-aarch64.zip",
+    "version": "8.10.50",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
