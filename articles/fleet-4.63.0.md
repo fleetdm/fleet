@@ -1,7 +1,7 @@
 # Fleet 4.63.0 | Automatically install software, fleetctl for Linux ARM, faster employee onboarding
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/JM-0PKO6xvY" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.63.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0) or continue reading to get the highlights.
