@@ -192,6 +192,7 @@ Sometimes during drafting or after the user story is released, the HPD will ask 
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the HPD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the HPD, and unsassign themselves from the request issue.
 
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
