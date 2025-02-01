@@ -47,8 +47,20 @@ module.exports = {
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let linesInYamlFile = yaml.split('\n');
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)|\(Chrome\)|\(macOS\/Linux\)$/, '');
+
+
           if ((query.discovery !== undefined && !_.isString(query.discovery)) || (query.kind !== 'built-in' && _.isString(query.discovery))) {
             queriesWithProblematicDiscovery.push(query);
           }
@@ -177,6 +189,16 @@ module.exports = {
           if(query.kind === 'query'){
             return undefined;
           }
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let linesInYamlFile = yaml.split('\n');
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
+
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
