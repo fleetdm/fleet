@@ -216,6 +216,48 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
+func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (*fleet.LabelIdentsWithScope, error) {
+	existingLabels, err := ds.getVPPAppLabels(ctx, vppAppTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing labels")
+	}
+
+	var labels fleet.LabelIdentsWithScope
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range existingLabels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		return nil, ctxerr.New(ctx, "found both include and exclude labels on a vpp app")
+	}
+
+	switch {
+	case len(exclAny) > 0:
+		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.ByName = make(map[string]fleet.LabelIdent, len(exclAny))
+		for _, l := range exclAny {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+
+	case len(inclAny) > 0:
+		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
+		for _, l := range inclAny {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+	default:
+		return nil, nil
+	}
+}
+
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
@@ -252,10 +294,24 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	for _, appFleet := range appFleets {
-		// upsert it if it does not exist or SelfService or InstallDuringSetup flags are changed
-		if existingFleet, ok := existingApps[appFleet.VPPAppID]; !ok || existingFleet.SelfService != appFleet.SelfService ||
+		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
+		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
+		var labelsChanged bool
+		if isExistingApp {
+			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+			}
+
+			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+		}
+
+		if !isExistingApp ||
+			existingApp.SelfService != appFleet.SelfService ||
+			labelsChanged ||
 			appFleet.InstallDuringSetup != nil &&
-				existingFleet.InstallDuringSetup != nil && *appFleet.InstallDuringSetup != *existingFleet.InstallDuringSetup {
+				existingApp.InstallDuringSetup != nil &&
+				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
 			toAddApps = append(toAddApps, appFleet)
 		}
 	}
@@ -270,8 +326,15 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			if _, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID); err != nil {
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+
+			if toAdd.ValidatedLabels != nil {
+				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
+				}
 			}
 		}
 

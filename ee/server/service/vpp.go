@@ -70,18 +70,24 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// Currently only macOS is supported for self-service. Don't
 		// import vpp apps as self-service for ios or ipados
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID:  payload.AppStoreID,
-			SelfService: false,
-			Platform:    fleet.IOSPlatform,
+			AppStoreID:       payload.AppStoreID,
+			SelfService:      false,
+			Platform:         fleet.IOSPlatform,
+			LabelsExcludeAny: payload.LabelsExcludeAny,
+			LabelsIncludeAny: payload.LabelsIncludeAny,
 		}, {
-			AppStoreID:  payload.AppStoreID,
-			SelfService: false,
-			Platform:    fleet.IPadOSPlatform,
+			AppStoreID:       payload.AppStoreID,
+			SelfService:      false,
+			Platform:         fleet.IPadOSPlatform,
+			LabelsExcludeAny: payload.LabelsExcludeAny,
+			LabelsIncludeAny: payload.LabelsIncludeAny,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
 			Platform:           fleet.MacOSPlatform,
 			InstallDuringSetup: payload.InstallDuringSetup,
+			LabelsExcludeAny:   payload.LabelsExcludeAny,
+			LabelsIncludeAny:   payload.LabelsIncludeAny,
 		}}...)
 	}
 
@@ -107,6 +113,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 			}
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+			}
 			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
 					AdamID:   payload.AppStoreID,
@@ -114,6 +124,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				},
 				SelfService:        payload.SelfService,
 				InstallDuringSetup: payload.InstallDuringSetup,
+				ValidatedLabels:    validatedLabels,
 			})
 		}
 
@@ -408,9 +419,9 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
 			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
 		}
 	}
 
@@ -435,6 +446,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						},
 						SelfService:        props.SelfService,
 						InstallDuringSetup: props.InstallDuringSetup,
+						ValidatedLabels:    props.ValidatedLabels,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,

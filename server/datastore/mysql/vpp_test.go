@@ -25,6 +25,7 @@ func TestVPP(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"SetTeamVPPApps", testSetTeamVPPApps},
+		{"SetTeamVPPAppsWithLabels", testSetTeamVPPAppsWithLabels},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
@@ -1676,4 +1677,106 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.Empty(t, assigned)
+}
+
+func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp_app_labels" + t.Name()})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org"+t.Name(), "Location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	// Create some labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label1" + t.Name(),
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	})
+	require.NoError(t, err)
+
+	label2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label2" + t.Name(),
+		Description: "a label",
+		Query:       "select 2 from processes;",
+		Platform:    "darwin",
+	})
+	require.NoError(t, err)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
+
+	app1.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app1.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	app2.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app2.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		app1.VPPAppTeam,
+		app2.VPPAppTeam,
+	})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+
+	app1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+
+	app2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+
+	require.Len(t, app1Meta.LabelsIncludeAny, 2)
+	require.Len(t, app1Meta.LabelsExcludeAny, 0)
+	for _, l := range app1Meta.LabelsIncludeAny {
+		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+
+	require.Len(t, app2Meta.LabelsExcludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAny, 0)
+	for _, l := range app2Meta.LabelsExcludeAny {
+		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
 }
