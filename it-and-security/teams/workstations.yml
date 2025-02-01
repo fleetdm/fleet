@@ -86,11 +86,12 @@ policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/windows/policies/windows-device-health.yml
-  - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
+  - path: ../lib/windows/policies/all-windows-updates-installed.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
-  - path: ../lib/all/queries/collect-usb-devices.yml
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:

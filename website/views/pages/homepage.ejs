@@ -2,13 +2,43 @@
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="hero-background-image">
-      <div purpose="homepage-hero" class="container mx-auto">
-        <div class="d-flex flex-row justify-content-center align-items-start">
+      <div purpose="homepage-hero" class="mx-auto">
+        <div class="d-flex flex-row justify-content-start align-items-start">
           <%/* Hero text */%>
-          <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+          <div purpose="hero-text" class="d-flex flex-column justify-content-start">
+          <h1>One agent for <br>
+            <div purpose="ticker-container" class="d-flex align-items-center flex-row text-nowrap">
+              every
+              <div purpose="option-container" class="pl-2 d-flex flex-column">
+                <span purpose="hero-ticker-option" class="visible">OS</span>
+                <span purpose="hero-ticker-option">laptop</span>
+                <span purpose="hero-ticker-option">server</span>
+                <span purpose="hero-ticker-option">desktop</span>
+                <span purpose="hero-ticker-option">phone</span>
+                <span purpose="hero-ticker-option">tablet</span>
+                <span purpose="hero-ticker-option">cloud instance</span>
+                <span purpose="hero-ticker-option">container</span>
+                <span purpose="hero-ticker-option">robot</span>
+                <span purpose="hero-ticker-option">app</span>
+                <span purpose="hero-ticker-option">script</span>
+                <span purpose="hero-ticker-option">report</span>
+                <span purpose="hero-ticker-option">audit</span>
+                <span purpose="hero-ticker-option">question</span>
+                <span purpose="hero-ticker-option">decision</span>
+                <span purpose="hero-ticker-option">employee</span>
+                <span purpose="hero-ticker-option">new hire</span>
+                <span purpose="hero-ticker-option">offboard</span>
+                <span purpose="hero-ticker-option">hospital</span>
+                <span purpose="hero-ticker-option">factory</span>
+                <span purpose="hero-ticker-option">satellite</span>
+                <span purpose="hero-ticker-option">computer</span>
+                <span purpose="hero-ticker-option">local LLM</span>
+              </div>
+            </div>
+          </h1>
+            <!-- <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1> -->
             <p><%= /* Replace cross-platform hacks with */ primaryBuyingSituation === 'vm'? 'Secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'Open-source telemetry that works the way you want' : 'Lightning fast device management that lets employees see what\'s going on' %>.</p>
-            <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
+            <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
             </div>
@@ -396,7 +426,44 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <h4>For teams with lots of computing devices</h4>
-        <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+        <h1 class="mx-auto <%= primaryBuyingSituation%>">
+          <%=
+            (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'vm') ? 'Focus on vulnerabilities, not vendors' // vm
+            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-security') ? 'Easily get security data'// eo-security
+            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-it') ? 'One agent for every ' : // eo-it
+            'One agent for every '// mdm or default (no buying situation)
+          %>
+            <% if(['eo-it', 'mdm', undefined].includes(primaryBuyingSituation)){%>
+            <br>
+              <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
+                <div purpose="option-container" class="pl-2 d-flex flex-column">
+                  <span purpose="bottom-cta-ticker-option" class="visible">OS</span>
+                  <span purpose="bottom-cta-ticker-option">laptop</span>
+                  <span purpose="bottom-cta-ticker-option">server</span>
+                  <span purpose="bottom-cta-ticker-option">desktop</span>
+                  <span purpose="bottom-cta-ticker-option">phone</span>
+                  <span purpose="bottom-cta-ticker-option">tablet</span>
+                  <span purpose="bottom-cta-ticker-option">cloud instance</span>
+                  <span purpose="bottom-cta-ticker-option">container</span>
+                  <span purpose="bottom-cta-ticker-option">robot</span>
+                  <span purpose="bottom-cta-ticker-option">app</span>
+                  <span purpose="bottom-cta-ticker-option">script</span>
+                  <span purpose="bottom-cta-ticker-option">report</span>
+                  <span purpose="bottom-cta-ticker-option">audit</span>
+                  <span purpose="bottom-cta-ticker-option">question</span>
+                  <span purpose="bottom-cta-ticker-option">decision</span>
+                  <span purpose="bottom-cta-ticker-option">employee</span>
+                  <span purpose="bottom-cta-ticker-option">new hire</span>
+                  <span purpose="bottom-cta-ticker-option">offboard</span>
+                  <span purpose="bottom-cta-ticker-option">hospital</span>
+                  <span purpose="bottom-cta-ticker-option">factory</span>
+                  <span purpose="bottom-cta-ticker-option">satellite</span>
+                  <span purpose="bottom-cta-ticker-option">computer</span>
+                  <span purpose="bottom-cta-ticker-option">local LLM</span>
+                </div>
+              </div>
+          <% } %>
+        </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Try it yourself</a>
           <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
