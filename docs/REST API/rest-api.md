@@ -8690,10 +8690,11 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
-- [Install package or App Store app](#install-package-or-app-store-app)
-- [Get package install result](#get-package-install-result)
-- [Download package](#download-package)
-- [Delete package or App Store app](#delete-package-or-app-store-app)
+- [Install software](#install-software)
+- [Uninstall software](#uninstall-software)
+- [Get software install result](#get-software-install-result)
+- [Download software](#download-package)
+- [Delete software](#delete-package-or-app-store-app)
 
 ### List software
 
@@ -9610,7 +9611,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Download package
+### Download software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9642,7 +9643,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Install package or App Store app
+### Install software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9669,12 +9670,12 @@ Package installs time out after 1 hour.
 
 `Status: 202`
 
-### Uninstall package
+### Uninstall software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
+Uninstalls software from a host.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/uninstall`
 
@@ -9693,7 +9694,7 @@ Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Softwa
 
 `Status: 202`
 
-### Get package install result
+### Get software install result
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9701,9 +9702,11 @@ _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/:install_uuid/results`
 
-Get the results of a software package install.
+Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install or uninstall, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+
+To get 
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
@@ -9764,13 +9767,13 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete package or App Store app
+### Delete software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install (package or App Store app).
+Deletes software that's available for install. This won't uninstall the software from hosts.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
