@@ -3381,6 +3381,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			e, ok := expected[g.Name+g.Source]
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
+			t.Log("Validating ", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
 			if e.SoftwarePackage != nil {
@@ -3393,6 +3394,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 					require.Nil(t, g.SoftwarePackage.LastInstall)
 				} else {
 					require.NotNil(t, g.SoftwarePackage.LastInstall)
+					t.Log("   SoftwarePackage: ", e.SoftwarePackage.Name, e.SoftwarePackage.AppStoreID)
 					require.Equal(t, e.SoftwarePackage.LastInstall.CommandUUID, g.SoftwarePackage.LastInstall.CommandUUID)
 					require.Equal(t, e.SoftwarePackage.LastInstall.InstallUUID, g.SoftwarePackage.LastInstall.InstallUUID)
 					require.NotNil(t, g.SoftwarePackage.LastInstall.InstalledAt)
@@ -3556,19 +3558,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-		// 	"uuid1", host.ID, swi1Pending)
-		// if err != nil {
-		// 	return err
-		// }
 
 		// swi2 is installed successfully
-		swi2ExecID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, swi2Installed, fleet.HostSoftwareInstallOptions{})
+		hostSwi2InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi2Installed, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
-		ds.testActivateSpecificNextActivities = []string{swi2ExecID}
+		ds.testActivateSpecificNextActivities = []string{hostSwi2InstallUUID}
 		activated, err := ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
 		if err != nil {
 			return err
@@ -3577,7 +3573,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		ds.testActivateSpecificNextActivities = []string{"-"}
 		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
-			InstallUUID:               swi2ExecID,
+			InstallUUID:               hostSwi2InstallUUID,
 			PreInstallConditionOutput: ptr.String("ok"),
 			InstallScriptExitCode:     ptr.Int(0),
 			PostInstallScriptExitCode: ptr.Int(0),
@@ -3585,13 +3581,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-		// 					VALUES (?, ?, ?, ?, ?, ?)`,
-		// 	"uuid2", host.ID, swi2Installed, "ok", 0, 0)
-		// if err != nil {
-		// 	return err
-		// }
 
 		// swi3 is failed, also add an install request on the other host
 		hostSwi3InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
@@ -3614,37 +3603,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
-		// 					VALUES (?, ?, ?, ?, ?)`,
-		// 	"uuid3", host.ID, swi3Failed, "ok", 1)
-		// if err != nil {
-		// 	return err
-		// }
 		otherHostI1UUID, err = ds.InsertSoftwareInstallRequest(ctx, otherHost.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
-		// otherHostI1UUID = uuid.NewString()
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-		// 	otherHostI1UUID, otherHost.ID, swi3Failed)
-		// if err != nil {
-		// 	return err
-		// }
 
 		// swi4 is available (no install request), but add a pending request on the other host
 		otherHostI2UUID, err = ds.InsertSoftwareInstallRequest(ctx, otherHost.ID, swi4Available, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
-		// otherHostI2UUID = uuid.NewString()
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-		// 	otherHostI2UUID, otherHost.ID, swi4Available)
-		// if err != nil {
-		// 	return err
-		// }
 
 		// swi5 is for another team
 		_ = swi5Tm
@@ -3676,16 +3644,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-		// 					VALUES (?, ?, ?, ?, ?, ?)`,
-		// 	"uuid6-pre", host.ID, swi6PendingUninstall, "ok", 0, 0)
-		// require.NoError(t, err)
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall)
-		// 					VALUES (?, ?, ?, ?)`,
-		// 	"uuid6", host.ID, swi6PendingUninstall, 1)
-		// require.NoError(t, err)
 
 		// swi7 is failed uninstall
 		hostSwi7UninstallUUID = uuid.NewString()
@@ -3708,11 +3666,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
-		// 					VALUES (?, ?, ?, ?, ?)`,
-		// 	"uuid7", host.ID, swi7FailedUninstall, 1, 1)
-		// require.NoError(t, err)
 
 		// swi8 is successful uninstall
 		hostSwi8UninstallUUID = uuid.NewString()
@@ -3735,11 +3688,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		// _, err = q.ExecContext(ctx, `
-		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
-		// 					VALUES (?, ?, ?, ?, ?)`,
-		// 	"uuid8", host.ID, swi8Uninstalled, 1, 0)
-		// require.NoError(t, err)
 
 		return nil
 	})
@@ -3862,29 +3810,22 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 
-	_, _, _ = user, otherHostI1UUID, otherHostI2UUID
 	// record a new install request for i1 (swi3), this time as pending, and mark install request for b (swi1) as failed
 	time.Sleep(time.Second) // ensure the timestamp is later
-	ds.testActivateSpecificNextActivities = []string{"-"}
+	ds.testActivateSpecificNextActivities = []string{hostSwi1InstallUUID}
+	activated, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, ds.testActivateSpecificNextActivities, activated)
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostSwi1InstallUUID,
 		InstallScriptExitCode: ptr.Int(2),
 	})
 	require.NoError(t, err)
+	ds.testActivateSpecificNextActivities = []string{"-"}
 	// swi3 has a new install request pending
 	hostSwi3PendingInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 	_, err = q.ExecContext(ctx, `
-	// 							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
-	// 							VALUES (?, ?, ?)`,
-	// 		"uuid4", host.ID, swi3Failed)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	return nil
-	// })
 
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
@@ -4010,7 +3951,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	ds.testActivateSpecificNextActivities = []string{vpp1CmdUUID, vpp2CmdUUID}
-	activated, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	activated, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
 	require.Equal(t, ds.testActivateSpecificNextActivities, activated)
 	ds.testActivateSpecificNextActivities = []string{"-"}
