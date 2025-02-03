@@ -85,7 +85,7 @@ func (pt PackageTest) findDependencies(pkgs []string) <-chan *packageDependency 
 	return c
 }
 
-func (pt *PackageTest) read(pChan chan *packageDependency, topDependency *packageDependency, cache map[string]struct{}) {
+func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *packageDependency, cache map[string]struct{}) {
 	queue := list.New()
 
 	context := build.Default
