@@ -2287,6 +2287,71 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`
+-- latest row is found using a groupwise maximum with left join,
+-- more efficient than MAX/GROUP BY: https://stackoverflow.com/a/23285814
+
+-- select most recent upcoming software install
+WITH upcoming_software_install AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_install' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2 
+				ON ua2.id = siua2.upcoming_activity_id 
+		) ON ua.host_id = ua2.host_id AND 
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			ua2.created_at > ua.created_at
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_install' AND
+		ua2.id IS NULL
+),
+WITH upcoming_software_uninstall AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_uninstall' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2 
+				ON ua2.id = siua2.upcoming_activity_id 
+		) ON ua.host_id = ua2.host_id AND 
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			ua2.created_at > ua.created_at
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_uninstall' AND
+		ua2.id IS NULL
+),
+WITH latest_software_install AS (
+	SELECT
+		hsi.execution_id,
+		hsi.host_id,
+		hsi.created_at,
+		hsi.software_installer_id,
+		hsi.status
+	FROM 
+		host_software_installs hsi
+	WHERE 
+		hsi.host_id = :host_id AND 
+		hsi.removed = 0 AND 
+		hsi.uninstall = 0 AND 
+		hsi.host_deleted_at IS NULL
+),
 		SELECT
 			st.id,
 			st.name,
@@ -2479,8 +2544,6 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
-
-	// TODO(uniq): I think this should exclude software and VPP apps that is pending in upcoming activities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2530,6 +2593,19 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hsi.software_installer_id = si.id AND
 					hsi.removed = 0
 			) AND
+			-- sofware install/uninstall is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN 
+						software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type IN ('software_install', 'software_uninstall') AND
+					siua.software_installer_id = si.id 
+			) AND
+			-- VPP install has not been attempted on host
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -2538,6 +2614,18 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id AND
 					hvsi.removed = 0
+			) AND
+			-- VPP install is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN 
+						vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type = 'vpp_app_install' AND
+					vaua.adam_id = vat.adam_id 
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
