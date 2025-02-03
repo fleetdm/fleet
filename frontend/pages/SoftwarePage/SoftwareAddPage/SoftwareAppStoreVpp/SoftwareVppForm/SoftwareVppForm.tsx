@@ -3,10 +3,9 @@ import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import software, { IAppStoreApp } from "interfaces/software";
+import { IAppStoreApp } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
