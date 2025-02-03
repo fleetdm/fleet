@@ -176,7 +176,7 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as ISoftwarePackage));
+      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }
     setIsUpdatingSoftware(false);
   };
@@ -222,7 +222,7 @@ const EditSoftwareModal = ({
       renderFlash(
         "success",
         <>
-          Successfully edited <b>{formData.selectedApp?.name}</b>.
+          Successfully edited <b>{software.name}</b>.
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
@@ -256,7 +256,6 @@ const EditSoftwareModal = ({
   };
 
   const onClickConfirmChanges = () => {
-    setShowConfirmSaveChangesModal(false);
     if (installerType === "package") {
       onEditPackage(pendingPackageUpdates);
     } else {

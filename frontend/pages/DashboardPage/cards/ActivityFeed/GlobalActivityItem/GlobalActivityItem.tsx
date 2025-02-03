@@ -1254,6 +1254,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
     }
+    case ActivityType.EditedAppStoreApp: {
+      return TAGGED_TEMPLATES.editedAppStoreApp(activity);
+    }
     case ActivityType.DeletedAppStoreApp: {
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
     }

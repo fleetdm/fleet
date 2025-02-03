@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp } from "interfaces/software";
+import software, { IAppStoreApp } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
 import Card from "components/Card";
@@ -14,7 +14,12 @@ import FileDetails from "components/FileDetails";
 import Checkbox from "components/forms/fields/Checkbox";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { CUSTOM_TARGET_OPTIONS } from "pages/SoftwarePage/helpers";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
 
@@ -119,9 +124,9 @@ const SoftwareVppForm = ({
     softwareVppForEdit
       ? {
           selfService: softwareVppForEdit.self_service || false,
-          targetType: "All hosts",
-          customTarget: "labelsIncludeAny",
-          labelTargets: {},
+          targetType: getTargetType(softwareVppForEdit),
+          customTarget: getCustomTarget(softwareVppForEdit),
+          labelTargets: generateSelectedLabels(softwareVppForEdit),
         }
       : {
           selectedApp: null,
