@@ -3394,7 +3394,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 					require.Nil(t, g.SoftwarePackage.LastInstall)
 				} else {
 					require.NotNil(t, g.SoftwarePackage.LastInstall)
-					t.Log("   SoftwarePackage: ", e.SoftwarePackage.Name, e.SoftwarePackage.AppStoreID)
 					require.Equal(t, e.SoftwarePackage.LastInstall.CommandUUID, g.SoftwarePackage.LastInstall.CommandUUID)
 					require.Equal(t, e.SoftwarePackage.LastInstall.InstallUUID, g.SoftwarePackage.LastInstall.InstallUUID)
 					require.NotNil(t, g.SoftwarePackage.LastInstall.InstalledAt)
