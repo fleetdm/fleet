@@ -99,4 +99,32 @@ describe("DropdownWrapper Component", () => {
 
     expect(screen.getByText(/no results found/i)).toBeInTheDocument();
   });
+
+  test("doesn't render selected value when variant is button", async () => {
+    const buttonText = "Click me";
+    render(
+      <DropdownWrapper
+        options={sampleOptions}
+        value="option1"
+        onChange={mockOnChange}
+        name="test-dropdown"
+        label="Test Dropdown"
+        placeholder={buttonText}
+        variant="button"
+      />
+    );
+
+    // Check if the button text is rendered
+    expect(screen.getByText(buttonText)).toBeInTheDocument();
+
+    // Open the dropdown
+    await userEvent.click(screen.getByText(buttonText));
+
+    // Select Option 2
+    await userEvent.click(screen.getByText(/option 2/i));
+
+    // Check if the button text is still rendered and not replaced by the selected option
+    expect(screen.getByText(buttonText)).toBeInTheDocument();
+    expect(screen.queryByText(/option 2/i)).not.toBeInTheDocument();
+  });
 });

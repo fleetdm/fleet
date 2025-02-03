@@ -473,6 +473,7 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
+        controlShouldRenderValue={variant !== "button"}
       />
     </FormField>
   );
