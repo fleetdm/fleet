@@ -89,6 +89,11 @@ parasails.registerPage('osquery-table-details', {
         // $(block).html(replacementHMTL);
         let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          // Skip column names that are less than two characters long.
+          // We do this because some tables (ioreg) have columns that have single characacter names, which can be inaccuratly matched.
+          if(keyword.length < 2) {
+            continue;
+          }
           for(let match of block.innerHTML.match(keyword)||[]){
             columnNamesToHighlight.push(match);
           }

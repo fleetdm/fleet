@@ -58,8 +58,21 @@
             <h3>Check</h3>
             <p>Use the policy below to verify</p>
             <div purpose="codeblock">
-              <div purpose="copy-button"></div>
-              <pre><code class="hljs sql"><%- policy.query %></code></pre>
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="policy.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= policy.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= policy.powershell %></code></pre>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'ps'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -72,14 +85,6 @@
                 <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="policy.platform.includes('windows')"/>
                 <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="policy.platform.includes('linux')"/>
                 <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="policy.platform.includes('chrome')"/>
-              </div>
-            </div>
-            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
-              <p><strong>Share</strong></p>
-              <div class="d-flex flex-row">
-                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/queries/${encodeURIComponent(policy.slug)}&t=${encodeURIComponent(policy.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
-                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/queries/'+policy.slug)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
-                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/queries/'+policy.slug)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">

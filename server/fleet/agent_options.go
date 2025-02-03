@@ -43,6 +43,26 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 	return o.Config
 }
 
+func SuggestAgentOptionsCorrection(err error) error {
+	if field := GetJSONUnknownField(err); field != nil {
+		correctKeyPath, keyErr := FindAgentOptionsKeyPath(*field)
+		if keyErr != nil {
+			return fmt.Errorf("error parsing generated agent options struct: %w", err)
+		}
+		var keyPathJoined string
+		switch pathLen := len(correctKeyPath); {
+		case pathLen > 1:
+			keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
+		case pathLen == 1:
+			keyPathJoined = "top level"
+		}
+		if keyPathJoined != "" {
+			err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+		}
+	}
+	return err
+}
+
 // ValidateJSONAgentOptions validates the given raw JSON bytes as an Agent
 // Options payload. It ensures that all fields are known and have valid values.
 // The validation always uses the most recent Osquery version that is available
