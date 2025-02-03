@@ -285,9 +285,27 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 			}, nil, timestamp,
 		),
 	)
+
+	require.NoError(
+		t, ds.NewActivity(
+			ctx, nil, fleet.ActivityInstalledAppStoreApp{
+				HostID:          1,
+				HostDisplayName: "A Host",
+				SoftwareTitle:   "Trello",
+				AppStoreID:      "123456",
+				CommandUUID:     "some uuid",
+				Status:          string(fleet.SoftwareInstalled),
+				SelfService:     false,
+				PolicyID:        ptr.Uint(1),
+				PolicyName:      ptr.String("Sample Policy"),
+			}, nil, timestamp,
+		),
+	)
+
 	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
-	assert.Len(t, activities, 1)
+	assert.Len(t, activities, 2)
+	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
 func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {

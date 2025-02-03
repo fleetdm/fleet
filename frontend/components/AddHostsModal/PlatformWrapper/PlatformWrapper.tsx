@@ -262,7 +262,7 @@ const PlatformWrapper = ({
               rel="noopener noreferrer"
             >
               Fleet command-line tool
-            </a>{" "}
+            </a>
             :
           </span>
         )}{" "}

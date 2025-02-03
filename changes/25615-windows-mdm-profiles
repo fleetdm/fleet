@@ -1,0 +1,1 @@
+Fixed issue where some Windows MDM profiles were not being sent to hosts when hosts came back online.

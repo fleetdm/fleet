@@ -91,7 +91,7 @@ export const InstallTypeSection = ({
           onChange={onChangeInstallType}
           helpText={
             <>
-              Manually install on <b>Host details</b> page for each host.
+              Manually install on the <b>Host details</b> page for each host.
             </>
           }
         />
