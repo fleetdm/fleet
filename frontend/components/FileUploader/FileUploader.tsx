@@ -22,7 +22,6 @@ export type ISupportedGraphicNames = Extract<
   | "file-p7m"
   | "file-pem"
   | "file-vpp"
-  | "app-store" // For non-editable file uploader for VPP apps
 >;
 
 interface IFileUploaderProps {
@@ -48,7 +47,7 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "link";
-  onFileUpload?: (files: FileList | null) => void;
+  onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
   fileDetails?: {
@@ -88,7 +87,7 @@ export const FileUploader = ({
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    onFileUpload && onFileUpload(files);
+    onFileUpload(files);
     setIsFileSelected(true);
 
     if (fileInputRef.current) {

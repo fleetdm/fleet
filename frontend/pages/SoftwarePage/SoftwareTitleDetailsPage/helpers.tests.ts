@@ -58,6 +58,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           app_store_id: 1,
           name: "Test App",
           latest_version: "1.0.1",
+          platform: "darwin",
           self_service: false,
           status: {
             installed: 10,

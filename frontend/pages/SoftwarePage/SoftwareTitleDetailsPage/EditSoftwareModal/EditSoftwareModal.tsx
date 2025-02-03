@@ -29,7 +29,7 @@ import {
   getCustomTarget,
   getInstallType,
   getTargetType,
-} from "pages/SoftwarePage/components/PackageForm/helpers";
+} from "pages/SoftwarePage/helpers";
 
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -269,7 +269,7 @@ const EditSoftwareModal = ({
       const softwarePackage = software as ISoftwarePackage;
       return (
         <PackageForm
-          labels={labels ?? []}
+          labels={labels || []}
           className={`${baseClass}__package-form`}
           isEditingSoftware
           onCancel={onExit}
@@ -290,6 +290,7 @@ const EditSoftwareModal = ({
         softwareVppForEdit={software as IAppStoreApp}
         onSubmit={onClickSaveVpp}
         onCancel={onExit}
+        isLoading={isUpdatingSoftware}
       />
     );
   };

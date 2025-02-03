@@ -36,7 +36,6 @@ const FORM_VALIDATION_CONFIG: Record<
 export const getUniqueAppId = (app: IVppApp) =>
   `${app.app_store_id}_${app.platform}`;
 
-// eslint-disable-next-line import/prefer-default-export
 export const generateFormValidation = (formData: ISoftwareVppFormData) => {
   const formValidation: IFormValidation = {
     isValid: true,

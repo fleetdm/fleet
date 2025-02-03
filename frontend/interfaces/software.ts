@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { HOST_APPLE_PLATFORMS } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
 
@@ -99,6 +100,7 @@ export interface IAppStoreApp {
   latest_version: string;
   icon_url: string;
   self_service: boolean;
+  platform: typeof HOST_APPLE_PLATFORMS[number];
   status: {
     installed: number;
     pending: number;

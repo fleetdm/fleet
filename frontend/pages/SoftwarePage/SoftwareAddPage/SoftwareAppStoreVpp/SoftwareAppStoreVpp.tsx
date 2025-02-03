@@ -32,7 +32,11 @@ interface ISoftwareAppStoreProps {
 
 const EnableVppCard = () => {
   return (
-    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
+    <Card
+      className={`${baseClass}__enable-vpp-card`}
+      borderRadiusSize="medium"
+      paddingSize="xxxlarge"
+    >
       <div className={`${baseClass}__enable-vpp-message`}>
         <p className={`${baseClass}__enable-vpp-title`}>
           Volume Purchasing Program (VPP) isn&apos;t enabled
@@ -50,9 +54,13 @@ const EnableVppCard = () => {
   );
 };
 
-const EditVppCard = () => {
+const AddTeamToVppCard = () => {
   return (
-    <Card borderRadiusSize="medium" paddingSize="xxxlarge">
+    <Card
+      className={`${baseClass}__enable-vpp-card`}
+      borderRadiusSize="medium"
+      paddingSize="xxxlarge"
+    >
       <div className={`${baseClass}__enable-vpp-message`}>
         <p className={`${baseClass}__enable-vpp-title`}>
           This team isn&apos;t added to Volume Purchasing Program (VPP)
@@ -70,6 +78,24 @@ const EditVppCard = () => {
   );
 };
 
+const NoVppAppsCard = () => (
+  <Card
+    className={`${baseClass}__no-vpp-card`}
+    borderRadiusSize="medium"
+    paddingSize="xxxlarge"
+  >
+    <div className={`${baseClass}__no-vpp-message`}>
+      <p className={`${baseClass}__no-vpp-title`}>
+        You don&apos;t have any App Store apps
+      </p>
+      <p className={`${baseClass}__no-vpp-description`}>
+        You must purchase apps in ABM. App Store apps that are already added to
+        this team are not listed.
+      </p>
+    </div>
+  </Card>
+);
+
 const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
@@ -77,7 +103,7 @@ const SoftwareAppStoreVpp = ({
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const {
     data: vppInfo,
     isLoading: isLoadingVppInfo,
@@ -125,12 +151,14 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
-  const goBackToSoftwareTitles = (availableInstall?: boolean) => {
+  const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
+    const queryParams = {
+      team_id: currentTeamId,
+      ...(showAvailableForInstallOnly && { available_for_install: true }),
+    };
+
     router.push(
-      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-        team_id: currentTeamId,
-        available_for_install: availableInstall,
-      })}`
+      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(queryParams)}`
     );
   };
 
@@ -139,7 +167,7 @@ const SoftwareAppStoreVpp = ({
       return;
     }
 
-    setIsUploading(true);
+    setIsLoading(true);
 
     try {
       await mdmAppleAPI.addVppApp(currentTeamId, formData);
@@ -151,16 +179,12 @@ const SoftwareAppStoreVpp = ({
         { persistOnPageChange: true }
       );
 
-      goBackToSoftwareTitles();
-    } catch (ae) {
-      const errorMessage =
-        // getErrorMessage(ae) ||   FIX THIS
-        "Couldn't add. Please try again.";
-
-      renderFlash("error", errorMessage);
+      goBackToSoftwareTitles(true);
+    } catch (e) {
+      renderFlash("error", getErrorMessage(e));
     }
 
-    setIsUploading(false);
+    setIsLoading(false);
   };
 
   const renderContent = () => {
@@ -189,19 +213,26 @@ const SoftwareAppStoreVpp = ({
     if (!hasVppToken) {
       return (
         <div className={`${baseClass}__content`}>
-          <EditVppCard />
+          <AddTeamToVppCard />
         </div>
       );
     }
 
+    if (!vppApps) {
+      return (
+        <div className={`${baseClass}__content`}>
+          <NoVppAppsCard />
+        </div>
+      );
+    }
     return (
       <div className={`${baseClass}__content`}>
         <SoftwareVppForm
           labels={labels || []}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareTitles}
-          isUploading={isUploading}
-          vppApps={vppApps || []}
+          isLoading={isLoading}
+          vppApps={vppApps}
         />
       </div>
     );

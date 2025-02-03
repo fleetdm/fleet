@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactElement } from "react";
 import { getErrorReason } from "interfaces/errors";
 import { IMdmVppToken } from "interfaces/mdm";
 
@@ -7,7 +7,6 @@ import { IMdmVppToken } from "interfaces/mdm";
  * that's associated with the team, or a token that's available to "All
  * teams")
  */
-// eslint-disable-next-line import/prefer-default-export
 export const teamHasVPPToken = (
   currentTeamId: number,
   tokens?: IMdmVppToken[]
@@ -27,10 +26,12 @@ export const teamHasVPPToken = (
   });
 };
 
-const ADD_SOFTWARE_ERROR_PREFIX = "Couldn’t add software.";
+const ADD_SOFTWARE_ERROR_PREFIX = "Couldn't add software.";
 const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
-const generateAlreadyAvailableMessage = (msg: string): ReactNode => {
+const generateAlreadyAvailableMessage = (
+  msg: string
+): string | ReactElement => {
   // This regex matches the API message where the title already has a software package (non-VPP) available for install.
   const regex = new RegExp(
     `${ADD_SOFTWARE_ERROR_PREFIX} (.+) already.+on the (.+) team.`
@@ -55,14 +56,17 @@ const generateAlreadyAvailableMessage = (msg: string): ReactNode => {
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (e: unknown): ReactNode => {
+export const getErrorMessage = (e: unknown): string | ReactElement => {
   let reason = getErrorReason(e);
+
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
     return generateAlreadyAvailableMessage(reason);
   }
+
   if (reason && !reason.endsWith(".")) {
     reason += ".";
   }
+
   return reason || DEFAULT_ERROR_MESSAGE;
 };

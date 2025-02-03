@@ -10,29 +10,15 @@ import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
+import FileDetails from "components/FileDetails";
 import Checkbox from "components/forms/fields/Checkbox";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { CUSTOM_TARGET_OPTIONS } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
-import { CUSTOM_TARGET_OPTIONS } from "../../SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/helpers";
 
 const baseClass = "software-vpp-form";
-
-const NoVppAppsCard = () => (
-  <Card borderRadiusSize="medium" paddingSize="xxxlarge">
-    <div className={`${baseClass}__no-software-message`}>
-      <p className={`${baseClass}__no-software-title`}>
-        You don&apos;t have any App Store apps
-      </p>
-      <p className={`${baseClass}__no-software-description`}>
-        You must purchase apps in ABM. App Store apps that are already added to
-        this team are not listed.
-      </p>
-    </div>
-  </Card>
-);
 
 interface IVppAppListItemProps {
   app: IVppApp;
@@ -112,23 +98,23 @@ export interface IFormValidation {
   customTarget?: { isValid: boolean };
 }
 
-interface ISoftwareVppFormProps<T extends "add" | "edit"> {
+interface ISoftwareVppFormProps {
   labels: ILabelSummary[] | null;
-  vppApps?: T extends "add" ? IVppApp[] : never;
-  softwareVppForEdit?: T extends "edit" ? IAppStoreApp : never;
+  vppApps?: IVppApp[];
+  softwareVppForEdit?: IAppStoreApp;
   onSubmit: (formData: ISoftwareVppFormData) => void;
-  isUploading?: boolean;
+  isLoading?: boolean;
   onCancel: () => void;
 }
 
-const SoftwareVppForm = <T extends "add" | "edit">({
+const SoftwareVppForm = ({
   labels,
   vppApps,
   softwareVppForEdit,
   onSubmit,
-  isUploading = false,
+  isLoading = false,
   onCancel,
-}: ISoftwareVppFormProps<T>) => {
+}: ISoftwareVppFormProps) => {
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
       ? {
@@ -219,12 +205,10 @@ const SoftwareVppForm = <T extends "add" | "edit">({
     if (softwareVppForEdit) {
       return (
         <div className={`${baseClass}__form-fields`}>
-          <FileUploader
-            canEdit={false}
-            graphicName={"app-store"}
-            message=".pkg, .msi, .exe, .deb, or .rpm"
-            className={`${baseClass}__file-uploader`}
+          <FileDetails
+            graphicNames={"app-store"}
             fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
+            canEdit={false}
           />
           <TargetLabelSelector
             selectedTargetType={formData.targetType}
@@ -237,16 +221,12 @@ const SoftwareVppForm = <T extends "add" | "edit">({
             onSelectLabel={onSelectLabel}
             labels={labels || []}
           />
-          {renderSelfServiceContent("macOS")}
+          {renderSelfServiceContent(softwareVppForEdit.platform)}
         </div>
       );
     }
 
     if (vppApps) {
-      if (vppApps.length === 0) {
-        return <NoVppAppsCard />;
-      }
-
       return (
         <div className={`${baseClass}__form-fields`}>
           <VppAppList
@@ -284,12 +264,12 @@ const SoftwareVppForm = <T extends "add" | "edit">({
   };
 
   const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
-    [`${baseClass}__content-disabled`]: isUploading,
+    [`${baseClass}__content-disabled`]: isLoading,
   });
 
   return (
     <form className={baseClass} onSubmit={onFormSubmit}>
-      {isUploading && <div className={`${baseClass}__overlay`} />}
+      {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
         {!softwareVppForEdit && (
           <p>Apple App Store apps purchased via Apple Business Manager:</p>
@@ -301,7 +281,7 @@ const SoftwareVppForm = <T extends "add" | "edit">({
               type="submit"
               variant="brand"
               disabled={isSubmitDisabled}
-              isLoading={isUploading}
+              isLoading={isLoading}
             >
               {softwareVppForEdit ? "Save" : "Add software"}
             </Button>

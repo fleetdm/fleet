@@ -96,7 +96,7 @@ const SoftwareDetailsModal = ({
           />
           <DataSet
             title={
-              <TargetValue
+              <TargetTitle
                 labelIncludeAny={labels_include_any}
                 labelExcludeAny={labels_exclude_any}
               />
