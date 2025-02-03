@@ -84,11 +84,7 @@ const ScriptListItem = ({
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={
-        <Button variant="text-link" onClick={() => onClickScript(script)}>
-          {script.name}
-        </Button>
-      }
+      title={<Button variant="text-link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}
@@ -120,6 +116,7 @@ const ScriptListItem = ({
           </Button>
         </>
       }
+      onClick={() => onClickScript(script)}
     />
   );
 };

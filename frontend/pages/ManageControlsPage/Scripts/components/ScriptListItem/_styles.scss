@@ -1,4 +1,7 @@
 .script-list-item {
+  // moved from .upload-list__list-item to allow for onClick of full ScriptListItem
+  padding: 1rem 1.5rem;
+
   &__action-button {
     width: 40px;
     height: 40px;
@@ -14,6 +17,7 @@
   // TODO - refactor config profile list to use UploadList and ListItems
   &:hover {
     background-color: $ui-fleet-blue-10;
+    cursor: pointer;
     .list-item__actions {
       display: flex;
       justify-content: flex-end;

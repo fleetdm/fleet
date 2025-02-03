@@ -8,4 +8,9 @@
   &__premium-feature-message {
     margin-top: $pad-xxxlarge;
   }
+
+  .upload-list__list-item {
+    // move default padding to ScriptListItem to allow for onClick functionality covering entire ScriptListItem
+    padding: 0;
+  }
 }
