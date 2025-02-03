@@ -377,13 +377,6 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_USER_FORM_ERRORS = {
-  email: null,
-  name: null,
-  password: null,
-  sso_enabled: null,
-};
-
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
@@ -436,8 +429,15 @@ export const HOST_OSQUERY_DATA = [
 ];
 
 export const DEFAULT_USE_QUERY_OPTIONS = {
-  retry: 3,
   refetchOnWindowFocus: false,
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
+    let isBadRequestErr = false;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
+    }
+    return failureCount < 4 && !isBadRequestErr;
+  },
 };
 
 export const INVALID_PLATFORMS_REASON =

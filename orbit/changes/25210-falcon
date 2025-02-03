@@ -1,0 +1,1 @@
+- Added retry logic to orbit's call to `POST /orbit/software_install/result` to account for momentary network failures causing an install to appear failed (e.g. when installing network extensions as part of an EDR)

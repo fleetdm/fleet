@@ -1,4 +1,4 @@
-## Orbit 1.38.0 (Jan 24, 2025)
+## Orbit 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
 
 * Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
 

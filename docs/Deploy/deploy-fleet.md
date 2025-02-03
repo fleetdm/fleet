@@ -21,8 +21,8 @@ Want to host Fleet yourself? Check out the [reference architecture](https://flee
 
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
-<h2 class="d-none markdown-heading">Render</h2>
-<h2 id="render">Deploy to Render in 5 minutes</h2>
+<h2 style="display: none;" class="markdown-heading"><a href="#render" class="markdown-link">Render</a></h2>
+<h2 id="render">Deploy to Render in 5 minutes</a></h2>
 
 
 Render is a cloud hosting service that makes it easy to get up and running fast, without the typical configuration headaches of larger enterprise hosting providers.
@@ -60,7 +60,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
 
-<h2 class="d-none markdown-heading">AWS</h2>
+<h2 style="display: none;" class="markdown-heading"><a href="#aws" class="markdown-link">AWS</a></h2>
 <h2 id="aws">Deploy at scale with AWS and Terraform</h2>
 
 The simplest way to get started with Fleet at scale is to use AWS with Terraform.

@@ -339,6 +339,31 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
+func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	const stmt = `
+UPDATE script_contents
+INNER JOIN
+  scripts ON scripts.script_content_id = script_contents.id
+SET
+  contents = ?,
+  md5_checksum = UNHEX(?)
+WHERE
+  scripts.id = ?
+`
+	md5Checksum := md5ChecksumScriptContent(scriptContents)
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script updated_at time")
+	}
+
+	return ds.Script(ctx, scriptID)
+}
+
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
 	const insertStmt = `
 INSERT INTO

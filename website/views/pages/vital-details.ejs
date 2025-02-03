@@ -76,8 +76,15 @@
           <p purpose="vital-description"><%- thisVital.description %></p>
           <div purpose="vital-check">
             <div purpose="codeblock">
-              <div purpose="copy-button"></div>
-              <pre><code class="hljs sql"><%- thisVital.query %></code></pre>
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="thisVital.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= thisVital.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= thisVital.powershell %></code></pre>
             </div>
           </div>
           <% if(thisVital.discovery) {%>

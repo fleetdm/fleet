@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: query
-spec:
-  name: Check if Mac has Apple silicon
-  query: SELECT 1 FROM system_info WHERE cpu_type = "arm64e";
-  platform: "darwin"

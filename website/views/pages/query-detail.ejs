@@ -22,8 +22,15 @@
           <div purpose="query-check">
             <p>To learn more about queries, <a href="/guides/queries">check this guide</a></p>
             <div purpose="codeblock">
-              <div purpose="copy-button"></div>
-              <pre><code class="hljs sql"><%- query.query %></code></pre>
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="query.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= query.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= query.powershell %></code></pre>
             </div>
           </div>
         </div>
@@ -32,23 +39,14 @@
             <div purpose="query-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
-                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
-                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
-              </div>
-            </div>
-            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
-              <p><strong>Share</strong></p>
-              <div class="d-flex flex-row">
-                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/queries/${encodeURIComponent(query.slug)}&t=${encodeURIComponent(query.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
-                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
-                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>
+                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'selected' : '']" v-if="query.platform.includes('windows')"/>
+                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>
+                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">
-              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
-              <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Talk to us</a>
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Edit</a>
             </div>
           </div>
         </div>

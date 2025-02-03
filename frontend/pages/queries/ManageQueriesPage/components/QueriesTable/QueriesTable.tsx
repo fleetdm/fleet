@@ -227,9 +227,9 @@ const QueriesTable = ({
   const renderPlatformDropdown = useCallback(() => {
     return (
       <DropdownWrapper
+        name="platform-dropdown"
         value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
-        name="platform-dropdown"
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"

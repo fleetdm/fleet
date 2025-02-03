@@ -1,0 +1,12 @@
+.fleet-app-details-modal {
+  &__modal-content {
+    display: flex;
+    column-gap: $pad-xxlarge;
+    row-gap: $pad-xlarge;
+    flex-wrap: wrap;
+  }
+
+  .react-tooltip {
+    min-width: 120px;
+  }
+}

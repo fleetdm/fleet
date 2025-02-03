@@ -5,6 +5,7 @@ parasails.registerPage('vital-details', {
   data: {
     contributors: [],
     selectedPlatform: 'apple', // Initially set to 'macos'
+    selectedTab: 'sql',
     modal: '',
   },
 
@@ -37,6 +38,10 @@ parasails.registerPage('vital-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
+        if(block.classList.contains('ps')){
+          window.hljs.highlightElement(block);
+          return;
+        }
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerHTML.match(tableName)||[]){
@@ -73,7 +78,7 @@ parasails.registerPage('vital-details', {
       });
     })();
     $('[purpose="copy-button"]').on('click', async function() {
-      let code = $(this).siblings('pre').find('code').text();
+      let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
       $(this).addClass('copied');
       await setTimeout(()=>{
         $(this).removeClass('copied');
