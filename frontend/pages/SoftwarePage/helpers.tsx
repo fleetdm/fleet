@@ -1,9 +1,9 @@
 /**
  * TODO: Major restructure of directories
  * 1. Create /software parent directory similar to /hosts, /queries, /policies...
- * 2. software/SoftwarePage should be it's own subdirectory that is only for the main software nav
+ * 2. software/SoftwarePage should be its own subdirectory that is only for the main software nav
  * 3. Separate this file into /software/helpers and software/SoftwarePage/helpers
- * 4. software/SoftwarePage will include it's child tabs: /SoftwareTitles /SoftwareOS and /SoftwareVulnerabilities
+ * 4. software/SoftwarePage will include its child tabs: /SoftwareTitles /SoftwareOS and /SoftwareVulnerabilities
  * 5. Create software/components for components shared across software pages such as SoftwareVppForm and FleetAppDetailsForm
  */
 
