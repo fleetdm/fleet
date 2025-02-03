@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -29,7 +30,8 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
-	NULLIF(vap.icon_url, '') AS icon_url
+	NULLIF(vap.icon_url, '') AS icon_url,
+	vap.bundle_identifier AS bundle_identifier
 FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
@@ -53,6 +55,26 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 	}
 
+	labels, err := ds.getVPPAppLabels(ctx, app.VPPAppsTeamsID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range labels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		level.Warn(ds.logger).Log("msg", "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	}
+	app.LabelsExcludeAny = exclAny
+	app.LabelsIncludeAny = inclAny
+
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
@@ -60,6 +82,30 @@ WHERE
 	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
+}
+
+func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
+	query := `
+SELECT
+	label_id,
+	exclude,
+	l.name AS label_name,
+	va.title_id AS title_id
+FROM
+	vpp_app_team_labels vatl
+	JOIN vpp_apps_teams vat ON vat.id = vatl.vpp_app_team_id
+	JOIN vpp_apps va ON va.adam_id = vat.adam_id
+	JOIN labels l ON l.id = vatl.label_id
+WHERE
+	vatl.vpp_app_team_id = ? AND va.platform = vat.platform
+`
+
+	var labels []fleet.SoftwareScopeLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, vppAppsTeamsID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+
+	return labels, nil
 }
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
@@ -170,6 +216,48 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
+func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (*fleet.LabelIdentsWithScope, error) {
+	existingLabels, err := ds.getVPPAppLabels(ctx, vppAppTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing labels")
+	}
+
+	var labels fleet.LabelIdentsWithScope
+	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	for _, l := range existingLabels {
+		if l.Exclude {
+			exclAny = append(exclAny, l)
+		} else {
+			inclAny = append(inclAny, l)
+		}
+	}
+
+	if len(inclAny) > 0 && len(exclAny) > 0 {
+		// there's a bug somewhere
+		return nil, ctxerr.New(ctx, "found both include and exclude labels on a vpp app")
+	}
+
+	switch {
+	case len(exclAny) > 0:
+		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.ByName = make(map[string]fleet.LabelIdent, len(exclAny))
+		for _, l := range exclAny {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+
+	case len(inclAny) > 0:
+		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
+		for _, l := range inclAny {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+	default:
+		return nil, nil
+	}
+}
+
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
@@ -206,10 +294,24 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	}
 
 	for _, appFleet := range appFleets {
-		// upsert it if it does not exist or SelfService or InstallDuringSetup flags are changed
-		if existingFleet, ok := existingApps[appFleet.VPPAppID]; !ok || existingFleet.SelfService != appFleet.SelfService ||
+		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
+		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
+		var labelsChanged bool
+		if isExistingApp {
+			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
+			}
+
+			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+		}
+
+		if !isExistingApp ||
+			existingApp.SelfService != appFleet.SelfService ||
+			labelsChanged ||
 			appFleet.InstallDuringSetup != nil &&
-				existingFleet.InstallDuringSetup != nil && *appFleet.InstallDuringSetup != *existingFleet.InstallDuringSetup {
+				existingApp.InstallDuringSetup != nil &&
+				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
 			toAddApps = append(toAddApps, appFleet)
 		}
 	}
@@ -224,8 +326,15 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID); err != nil {
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+
+			if toAdd.ValidatedLabels != nil {
+				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
+				}
 			}
 		}
 
@@ -257,8 +366,17 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID); err != nil {
+		vppAppTeamID, err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID, vppToken.ID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
+		}
+
+		app.VPPAppTeam.AppTeamID = vppAppTeamID
+
+		if app.ValidatedLabels != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, softwareTypeVPP); err != nil {
+				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerLabelsDB transaction")
+			}
 		}
 
 		return nil
@@ -344,7 +462,7 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) error {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint, vppTokenID uint) (uint, error) {
 	stmt := `
 INSERT INTO vpp_apps_teams
 	(adam_id, global_or_team_id, team_id, platform, self_service, vpp_token_id, install_during_setup)
@@ -364,7 +482,7 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
+	res, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService, vppTokenID, appID.InstallDuringSetup, appID.InstallDuringSetup)
 	if IsDuplicate(err) {
 		err = &existsError{
 			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
@@ -373,7 +491,18 @@ ON DUPLICATE KEY UPDATE
 		}
 	}
 
-	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
+	var id int64
+	if insertOnDuplicateDidInsertOrUpdate(res) {
+		id, _ = res.LastInsertId()
+	} else {
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ?`
+		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
+		}
+	}
+
+	vatID := uint(id) //nolint:gosec // dismiss G115
+	return vatID, ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
 func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
@@ -513,18 +642,37 @@ func (ds *Datastore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppApps
 	return &info, nil
 }
 
-func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
-	stmt := `SELECT va.adam_id, va.bundle_identifier, va.icon_url, va.name, va.title_id, va.platform, va.created_at, va.updated_at
-		FROM vpp_apps va WHERE va.adam_id = ? AND va.platform = ?
+func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
+	stmt := `
+	SELECT va.adam_id,
+	 va.bundle_identifier,
+	 va.icon_url,
+	 va.name,
+	 va.platform,
+	 vat.self_service,
+	 va.title_id,
+	 va.platform,
+	 va.created_at, 
+	 va.updated_at,
+	 vat.id
+	FROM vpp_apps va
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
+	WHERE va.adam_id = ? AND va.platform = ?
   `
 
+	// when team id is not nil, we need to filter by the global or team id given.
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
 	var dest fleet.VPPApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, adamID, platform)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, adamID, platform)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata by team")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata by team")
 	}
 
 	return &dest, nil
@@ -533,6 +681,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, a
 func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
 	stmt := `
 SELECT
+  vat.id,
   va.adam_id,
   va.bundle_identifier,
   va.icon_url,

@@ -2681,12 +2681,14 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 			WHERE
 				(hostname IN (?)
 				OR uuid IN (?)
-				OR hardware_serial IN (?))
+				OR hardware_serial IN (?)
+				OR node_key IN (?)
+				OR osquery_host_id IN (?))
 			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
@@ -3829,7 +3831,7 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET encrypted = ? WHERE host_id = ?`,
+		`UPDATE host_disks SET encrypted = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
 		`INSERT INTO host_disks (encrypted, host_id) VALUES (?, ?)`,
 		encrypted, hostID,
 	)

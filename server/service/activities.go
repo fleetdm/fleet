@@ -32,7 +32,7 @@ type listActivitiesResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listActivitiesResponse) error() error { return r.Err }
+func (r listActivitiesResponse) Error() error { return r.Err }
 
 func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listActivitiesRequest)
@@ -155,7 +155,7 @@ type listHostUpcomingActivitiesResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listHostUpcomingActivitiesResponse) error() error { return r.Err }
+func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)

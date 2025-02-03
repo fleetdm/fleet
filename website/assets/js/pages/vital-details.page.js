@@ -5,6 +5,7 @@ parasails.registerPage('vital-details', {
   data: {
     contributors: [],
     selectedPlatform: 'apple', // Initially set to 'macos'
+    selectedTab: 'sql',
     modal: '',
   },
 
@@ -19,20 +20,6 @@ parasails.registerPage('vital-details', {
     // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
     if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
-    }
-    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-    if(this.algoliaPublicKey) {
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:vitals']
-        },
-      });
     }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
@@ -51,6 +38,10 @@ parasails.registerPage('vital-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
+        if(block.classList.contains('ps')){
+          window.hljs.highlightElement(block);
+          return;
+        }
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerHTML.match(tableName)||[]){
@@ -87,7 +78,7 @@ parasails.registerPage('vital-details', {
       });
     })();
     $('[purpose="copy-button"]').on('click', async function() {
-      let code = $(this).siblings('pre').find('code').text();
+      let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
       $(this).addClass('copied');
       await setTimeout(()=>{
         $(this).removeClass('copied');

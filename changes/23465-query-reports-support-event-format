@@ -1,0 +1,1 @@
+* Fixed a bug where query reports where not being recorded for hosts configured with `--logger_snapshot_event_type=true`.

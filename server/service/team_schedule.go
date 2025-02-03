@@ -25,7 +25,7 @@ type getTeamScheduleResponse struct {
 	Err       error                    `json:"error,omitempty"`
 }
 
-func (r getTeamScheduleResponse) error() error { return r.Err }
+func (r getTeamScheduleResponse) Error() error { return r.Err }
 
 func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamScheduleRequest)
@@ -72,7 +72,7 @@ type teamScheduleQueryResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r teamScheduleQueryResponse) error() error { return r.Err }
+func (r teamScheduleQueryResponse) Error() error { return r.Err }
 
 func uintValueOrZero(v *uint) uint {
 	if v == nil {
@@ -145,7 +145,7 @@ type modifyTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r modifyTeamScheduleResponse) error() error { return r.Err }
+func (r modifyTeamScheduleResponse) Error() error { return r.Err }
 
 func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
@@ -184,7 +184,7 @@ type deleteTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r deleteTeamScheduleResponse) error() error { return r.Err }
+func (r deleteTeamScheduleResponse) Error() error { return r.Err }
 
 func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamScheduleRequest)

@@ -62,14 +62,14 @@ policies:
   critical: false
   calendar_event_enabled: false
   run_script:
-    path: "../lib/disable-guest-account.sh"
+    path: "./disable-guest-account.sh"
 - name: Firefox on Linux installed and up to date
   platform: linux
   description: "This policy checks that Firefox is installed and up to date."
   resolution: "Install Firefox version 129.0.2 or higher."
   query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
   install_software:
-    package_path: "../lib/linux-firefox.deb.package.yml"
+    package_path: "./linux-firefox.deb.package.yml"
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -77,7 +77,6 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
@@ -135,7 +134,6 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## agent_options
@@ -192,9 +190,8 @@ config:
 > We want `-` for policies and queries because it’s an array. Agent Options we do not use `-` for `path`.
 
 ```yaml
-queries:
+agent_options:
   path: ../lib/agent-options.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## controls
@@ -256,7 +253,6 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-# paths are relative to default.yml or teams/team-name.yml 
 ```
 
 ### macos_updates
@@ -336,7 +332,6 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
-  # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
 ```
@@ -745,8 +740,6 @@ Can only be configured for all teams (`org_settings`).
 The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
 YARA rule functionality. Learn more about authenticated YARA rules in Fleet
 [here](https://fleetdm.com/guides/remote-yara-rules).
-
-Each entry should be the relative path to a valid YARA rule file.
 
 ##### Example
 

@@ -88,8 +88,9 @@ interface IUserFormProps {
 const validate = (
   formData: IUserFormData,
   canUseSso: boolean,
-  isNewUser?: boolean,
-  isSsoEnabled?: boolean
+  isNewUser: boolean,
+  isSsoEnabled: boolean,
+  initiallyPasswordAuth: boolean
 ) => {
   const newErrors: IUserFormErrors = {};
 
@@ -110,8 +111,13 @@ const validate = (
   // force to password auth if SSO is disabled globally but was enabled on the form
   const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
 
-  // password required when creating a user with SSO disabled, though not when inviting a user
-  if (isNewAdminCreatedUserWithoutSSO || isExistingUserForcedToPasswordAuth) {
+  // password required when creating a user with SSO disabled and when changing a user from SSO to
+  // password authentication, though not when inviting a user
+  if (
+    isNewAdminCreatedUserWithoutSSO ||
+    isExistingUserForcedToPasswordAuth ||
+    (!initiallyPasswordAuth && !sso_enabled)
+  ) {
     if (password !== null && !validPassword(password)) {
       newErrors.password = "Password must meet the criteria below";
     }
@@ -199,13 +205,19 @@ const UserForm = ({
   const onInputChange = ({ name, value }: IFormField) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
-    const newErrs = validate(newFormData, canUseSso, isNewUser, isSsoEnabled);
+    const newErrs = validate(
+      newFormData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
     // only set errors that are updates of existing errors
     // new errors are only set onBlur or submit
     const errsToSet: Record<string, string> = {};
     Object.keys(formErrors).forEach((k) => {
       // @ts-ignore
-      if (formErrors[k] && newErrs[k]) {
+      if (newErrs[k]) {
         // @ts-ignore
         errsToSet[k] = newErrs[k];
       }
@@ -214,7 +226,15 @@ const UserForm = ({
   };
 
   const onInputBlur = () => {
-    setFormErrors(validate(formData, canUseSso, isNewUser, isSsoEnabled));
+    setFormErrors(
+      validate(
+        formData,
+        canUseSso,
+        isNewUser,
+        !!isSsoEnabled,
+        initiallyPasswordAuth
+      )
+    );
   };
 
   // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
@@ -261,10 +281,20 @@ const UserForm = ({
   };
 
   const onSsoChange = (value: boolean): void => {
-    setFormData({
-      ...formData,
-      sso_enabled: value,
-    });
+    const newFormData = { ...formData, sso_enabled: value };
+    setFormData(newFormData);
+    if (value) {
+      // clears password error when enabling sso, allowing submission even if password is invalid
+      setFormErrors(
+        validate(
+          newFormData,
+          canUseSso,
+          isNewUser,
+          !!isSsoEnabled,
+          initiallyPasswordAuth
+        )
+      );
+    }
   };
 
   const onSelectedTeamChange = (teams: ITeam[]): void => {
@@ -318,7 +348,13 @@ const UserForm = ({
       renderFlash("error", `Please select at least one team for this user.`);
       return;
     }
-    const errs = validate(formData, canUseSso, isNewUser, isSsoEnabled);
+    const errs = validate(
+      formData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
       return;
@@ -699,6 +735,7 @@ const UserForm = ({
             className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
+            disabled={Object.keys(formErrors).length > 0}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>

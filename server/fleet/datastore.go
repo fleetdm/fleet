@@ -191,7 +191,7 @@ type Datastore interface {
 
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
-	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error)
+	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -274,7 +274,7 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, or hardware serials.
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
@@ -621,6 +621,7 @@ type Datastore interface {
 	// IsSoftwareInstallerLabelScoped returns whether or not the given installerID is scoped to the
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
+	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -1644,6 +1645,9 @@ type Datastore interface {
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
 
+	// UpdateScriptContents replaces the script contents of a script
+	UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*Script, error)
+
 	// Script returns the saved script corresponding to id.
 	Script(ctx context.Context, id uint) (*Script, error)
 
@@ -1790,9 +1794,9 @@ type Datastore interface {
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
-	// GetVPPAppMetadataByAdamIDAndPlatform returns the VPP app corresponding to the specified ADAM ID and platform.
-	// Note that this doesn't include the self-service flag as the app isn't in the context of a team.
-	GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform AppleDevicePlatform) (*VPPApp, error)
+	// GetVPPAppMetadataByAdamIDPlatformTeamID returns the VPP app correspoding to the specified
+	// ADAM ID, platform within the context of the specified team. It includes the vpp_app_team_id value.
+	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform AppleDevicePlatform, teamID *uint) (*VPPApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error

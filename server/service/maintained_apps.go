@@ -26,7 +26,7 @@ type addFleetMaintainedAppResponse struct {
 	Err             error `json:"error,omitempty"`
 }
 
-func (r addFleetMaintainedAppResponse) error() error { return r.Err }
+func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
 
 func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
@@ -93,7 +93,7 @@ type listFleetMaintainedAppsResponse struct {
 	Err                 error                     `json:"error,omitempty"`
 }
 
-func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
+func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 
 func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
@@ -141,7 +141,7 @@ type getFleetMaintainedAppResponse struct {
 	Err                error                `json:"error,omitempty"`
 }
 
-func (r getFleetMaintainedAppResponse) error() error { return r.Err }
+func (r getFleetMaintainedAppResponse) Error() error { return r.Err }
 
 func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*getFleetMaintainedAppRequest)

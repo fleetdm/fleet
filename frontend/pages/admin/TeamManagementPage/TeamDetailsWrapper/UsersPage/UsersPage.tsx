@@ -13,7 +13,6 @@ import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -69,12 +68,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
+  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -129,7 +124,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
-      setEditUserErrors(DEFAULT_USER_FORM_ERRORS);
+      setEditUserErrors({});
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );

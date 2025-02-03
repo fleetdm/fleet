@@ -1,5 +1,5 @@
 url: https://zoom.us/client/6.3.0.52884/ZoomInstallerFull.exe?archType=x64
 self-service: true
-pre_install_query:
-  path: ../queries/all-x86-hosts.yml
-  
+labels_include_any:
+  - "x86-based Windows hosts"
+ 

@@ -9,7 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
-| Customer Support (CSE/CSA)            | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Brock Walters (CSA)](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_ <br> [Dale Ribeiro (CSA)](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
+| Customer Support (CSE/CSA)            | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Rebecca Cowart](https://www.linkedin.com/in/rebeccaui/) _([@rebeccaui](https://github.com/rebeccaui))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@ignitablechief](https://github.com/ignitablechief))_ <br> [Brock Walters (CSA)](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_ <br> [Dale Ribeiro (CSA)](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
 | Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 
@@ -182,6 +182,16 @@ Escalation of alarms will be done manually by the first responder according to t
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
 
 All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. When the current 24/7 on-call engineer is unable to meet the response time SLAs, it is their responsibility to arrange and designate a replacement who will assume the @oncall-infrastructure Slack alias.
+
+
+### Communicate feedback on prioritized customer requests
+
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Head of Product Design (HPD) adds the `~customer request` label to the feature request issue and files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+
+Sometimes during drafting or after the user story is released, the HPD will ask the appropriate Customer Success Manager (CSM) to bring wireframes or released improvements to the customer for feedback. When this happens, HPD assigns the CSM and adds the `#g-customer-success` label.
+
+If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the HPD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the HPD, and unsassign themselves from the request issue.
+
 
 ## Rituals
 
