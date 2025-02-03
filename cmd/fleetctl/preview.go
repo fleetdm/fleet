@@ -449,7 +449,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				}
 
 				if !c.Bool(disableOpenBrowser) {
-					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+					if _, err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
 						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 					}
 				}
@@ -467,7 +467,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					return fmt.Errorf("Failed to run %s", compose)
 				}
 			} else if !c.Bool(disableOpenBrowser) {
-				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+				if _, err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
 					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 				}
 			}

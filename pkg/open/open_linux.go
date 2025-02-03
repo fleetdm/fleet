@@ -2,7 +2,9 @@ package open
 
 import "os/exec"
 
-func browser(url string) error {
+func browser(url string) (string, error) {
 	// xdg-open is available on most Linux-y systems
-	return exec.Command("xdg-open", url).Run()
+	cmd := exec.Command("xdg-open", url)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
 }
