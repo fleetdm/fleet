@@ -9706,8 +9706,6 @@ Get the results of a Fleet-maintained app or custom package install. To get unin
 
 To get the results of an App Store app install or uninstall, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
-To get 
-
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
