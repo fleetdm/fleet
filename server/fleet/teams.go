@@ -183,8 +183,10 @@ type TeamSpecSoftwareAsset struct {
 }
 
 type TeamSpecAppStoreApp struct {
-	AppStoreID  string `json:"app_store_id"`
-	SelfService bool   `json:"self_service"`
+	AppStoreID       string   `json:"app_store_id"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
 }
 
 type TeamMDM struct {
