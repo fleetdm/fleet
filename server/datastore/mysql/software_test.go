@@ -3178,6 +3178,8 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
 	nanoEnroll(t, ds, host, false)
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("linux"))
@@ -3387,12 +3389,18 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
 				require.Equal(t, e.SoftwarePackage.Name, g.SoftwarePackage.Name)
 				require.Equal(t, e.SoftwarePackage.Version, g.SoftwarePackage.Version)
-				if e.SoftwarePackage.LastInstall != nil {
+				if e.SoftwarePackage.LastInstall == nil {
+					require.Nil(t, g.SoftwarePackage.LastInstall)
+				} else {
+					require.NotNil(t, g.SoftwarePackage.LastInstall)
 					require.Equal(t, e.SoftwarePackage.LastInstall.CommandUUID, g.SoftwarePackage.LastInstall.CommandUUID)
 					require.Equal(t, e.SoftwarePackage.LastInstall.InstallUUID, g.SoftwarePackage.LastInstall.InstallUUID)
 					require.NotNil(t, g.SoftwarePackage.LastInstall.InstalledAt)
 				}
-				if e.SoftwarePackage.LastUninstall != nil {
+				if e.SoftwarePackage.LastUninstall == nil {
+					require.Nil(t, g.SoftwarePackage.LastUninstall)
+				} else {
+					require.NotNil(t, g.SoftwarePackage.LastUninstall)
 					assert.Equal(t, e.SoftwarePackage.LastUninstall.ExecutionID, g.SoftwarePackage.LastUninstall.ExecutionID)
 					assert.NotNil(t, g.SoftwarePackage.LastUninstall.UninstalledAt)
 				}
@@ -3467,7 +3475,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	const numberOfSoftwareInstallers = 8
 	var swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm, swi6PendingUninstall, swi7FailedUninstall, swi8Uninstalled uint
-	var otherHostI1UUID, otherHostI2UUID string
+	var hostSwi1InstallUUID, hostSwi2InstallUUID, hostSwi3InstallUUID, hostSwi6InstallUUID, hostSwi6UninstallUUID, hostSwi7UninstallUUID, hostSwi8UninstallUUID,
+		otherHostI1UUID, otherHostI2UUID string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		// keep title id of software B, will use it to associate an installer with it
 		var swbTitleID uint
@@ -3539,78 +3548,198 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm,
 			swi6PendingUninstall, swi7FailedUninstall, swi8Uninstalled = swiIDs[0], swiIDs[1], swiIDs[2], swiIDs[3], swiIDs[4], swiIDs[5], swiIDs[6], swiIDs[7]
 
-		// create the results for the host
+		// create the requests/results for the host
+		ds.testActivateSpecificNextActivities = []string{"-"}
 
 		// swi1 is pending (all results are NULL)
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-			"uuid1", host.ID, swi1Pending)
+		hostSwi1InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi1Pending, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+		// 	"uuid1", host.ID, swi1Pending)
+		// if err != nil {
+		// 	return err
+		// }
 
-		// swi2 is installed
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-							VALUES (?, ?, ?, ?, ?, ?)`,
-			"uuid2", host.ID, swi2Installed, "ok", 0, 0)
+		// swi2 is installed successfully
+		swi2ExecID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, swi2Installed, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
+		ds.testActivateSpecificNextActivities = []string{swi2ExecID}
+		activated, err := ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		if err != nil {
+			return err
+		}
+		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+		ds.testActivateSpecificNextActivities = []string{"-"}
+		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               swi2ExecID,
+			PreInstallConditionOutput: ptr.String("ok"),
+			InstallScriptExitCode:     ptr.Int(0),
+			PostInstallScriptExitCode: ptr.Int(0),
+		})
+		if err != nil {
+			return err
+		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+		// 					VALUES (?, ?, ?, ?, ?, ?)`,
+		// 	"uuid2", host.ID, swi2Installed, "ok", 0, 0)
+		// if err != nil {
+		// 	return err
+		// }
 
 		// swi3 is failed, also add an install request on the other host
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
-							VALUES (?, ?, ?, ?, ?)`,
-			"uuid3", host.ID, swi3Failed, "ok", 1)
+		hostSwi3InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
-		otherHostI1UUID = uuid.NewString()
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-			otherHostI1UUID, otherHost.ID, swi3Failed)
+		ds.testActivateSpecificNextActivities = []string{hostSwi3InstallUUID}
+		activated, err = ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
 		if err != nil {
 			return err
 		}
+		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+		ds.testActivateSpecificNextActivities = []string{"-"}
+		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               hostSwi3InstallUUID,
+			PreInstallConditionOutput: ptr.String("ok"),
+			InstallScriptExitCode:     ptr.Int(1),
+		})
+		if err != nil {
+			return err
+		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
+		// 					VALUES (?, ?, ?, ?, ?)`,
+		// 	"uuid3", host.ID, swi3Failed, "ok", 1)
+		// if err != nil {
+		// 	return err
+		// }
+		otherHostI1UUID, err = ds.InsertSoftwareInstallRequest(ctx, otherHost.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
+		if err != nil {
+			return err
+		}
+		// otherHostI1UUID = uuid.NewString()
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+		// 	otherHostI1UUID, otherHost.ID, swi3Failed)
+		// if err != nil {
+		// 	return err
+		// }
 
 		// swi4 is available (no install request), but add a pending request on the other host
-		otherHostI2UUID = uuid.NewString()
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
-			otherHostI2UUID, otherHost.ID, swi4Available)
+		otherHostI2UUID, err = ds.InsertSoftwareInstallRequest(ctx, otherHost.ID, swi4Available, fleet.HostSoftwareInstallOptions{})
 		if err != nil {
 			return err
 		}
+		// otherHostI2UUID = uuid.NewString()
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+		// 	otherHostI2UUID, otherHost.ID, swi4Available)
+		// if err != nil {
+		// 	return err
+		// }
 
 		// swi5 is for another team
 		_ = swi5Tm
 
 		// swi6 has been installed, and is pending uninstall
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-							VALUES (?, ?, ?, ?, ?, ?)`,
-			"uuid6-pre", host.ID, swi6PendingUninstall, "ok", 0, 0)
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall)
-							VALUES (?, ?, ?, ?)`,
-			"uuid6", host.ID, swi6PendingUninstall, 1)
-		require.NoError(t, err)
+		hostSwi6InstallUUID, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, swi6PendingUninstall, fleet.HostSoftwareInstallOptions{})
+		if err != nil {
+			return err
+		}
+		ds.testActivateSpecificNextActivities = []string{hostSwi6InstallUUID}
+		activated, err = ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		if err != nil {
+			return err
+		}
+		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+		ds.testActivateSpecificNextActivities = []string{"-"}
+		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               hostSwi6InstallUUID,
+			PreInstallConditionOutput: ptr.String("ok"),
+			InstallScriptExitCode:     ptr.Int(0),
+			PostInstallScriptExitCode: ptr.Int(0),
+		})
+		if err != nil {
+			return err
+		}
+		hostSwi6UninstallUUID = uuid.NewString()
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi6UninstallUUID, host.ID, swi6PendingUninstall)
+		if err != nil {
+			return err
+		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+		// 					VALUES (?, ?, ?, ?, ?, ?)`,
+		// 	"uuid6-pre", host.ID, swi6PendingUninstall, "ok", 0, 0)
+		// require.NoError(t, err)
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall)
+		// 					VALUES (?, ?, ?, ?)`,
+		// 	"uuid6", host.ID, swi6PendingUninstall, 1)
+		// require.NoError(t, err)
 
 		// swi7 is failed uninstall
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
-							VALUES (?, ?, ?, ?, ?)`,
-			"uuid7", host.ID, swi7FailedUninstall, 1, 1)
-		require.NoError(t, err)
+		hostSwi7UninstallUUID = uuid.NewString()
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi7UninstallUUID, host.ID, swi7FailedUninstall)
+		if err != nil {
+			return err
+		}
+		ds.testActivateSpecificNextActivities = []string{hostSwi7UninstallUUID}
+		activated, err = ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		if err != nil {
+			return err
+		}
+		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+		ds.testActivateSpecificNextActivities = []string{"-"}
+		_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			HostID:      host.ID,
+			ExecutionID: hostSwi7UninstallUUID,
+			ExitCode:    1,
+		})
+		if err != nil {
+			return err
+		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
+		// 					VALUES (?, ?, ?, ?, ?)`,
+		// 	"uuid7", host.ID, swi7FailedUninstall, 1, 1)
+		// require.NoError(t, err)
 
 		// swi8 is successful uninstall
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
-							VALUES (?, ?, ?, ?, ?)`,
-			"uuid8", host.ID, swi8Uninstalled, 1, 0)
-		require.NoError(t, err)
+		hostSwi8UninstallUUID = uuid.NewString()
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi8UninstallUUID, host.ID, swi8Uninstalled)
+		if err != nil {
+			return err
+		}
+		ds.testActivateSpecificNextActivities = []string{hostSwi8UninstallUUID}
+		activated, err = ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		if err != nil {
+			return err
+		}
+		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+		ds.testActivateSpecificNextActivities = []string{"-"}
+		_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+			HostID:      host.ID,
+			ExecutionID: hostSwi8UninstallUUID,
+			ExitCode:    0,
+		})
+		if err != nil {
+			return err
+		}
+		// _, err = q.ExecContext(ctx, `
+		// 					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code)
+		// 					VALUES (?, ?, ?, ?, ?)`,
+		// 	"uuid8", host.ID, swi8Uninstalled, 1, 0)
+		// require.NoError(t, err)
 
 		return nil
 	})
@@ -3620,7 +3749,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "b",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3629,7 +3758,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i0",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstalled),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid2"}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}},
 	}
 	expected[i0.Name+i0.Source] = i0
 
@@ -3637,7 +3766,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i1",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid3"}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3InstallUUID}},
 	}
 	expected[i1.Name+i1.Source] = i1
 
@@ -3647,8 +3776,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status: expectStatus(fleet.SoftwareUninstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
 			Name: "installer-5.pkg", Version: "v5.0.0", SelfService: ptr.Bool(false),
-			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: "uuid6-pre"},
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: "uuid6"},
+			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi6InstallUUID},
+			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi6UninstallUUID},
 		},
 	}
 	expected[i4.Name+i4.Source] = i4
@@ -3659,7 +3788,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status: expectStatus(fleet.SoftwareUninstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
 			Name: "installer-6.pkg", Version: "v6.0.0", SelfService: ptr.Bool(false),
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: "uuid7"},
+			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi7UninstallUUID},
 		},
 	}
 	expected[i5.Name+i5.Source] = i5
@@ -3670,7 +3799,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status: nil,
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
 			Name: "installer-7.pkg", Version: "v7.0.0", SelfService: ptr.Bool(false),
-			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: "uuid8"},
+			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi8UninstallUUID},
 		},
 	}
 	expected[i6.Name+i6.Source] = i6
@@ -3733,32 +3862,35 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 
-	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
+	_, _, _ = user, otherHostI1UUID, otherHostI2UUID
+	// record a new install request for i1 (swi3), this time as pending, and mark install request for b (swi1) as failed
 	time.Sleep(time.Second) // ensure the timestamp is later
+	ds.testActivateSpecificNextActivities = []string{"-"}
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
-		InstallUUID:           "uuid1",
+		InstallUUID:           hostSwi1InstallUUID,
 		InstallScriptExitCode: ptr.Int(2),
 	})
 	require.NoError(t, err)
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		// swi3 has a new install request pending
-		_, err = q.ExecContext(ctx, `
-							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
-							VALUES (?, ?, ?)`,
-			"uuid4", host.ID, swi3Failed)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
+	// swi3 has a new install request pending
+	hostSwi3PendingInstallUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, swi3Failed, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	// 	_, err = q.ExecContext(ctx, `
+	// 							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
+	// 							VALUES (?, ?, ?)`,
+	// 		"uuid4", host.ID, swi3Failed)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	return nil
+	// })
 
 	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
 		Name:            "b",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3767,7 +3899,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i1",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid4"}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3PendingInstallUUID}},
 	}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
 	expectedAvailableOnly[i1.Name+i1.Source] = expected[i1.Name+i1.Source]
@@ -3877,6 +4009,11 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
+	ds.testActivateSpecificNextActivities = []string{vpp1CmdUUID, vpp2CmdUUID}
+	activated, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, ds.testActivateSpecificNextActivities, activated)
+	ds.testActivateSpecificNextActivities = []string{"-"}
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
