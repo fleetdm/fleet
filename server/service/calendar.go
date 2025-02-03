@@ -39,7 +39,7 @@ type calendarWebhookResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r calendarWebhookResponse) error() error { return r.Err }
+func (r calendarWebhookResponse) Error() error { return r.Err }
 
 func calendarWebhookEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*calendarWebhookRequest)

@@ -141,7 +141,7 @@ type SoftwareInstaller struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
-	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	// LabelsIncludeAny is the list of "include any" labels for this software installer (if not nil).
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
@@ -457,6 +457,14 @@ type HostSoftwareWithInstaller struct {
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+}
+
+func (h *HostSoftwareWithInstaller) IsPackage() bool {
+	return h.SoftwarePackage != nil
+}
+
+func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
+	return h.AppStoreApp != nil
 }
 
 type AutomaticInstallPolicy struct {

@@ -637,12 +637,16 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		teamName = &t.Name
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:    meta.AdamID,
-		SoftwareTitle: meta.Name,
-		TeamName:      teamName,
-		TeamID:        teamID,
-		Platform:      meta.Platform,
+		AppStoreID:       meta.AdamID,
+		SoftwareTitle:    meta.Name,
+		TeamName:         teamName,
+		TeamID:           teamID,
+		Platform:         meta.Platform,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -967,7 +971,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install software. Host has a pending install/uninstall request.",
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -998,6 +1002,18 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		}
 
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+	}
+
+	// check the label scoping for this VPP app and host
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+		}
 	}
 
 	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
@@ -1836,6 +1852,17 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				ctx, "software title not available through self-service",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 			),
+		}
+	}
+
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
 		}
 	}
 

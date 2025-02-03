@@ -21,7 +21,7 @@ type getGlobalScheduleResponse struct {
 	Err            error                   `json:"error,omitempty"`
 }
 
-func (r getGlobalScheduleResponse) error() error { return r.Err }
+func (r getGlobalScheduleResponse) Error() error { return r.Err }
 
 func getGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGlobalScheduleRequest)
@@ -67,7 +67,7 @@ type globalScheduleQueryResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r globalScheduleQueryResponse) error() error { return r.Err }
+func (r globalScheduleQueryResponse) Error() error { return r.Err }
 
 func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalScheduleQueryRequest)
@@ -119,7 +119,7 @@ type modifyGlobalScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r modifyGlobalScheduleResponse) error() error { return r.Err }
+func (r modifyGlobalScheduleResponse) Error() error { return r.Err }
 
 func modifyGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalScheduleRequest)
@@ -154,7 +154,7 @@ type deleteGlobalScheduleResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteGlobalScheduleResponse) error() error { return r.Err }
+func (r deleteGlobalScheduleResponse) Error() error { return r.Err }
 
 func deleteGlobalScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalScheduleRequest)

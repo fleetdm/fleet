@@ -848,6 +848,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
 			continue
 		}
+
+		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
+			continue
+		}
+
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, item := range software.Packages {

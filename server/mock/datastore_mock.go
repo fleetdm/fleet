@@ -459,6 +459,8 @@ type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet
 
 type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
 
+type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -1127,7 +1129,7 @@ type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[st
 
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
-type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
+type GetVPPAppMetadataByAdamIDPlatformTeamIDFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
@@ -1870,6 +1872,9 @@ type DataStore struct {
 
 	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
 	IsSoftwareInstallerLabelScopedFuncInvoked bool
+
+	IsVPPAppLabelScopedFunc        IsVPPAppLabelScopedFunc
+	IsVPPAppLabelScopedFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -2873,8 +2878,8 @@ type DataStore struct {
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
-	GetVPPAppMetadataByAdamIDAndPlatformFunc        GetVPPAppMetadataByAdamIDAndPlatformFunc
-	GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked bool
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFunc        GetVPPAppMetadataByAdamIDPlatformTeamIDFunc
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked bool
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
@@ -4536,6 +4541,13 @@ func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installe
 	s.IsSoftwareInstallerLabelScopedFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
+}
+
+func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsVPPAppLabelScopedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
 }
 
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
@@ -6876,11 +6888,11 @@ func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsT
 	return s.GetTitleInfoFromVPPAppsTeamsIDFunc(ctx, vppAppsTeamsID)
 }
 
-func (s *DataStore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+func (s *DataStore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
-	s.GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked = true
+	s.GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppMetadataByAdamIDAndPlatformFunc(ctx, adamID, platform)
+	return s.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc(ctx, adamID, platform, teamID)
 }
 
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
