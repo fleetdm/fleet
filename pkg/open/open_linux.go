@@ -16,5 +16,9 @@ func browser(url string) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("xdg-open failed to start: %w", err)
 	}
+	go func() {
+		// We must call wait to avoid defunct processes.
+		cmd.Wait()
+	}()
 	return nil
 }
