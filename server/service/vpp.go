@@ -103,7 +103,7 @@ type updateAppStoreAppResponse struct {
 	Err         error                 `json:"error,omitempty"`
 }
 
-func (r updateAppStoreAppResponse) error() error { return r.Err }
+func (r updateAppStoreAppResponse) Error() error { return r.Err }
 
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
