@@ -80,6 +80,11 @@ const ScriptListItem = ({
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
+  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onEdit(script);
+  };
+
   return (
     <ListItem
       className={baseClass}
@@ -96,7 +101,7 @@ const ScriptListItem = ({
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onEdit(script)}
+            onClick={onClickEdit}
           >
             <Icon name="pencil" color="ui-fleet-black-75" />
           </Button>

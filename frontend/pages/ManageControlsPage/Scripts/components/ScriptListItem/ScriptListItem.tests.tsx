@@ -68,7 +68,7 @@ describe("ScriptListItem", () => {
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
   });
 
-  it("calls onClickScript anywhere in the script list item clicked", () => {
+  it("calls onClickScript when clicking elsewhere in the script list item (except 'Edit', see below)", () => {
     render(
       <ScriptListItem
         script={MAC_SCRIPT}
@@ -79,6 +79,7 @@ describe("ScriptListItem", () => {
 
     fireEvent.click(screen.getByText("Uploaded about 4 years ago"));
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it("calls onDelete when delete button is clicked", () => {
@@ -95,7 +96,7 @@ describe("ScriptListItem", () => {
     expect(onDelete).toHaveBeenCalledWith(MAC_SCRIPT);
   });
 
-  it("calls onEdit when pencil button is clicked", () => {
+  it("calls onEdit and not onClickScript when pencil button is clicked", () => {
     render(
       <ScriptListItem
         script={MAC_SCRIPT}
@@ -107,5 +108,6 @@ describe("ScriptListItem", () => {
 
     fireEvent.click(screen.getByTestId("pencil-icon"));
     expect(onEdit).toHaveBeenCalledWith(MAC_SCRIPT);
+    expect(onClickScript).not.toHaveBeenCalled();
   });
 });
