@@ -481,7 +481,7 @@ Remove the “:reproduce” label, add the following labels:
 
 #### In product drafting
 
-After reproduction, all bugs go through product drafting to validate that it is not intentional behavior, it requires a code change to fix, and the bug report is fully populated. 
+After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. 
 
 It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation. 
 
