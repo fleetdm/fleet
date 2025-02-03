@@ -68,6 +68,19 @@ describe("ScriptListItem", () => {
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
   });
 
+  it("calls onClickScript anywhere in the script list item clicked", () => {
+    render(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onClickScript={onClickScript}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Uploaded about 4 years ago"));
+    expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+  });
+
   it("calls onDelete when delete button is clicked", () => {
     render(
       <ScriptListItem
