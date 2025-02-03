@@ -32,7 +32,6 @@ const validate = (scriptContent: string) => {
   return null;
 };
 
-
 const EditScriptModal = ({
   scriptId,
   scriptName,
@@ -118,7 +117,12 @@ const EditScriptModal = ({
               <Button onClick={onExit} variant="inverse">
                 Cancel
               </Button>
-              <Button onClick={onSave} variant="brand" isLoading={isSubmitting} disabled={!!formError}>
+              <Button
+                onClick={onSave}
+                variant="brand"
+                isLoading={isSubmitting}
+                disabled={!!formError}
+              >
                 Save
               </Button>
             </>
