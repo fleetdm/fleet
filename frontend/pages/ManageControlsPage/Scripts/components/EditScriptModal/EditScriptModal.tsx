@@ -118,7 +118,7 @@ const EditScriptModal = ({
               <Button onClick={onExit} variant="inverse">
                 Cancel
               </Button>
-              <Button onClick={onSave} variant="brand" isLoading={isSubmitting}>
+              <Button onClick={onSave} variant="brand" isLoading={isSubmitting} disabled={!!formError}>
                 Save
               </Button>
             </>
