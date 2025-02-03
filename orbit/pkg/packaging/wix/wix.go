@@ -15,7 +15,7 @@ const (
 	directoryReference = "ORBITROOT"
 	imageName          = "fleetdm/wix:latest"
 	dockerPlatform     = "linux/amd64"
-	WineCmd            = "wine64"
+	WineCmd            = "wine"
 )
 
 // Heat runs the WiX Heat command on the provided directory.
