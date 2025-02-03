@@ -42,7 +42,7 @@ import {
 } from "./helpers";
 import AutomaticInstallModal from "../AutomaticInstallModal";
 
-const baseClass = "software-package-card";
+const baseClass = "software-installer-card";
 
 /** TODO: pull this hook and SoftwareName component out. We could use this other places */
 function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
@@ -156,6 +156,7 @@ const InstallerStatusCount = ({
     software_status: status,
     team_id: teamId,
   })}`;
+
   return (
     <DataSet
       className={`${baseClass}__status`}
@@ -183,14 +184,14 @@ const InstallerStatusCount = ({
 };
 
 interface IActionsDropdownProps {
-  isPackage: boolean;
+  installerType: "package" | "vpp";
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
 }
 
 const SoftwareActionsDropdown = ({
-  isPackage,
+  installerType,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
@@ -218,7 +219,7 @@ const SoftwareActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         options={
-          isPackage
+          installerType === "package"
             ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
             : [...APP_STORE_APP_DROPDOWN_OPTIONS]
         }
@@ -260,7 +261,10 @@ const SoftwareInstallerCard = ({
   onDelete,
   refetchSoftwareTitle,
 }: ISoftwareInstallerCardProps) => {
-  const isPackage = isSoftwarePackage(softwareInstaller);
+  const installerType = isSoftwarePackage(softwareInstaller)
+    ? "package"
+    : "vpp";
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -310,7 +314,7 @@ const SoftwareInstallerCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const renderIcon = () => {
-    return isPackage ? (
+    return installerType === "package" ? (
       <Graphic name="file-pkg" />
     ) : (
       <SoftwareIcon name="appStore" size="medium" />
@@ -388,7 +392,7 @@ const SoftwareInstallerCard = ({
           {isSelfService && <Tag icon="user" text="Self-service" />}
           {showActions && (
             <SoftwareActionsDropdown
-              isPackage={isPackage}
+              installerType={installerType}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
               onEditSoftwareClick={onEditSoftwareClick}
@@ -416,13 +420,14 @@ const SoftwareInstallerCard = ({
           teamId={teamId}
         />
       </div>
-      {showEditSoftwareModal && isPackage && (
+      {showEditSoftwareModal && (
         <EditSoftwareModal
           softwareId={softwareId}
           teamId={teamId}
           software={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
+          installerType={installerType}
         />
       )}
       {showDeleteModal && (

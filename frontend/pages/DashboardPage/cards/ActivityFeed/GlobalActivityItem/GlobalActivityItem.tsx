@@ -38,6 +38,9 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
   ActivityType.DeletedSoftware,
+  ActivityType.AddedAppStoreApp,
+  ActivityType.EditedAppStoreApp,
+  ActivityType.DeletedAppStoreApp,
   ActivityType.InstalledSoftware,
   ActivityType.UninstalledSoftware,
   ActivityType.EnabledActivityAutomations,
@@ -999,6 +1002,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        edited <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}on{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
   deletedAppStoreApp: (activity: IActivity) => {
     const { software_title: swTitle, platform: swPlatform } =
       activity.details || {};
@@ -1231,6 +1253,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
+    }
+    case ActivityType.EditedAppStoreApp: {
+      return TAGGED_TEMPLATES.editedAppStoreApp(activity);
     }
     case ActivityType.DeletedAppStoreApp: {
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);

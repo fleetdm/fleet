@@ -25,6 +25,7 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import VppDetailsModal from "./components/VPPDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -63,6 +64,7 @@ const ActivityFeed = ({
     softwareDetails,
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -139,6 +141,11 @@ const ActivityFeed = ({
       case ActivityType.EditedSoftware:
       case ActivityType.DeletedSoftware:
         setSoftwareDetails({ ...details });
+        break;
+      case ActivityType.AddedAppStoreApp:
+      case ActivityType.EditedAppStoreApp:
+      case ActivityType.DeletedAppStoreApp:
+        setVppDetails({ ...details });
         break;
       default:
         break;
@@ -258,6 +265,12 @@ const ActivityFeed = ({
         <SoftwareDetailsModal
           details={softwareDetails}
           onCancel={() => setSoftwareDetails(null)}
+        />
+      )}
+      {vppDetails && (
+        <VppDetailsModal
+          details={vppDetails}
+          onCancel={() => setVppDetails(null)}
         />
       )}
     </div>
