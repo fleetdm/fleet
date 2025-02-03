@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
@@ -24,6 +24,14 @@ interface IEditScriptModal {
   scriptId: number;
   scriptName: string;
 }
+
+const validate = (scriptContent: string) => {
+  if (scriptContent.trim() === "") {
+    return "Script cannot be empty";
+  }
+  return null;
+};
+
 
 const EditScriptModal = ({
   scriptId,
@@ -51,17 +59,9 @@ const EditScriptModal = ({
     }
   );
 
-  const validate = (scriptContent: string) => {
-    if (scriptContent.trim() === "") {
-      setFormError("Script cannot be empty");
-    } else {
-      setFormError(null);
-    }
-  };
-
   const onChange = (value: string) => {
     setScriptFormData(value);
-    validate(value);
+    setFormError(validate(value));
   };
 
   const onSave = async () => {
