@@ -73,6 +73,7 @@ describe("ScriptListItem", () => {
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
+        onEdit={onEdit}
         onClickScript={onClickScript}
       />
     );
