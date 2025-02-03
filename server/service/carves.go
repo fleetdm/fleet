@@ -27,7 +27,7 @@ type listCarvesResponse struct {
 	Err    error                 `json:"error,omitempty"`
 }
 
-func (r listCarvesResponse) error() error { return r.Err }
+func (r listCarvesResponse) Error() error { return r.Err }
 
 func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listCarvesRequest)
@@ -64,7 +64,7 @@ type getCarveResponse struct {
 	Err   error               `json:"error,omitempty"`
 }
 
-func (r getCarveResponse) error() error { return r.Err }
+func (r getCarveResponse) Error() error { return r.Err }
 
 func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveRequest)
@@ -98,7 +98,7 @@ type getCarveBlockResponse struct {
 	Err  error  `json:"error,omitempty"`
 }
 
-func (r getCarveBlockResponse) error() error { return r.Err }
+func (r getCarveBlockResponse) Error() error { return r.Err }
 
 func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveBlockRequest)
@@ -159,7 +159,7 @@ type carveBeginResponse struct {
 	Err       error  `json:"error,omitempty"`
 }
 
-func (r carveBeginResponse) error() error { return r.Err }
+func (r carveBeginResponse) Error() error { return r.Err }
 
 func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBeginRequest)
@@ -254,7 +254,7 @@ type carveBlockResponse struct {
 	Err     error `json:"error,omitempty"`
 }
 
-func (r carveBlockResponse) error() error { return r.Err }
+func (r carveBlockResponse) Error() error { return r.Err }
 
 func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBlockRequest)

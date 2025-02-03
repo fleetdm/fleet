@@ -24,7 +24,7 @@ type getAppStoreAppsResponse struct {
 	Err          error           `json:"error,omitempty"`
 }
 
-func (r getAppStoreAppsResponse) error() error { return r.Err }
+func (r getAppStoreAppsResponse) Error() error { return r.Err }
 
 func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAppStoreAppsRequest)
@@ -61,7 +61,7 @@ type addAppStoreAppResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addAppStoreAppResponse) error() error { return r.Err }
+func (r addAppStoreAppResponse) Error() error { return r.Err }
 
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addAppStoreAppRequest)
@@ -162,7 +162,7 @@ type uploadVPPTokenResponse struct {
 
 func (r uploadVPPTokenResponse) Status() int { return http.StatusAccepted }
 
-func (r uploadVPPTokenResponse) error() error {
+func (r uploadVPPTokenResponse) Error() error {
 	return r.Err
 }
 
@@ -236,7 +236,7 @@ type patchVPPTokenRenewResponse struct {
 
 func (r patchVPPTokenRenewResponse) Status() int { return http.StatusAccepted }
 
-func (r patchVPPTokenRenewResponse) error() error {
+func (r patchVPPTokenRenewResponse) Error() error {
 	return r.Err
 }
 
@@ -278,7 +278,7 @@ type patchVPPTokensTeamsResponse struct {
 	Err   error             `json:"error,omitempty"`
 }
 
-func (r patchVPPTokensTeamsResponse) error() error { return r.Err }
+func (r patchVPPTokensTeamsResponse) Error() error { return r.Err }
 
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*patchVPPTokensTeamsRequest)
@@ -309,7 +309,7 @@ type getVPPTokensResponse struct {
 	Err    error               `json:"error,omitempty"`
 }
 
-func (r getVPPTokensResponse) error() error { return r.Err }
+func (r getVPPTokensResponse) Error() error { return r.Err }
 
 func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	tokens, err := svc.GetVPPTokens(ctx)
@@ -344,7 +344,7 @@ type deleteVPPTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteVPPTokenResponse) error() error { return r.Err }
+func (r deleteVPPTokenResponse) Error() error { return r.Err }
 
 func (r deleteVPPTokenResponse) Status() int { return http.StatusNoContent }
 

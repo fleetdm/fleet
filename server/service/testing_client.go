@@ -301,7 +301,7 @@ func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStat
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
@@ -316,7 +316,7 @@ func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, e
 	err = json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
 	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
