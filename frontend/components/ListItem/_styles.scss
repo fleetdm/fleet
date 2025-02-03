@@ -25,6 +25,8 @@
   }
 
   &__actions {
-    display: none;
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-medium;
   }
 }

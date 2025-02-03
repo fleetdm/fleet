@@ -1,7 +1,4 @@
 .script-list-item {
-  // moved from .upload-list__list-item to allow for onClick of full ScriptListItem
-  padding: 1rem 1.5rem;
-
   &__action-button {
     width: 40px;
     height: 40px;
@@ -10,18 +7,5 @@
     display: flex;
     gap: $pad-xxsmall;
     color: $ui-fleet-black-75;
-  }
-  // currently this behavior has only been specified for Script list items
-  // TODO - add this behavior to all list items? Includes a few other places (see references of
-  // ListItem)
-  // TODO - refactor config profile list to use UploadList and ListItems
-  &:hover {
-    background-color: $ui-fleet-blue-10;
-    cursor: pointer;
-    .list-item__actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: $pad-medium;
-    }
   }
 }

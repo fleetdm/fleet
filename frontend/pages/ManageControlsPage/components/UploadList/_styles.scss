@@ -22,18 +22,5 @@
     &:last-child {
       border-bottom: initial;
     }
-    &:hover {
-      // currently this behavior has only been specified for Script list items
-      // TODO - add this behavior to all list items? Includes a few other places (see references of
-      // UploadList)
-      // TODO - update all instances of UploadList to use ListItem?
-      // TODO - refactor config profile list to use UploadList and ListItem s
-      background-color: $ui-fleet-blue-10;
-      .list-item__actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: $pad-medium;
-      }
-    }
   }
 }
