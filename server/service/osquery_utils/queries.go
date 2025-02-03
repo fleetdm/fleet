@@ -1770,6 +1770,35 @@ var (
 				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
 			},
 		},
+		{
+			// Python versions on Windows encode ABI and release information in a way that's incompatible with NVD lookups
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
+			},
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				versionComponents := strings.Split(s.Version, ".")
+				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
+				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
+				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
+
+				candidateSuffix := ""
+				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
+				case "10":
+					candidateSuffix = "-alpha" + releaseSerial
+				case "11":
+					candidateSuffix = "-beta" + releaseSerial
+				case "12":
+					candidateSuffix = "-rc" + releaseSerial
+				} // default
+
+				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
+					patchVersion = "0"
+				}
+
+				versionComponents[2] = patchVersion + candidateSuffix
+				s.Version = strings.Join(versionComponents[0:3], ".")
+			},
+		},
 	}
 )
 
