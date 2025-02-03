@@ -11,13 +11,17 @@ import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Button from "components/buttons/Button";
+
 import { buildQueryStringFromParams } from "utilities/url";
 import SoftwareVppForm from "./SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
@@ -25,76 +29,65 @@ import { ISoftwareVppFormData } from "./SoftwareVppForm/SoftwareVppForm";
 
 const baseClass = "software-app-store-vpp";
 //
+
+interface IEnableVppMessage {
+  onEnableVpp: () => void;
+}
+
+const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
+  <div className={`${baseClass}__enable-vpp-message`}>
+    <p className={`${baseClass}__enable-vpp-title`}>
+      Volume Purchasing Program (VPP) isn&apos;t enabled
+    </p>
+    <p className={`${baseClass}__enable-vpp-description`}>
+      To add App Store apps, first enable VPP.
+    </p>
+    <Button onClick={onEnableVpp} variant="brand">
+      Enable VPP
+    </Button>
+  </div>
+);
+
+interface IAddTeamToVppMessage {
+  onEditVpp: () => void;
+}
+
+const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
+  <div className={`${baseClass}__enable-vpp-message`}>
+    <p className={`${baseClass}__enable-vpp-title`}>
+      This team isn&apos;t added to Volume Purchasing Program (VPP)
+    </p>
+    <p className={`${baseClass}__enable-vpp-description`}>
+      To add App Store apps, first add this team to VPP.
+    </p>
+    <Button onClick={onEditVpp} variant="brand">
+      Edit VPP
+    </Button>
+  </div>
+);
+
+const NoVppAppsMessage = () => (
+  <div className={`${baseClass}__no-vpp-message`}>
+    <p className={`${baseClass}__no-vpp-title`}>
+      You don&apos;t have any App Store apps
+    </p>
+    <p className={`${baseClass}__no-vpp-description`}>
+      You must purchase apps in{" "}
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
+        text="ABM"
+        newTab
+      />
+      .<br />
+      App Store apps that are already added to this team are not listed.
+    </p>
+  </div>
+);
+
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
   router: InjectedRouter;
 }
-
-const EnableVppCard = () => {
-  return (
-    <Card
-      className={`${baseClass}__enable-vpp-card`}
-      borderRadiusSize="medium"
-      paddingSize="xxxlarge"
-    >
-      <div className={`${baseClass}__enable-vpp-message`}>
-        <p className={`${baseClass}__enable-vpp-title`}>
-          Volume Purchasing Program (VPP) isn&apos;t enabled
-        </p>
-        <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first enable VPP.
-        </p>
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Enable VPP"
-          className={`${baseClass}__enable-vpp-link`}
-        />
-      </div>
-    </Card>
-  );
-};
-
-const AddTeamToVppCard = () => {
-  return (
-    <Card
-      className={`${baseClass}__enable-vpp-card`}
-      borderRadiusSize="medium"
-      paddingSize="xxxlarge"
-    >
-      <div className={`${baseClass}__enable-vpp-message`}>
-        <p className={`${baseClass}__enable-vpp-title`}>
-          This team isn&apos;t added to Volume Purchasing Program (VPP)
-        </p>
-        <p className={`${baseClass}__enable-vpp-description`}>
-          To add App Store apps, first add this team to VPP.
-        </p>
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_VPP}
-          text="Edit VPP"
-          className={`${baseClass}__enable-vpp-link`}
-        />
-      </div>
-    </Card>
-  );
-};
-
-const NoVppAppsCard = () => (
-  <Card
-    className={`${baseClass}__no-vpp-card`}
-    borderRadiusSize="medium"
-    paddingSize="xxxlarge"
-  >
-    <div className={`${baseClass}__no-vpp-message`}>
-      <p className={`${baseClass}__no-vpp-title`}>
-        You don&apos;t have any App Store apps
-      </p>
-      <p className={`${baseClass}__no-vpp-description`}>
-        You must purchase apps in ABM. App Store apps that are already added to
-        this team are not listed.
-      </p>
-    </div>
-  </Card>
-);
 
 const SoftwareAppStoreVpp = ({
   currentTeamId,
@@ -204,26 +197,22 @@ const SoftwareAppStoreVpp = ({
 
     if (noVppTokenUploaded) {
       return (
-        <div className={`${baseClass}__content`}>
-          <EnableVppCard />
-        </div>
+        <EnableVppMessage
+          onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+        />
       );
     }
 
     if (!hasVppToken) {
       return (
-        <div className={`${baseClass}__content`}>
-          <AddTeamToVppCard />
-        </div>
+        <AddTeamToVppMessage
+          onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+        />
       );
     }
 
     if (!vppApps) {
-      return (
-        <div className={`${baseClass}__content`}>
-          <NoVppAppsCard />
-        </div>
-      );
+      return <NoVppAppsMessage />;
     }
     return (
       <div className={`${baseClass}__content`}>
