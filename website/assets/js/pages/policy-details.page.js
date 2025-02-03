@@ -4,6 +4,7 @@ parasails.registerPage('policy-details', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     contributors: [],
+    selectedTab: 'sql',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -13,21 +14,6 @@ parasails.registerPage('policy-details', {
     //…
   },
   mounted: async function () {
-    // Note: Docsearch will be disabled on this page until a search index has been created for it.
-    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-    if(this.algoliaPublicKey) {
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:policies']
-        },
-      });
-    }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
@@ -45,6 +31,10 @@ parasails.registerPage('policy-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
+        if(block.classList.contains('ps')){
+          window.hljs.highlightElement(block);
+          return;
+        }
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerHTML.match(tableName)|| []){
@@ -81,7 +71,7 @@ parasails.registerPage('policy-details', {
       });
     })();
     $('[purpose="copy-button"]').on('click', async function() {
-      let code = $(this).siblings('pre').find('code').text();
+      let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
       $(this).addClass('copied');
       await setTimeout(()=>{
         $(this).removeClass('copied');

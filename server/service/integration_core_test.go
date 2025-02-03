@@ -8429,6 +8429,31 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+
+	// as an admin, create a new user with SSO authentication enabled
+	params = fleet.UserPayload{
+		Name:                     ptr.String("moduser1"),
+		Email:                    ptr.String("moduser1@example.com"),
+		SSOInvite:                ptr.Bool(true),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u = *createResp.User
+
+	// as an admin, try to disable sso for that user without providing a password
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled: ptr.Bool(false),
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "a new password must be provided when disabling SSO")
+
+	// as an admin, try to disable sso for that user while providing a password
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled:  ptr.Bool(false),
+		NewPassword: ptr.String("Password123#"),
+	}, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestGetHostLastOpenedAt() {

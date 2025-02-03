@@ -41,7 +41,7 @@ interface IEditorProps {
 
 /**
  * This component is a generic editor that uses the AceEditor component.
- * TODO: We should move FleetAce and YamlAce into here and deprecate importing
+ * TODO: We should move SQLEditor and YamlAce into here and deprecate importing
  * them directly. This component should be used for all editor components and
  * be configurable from the props. We should look into dynmaic imports for
  * this.
