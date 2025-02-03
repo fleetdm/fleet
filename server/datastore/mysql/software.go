@@ -2339,7 +2339,7 @@ upcoming_software_uninstall AS (
 		ua.activity_type = 'software_uninstall' AND
 		ua2.id IS NULL
 ),
-latest_software_install AS (
+last_software_install AS (
 	SELECT
 		hsi.execution_id,
 		hsi.host_id,
@@ -2372,7 +2372,7 @@ latest_software_install AS (
 				ua.activity_type = 'software_install'
 		)
 ),
-latest_software_uninstall AS (
+last_software_uninstall AS (
 	SELECT
 		hsi.execution_id,
 		hsi.host_id,
@@ -2430,7 +2430,7 @@ upcoming_vpp_install AS (
 		ua.activity_type = 'vpp_app_install' AND
 		ua2.id IS NULL
 ),
-latest_vpp_install AS (
+last_vpp_install AS (
 	SELECT
 		hvsi.command_uuid as execution_id,
 		hvsi.host_id,
@@ -2440,7 +2440,7 @@ latest_vpp_install AS (
 		%s
 	FROM
 		host_vpp_software_installs hvsi
-		LEFT JOIN nano_command_results ncr 
+		LEFT JOIN nano_command_results ncr
 			ON ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
 			ON hvsi.host_id = hvsi2.host_id AND
@@ -2486,17 +2486,17 @@ latest_vpp_install AS (
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN -- get the latest install
-			( SELECT * FROM upcoming_software_install UNION SELECT * FROM latest_software_install ) AS lsia -- latest_software_install_attempt
+			( SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install ) AS lsia -- latest_software_install_attempt
 				ON si.id = lsia.software_installer_id
 		LEFT OUTER JOIN -- get the latest uninstall
-			( SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM latest_software_uninstall ) AS lsua -- latest_software_uninstall_attempt
+			( SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall ) AS lsua -- latest_software_uninstall_attempt
 				ON si.id = lsua.software_installer_id
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN -- get the latest vpp install
-			( SELECT * FROM upcoming_vpp_install UNION SELECT * FROM latest_vpp_install ) AS lvia -- latest_vpp_install_attempt
+			( SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install ) AS lvia -- latest_vpp_install_attempt
 				ON vat.adam_id = lvia.adam_id
 		LEFT OUTER JOIN
 			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = lsua.execution_id
