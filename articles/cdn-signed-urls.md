@@ -51,5 +51,5 @@ Using CloudFront signed URLs with Fleet can help speed up downloads and reduce t
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-01-24">
+<meta name="publishedOn" value="2025-02-03">
 <meta name="description" value="A guide on using signed URLs with MDM bootstrap packages and software installers.">
