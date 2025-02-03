@@ -302,7 +302,49 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
+  [purpose='powershell-note'] {
+    display: flex;
+    padding: 16px 24px;
+    align-items: center;
+    gap: 8px;
+    align-self: stretch;
+    border-radius: 8px;
+    border: 1px solid #B4B2FE;
+    background: #F7F7FC;
+    margin-bottom: 40px;
+    img {
+      width: 16px;
+      height: 16px;
+    }
+    p {
+      margin-bottom: 0px;
+      color: #515774;
 
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 150%;
+    }
+    code {
+      color: #515774;
+      font-family: 'Source Code Pro';
+      font-size: 14px;
+      line-height: 16px; /* 114.286% */
+      border-radius: 2px;
+      background: #F1F0FF;
+      padding: 2px 1px;
+    }
+    a {
+      color: #515774;
+      font-family: Inter;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 150%; /* 150% */
+      text-decoration: underline #C5C7D1;
+      text-underline-offset: 3px;
+    }
+  }
   [purpose='query-check'] {
     [purpose='codeblock'] {
       margin-top: 40px;
@@ -494,6 +536,14 @@
   @media (max-width: 575px) {
     [purpose='page-container'] {
       padding: 32px 24px;
+    }
+    [purpose='query-check'] {
+      [purpose='codeblock'] {
+        [purpose='copy-button'] {
+          top: 2px;
+          right: 5px;
+        }
+      }
     }
 
   }

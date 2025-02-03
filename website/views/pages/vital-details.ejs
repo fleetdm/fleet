@@ -102,11 +102,17 @@
               <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= thisVital.powershell %></code></pre>
             </div>
           </div>
+          <div purpose="powershell-note" v-if="selectedTab === 'ps'">
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+            <div>
+              <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+            </div>
+          </div>
           <% if(thisVital.discovery) {%>
             <div purpose="discovery-table-note">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <p>This query uses the <code><%- thisVital.discovery %></code> data table. <a href="/tables/<%- thisVital.discovery %>">Learn more</a></p>
               <div>
-                <p>This query uses the <code><%- thisVital.discovery %></code> data table. <a href="/tables/<%- thisVital.discovery %>">Learn more</a></p>
               </div>
             </div>
           <% } %>

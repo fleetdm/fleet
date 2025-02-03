@@ -454,7 +454,7 @@
 
   }
 
-  [purpose='discovery-table-note'] {
+  [purpose='discovery-table-note'], [purpose='powershell-note'] {
     display: flex;
     padding: 16px 24px;
     align-items: center;
@@ -463,7 +463,7 @@
     border-radius: 8px;
     border: 1px solid #B4B2FE;
     background: #F7F7FC;
-    margin-bottom: 40px;
+    margin-bottom: 24px;
     img {
       width: 16px;
       height: 16px;
@@ -622,6 +622,14 @@
         padding: 16px 24px 24px 24px;
         &.selected {
           padding: 16px 24px 22px 24px;
+        }
+      }
+    }
+    [purpose='vital-check'] {
+      [purpose='codeblock'] {
+        [purpose='copy-button'] {
+          top: 2px;
+          right: 5px;
         }
       }
     }
