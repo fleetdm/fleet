@@ -413,25 +413,19 @@ func main() {
 				select {
 				case <-myDeviceItem.ClickedCh:
 					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
-					out, err := open.Browser(openURL)
-					log.Debug().Str("output", out).Str("url", openURL).Msg("open browser my device")
-					if err != nil {
+					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
-					out, err := open.Browser(openURL)
-					log.Debug().Str("output", out).Str("url", openURL).Msg("open browser transparency")
-					if err != nil {
+					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
 					}
 				case <-selfServiceItem.ClickedCh:
 					openURL := client.BrowserSelfServiceURL(tokenReader.GetCached())
-					out, err := open.Browser(openURL)
-					log.Debug().Str("output", out).Str("url", openURL).Msg("open browser self-service")
-					if err != nil {
+					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
@@ -542,9 +536,7 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 
 func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
-	out, err := open.Browser(openURL)
-	log.Debug().Str("output", out).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
-	if err != nil {
+	if err := open.Browser(openURL); err != nil {
 		log.Error().Err(err).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
 		return err
 	}
