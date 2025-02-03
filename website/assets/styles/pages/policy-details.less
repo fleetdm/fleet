@@ -190,8 +190,154 @@
   }
   [purpose='policy-check'] {
     padding-bottom: 24px;
-  }
+    [purpose='codeblock'] {
+      margin-top: 40px;
+      [purpose='codeblock-tabs'] {
+        background: var(--UI-Fleet-Black-5, #F4F4F6);
+        border-top: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+        border-radius: 4px 4px 0px 0px;
+        height: 35px;
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end;
+      }
+      [purpose='codeblock-tab'] {
+        border-bottom: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+        cursor: pointer;
+        height: 35px;
+        padding: 8px 24px;
+        text-decoration: none;
+        color: #000;
+        display: flex;
+        /* Bold/XXS 12 */
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 18px; /* 150% */
+        [purpose='new-badge'] {
+          color: #FFF;
+          font-family: 'Source Code Pro';
+          font-size: 10px;
+          font-style: normal;
+          font-weight: 600;
+          line-height: 11px; /* 110% */
+          display: inline-flex;
+          padding: 2px 8px;
+          justify-content: center;
+          align-items: center;
+          margin-left: 10px;
+          border-radius: var(--spacing-half, 4px);
+          border: 1px solid var(--UI-Fleet-Black-50, #8B8FA2);
+          background: var(--UI-Fleet-Black-50, #8B8FA2);
+          height: 19px;
+        }
+        &.selected {
+          [purpose='new-badge'] {
+            height: 19px;
+            border: 1px solid var(--color-brand-blue, #0587FF);
+            background: var(--color-brand-blue, #0587FF);
+          }
+          background: #F9FAFC;
+          border-radius: 4px 4px 0px 0px;
+          border-top: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+          border-right: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+          border-left: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+          border-bottom: 1px solid var(--UI-Fleet-Black-10, #F9FAFC);
+        }
+      }
+      padding: 0;
+      position: relative;
+      [purpose='copy-button-tab'] {
+        width: 100%;
+        height: 35px;
+        border-radius: 4px 4px 0px 0px;
+        border-right: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+        border-bottom: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+      }
+      [purpose='copy-button'] {
+        position: absolute;
+        top: 2px;
+        right: 10px;
+        border-radius: 8px;
+        height: 32px;
+        width: 32px;
+        background: url('/images/icon-copy-16x16@2x.png');
+        background-size: 14px 14px;
+        background-position: center;
+        background-repeat: no-repeat;
+        cursor: pointer;
+        &.copied {
+          background: url('/images/icon-copy-clicked-checkmark-no-background-32x32@2x.png');
+          background-size: 32px 32px;
+          background-repeat: no-repeat;
+          background-position: center;
+        }
+      }
+    }
 
+    pre {
+      width: 100%;
+      max-width: 100%;
+      padding: 16px 44px 16px 24px;
+      border-right: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+      border-left: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+      border-bottom: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
+      background: #F9FAFC;
+      border-radius: 0px 0px 4px 4px;
+      border-top: none;
+      margin-top: 0px;
+      code {
+        color: #515774;
+        &.has-linebreaks {
+          white-space: break-spaces;
+        }
+        &.no-linebreaks {
+          word-break: break-word;
+          white-space: normal;
+        }
+        font-family: 'Source Code Pro';
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 150%;
+        .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
+          color: #AE6DDF;
+        }
+        [purpose='line-break']:not(:first-of-type)::before {
+          content: '\a';
+        }
+        .hljs-attr { // For table and column names
+          .hljs-keyword {
+            color: #FFF;
+          }
+          .hljs-string { // For words wrapped in quotation marks
+            color: #FFF;
+          }
+          color: #FFF;
+          background-color: #AE6DDF;
+          border-radius: 3px;
+          white-space: pre;
+          vertical-align: baseline;
+          span {
+            padding: 0;
+          }
+        }
+        .hljs-number {
+          color: #f5871f;
+        }
+        .hljs-string { // For words wrapped in quotation marks
+          color: #4fd061;
+          .hljs-keyword {
+            color: #4fd061;
+          }
+        }
+        background-color: @ui-off-white;
+        border: none;
+        padding: 0;
+      }
+    }
+
+  }
   [purpose='right-sidebar'] {
     width: 256px;
     margin-left: 16px;
