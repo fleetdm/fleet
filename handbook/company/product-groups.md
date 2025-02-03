@@ -467,7 +467,7 @@ Once reproduced, QA documents the reproduction steps in the description and move
 
 #### Reproduced
 
-QA has reproduced the issue successfully. It should now be transferred to product design.
+QA has reproduced the issue successfully. It should now be transferred to product design if it is a released bug, or engineering if it is unreleased.
 
 Remove the “:reproduce” label, add the following labels:
 
