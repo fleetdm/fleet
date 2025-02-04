@@ -12226,11 +12226,11 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	// anything anymore, sync scripts are part of the queue like any other:
 	// https://github.com/fleetdm/fleet/issues/22866#issuecomment-2575961141)
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), h1A)
+		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), h1A)
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-23*time.Hour), h1B)
+		_, err = tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-23*time.Hour), h1B)
 		return err
 	})
 
