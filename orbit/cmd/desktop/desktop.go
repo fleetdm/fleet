@@ -537,7 +537,7 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
-		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		log.Error().Err(err).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
 		return err
 	}
 	return nil
