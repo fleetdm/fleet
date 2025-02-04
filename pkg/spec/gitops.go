@@ -492,7 +492,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// Find Fleet secrets in profiles
-	var profiles []fleet.MDMProfileSpec
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
 		// This is inefficient, but it is more robust and less error-prone.
@@ -534,7 +533,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					return multierror.Append(multiError, err)
 				}
 			}
-			profiles = append(profiles, windowsSettings.CustomSettings.Value...)
 		}
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.WindowsSettings = windowsSettings

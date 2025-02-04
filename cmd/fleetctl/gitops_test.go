@@ -1624,7 +1624,7 @@ software:
 	})
 
 	t.Run("both global and no-team.yml define controls -- should fail", func(t *testing.T) {
-		globalFileWithControls := createGlobalFileWithControls(t, err, fleetServerURL, orgName)
+		globalFileWithControls := createGlobalFileWithControls(t, fleetServerURL, orgName)
 
 		noTeamFilePathWithControls := filepath.Join(t.TempDir(), "no-team.yml")
 		noTeamFileWithControls, err := os.Create(noTeamFilePathWithControls)
@@ -1653,7 +1653,7 @@ software:
 	})
 
 	t.Run("no-team.yml defines policy with calendar events enabled -- should fail", func(t *testing.T) {
-		globalFileWithControls := createGlobalFileWithControls(t, err, fleetServerURL, orgName)
+		globalFileWithControls := createGlobalFileWithControls(t, fleetServerURL, orgName)
 
 		noTeamFilePathPoliciesCalendarPath := filepath.Join(t.TempDir(), "no-team.yml")
 		noTeamFilePathPoliciesCalendar, err := os.Create(noTeamFilePathPoliciesCalendarPath)
@@ -1682,7 +1682,7 @@ software:
 	})
 
 	t.Run("global and no-team.yml DO NOT define controls -- should fail", func(t *testing.T) {
-		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, err, fleetServerURL, orgName)
+		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
 		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
@@ -1709,7 +1709,7 @@ software:
 	t.Run("controls only defined in no-team.yml", func(t *testing.T) {
 		savedAppConfig = &fleet.AppConfig{}
 
-		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, err, fleetServerURL, orgName)
+		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		// Dry run, global file without controls and software keys.
 		_ = runAppForTest(t,
@@ -1793,7 +1793,7 @@ software:
 	return globalFileBasic
 }
 
-func createGlobalFileWithoutControlsAndSoftwareKeys(t *testing.T, err error, fleetServerURL string, orgName string) *os.File {
+func createGlobalFileWithoutControlsAndSoftwareKeys(t *testing.T, fleetServerURL string, orgName string) *os.File {
 	globalFileWithoutControlsAndSoftwareKeys, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFileWithoutControlsAndSoftwareKeys.WriteString(fmt.Sprintf(
@@ -1816,7 +1816,7 @@ org_settings:
 	return globalFileWithoutControlsAndSoftwareKeys
 }
 
-func createGlobalFileWithControls(t *testing.T, err error, fleetServerURL string, orgName string) *os.File {
+func createGlobalFileWithControls(t *testing.T, fleetServerURL string, orgName string) *os.File {
 	globalFileWithControls, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFileWithControls.WriteString(fmt.Sprintf(
@@ -1967,14 +1967,17 @@ software:
 		ddmFile, err := os.Create(filepath.Join(noTeamDir, "config.json"))
 		require.NoError(t, err)
 		_, err = ddmFile.WriteString(`{"foo": "bar"}`)
+		require.NoError(t, err)
 
 		cspFile, err := os.Create(filepath.Join(noTeamDir, "config.xml"))
 		require.NoError(t, err)
 		_, err = cspFile.WriteString(`<Replace>bozo</Replace>`)
+		require.NoError(t, err)
 
 		scriptFile, err := os.Create(filepath.Join(noTeamDir, "script.sh"))
 		require.NoError(t, err)
 		_, err = scriptFile.WriteString(`echo "Hello, world!"`)
+		require.NoError(t, err)
 
 		// Dry run
 		ds.SaveAppConfigFuncInvoked = false
