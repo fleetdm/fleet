@@ -1,6 +1,6 @@
 # Automatically install software
 
-In Fleet, you can automatically and remotely install software on hosts. This guide will walk you through the process of configuring Fleet to install software on your.
+In Fleet, you can automatically and remotely install software on hosts. This guide will walk you through the process of configuring Fleet to install software on your hosts.
 
 ## Step-by-step instructions
 
