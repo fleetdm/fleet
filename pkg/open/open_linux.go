@@ -18,7 +18,7 @@ func browser(url string) error {
 	}
 	go func() {
 		// We must call wait to avoid defunct processes.
-		cmd.Wait()
+		cmd.Wait() //nolint:errcheck
 	}()
 	return nil
 }
