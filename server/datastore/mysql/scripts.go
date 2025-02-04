@@ -276,11 +276,13 @@ func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostI
 func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
 	if onlyShowInternal {
-		extraWhere = " AND ua.payload->'$.is_internal' = 1"
+		// software_uninstalls are implicitly internal
+		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
 	}
 	if onlyReadyToExecute {
 		extraWhere += " AND ua.activated_at IS NOT NULL"
 	}
+	// this selects software uninstalls too as they run as scripts
 	listStmt := fmt.Sprintf(`
   SELECT
     id,
@@ -299,13 +301,14 @@ func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostI
 			IF(ua.activated_at IS NULL, 0, 1) AS topmost
 		FROM
 			upcoming_activities ua
-			INNER JOIN script_upcoming_activities sua
+			-- left join because software_uninstall has no script join
+			LEFT JOIN script_upcoming_activities sua
 				ON ua.id = sua.upcoming_activity_id
 		WHERE
 			ua.host_id = ? AND
-			ua.activity_type = 'script' AND
+			ua.activity_type IN ('script', 'software_uninstall') AND
 			(
-				ua.payload->'$.sync_request' = 0 OR
+				COALESCE(ua.payload->'$.sync_request', 0) = 0 OR
 				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
 			)
 			%s
@@ -911,7 +914,7 @@ WHERE
 			INNER JOIN script_upcoming_activities sua
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
-			upcoming_activities.activity_type = 'script' 
+			upcoming_activities.activity_type = 'script'
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
@@ -932,13 +935,13 @@ WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
-	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities 
-		USING 
+	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities
+		USING
 			upcoming_activities
 			INNER JOIN script_upcoming_activities sua
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
-			upcoming_activities.activity_type = 'script' 
+			upcoming_activities.activity_type = 'script'
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
@@ -957,13 +960,13 @@ ON DUPLICATE KEY UPDATE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id = ? AND script_content_id != ?`
 
-	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities 
-		USING 
-			upcoming_activities 
+	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
 			INNER JOIN script_upcoming_activities sua
 				ON upcoming_activities.id = sua.upcoming_activity_id
 		WHERE
-			upcoming_activities.activity_type = 'script' 
+			upcoming_activities.activity_type = 'script'
 			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id = ? AND sua.script_content_id != ?`
 

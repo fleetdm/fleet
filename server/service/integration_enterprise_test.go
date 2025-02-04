@@ -12524,7 +12524,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.NotEmpty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should exist")
 
-	// Remove the installed app by not returning it
+	// Remove the installed app of h2 by not returning it
 	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: *h2.NodeKey,
 		Results: map[string]json.RawMessage{
@@ -12545,13 +12545,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
 
-	fmt.Println(">>>> h2.ID: ", h2.ID)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "upcoming_activities")
-		return nil
-	})
-
-	// Mark original install successful
+	// Mark original h install successful
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -12560,7 +12554,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	// simulate a lock/unlock; this creates the host_mdm_actions table, which reproduces #25144
+	// simulate a lock/unlock on h; this creates the host_mdm_actions table, which reproduces #25144
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
@@ -12575,7 +12569,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.UnlockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
 
-	// Do uninstall
+	// Do uninstall on h
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12610,12 +12604,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 
-	// expect uninstall script to be pending
+	// expect uninstall script (uninstall software works via a script) to be pending
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+	require.Equal(t, uninstallExecutionID, orbitResp.Notifications.PendingScriptExecutionIDs[0])
 
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse

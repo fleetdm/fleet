@@ -232,8 +232,8 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	// modify the upcoming script to be a sync script that has
 	// been pending for a long time
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ?, payload = JSON_SET(payload, '$.sync_request', true) WHERE id = ?",
-			time.Now().Add(-24*time.Hour), createdScript3.ID)
+		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ?, payload = JSON_SET(payload, '$.sync_request', ?) WHERE id = ?",
+			time.Now().Add(-24*time.Hour), true, createdScript3.ID)
 		return err
 	})
 
