@@ -12343,7 +12343,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprintf("%d", *teamID))
 
-	// install script request succeeds
+	// install software request succeeds
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
@@ -12544,6 +12544,12 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Nil(t, getHostSoftwareResp.Software[0].Status)
 	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
+
+	fmt.Println(">>>> h2.ID: ", h2.ID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "upcoming_activities")
+		return nil
+	})
 
 	// Mark original install successful
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
