@@ -3713,7 +3713,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				}
 
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-					error) {
+					error,
+				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
@@ -3740,7 +3741,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				}
 
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-					error) {
+					error,
+				) {
 					return map[string]error{}, errors.New("foo")
 				}
 			},
@@ -3754,7 +3756,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID2", EnrollReference: "ref1"}}, nil
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-					error) {
+					error,
+				) {
 					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
 					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
@@ -3780,7 +3783,8 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				}
 
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-					error) {
+					error,
+				) {
 					return map[string]error{}, errors.New("foo")
 				}
 			},

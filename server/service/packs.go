@@ -109,7 +109,7 @@ type getPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r getPackResponse) error() error { return r.Err }
+func (r getPackResponse) Error() error { return r.Err }
 
 func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPackRequest)
@@ -149,7 +149,7 @@ type createPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r createPackResponse) error() error { return r.Err }
+func (r createPackResponse) Error() error { return r.Err }
 
 func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createPackRequest)
@@ -242,7 +242,7 @@ type modifyPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r modifyPackResponse) error() error { return r.Err }
+func (r modifyPackResponse) Error() error { return r.Err }
 
 func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyPackRequest)
@@ -337,7 +337,7 @@ type listPacksResponse struct {
 	Err   error          `json:"error,omitempty"`
 }
 
-func (r listPacksResponse) error() error { return r.Err }
+func (r listPacksResponse) Error() error { return r.Err }
 
 func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listPacksRequest)
@@ -377,7 +377,7 @@ type deletePackResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deletePackResponse) error() error { return r.Err }
+func (r deletePackResponse) Error() error { return r.Err }
 
 func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackRequest)
@@ -430,7 +430,7 @@ type deletePackByIDResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deletePackByIDResponse) error() error { return r.Err }
+func (r deletePackByIDResponse) Error() error { return r.Err }
 
 func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackByIDRequest)
@@ -481,7 +481,7 @@ type applyPackSpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyPackSpecsResponse) error() error { return r.Err }
+func (r applyPackSpecsResponse) Error() error { return r.Err }
 
 func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPackSpecsRequest)
@@ -555,7 +555,7 @@ type getPackSpecsResponse struct {
 	Err   error             `json:"error,omitempty"`
 }
 
-func (r getPackSpecsResponse) error() error { return r.Err }
+func (r getPackSpecsResponse) Error() error { return r.Err }
 
 func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
@@ -582,7 +582,7 @@ type getPackSpecResponse struct {
 	Err  error           `json:"error,omitempty"`
 }
 
-func (r getPackSpecResponse) error() error { return r.Err }
+func (r getPackSpecResponse) Error() error { return r.Err }
 
 func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)

@@ -124,7 +124,7 @@ type searchTargetsResponse struct {
 	Err                    error        `json:"error,omitempty"`
 }
 
-func (r searchTargetsResponse) error() error { return r.Err }
+func (r searchTargetsResponse) Error() error { return r.Err }
 
 func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*searchTargetsRequest)
@@ -264,7 +264,7 @@ type countTargetsResponse struct {
 	Err            error `json:"error,omitempty"`
 }
 
-func (r countTargetsResponse) error() error { return r.Err }
+func (r countTargetsResponse) Error() error { return r.Err }
 
 func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countTargetsRequest)

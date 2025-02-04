@@ -70,9 +70,9 @@ type orbitGetConfigResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitGetConfigResponse) error() error { return r.Err }
+func (r orbitGetConfigResponse) Error() error { return r.Err }
 
-func (r EnrollOrbitResponse) error() error { return r.Err }
+func (r EnrollOrbitResponse) Error() error { return r.Err }
 
 // hijackRender so we can add a header with the server capabilities in the
 // response, allowing Orbit to know what features are available without the
@@ -652,7 +652,7 @@ func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWrit
 	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
 }
 
-func (r orbitPingResponse) error() error { return nil }
+func (r orbitPingResponse) Error() error { return nil }
 
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
@@ -683,7 +683,7 @@ type setOrUpdateDeviceTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r setOrUpdateDeviceTokenResponse) error() error { return r.Err }
+func (r setOrUpdateDeviceTokenResponse) Error() error { return r.Err }
 
 func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*setOrUpdateDeviceTokenRequest)
@@ -744,7 +744,7 @@ type orbitGetScriptResponse struct {
 	*fleet.HostScriptResult
 }
 
-func (r orbitGetScriptResponse) error() error { return r.Err }
+func (r orbitGetScriptResponse) Error() error { return r.Err }
 
 func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitGetScriptRequest)
@@ -807,7 +807,7 @@ type orbitPostScriptResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitPostScriptResultResponse) error() error { return r.Err }
+func (r orbitPostScriptResultResponse) Error() error { return r.Err }
 
 func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitPostScriptResultRequest)
@@ -958,7 +958,7 @@ type orbitPutDeviceMappingResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitPutDeviceMappingResponse) error() error { return r.Err }
+func (r orbitPutDeviceMappingResponse) Error() error { return r.Err }
 
 func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitPutDeviceMappingRequest)
@@ -997,7 +997,7 @@ type orbitPostDiskEncryptionKeyResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitPostDiskEncryptionKeyResponse) error() error { return r.Err }
+func (r orbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
 func (r orbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1080,7 +1080,7 @@ type orbitPostLUKSResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitPostLUKSResponse) error() error { return r.Err }
+func (r orbitPostLUKSResponse) Error() error { return r.Err }
 func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1161,7 +1161,7 @@ type orbitGetSoftwareInstallResponse struct {
 	*fleet.SoftwareInstallDetails
 }
 
-func (r orbitGetSoftwareInstallResponse) error() error { return r.Err }
+func (r orbitGetSoftwareInstallResponse) Error() error { return r.Err }
 
 func getOrbitSoftwareInstallDetails(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*orbitGetSoftwareInstallRequest)
@@ -1259,7 +1259,7 @@ type orbitPostSoftwareInstallResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r orbitPostSoftwareInstallResultResponse) error() error { return r.Err }
+func (r orbitPostSoftwareInstallResultResponse) Error() error { return r.Err }
 func (r orbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1364,7 +1364,7 @@ type getOrbitSetupExperienceStatusResponse struct {
 	Err     error                               `json:"error,omitempty"`
 }
 
-func (r getOrbitSetupExperienceStatusResponse) error() error { return r.Err }
+func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)

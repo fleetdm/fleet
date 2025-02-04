@@ -59,15 +59,16 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
 import {
+  LOW_DISK_SPACE_GB,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import MissingHosts from "./cards/MissingHosts";
-import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
-import HostsSummary from "./cards/HostsSummary";
+import PlatformHostCounts from "./sections/PlatformHostCounts";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
@@ -81,9 +82,6 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
-
-// Premium feature, Gb must be set between 1-100
-const LOW_DISK_SPACE_GB = 32;
 
 interface IDashboardProps {
   router: InjectedRouter; // v3
@@ -539,23 +537,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostsSummaryCard = useInfoCard({
-    title: "Hosts",
-    action:
-      selectedPlatform === "all"
-        ? {
-            type: "link",
-            text: "View all hosts",
-          }
-        : undefined,
-    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
-    total_host_count:
-      !isHostSummaryFetching && !errorHosts
-        ? hostSummaryData?.totals_hosts_count
-        : undefined,
-    showTitle: true,
-    children: (
-      <HostsSummary
+  const HostCountCards = (
+    <>
+      <PlatformHostCounts
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -563,42 +547,31 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
-        showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
       />
-    ),
-  });
-
-  const MissingHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <MissingHosts
+      <MetricsHostCounts
+        currentTeamId={teamIdForApi}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
+        isPremiumTier={isPremiumTier}
         missingCount={missingCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-      />
-    ),
-  });
-
-  const LowDiskSpaceHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <LowDiskSpaceHosts
-        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
         lowDiskSpaceCount={lowDiskSpaceCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-        notSupported={selectedPlatform === "chrome"}
       />
-    ),
-  });
+    </>
+  );
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
@@ -901,22 +874,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
-        <div className="host-sections">
+        <div className={`${baseClass}__host-sections`}>
           <>
-            {isHostSummaryFetching && (
-              <div className="spinner">
-                <Spinner />
-              </div>
+            {isHostSummaryFetching ? (
+              <Card paddingSize="medium">
+                <Spinner includeContainer={false} verticalPadding="small" />
+              </Card>
+            ) : (
+              HostCountCards
             )}
-            <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier &&
-              selectedPlatform !== "ios" &&
-              selectedPlatform !== "ipados" && (
-                <div className={`${baseClass}__section`}>
-                  {MissingHostsCard}
-                  {LowDiskSpaceHostsCard}
-                </div>
-              )}
           </>
         </div>
         {renderCards()}

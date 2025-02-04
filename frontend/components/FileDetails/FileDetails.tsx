@@ -7,11 +7,17 @@ import { ISupportedGraphicNames } from "components/FileUploader/FileUploader";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
+export type IFileDetailsSupportedGraphicNames =
+  | ISupportedGraphicNames
+  | "app-store"; // For VPP apps (non-editable)
+
 interface IFileDetailsProps {
-  graphicNames: ISupportedGraphicNames | ISupportedGraphicNames[];
+  graphicNames:
+    | IFileDetailsSupportedGraphicNames
+    | IFileDetailsSupportedGraphicNames[];
   fileDetails: IFileDetails;
   canEdit: boolean;
-  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   accept?: string;
   progress?: number;
 }
@@ -43,7 +49,7 @@ const FileDetails = ({
           )}
         </div>
       </div>
-      {!progress && canEdit && (
+      {!progress && canEdit && onFileSelect && (
         <div className={`${baseClass}__edit`}>
           <Button className={`${baseClass}__edit-button`} variant="icon">
             <label htmlFor="edit-file">

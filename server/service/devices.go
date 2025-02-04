@@ -39,7 +39,7 @@ func (r *deviceAuthPingRequest) deviceAuthToken() string {
 
 type devicePingResponse struct{}
 
-func (r devicePingResponse) error() error { return nil }
+func (r devicePingResponse) Error() error { return nil }
 
 func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	writeCapabilitiesHeader(w, fleet.GetServerDeviceCapabilities())
@@ -69,7 +69,7 @@ type fleetDesktopResponse struct {
 	fleet.DesktopSummary
 }
 
-func (r fleetDesktopResponse) error() error { return r.Err }
+func (r fleetDesktopResponse) Error() error { return r.Err }
 
 type getFleetDesktopRequest struct {
 	Token string `url:"token"`
@@ -121,7 +121,7 @@ type getDeviceHostResponse struct {
 	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
 }
 
-func (r getDeviceHostResponse) error() error { return r.Err }
+func (r getDeviceHostResponse) Error() error { return r.Err }
 
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getDeviceHostRequest)
@@ -341,7 +341,7 @@ type listDevicePoliciesResponse struct {
 	Policies []*fleet.HostPolicy `json:"policies"`
 }
 
-func (r listDevicePoliciesResponse) error() error { return r.Err }
+func (r listDevicePoliciesResponse) Error() error { return r.Err }
 
 func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
@@ -388,7 +388,7 @@ func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.Respon
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (r transparencyURLResponse) error() error { return r.Err }
+func (r transparencyURLResponse) Error() error { return r.Err }
 
 func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.AppConfigObfuscated(ctx)
@@ -447,7 +447,7 @@ func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.
 
 type fleetdErrorResponse struct{}
 
-func (r fleetdErrorResponse) error() error { return nil }
+func (r fleetdErrorResponse) Error() error { return nil }
 
 func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*fleetdErrorRequest)
@@ -511,7 +511,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Contex
 	}
 }
 
-func (r getDeviceMDMManualEnrollProfileResponse) error() error { return r.Err }
+func (r getDeviceMDMManualEnrollProfileResponse) Error() error { return r.Err }
 
 func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	// this call ensures that the authentication was done, no need to actually
@@ -588,7 +588,7 @@ type deviceMigrateMDMResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deviceMigrateMDMResponse) error() error { return r.Err }
+func (r deviceMigrateMDMResponse) Error() error { return r.Err }
 
 func (r deviceMigrateMDMResponse) Status() int { return http.StatusNoContent }
 
@@ -625,7 +625,7 @@ type triggerLinuxDiskEncryptionEscrowResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r triggerLinuxDiskEncryptionEscrowResponse) error() error { return r.Err }
+func (r triggerLinuxDiskEncryptionEscrowResponse) Error() error { return r.Err }
 
 func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
 
@@ -666,7 +666,7 @@ type getDeviceSoftwareResponse struct {
 	Err      error                              `json:"error,omitempty"`
 }
 
-func (r getDeviceSoftwareResponse) error() error { return r.Err }
+func (r getDeviceSoftwareResponse) Error() error { return r.Err }
 
 func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
