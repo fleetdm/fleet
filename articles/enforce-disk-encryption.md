@@ -76,7 +76,7 @@ How to view the disk encryption key:
 
 ## Use disk encryption key to login
 
-Disk encryption keys are used to login to workstations (hosts) when they're returned to the organization, after an employee leaves, or when the end user forgets their password.
+Disk encryption keys are used to login to workstations (hosts) when they're returned to the organization after an end user leaves or when the end user forgets their password.
 
 ### macOS
 
