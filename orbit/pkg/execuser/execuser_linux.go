@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 )
 
@@ -179,13 +178,6 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
 		args = append(args, "DISPLAY="+x11Display)
-		// xdg-open requires XAUTHORITY set when running on a Wayland session (compatibility mode).
-		// We get XAUTHORITY from the Xwayland process environment.
-		xAuthority, err := getXWaylandAuthority()
-		log.Info().Str("XAUTHORITY", xAuthority).Err(err).Msg("Xwayland process")
-		if err == nil {
-			args = append(args, "XAUTHORITY="+xAuthority)
-		}
 	} else {
 		args = append(args, "DISPLAY="+display)
 	}
@@ -364,30 +356,4 @@ func parseWhoOutputForDisplay(output io.Reader, user string) (string, error) {
 		return "", fmt.Errorf("scanner error: %w", err)
 	}
 	return "", errors.New("display not found on who output")
-}
-
-// getXWaylandAuthority retrieves the X authority file path from
-// the running XWayland process environment.
-func getXWaylandAuthority() (xAuthorityPath string, err error) {
-	xWaylandProcess, err := platform.GetProcessByName("Xwayland")
-	if err != nil {
-		return "", fmt.Errorf("get process by name: %w", err)
-	}
-	executablePath, err := xWaylandProcess.Exe()
-	if err != nil {
-		return "", fmt.Errorf("get executable path: %w", err)
-	}
-	if executablePath != "/usr/bin/Xwayland" {
-		return "", fmt.Errorf("invalid Xwayland path: %q", executablePath)
-	}
-	envs, err := xWaylandProcess.Environ()
-	if err != nil {
-		return "", fmt.Errorf("get environment: %w", err)
-	}
-	for _, env := range envs {
-		if strings.HasPrefix(env, "XAUTHORITY=") {
-			return strings.TrimPrefix(env, "XAUTHORITY="), nil
-		}
-	}
-	return "", errors.New("XAUTHORITY not found")
 }
