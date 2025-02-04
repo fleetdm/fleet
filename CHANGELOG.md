@@ -1,3 +1,116 @@
+## Fleet 4.64.0 (Feb 04, 2025)
+
+### Bug fixes
+
+```markdown
+- Fixed UI in window profiles error message being cut off in OS settings modal
+- Fleet UI: Fixed user page responsiveness to not overflow horizontally
+- Fleet UI: Clarified editing VPP teams will remove App Store apps available to team, not uninstalling apps from hosts
+- Fleet UI: Added ability to target app store apps with include/exclude labels
+- Fleet UI: Added ability to edit targets or self service option for app store apps
+- Fleet UI: Added details modal for add, edit, and delete app store app global activities
+- Fleet UI: Fixed two broken links in Setup experience
+- Considered the results of a live query in calculating an existing query's performance impact if the user didn't change the query from the stored version
+- Added clearer error states to metadata-related fields in SSO settings form
+- Fixed case consistency for "Disk encryption" in host OS settings modal
+- Implemented user-level settings and used them to persist a user's selection of which columns to display on the hosts table
+- Fleet UI: Created consistency of on-click behavior of table rows: View all host link must be clicked directly, clicking on a row of a table directs the user to the details of that row
+- Pushed correct paths to the URL on the my device page when self-service is not enabled for the host
+- Removed duplicate Linux lock and wipe scripts from repository
+- Fleet UI: Fixed styling for manage automation buttons and dropdown
+- Included osquery pre-releases in daily UI constant update GitHub Actions job
+- Displayed command line installation instructions when a package is generated
+- Surfaced cleaner errors when adding Fleet-maintained apps
+- Hosts that are restored from ABM no longer have old activities in their feed
+- Allowed delivery of bootstrap packages and software installers using signed URLs from CloudFront CDN
+- Displayed the correct path for agent options when a key is placed in the wrong object
+- Added download url for fleet maintained apps as `url` property on `fleet/software/fleet_maintained_apps/:id`
+- Fixed a bug where query reports were not being recorded for hosts configured with `--logger_snapshot_event_type=true`
+- Added gzip compression for static CSS and JS assets to decrease bundle download times
+- Fixed issue where the vulnerabilities cron was failing in large environments due to large SQL queries
+- Added a fallback for extracting app name from .pkg installers that have default or incorrect title attributes in their distribution file
+- Improved validation workflow on SMTP settings page
+- Clarified text on the Policies page when no policies exist for the selected team (or All Teams)
+- Fixed UI bug in "My device" page where the "Software" tab included filter elements that did not match the expected design
+- Updated the help text for 3 tabs of the Add hosts modal
+- Fixed reporting of software uninstall results after a host has been locked/unlocked
+- Added util wrapper func around semver package to allow for custom preprocessing and upgraded semver library to version 3.3.1
+- Added "exclude_fleet_maintained_apps" option to `GET /api/v1/fleet/software/titles`
+- Various UX improvements to the Scripts list
+- Fleet UI: Improved the look and feel of dropdowns
+- Fixed UI bug on the "Controls" page where incorrect timestamp information was displayed while the "Current versions" table was loading
+- Checked the server for validity of any Fleet invites
+- Added `fleetctl` on Linux ARM binary to releases
+- Fixed incorrect source value in device mapping REST API documentation
+- Fleet UI: Changed look and feel of dashboard host count cards including hiding platforms with 0 count
+- Stopped VPP apps from being removed from teams whenever the VPP token team assignment is updated
+- For batch upload of Apple DDM profiles with `fleetctl gitops`, fixed issue where activity feed was showing a change when profiles didn't actually change
+- Improved software installation for failed policies: Added platform-specific filtering in the software dropdown, ensuring only compatible software are displayed based on each policy's targeted platforms
+- Added VPP app to automatic installation dropdown for failed policies and auto install information on VPP app details page
+- Fixed a bug in Fleet's handling of VPP token renewal requests
+- Fixed mail being sent with the incorrect SMTP Domain
+- Fleet UI: Fixed software name overflow in various modals
+- Clarified expected behavior of policy host counts, dashboard controls software count, and controls os updates versions count
+- Fixed when trying to filter by vulnerable software for iOS or iPad host
+- Added modal to edit script contents
+- Updated the UI to a new activities design
+- Fixed issue where some Windows MDM profiles were not being sent to hosts when hosts came back online
+- Added ability to install VPP apps on policy failure
+- Allowed filtering titles by "any of these platforms" in `GET /api/v1/fleet/software/titles`
+- Fixed form validation behavior on the SSO settings form
+- Added bash interpreter support for script execution
+- Downgraded expected/common "BootstrapPackage not found" server error to a debug message
+- Added link to information about installing fleetd when packages are generated
+- Archived disk encryption keys when they are created or updated
+- Fixed a bug where adding or removing a host with an identical name to/from a label caused the same action to be performed on other host(s) with the same name as well
+- Fixed MSI parsing for packages including long interned strings
+- Included current host status and pending action in lock, unlock, and wipe API calls
+- Resolved false-positives for the `pass` Homebrew package and `jira` Python package via a vulnerability feed update
+- Fleet UI: Fix software actions dropdown styling bug
+- Rendered the default empty value when a host has no UUID
+- Fixed Windows MDM issue where SessionID of 0 was not allowed
+- Fixed a bug with paginating team policies
+- Bump Node.js version to 20.18.1
+- Normalised padding spacing for list headers, lists, and help text across various modals
+- Removed the resend button for failed Windows disk encryption profiles and added messaging that tells the user that Fleet will automatically retry this profile again
+- Fixed a false negative vulnerability reporting for iTerm2
+- Optimized software ingestion queries to use existing DB indexes in the software titles table and fixed a bug "software not found for checksum" in software ingestion transaction retries
+- Included a host's team-level queries when the user is selecting a query to target for a specific host via the host details page
+- Fleet UI: Added timestamp for software, OS, and vulnerability detail pages for host count last update time
+- Updated user form validation to require a password be present when switching a user from SSO to password authentication, refactor upstream error logic to allow disabling submit button when form errors are present, and add similar check for password presence on server
+- Improved verified and verifying tooltips on the Profile Status on OS settings page
+- Maintained user's updates to the team agent options form when they navigate away and back again
+- Fixed issue when identical MDM commands are sent twice to the same device when replica DB is being used
+- Added API endpoint for updating script contents
+- Fleet UI: Fixed redirect when clicking on any column in the Fleet Maintained Apps table
+- Bumped github cache action to 4.2.0
+- Fixed issue where Windows disk encryption status updates were sometimes stuck in the "Verifying" state
+- Fixed a bug where server errors returned from the API were not successfully being incorporated into the user form error states
+- Used an email logo compatible with dark modes
+- Removed arrow icon from MDM solution table on dashboard page
+- Logged illegal argument errors at the DEBUG level instead of the ERROR level
+- Fixed issue where deleted Apple config profiles were installing on devices because devices were offline when the profile was added
+- Removed `fleetctl` binary from the `fleetdm/fleet` docker image
+- Revised software installer package validation to mark installers with no version as "unknown" for version rather than rejecting them
+- Added server debug logging for unexpected Apple DDM configuration status
+- Fixed a bug where team admins are unable to enable or disable MFA for a user
+- Updated the way new manual labels are created to better support adding large numbers of hosts at one time
+- Replaced "Include Fleet desktop" with host type radio selection buttons when adding Windows or Linux hosts
+- Fleet UI: Surfaced download URL for Fleet-maintained app when adding the software to Fleet
+- Disabled webhooks if not present in gitops
+- Removed erroneous "manage automations" link on dashboard for maintainers
+- Fixed CVE-2024-10327 false positive on Fleet-supported platforms
+- Added option to populate users and labels on list hosts endpoint
+- Improved the teams dropdown so that it gracefully hides overflow from long team names
+- Improved readability of success message on email update by never including the sender address
+- Fixed missing capabilities in the UI for team admins creating or editing a user
+- Updated the OS settings Target form deadline input tooltip to make it more correct for how the deadline works for hosts
+- Updated Fleet-maintained app install scripts for non-PKG-based installers to allow the apps to be installed over an existing installation
+- Raised the frequency of sending anonymous statistics from every 24 hours to every 1 hour
+- Fixed issue verifying Windows CSP profiles that contain ADMX policies
+- Updated language in query compatibility tooltip to clarify that compatibility is based only on tables
+```
+
 ## Fleet 4.62.3 (Jan 28, 2025)
 
 ### Bug fixes
