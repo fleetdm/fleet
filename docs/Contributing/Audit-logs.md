@@ -952,6 +952,25 @@ This activity contains the following fields:
 }
 ```
 
+## modified_script
+
+Generated when a script is modified on a team (or no team).
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## deleted_script
 
 Generated when a script is deleted from a team (or no team).
@@ -1409,6 +1428,40 @@ This activity contains the following fields:
 }
 ```
 
+## edited_app_store_app
+
+Generated when an App Store app is updated in Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "self_service": App installation can be initiated by device owner.
+- "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
+- "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "self_service": false,
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_exclude_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    }
+  ]
+}
+```
+
 ## deleted_app_store_app
 
 Generated when an App Store app is deleted from Fleet.
@@ -1420,7 +1473,7 @@ This activity contains the following fields:
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
-- "labels_exclude_any": Target hosts that don't have any label in the array
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1431,14 +1484,10 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
-  "labels_include_any": [
+  "labels_exclude_any": [
     {
       "name": "Engineering",
       "id": 12
-    },
-    {
-      "name": "Product",
-      "id": 17
     }
   ]
 }
