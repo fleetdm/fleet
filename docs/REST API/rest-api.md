@@ -9693,7 +9693,6 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
-    "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "name": "1Password",
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
