@@ -12220,7 +12220,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
 
-	// MDM host failing policy should queue install
+	// MDM host failing policy should queue install (adam ID 1 for macOS) and it will be "activated"
+	// in the queue as there is nothing pending for that host.
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
@@ -12231,7 +12232,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// App is out of scope for mdmHost2, so we do not enqueue an install.
+	// App is out of scope for mdmHost2, so we do not enqueue a software install
+	// but we do enqueue a script (will be "activated" in the queue as there is nothing
+	// pending for that host).
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
@@ -12247,11 +12250,14 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
 	require.Len(t, *getHostResp.Host.Policies, 4)
+	policySeen := false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
 			require.Empty(t, p.Response)
+			policySeen = true
 		}
 	}
+	require.True(t, policySeen)
 
 	// Validate that orbit got a notif (and get the exec ID for the script)
 	var orbitResp orbitGetConfigResponse
@@ -12297,7 +12303,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	)
 
 	// Update the app to exclude any with l2. We should not enqueue an install here because mdmHost2
-	// has l2.
+	// has l2 (but it will re-enqueue the script for execution, immediately "activated")
 	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
@@ -12316,11 +12322,14 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
 	require.Len(t, *getHostResp.Host.Policies, 4)
+	policySeen = false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
 			require.Empty(t, p.Response)
+			policySeen = true
 		}
 	}
+	require.True(t, policySeen)
 
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *mdmHost2.OrbitNodeKey)),
@@ -12361,7 +12370,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		0,
 	)
 
-	// Update the app to include any with l1. We should now enqueue an install as the app is in scope.
+	// Update the app to include any with l1. We should now enqueue an install as the app is in scope
+	// (in addition to the script execution, which will be the only one "activated").
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{l1.Name, l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
@@ -12379,11 +12389,14 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Equal(t, getHostResp.Host.ID, mdmHost2.ID)
 	require.NotNil(t, getHostResp.Host.Policies)
 	require.Len(t, *getHostResp.Host.Policies, 4)
+	policySeen = false
 	for _, p := range *getHostResp.Host.Policies {
 		if p.Name == policy3Team1.Name {
 			require.Equal(t, "fail", p.Response)
+			policySeen = true
 		}
 	}
+	require.True(t, policySeen)
 
 	// MDM host failing policy should not queue another install while install is pending
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -12396,9 +12409,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	var countPendingInstalls uint
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &countPendingInstalls, `SELECT COUNT(*)
-			FROM host_vpp_software_installs hvsi
-			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
-			WHERE hvsi.host_id = ?`, mdmHost.ID)
+			FROM upcoming_activities
+			WHERE activity_type = 'vpp_app_install'
+			AND host_id = ?`, mdmHost.ID)
 	})
 	require.Equal(t, uint(1), countPendingInstalls)
 
@@ -12479,6 +12492,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
+	// setting a script result will activate the vpp install
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost2.OrbitNodeKey, scriptExecID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -12492,7 +12506,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		0,
 	)
 
-	// Process mdmHost2's installation
+	// Process mdmHost2's vpp installation
 	cmd, err = mdmDevice2.Idle()
 	require.NoError(t, err)
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
