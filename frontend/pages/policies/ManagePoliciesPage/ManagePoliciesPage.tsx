@@ -564,19 +564,33 @@ const ManagePolicyPage = ({
 
         return turnedOff || turnedOn || updatedSwId;
       });
+
       if (!changedPolicies.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses = changedPolicies.map((changedPolicy) => {
-        return teamPoliciesAPI.update(changedPolicy.id, {
-          // "software_title_id": null will unset software install for the policy
-          // "software_title_id": X will set the value to the given integer (except 0).
-          software_title_id: changedPolicy.swIdToInstall || null,
-          team_id: teamIdForApi,
-        });
+
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
+
+      changedPolicies.forEach((changedPolicy) => {
+        responses.push(
+          teamPoliciesAPI
+            .update(changedPolicy.id, {
+              software_title_id: changedPolicy.swIdToInstall || null,
+              team_id: teamIdForApi,
+            })
+            .catch((error) => {
+              throw new Error(
+                `Failed to update policy ${changedPolicy.id}: ${error.message}`
+              );
+            })
+        );
       });
+
       await Promise.all(responses);
+
       await wait(100); // prevent race
       refetchTeamPolicies();
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
