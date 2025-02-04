@@ -147,6 +147,6 @@ Once registration is complete, the next time an employee logs into an Entra ID p
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ddribeiro">
 <meta name="authorFullName" value="Dale Ribeiro">
-<meta name="publishedOn" value="2024-07-03">
+<meta name="publishedOn" value="2025-02-04">
 <meta name="articleTitle" value="Deploying Platform SSO with Microsoft Entra ID">
 <meta name="description" value="Learn how to use Fleet to deploy the Microsoft Entra ID Platfrom SSO Extension">
