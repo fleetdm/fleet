@@ -1,21 +1,13 @@
 # Automatically install software
 
-_Available in Fleet Premium_
-
-With Fleet, you can automatically install software across your macOS, Windows, and Linux hosts.
-
-## Prerequisites
-
-* Fleet Premium with Admin permissions.
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater, or [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0) or greater for Apple App Store (VPP) apps.
-* For VPP apps, see [additional prerequisites](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
+In Fleet, you can automatically and remotely install software on hosts. This guide will walk you through the process of configuring Fleet to install software on your.
 
 ## Step-by-step instructions
 
 1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
 Current supported software deployment formats:
-- macOS: .pkg and App Store (VPP)
+- macOS: .pkg and App Store (VPP) app
 - Windows: .msi, .exe
 - Linux: .deb, .rpm
 
