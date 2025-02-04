@@ -43,7 +43,7 @@ Enter the following values for the specified keys:\
 **Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension \
 **Type:** Redirect \
 **Team Identifier:** UBF8T346G9 \
-**URLs:** https://login.microsoftonline.com\
+**URLs:** https://login.microsoftonline.com \
 https://login.microsoft.com \
 https://sts.windows.net \
 **Screen Locked Behavior:** Do Not Handle \
