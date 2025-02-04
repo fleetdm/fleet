@@ -89,17 +89,18 @@ const SoftwareTitleDetailsTable = ({
   countsUpdatedAt,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      software_version_id: row.original.id,
-    };
+    if (row.original.id) {
+      const softwareVersionId = row.original.id;
 
-    const path = hostsBySoftwareParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-          hostsBySoftwareParams
-        )}`
-      : PATHS.MANAGE_HOSTS;
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamIdForApi,
+      });
+      const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+        softwareVersionId.toString()
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(softwareVersionDetailsPath);
+    }
   };
 
   const softwareTableHeaders = useMemo(
