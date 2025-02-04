@@ -12839,7 +12839,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	latestInstallUUID := func() string {
 		var id string
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
 		})
 		return id
 	}
