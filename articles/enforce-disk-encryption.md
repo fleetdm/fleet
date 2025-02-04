@@ -122,15 +122,15 @@ TODO
 
 ### Linux 
 
-1. With the Linux host in front of you, plug in a USB drive and boot up the host.
+1. With the Linux host in front of you, restart it. in a USB drive and boot up the host.
 
-2. Run the following command to prompt for the disk encryption key: 
+2. When prompted to unlock the disk, enter the disk encryption key. 
+
+3. Next, reset the local password (passphrase) by opening Terminal and running the following command:
 
 ```
-cryptsetup reencrypt –decrypt
+TODO
 ```
-
-3. Enter the disk encryption key and mount the now decryped partition into a new folder.
 
 #### 
 
