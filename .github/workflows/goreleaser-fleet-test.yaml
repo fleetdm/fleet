@@ -30,7 +30,7 @@ jobs:
       - name: Copy artifacts file
         run: |
           mkdir ./dist
-          cp ./config/artifavts.json ./dist/artifacts.json
+          cp ./config/artifacts.json ./dist/artifacts.json
 
       - name: Get tag
         run: |
