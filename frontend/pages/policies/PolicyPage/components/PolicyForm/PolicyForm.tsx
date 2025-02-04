@@ -592,7 +592,7 @@ const PolicyForm = ({
             focus={!isEditMode}
           />
           {renderPlatformCompatibility()}
-          {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {isEditMode && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
