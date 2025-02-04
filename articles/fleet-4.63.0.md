@@ -11,7 +11,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 - Automatically install software
 - Faster employee onboarding
-- SLSA attestation
+- GitHub (SLSA) attestation
 
 ### Automatically install software
 
