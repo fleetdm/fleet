@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
+	feature_migrations "github.com/fleetdm/fleet/v4/server/feature/mysql/migrations"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -419,6 +420,10 @@ func (ds *Datastore) MigrateTables(ctx context.Context) error {
 	return tables.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
+func (ds *Datastore) MigrateFeatureTables(ctx context.Context) error {
+	return feature_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")
+}
+
 func (ds *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
@@ -455,6 +460,25 @@ func (ds *Datastore) loadMigrations(
 	return tableRecs, dataRecs, nil
 }
 
+func (ds *Datastore) loadFeatureMigrations(
+	ctx context.Context,
+	writer *sql.DB,
+	reader fleet.DBReader,
+) (tableRecs []int64, err error) {
+	// We need to run the following to trigger the creation of the migration status tables.
+	_, err = feature_migrations.MigrationClient.GetDBVersion(writer)
+	if err != nil {
+		return nil, err
+	}
+	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
+	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
+		"SELECT version_id FROM "+feature_migrations.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
+	); err != nil {
+		return nil, err
+	}
+	return tableRecs, nil
+}
+
 // MigrationStatus will return the current status of the migrations
 // comparing the known migrations in code and the applied migrations in the database.
 //
@@ -472,6 +496,20 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 		data.MigrationClient.Migrations,
 		appliedTable,
 		appliedData,
+	), nil
+}
+
+func (ds *Datastore) FeatureMigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
+	if feature_migrations.MigrationClient.Migrations == nil {
+		return nil, errors.New("unexpected nil feature_migrations list")
+	}
+	appliedFeatureTables, err := ds.loadFeatureMigrations(ctx, ds.primary.DB, ds.replica)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load feature migrations: %w", err)
+	}
+	return compareTableMigrations(
+		feature_migrations.MigrationClient.Migrations,
+		appliedFeatureTables,
 	), nil
 }
 
@@ -521,6 +559,41 @@ func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, 
 		StatusCode:   fleet.UnknownMigrations,
 		UnknownTable: unknownTable,
 		UnknownData:  unknownData,
+	}
+}
+
+func compareTableMigrations(knownTable goose.Migrations, appliedTable []int64) *fleet.MigrationStatus {
+	if len(appliedTable) == 0 {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.NoMigrationsCompleted,
+		}
+	}
+
+	missingTable, unknownTable, equalTable := compareVersions(
+		getVersionsFromMigrations(knownTable),
+		appliedTable,
+		knownUnknownTableMigrations,
+	)
+
+	if equalTable {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.AllMigrationsCompleted,
+		}
+	}
+
+	// Check for missing migrations first, as these are more important
+	// to detect than the unknown migrations.
+	if len(missingTable) > 0 {
+		return &fleet.MigrationStatus{
+			StatusCode:   fleet.SomeMigrationsCompleted,
+			MissingTable: missingTable,
+		}
+	}
+
+	// len(unknownTable) > 0 || len(unknownData) > 0
+	return &fleet.MigrationStatus{
+		StatusCode:   fleet.UnknownMigrations,
+		UnknownTable: unknownTable,
 	}
 }
 
