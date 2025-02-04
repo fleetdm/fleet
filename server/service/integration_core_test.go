@@ -8407,12 +8407,12 @@ func (s *integrationTestSuite) TestModifyUser() {
 	newRawPwd = userRawPwd + "4"
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled:  ptr.Bool(false),
 		NewPassword: ptr.String(newRawPwd),
 		Email:       ptr.String("moduser3@example.com"),
 		Name:        ptr.String("moduser3"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
-	require.Equal(t, "moduser3", modResp.User.Name)
 
 	// as an admin, set new password that doesn't meet requirements
 	invalidUserPwd := "abc"

@@ -72,6 +72,16 @@
   },
   {
     "software": {
+      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["python"],
+      "vendor": ["python"]
+    }
+  },
+  {
+    "software": {
       "name": ["Docs"],
       "source": ["chrome_extensions"]
     },

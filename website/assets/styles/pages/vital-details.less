@@ -1,3 +1,4 @@
+// lesshint-disable spaceAroundComma
 #vital-details {
   h3 {
     padding-bottom: 24px;
@@ -135,7 +136,7 @@
   [purpose='table-of-contents'] {
     margin-right: 16px;
     [purpose='vital-link'] {
-      color: #515774;
+      color: @core-fleet-black-75;
       font-family: Inter;
       font-size: 14px;
       line-height: 150%;
@@ -145,11 +146,12 @@
       &:hover {
         text-decoration: none;
         border-radius: 4px;
-        background: #F9FAFC;
+        background: #f6f7f8;
       }
       &.active {
         border-radius: 4px;
-        background: #F9FAFC;
+        background: #f6f7f8;
+        color: @core-fleet-black;
       }
     }
   }
@@ -399,6 +401,36 @@
       border-bottom: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
       background: #F9FAFC;
       border-radius: 0px 0px 4px 4px;
+      .ps {
+        .hljs-keyword,
+        .hljs-selector-tag,
+        .hljs-name {
+          color: #AE6DDF;
+        }
+
+        .hljs-symbol,
+        .hljs-attribute,
+        .hljs-function-keyword,
+        .hljs-attr,
+        .hljs-class,
+        .hljs-title,
+        .hljs-string,
+        .hljs-type,
+        .hljs-builtin-name,
+        .hljs-selector-id,
+        .hljs-selector-attr,
+        .hljs-selector-pseudo,
+        .hljs-addition,
+        .hljs-variable,
+        .hljs-template-variable {
+          color: #4fd061;
+        }
+        .hljs-comment,
+        .hljs-deletion,
+        .hljs-meta {
+          color: @core-fleet-black-50;
+        }
+      }
       code {
         color: #515774;
         &.has-linebreaks {
@@ -548,7 +580,7 @@
           overflow-y: scroll;
           scrollbar-width: none;
           [purpose='vital-link'] {
-            color: #515774;
+            color: @core-fleet-black-75;
             font-family: Inter;
             font-size: 14px;
             line-height: 150%;
@@ -558,11 +590,12 @@
             &:hover {
               text-decoration: none;
               border-radius: 4px;
-              background: #F9FAFC;
+              background: #f6f7f8;
             }
             &.active {
               border-radius: 4px;
-              background: #F9FAFC;
+              background: #f6f7f8;
+              color: @core-fleet-black;
             }
           }
         }
