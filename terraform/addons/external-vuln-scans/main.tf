@@ -95,6 +95,8 @@ resource "aws_ecs_task_definition" "vuln-processing" {
       networkMode           = "awsvpc"
       secrets               = local.secrets
       repositoryCredentials = local.repository_credentials
+      mountPoints           = var.fleet_config.mount_points
+      dependsOn             = var.fleet_config.depends_on
       ulimits = [
         {
           name      = "nofile"
