@@ -1089,7 +1089,7 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
-	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
 	// Moving to a time-based approach would be more accurate but would require a more complex and
@@ -1207,7 +1207,7 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When VPP supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
-	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
 	// Moving to a time-based approach would be more accurate but would require a more complex and
@@ -1278,7 +1278,7 @@ WHERE
 		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
 	}
 
-	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
 	// Moving to a time-based approach would be more accurate but would require a more complex and
@@ -1308,7 +1308,7 @@ WHERE
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO(uniq): prior code was joining based on installer id but based on how list options are parsed [1] it seems like this should be the title id
+		// TODO(Sarah): prior code was joining based on installer id but based on how list options are parsed [1] it seems like this should be the title id
 		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
 		"title_id": titleID,
 	})

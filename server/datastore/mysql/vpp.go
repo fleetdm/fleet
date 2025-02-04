@@ -118,8 +118,9 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	// not handling it as part of the unified queue work.
 
 	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as below
+	// re: ^ : seems like the logic is the same except for pending/null?
 
-	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
 	// Moving to a time-based approach would be more accurate but would require a more complex and
@@ -180,6 +181,8 @@ SELECT
 		WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
+			-- TODO should that count as pending install (should be covered by the upcoming 
+			-- case, but seems more correct to report as pending it is found in past)
 			NULL -- either pending or not installed via VPP App
 	END AS status
 FROM
@@ -706,7 +709,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 vat.self_service,
 	 va.title_id,
 	 va.platform,
-	 va.created_at, 
+	 va.created_at,
 	 va.updated_at,
 	 vat.id
 	FROM vpp_apps va
