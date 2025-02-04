@@ -363,7 +363,7 @@ func parseWhoOutputForDisplay(output io.Reader, user string) (string, error) {
 	if err := scanner.Err(); err != nil {
 		return "", fmt.Errorf("scanner error: %w", err)
 	}
-	return "", nil
+	return "", errors.New("display not found on who output")
 }
 
 // getXWaylandAuthority retrieves the X authority file path from
