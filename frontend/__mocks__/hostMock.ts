@@ -109,6 +109,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   users: [],
   policies: [],
   device_mapping: [],
+  disk_encryption_status: "ON",
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
