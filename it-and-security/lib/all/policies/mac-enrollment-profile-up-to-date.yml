@@ -2,7 +2,7 @@
   query: SELECT 1 FROM mdm where topic = "com.apple.mgmt.External.ccfc8d43-e9f1-49ec-8ca4-10072077deec";
   critical: true
   description: This policy checks to see if you have the most recent enrollment profile installed. Not having this profile means this device is no longer communicating with Fleet via MDM.
-  resolution: >-
+  resolution: |-
     You must manually remove your enrollment profile to fix this issue. This can be done in one of two ways: 
 
     1.)  > System Settings > Profiles > Fleet enrollment > - 
