@@ -43,7 +43,7 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onClickDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript, renderFlash: any) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
@@ -85,6 +85,16 @@ const ScriptListItem = ({
     onEdit(script);
   };
 
+  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDownload(script, renderFlash);
+  };
+
+  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDelete(script);
+  };
+
   return (
     <ListItem
       className={baseClass}
@@ -108,14 +118,14 @@ const ScriptListItem = ({
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onClickDownload(script, renderFlash)}
+            onClick={onClickDownload}
           >
             <Icon name="download" />
           </Button>
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onDelete(script)}
+            onClick={onClickDelete}
           >
             <Icon name="trash" color="ui-fleet-black-75" />
           </Button>
