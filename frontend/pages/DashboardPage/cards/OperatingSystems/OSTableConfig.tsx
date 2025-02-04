@@ -36,6 +36,8 @@ type IVulnCellProps = CellProps<
   ISoftwareVulnerability[]
 >;
 type IHostCountCellProps = INumberCellProps<IOperatingSystemVersion>;
+type IViewAllHostsLinkProps = CellProps<IOperatingSystemVersion>;
+
 type IHostHeaderProps = HeaderProps<IOperatingSystemVersion>;
 
 interface IOSTableConfigOptions {
@@ -125,22 +127,29 @@ const generateDefaultTableHeaders = (
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: IHostCountCellProps) => {
-      const { hosts_count, os_version_id } = cellProps.row.original;
+      const { hosts_count } = cellProps.row.original;
       return (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={hosts_count} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                os_version_id,
-                team_id: teamId,
-              }}
-              className="os-hosts-link"
-            />
-          </span>
+        <span className="hosts-cell__count">
+          <TextCell value={hosts_count} />
         </span>
+      );
+    },
+  },
+  {
+    Header: "",
+    id: "view-all-hosts",
+    disableSortBy: true,
+    Cell: (cellProps: IViewAllHostsLinkProps) => {
+      const { os_version_id } = cellProps.row.original;
+      return (
+        <ViewAllHostsLink
+          queryParams={{
+            os_version_id,
+            team_id: teamId,
+          }}
+          className="os-hosts-link"
+          rowHover
+        />
       );
     },
   },

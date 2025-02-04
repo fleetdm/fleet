@@ -36,6 +36,7 @@ const ViewAllHostsLink = ({
   noLink = false,
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className, {
+    [`${baseClass}__condensed`]: condensed,
     "row-hover-link": rowHover,
   });
 
@@ -51,7 +52,14 @@ const ViewAllHostsLink = ({
     <Link
       className={viewAllHostsLinkClass}
       to={noLink ? "" : path}
-      title="host-link"
+      onClick={(e) => {
+        e.stopPropagation(); // Allows for link to be clickable in a clickable row
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.stopPropagation(); // Allows for link to be keyboard accessible in a clickable row
+        }
+      }}
     >
       {!condensed && (
         <span

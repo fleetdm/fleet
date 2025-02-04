@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
@@ -43,6 +44,12 @@ export interface IQueriesTableProps {
     team_id?: string;
   };
   currentTeamId?: number;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const DEFAULT_SORT_DIRECTION = "asc";
@@ -224,6 +231,14 @@ const QueriesTable = ({
     [queryParams, router]
   );
 
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.QUERY_DETAILS(row.original.id, currentTeamId);
+
+      router && router.push(path);
+    }
+  };
+
   const renderPlatformDropdown = useCallback(() => {
     return (
       <DropdownWrapper
@@ -303,6 +318,8 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable={searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
+          disableMultiRowSelect={onlyInheritedQueries}
+          onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
         />
       </div>

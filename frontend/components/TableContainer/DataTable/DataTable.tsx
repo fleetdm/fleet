@@ -552,6 +552,7 @@ const DataTable = ({
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
                 "disable-highlight": disableHighlightOnHover,
+                "clickable-row": !!onClickRow,
               });
               return (
                 <tr
@@ -562,7 +563,9 @@ const DataTable = ({
                       (onSelectRowClick &&
                         disableMultiRowSelect &&
                         onSelectRowClick(row)) ||
-                        (onClickRow && onClickRow(row));
+                        (disableMultiRowSelect &&
+                          onClickRow &&
+                          onClickRow(row));
                     },
                     // For accessibility when tabable
                     onKeyDown: (e: KeyboardEvent) => {
@@ -570,21 +573,43 @@ const DataTable = ({
                         (onSelectRowClick &&
                           disableMultiRowSelect &&
                           onSelectRowClick(row)) ||
-                          (onClickRow && onClickRow(row));
+                          (disableMultiRowSelect &&
+                            onClickRow &&
+                            onClickRow(row));
                       }
                     },
                   })}
                   // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any) => {
+                  {row.cells.map((cell: any, index: number) => {
+                    // Only allow row click behavior on first cell
+                    // if the first cell is not a checkbox
+                    const isFirstCell = index === 0;
+                    const cellProps = cell.getCellProps();
+
+                    const multiRowSelectCell =
+                      isFirstCell && !disableMultiRowSelect;
+
+                    if (!multiRowSelectCell) {
+                      cellProps.onClick = () => {
+                        onClickRow && onClickRow(row);
+                      };
+                      cellProps.onKeyDown = (e: KeyboardEvent) => {
+                        if (e.key === "Enter") {
+                          onClickRow && onClickRow(row);
+                        }
+                      };
+                    }
+
                     return (
                       <td
                         key={cell.column.id}
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
-                        {...cell.getCellProps()}
+                        style={multiRowSelectCell ? { cursor: "initial" } : {}}
+                        {...cellProps}
                       >
                         {cell.render("Cell")}
                       </td>
