@@ -420,6 +420,16 @@ db-backup:
 db-restore:
 	./tools/backup_db/restore.sh
 
+
+# Interactive snapshot / restore
+SNAPSHOT_BINARY = ./build/snapshot
+snapshot: $(SNAPSHOT_BINARY)
+	@ $(SNAPSHOT_BINARY) snapshot
+$(SNAPSHOT_BINARY): tools/snapshot/*.go
+	cd tools/snapshot && go install && go build -o ../../build/snapshot
+restore: $(SNAPSHOT_BINARY)
+	@ $(SNAPSHOT_BINARY) restore
+
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
 # Usage:
