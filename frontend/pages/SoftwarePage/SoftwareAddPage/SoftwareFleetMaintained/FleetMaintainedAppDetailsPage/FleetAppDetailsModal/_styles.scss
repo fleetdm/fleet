@@ -9,4 +9,9 @@
   .react-tooltip {
     min-width: 120px;
   }
+
+  .data-set {
+    max-width: min-content;
+    overflow: hidden;
+  }
 }
