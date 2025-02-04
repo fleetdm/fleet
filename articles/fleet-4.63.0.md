@@ -23,7 +23,7 @@ During new employee onboarding, Macs can now optionally download bootstrap packa
 
 ### GitHub (SLSA) attestation
 
-Fleet and `fleetd` release binaries and images now include SLSA attestation. This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. Learn more [here](https://fleetdm.com/guides/fleet-software-attestation). 
+Fleet and Fleet's agent (`fleetd`) release binaries and images now include Supply-chain Level Software Attestation (SLSA). This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. Learn more [here](https://fleetdm.com/guides/fleet-software-attestation). 
 
 ## Changes
 
