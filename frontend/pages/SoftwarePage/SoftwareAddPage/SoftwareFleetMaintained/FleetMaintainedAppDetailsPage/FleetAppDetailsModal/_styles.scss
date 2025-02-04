@@ -10,6 +10,8 @@
     min-width: 120px;
   }
 
+  // DataSet must have overflow hidden to be used inconjunction with child tooltip truncation
+  // Local fix as global fix caused DataSet width bugs across other DataSet use cases
   .data-set {
     max-width: min-content;
     overflow: hidden;
