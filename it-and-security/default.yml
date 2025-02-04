@@ -18,7 +18,7 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      metadata_url: 
+      metadata_url: ""
       issuer_uri: $DOGFOOD_SSO_ISSUER_URI
       metadata: |-
         $DOGFOOD_SSO_METADATA
