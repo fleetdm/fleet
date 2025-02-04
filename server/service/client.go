@@ -1666,11 +1666,7 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSSettings != nil {
 			mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
 		} else {
-			mdmAppConfig["macos_settings"] = map[string]interface{}{}
-		}
-		macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
-		if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
-			macOSSettings["custom_settings"] = []interface{}{}
+			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{}
 		}
 		// Put in default values for macos_updates
 		if config.Controls.MacOSUpdates != nil {
@@ -1731,11 +1727,7 @@ func (c *Client) DoGitOps(
 		if config.Controls.WindowsSettings != nil {
 			mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
 		} else {
-			mdmAppConfig["windows_settings"] = map[string]interface{}{}
-		}
-		windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
-		if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
-			windowsSettings["custom_settings"] = []interface{}{}
+			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{}
 		}
 		// Put in default values for windows_updates
 		if config.Controls.WindowsUpdates != nil {
