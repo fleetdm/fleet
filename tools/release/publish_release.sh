@@ -327,7 +327,7 @@ print_announce_info() {
 
 general_announce_info() {
     if [[ "$minor" == "true" ]]; then
-        article_url="https://fleetdm.com/releases/fleet-$target_milestone"
+        article_url="https://fleetdm.com/releases/fleet-${target_milestone//./-}"
         article_published=$(curl -is "$article_url" | head -n 1 | awk '{print $2}')
         if [[ "$article_published" != "200" ]]; then
             echo "Could't find article at '$article_url'"
