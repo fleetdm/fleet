@@ -39,18 +39,18 @@ Before we start to add values to the payload, double-check to make sure that onl
 
 >Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
 
-Enter the following values for the specified keys:
-**Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension
-**Type:** Redirect
-**Team Identifier:** UBF8T346G9
-**URLs:** https://login.microsoftonline.com
-https://login.microsoft.com
-https://sts.windows.net
-**Screen Locked Behavior:** Do Not Handle
-**Authentication Method:** User Secure Enclave Key
-**Platform SSO Authentication Method:** UserSecureEnclaveKey
-**Use Shared Device Keys:** Checked
-**Account Name:** preferred_username
+Enter the following values for the specified keys:\
+**Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension \
+**Type:** Redirect \
+**Team Identifier:** UBF8T346G9 \
+**URLs:** https://login.microsoftonline.com\
+https://login.microsoft.com \
+https://sts.windows.net \
+**Screen Locked Behavior:** Do Not Handle \
+**Authentication Method:** User Secure Enclave Key \
+**Platform SSO Authentication Method:** UserSecureEnclaveKey \
+**Use Shared Device Keys:** Checked \
+**Account Name:** preferred_username \
 **Full Name:** name
 
 The finalized profile should look like this:
