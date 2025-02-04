@@ -327,7 +327,7 @@ cluster is unstable and reorganizing the data. With this configuration option
 set to true, those (typically short and transient) redirection errors can be
 handled transparently instead of ending in an error.
 
-- Default value: false
+- Default value: true
 - Environment variable: `FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS`
 - Config file format:
   ```yaml

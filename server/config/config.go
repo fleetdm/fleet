@@ -1006,7 +1006,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
-	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_follow_redirections", true, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
