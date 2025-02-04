@@ -10,7 +10,7 @@ serviceAccountAnnotations: {} # Additional annotations to add to the Fleet servi
 resources:
   limits:
     cpu: 1 # 1GHz
-    memory: 1Gi
+    memory: 4Gi
   requests:
     cpu: 0.1 # 100Mhz
     memory: 50Mi
