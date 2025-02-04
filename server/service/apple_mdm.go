@@ -4331,12 +4331,12 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 }
 
 func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
-	var status fleet.MDMAppleDDMStatusReport
-	if err := json.Unmarshal(dm.Data, &status); err != nil {
+	var statusReport fleet.MDMAppleDDMStatusReport
+	if err := json.Unmarshal(dm.Data, &statusReport); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling response")
 	}
 
-	configurationReports := status.StatusItems.Management.Declarations.Configurations
+	configurationReports := statusReport.StatusItems.Management.Declarations.Configurations
 	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
 	for i, r := range configurationReports {
 		var status fleet.MDMDeliveryStatus
@@ -4347,8 +4347,21 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		case r.Valid == fleet.MDMAppleDeclarationInvalid:
 			status = fleet.MDMDeliveryFailed
 			detail = apple_mdm.FmtDDMError(r.Reasons)
-		default:
+		case r.Valid == fleet.MDMAppleDeclarationValid: // should be rare/never
+			// The debug messages here can be used to figure out why a DDM profile is stuck in a certain state on a device.
+			level.Debug(svc.logger).Log("msg", "valid but inactive declaration status", "status", r.Valid, "active", r.Active, "host",
+				dm.UDID, "declaration", r.Identifier)
 			status = fleet.MDMDeliveryVerifying
+		case r.Valid == fleet.MDMAppleDeclarationUnknown: // should be rare
+			level.Debug(svc.logger).Log("msg", "unknown declaration status", "status", r.Valid, "active", r.Active, "host", dm.UDID,
+				"declaration", r.Identifier)
+			status = fleet.MDMDeliveryVerifying
+		default:
+			// This should never happen. If we see this happening, we should handle it.
+			level.Error(svc.logger).Log("msg", "undefined declaration status", "status", r.Valid, "active", r.Active, "host", dm.UDID,
+				"declaration", r.Identifier)
+			status = fleet.MDMDeliveryFailed
+			detail = fmt.Sprintf("undefined declaration status: %s; %s", r.Valid, apple_mdm.FmtDDMError(r.Reasons))
 		}
 
 		updates[i] = &fleet.MDMAppleHostDeclaration{
