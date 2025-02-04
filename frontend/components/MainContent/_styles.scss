@@ -1,11 +1,15 @@
 .main-content {
-  padding: $pad-xlarge;
+  padding: $pad-small;
   background-color: $core-white;
   flex-grow: 1;
   // overflow: auto allows for horizontal scrolling
   // of the main-content when there is a banner. (e.g. sandbox mode)
   // Without it the main content pushes the banner off the page.
   overflow: auto;
+  
+  @media (min-width: $break-mobile-sm) {
+    padding: $pad-xxlarge;
+  }
 
   > :not(.main-content--animation-disabled) {
     animation: fade-in 250ms ease-out;
