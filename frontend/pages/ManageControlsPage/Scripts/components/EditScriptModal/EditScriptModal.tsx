@@ -60,11 +60,20 @@ const EditScriptModal = ({
 
   const onChange = (value: string) => {
     setScriptFormData(value);
-    setFormError(validate(value));
+    const err = validate(value);
+    if (!err && !!formError) {
+      setFormError(validate(value));
+    }
+  };
+
+  const onBlur = () => {
+    setFormError(validate(scriptFormData));
   };
 
   const onSave = async () => {
-    if (isSubmitting) {
+    const err = validate(scriptFormData);
+    setFormError(err);
+    if (err || isSubmitting) {
       return;
     }
     try {
@@ -101,6 +110,7 @@ const EditScriptModal = ({
             onChange={onChange}
             isFormField
             error={formError}
+            onBlur={onBlur}
           />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}

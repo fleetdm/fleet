@@ -43,7 +43,7 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onClickDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript, renderFlash: any) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
@@ -80,15 +80,26 @@ const ScriptListItem = ({
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
+  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onEdit(script);
+  };
+
+  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDownload(script, renderFlash);
+  };
+
+  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDelete(script);
+  };
+
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={
-        <Button variant="text-link" onClick={() => onClickScript(script)}>
-          {script.name}
-        </Button>
-      }
+      title={<Button variant="text-link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}
@@ -100,26 +111,27 @@ const ScriptListItem = ({
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onEdit(script)}
+            onClick={onClickEdit}
           >
             <Icon name="pencil" color="ui-fleet-black-75" />
           </Button>
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onClickDownload(script, renderFlash)}
+            onClick={onClickDownload}
           >
             <Icon name="download" />
           </Button>
           <Button
             className={`${baseClass}__action-button`}
             variant="text-icon"
-            onClick={() => onDelete(script)}
+            onClick={onClickDelete}
           >
             <Icon name="trash" color="ui-fleet-black-75" />
           </Button>
         </>
       }
+      onClick={() => onClickScript(script)}
     />
   );
 };
