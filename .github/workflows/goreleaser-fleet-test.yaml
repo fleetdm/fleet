@@ -53,9 +53,9 @@ jobs:
         continue-on-error: true
         id: image_digests
         run: |
-          digest_fleet=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.docker.outputs.tag }}"))) | select(. != null)|.extra.Digest')
+          digest_fleet=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleet:${{ steps.docker.outputs.tag }}"))) | select(. != null)|.extra.Digest' | tr -d '\n')
           echo "digest_fleet=$digest_fleet" >> "$GITHUB_OUTPUT"
-          digest_fleetctl=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.docker.outputs.tag }}"))) | select(. != null)|.extra.Digest')
+          digest_fleetctl=$(cat ./dist/artifacts.json | jq -r '.[]|select(.type == "Published Docker Image" and (.name | contains("fleetdm/fleetctl:${{ steps.docker.outputs.tag }}"))) | select(. != null)|.extra.Digest' | tr -d '\n')
           echo "digest_fleetctl=$digest_fleetctl" >> "$GITHUB_OUTPUT"
 
       - name: Verify digests
