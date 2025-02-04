@@ -109,7 +109,7 @@ fleet:
 # to 4Gi or the fleet container will be OOMKilled when vulnerability processing
 # tries to run.
 vulnProcessing:
-  dedicated: true
+  dedicated: false
   schedule: "0 * * * *"
   resources:
     limits:
