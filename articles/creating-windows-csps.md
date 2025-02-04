@@ -175,4 +175,4 @@ Ready to take control of your Windows device configurations? Explore Fleet’s p
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-12-12">
-<meta name="description" value="Learn how to create and deploy Windows configuration profiles with Fleet, leveraging ADMX-backed policies for streamlined and secure device management.">
+<meta name="description" value="Learn how to deploy Windows configuration profiles (CSPs) with Fleet">
