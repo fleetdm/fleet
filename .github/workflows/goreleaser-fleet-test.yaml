@@ -1,7 +1,9 @@
 name: goreleaser-test
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - sgress454/23825-use-tag-when-attesting-image-test
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
