@@ -11797,7 +11797,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			var hostActivitiesResp listHostUpcomingActivitiesResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
 				nil, http.StatusOK, &hostActivitiesResp)
-			activitiesToString := func(activities []*fleet.Activity) []string {
+			activitiesToString := func(activities []*fleet.UpcomingActivity) []string {
 				var res []string
 				for _, activity := range activities {
 					res = append(res, fmt.Sprintf("%+v", activity))
@@ -11893,7 +11893,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	t := s.T()
 	ctx := context.Background()
 
-	activitiesToString := func(activities []*fleet.Activity) []string {
+	activitiesToString := func(activities []*fleet.UpcomingActivity) []string {
 		var res []string
 		for _, activity := range activities {
 			res = append(res, fmt.Sprintf("%+v", activity))
@@ -12413,7 +12413,6 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	// Get pending activity, confirm one pending activity
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
-
 	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
 	assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
 	assert.EqualValues(t, 1, hostActivitiesResp.Count)
