@@ -306,17 +306,12 @@ func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostI
 				ON ua.id = sua.upcoming_activity_id
 		WHERE
 			ua.host_id = ? AND
-			ua.activity_type IN ('script', 'software_uninstall') AND
-			(
-				COALESCE(ua.payload->'$.sync_request', 0) = 0 OR
-				ua.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-			)
+			ua.activity_type IN ('script', 'software_uninstall')
 			%s
 		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, extraWhere)
 
 	var results []*fleet.HostScriptResult
-	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
 	return results, nil
