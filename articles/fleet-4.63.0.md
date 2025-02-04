@@ -21,7 +21,7 @@ Fleet can now automatically install App Store (VPP) apps when a macOS host fails
 
 During new employee onboarding, Macs can now optionally download bootstrap packages and software from the nearest CloudFront region. This speeds up onboarding for organizations that onboard new employees at different headquarters across the world. Learn more [here](https://fleetdm.com/guides/cdn-signed-urls).
 
-### SLSA attestation
+### GitHub (SLSA) attestation
 
 Fleet and `fleetd` release binaries and images now include SLSA attestation. This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. Learn more [here](https://fleetdm.com/guides/fleet-software-attestation). 
 
