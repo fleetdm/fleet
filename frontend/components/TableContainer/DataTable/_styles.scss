@@ -129,7 +129,7 @@ $shadow-transition-width: 10px;
         &.view-all-hosts__header // Same as linkToFilteredHosts__header on some pages
         {
           border-left: none;
-          max-width: 120px;
+          width: 120px;
         }
 
         .column-header {

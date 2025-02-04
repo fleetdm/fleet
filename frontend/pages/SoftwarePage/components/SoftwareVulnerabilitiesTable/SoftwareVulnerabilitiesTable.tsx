@@ -92,18 +92,18 @@ const SoftwareVulnerabilitiesTable = ({
   const classNames = classnames(baseClass, className);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      vulnerability: row.original.cve,
-      team_id: teamIdForApi,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamIdForApi,
+      });
 
-    const path = hostsBySoftwareParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-          hostsBySoftwareParams
-        )}`
-      : PATHS.MANAGE_HOSTS;
+      const softwareVulnerabilityDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+        cveName
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const tableHeaders = useMemo(

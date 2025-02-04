@@ -8,6 +8,10 @@
     }
   }
 
+  &__condensed {
+    width: 40px;
+  }
+
   // For tabbing through the app
   &:focus-visible.row-hover-link {
     opacity: 1;
