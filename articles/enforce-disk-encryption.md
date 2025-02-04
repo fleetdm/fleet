@@ -109,13 +109,13 @@ If it has an **On (automatic)** status follow the first set of instructions. If 
 3. Run the following command to list the local users accounts:
 
 ```
-TODO
+net user
 ```
 
 4. Identify the end user's account and run this command to reset the end user's password:
 
 ```
-TODO
+net user <account> <new-password>
 ```
 
 5. Use the new password to login to the Windows workstation.
