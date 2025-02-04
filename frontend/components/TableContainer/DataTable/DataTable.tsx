@@ -583,6 +583,8 @@ const DataTable = ({
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
                   {row.cells.map((cell: any, index: number) => {
+                    // Only allow row click behavior on first cell
+                    // if the first cell is not a checkbox
                     const isFirstCell = index === 0;
                     const cellProps = cell.getCellProps();
 
