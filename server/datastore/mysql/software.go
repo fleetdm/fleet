@@ -2271,8 +2271,15 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					s.title_id = st.id
 			) OR `, onlyVulnerableJoin)
 
-	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
-	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
+	CASE
+		WHEN lsia.created_at IS NULL AND lsua.created_at IS NULL THEN NULL
+		WHEN lsia.created_at IS NULL THEN lsua.status
+		WHEN lsua.created_at IS NULL THEN lsia.status
+		WHEN lsia.created_at > lsua.created_at THEN lsia.status
+		ELSE lsua.status
+	END
+	`, "lvia.status")
 
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
@@ -2280,13 +2287,183 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			softwareIsInstalledOnHostClause)
 	}
 
-	// TODO(uniq): this query is super complex, not even sure where upcoming activities fit in, but I think it does.
-	// Looks like it might impact upcoming software installs, scripts and VPP apps. May need to review the whole query
-	// to take a different approach, this is becoming unmaintainable.
-
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
+	// Latest row is found using a groupwise maximum with left join,
+	// more efficient than MAX/GROUP BY: https://stackoverflow.com/a/23285814
 	stmtInstalled := fmt.Sprintf(`
+-- select most recent upcoming software install
+WITH upcoming_software_install AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_install' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			ua2.created_at > ua.created_at
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_install' AND
+		ua2.id IS NULL
+),
+upcoming_software_uninstall AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_uninstall' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			ua2.created_at > ua.created_at
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_uninstall' AND
+		ua2.id IS NULL
+),
+last_software_install AS (
+	SELECT
+		hsi.execution_id,
+		hsi.host_id,
+		hsi.created_at,
+		hsi.software_installer_id,
+		hsi.status
+	FROM
+		host_software_installs hsi
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi.uninstall = hsi2.uninstall AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+	WHERE
+		hsi.host_id = :host_id AND
+		hsi.removed = 0 AND
+		hsi.uninstall = 0 AND
+		hsi.host_deleted_at IS NULL AND
+		hsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			WHERE
+				ua.host_id = hsi.host_id AND
+				siua.software_installer_id = hsi.software_installer_id AND
+				ua.activity_type = 'software_install'
+		)
+),
+last_software_uninstall AS (
+	SELECT
+		hsi.execution_id,
+		hsi.host_id,
+		hsi.created_at,
+		hsi.software_installer_id,
+		hsi.status
+	FROM
+		host_software_installs hsi
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi.uninstall = hsi2.uninstall AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+	WHERE
+		hsi.host_id = :host_id AND
+		hsi.removed = 0 AND
+		hsi.uninstall = 1 AND
+		hsi.host_deleted_at IS NULL AND
+		hsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			WHERE
+				ua.host_id = hsi.host_id AND
+				siua.software_installer_id = hsi.software_installer_id AND
+				ua.activity_type = 'software_uninstall'
+		)
+),
+upcoming_vpp_install AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		vaua.adam_id,
+		vaua.platform,
+		'pending_install' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN vpp_app_upcoming_activities vaua2
+				ON ua2.id = vaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			vaua.adam_id = vaua2.adam_id AND
+			vaua.platform = vaua2.platform AND
+			ua.activity_type = ua2.activity_type AND
+			ua2.created_at > ua.created_at
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'vpp_app_install' AND
+		ua2.id IS NULL
+),
+last_vpp_install AS (
+	SELECT
+		hvsi.command_uuid as execution_id,
+		hvsi.host_id,
+		hvsi.created_at,
+		hvsi.adam_id,
+		hvsi.platform,
+		%s
+	FROM
+		host_vpp_software_installs hvsi
+		LEFT JOIN nano_command_results ncr
+			ON ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN host_vpp_software_installs hvsi2
+			ON hvsi.host_id = hvsi2.host_id AND
+				 hvsi.adam_id = hvsi2.adam_id AND
+				 hvsi.platform = hvsi2.platform AND
+				 hvsi2.removed = 0 AND
+				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+	WHERE
+		hvsi.host_id = :host_id AND
+		hvsi.removed = 0 AND
+		hvsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			WHERE
+				ua.host_id = hvsi.host_id AND
+				vaua.adam_id = hvsi.adam_id AND
+				vaua.platform = hvsi.platform AND
+				ua.activity_type = 'vpp_app_install'
+		)
+)
 		SELECT
 			st.id,
 			st.name,
@@ -2298,91 +2475,40 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
-			COALESCE(hsi.last_installed_at, hvsi.created_at) as last_install_installed_at,
-			COALESCE(hsi.last_install_execution_id, hvsi.command_uuid) as last_install_install_uuid,
-			hsi.last_uninstalled_at as last_uninstall_uninstalled_at,
-			hsi.last_uninstall_execution_id as last_uninstall_script_execution_id,
+			COALESCE(lsia.created_at, lvia.created_at) as last_install_installed_at,
+			COALESCE(lsia.execution_id, lvia.execution_id) as last_install_install_uuid,
+			lsua.created_at as last_uninstall_uninstalled_at,
+			lsua.execution_id as last_uninstall_script_execution_id,
 			-- get either the software installer status or the vpp app status
 			%s as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN -- get the latest status and install/uninstall attempts (merge 3 host_software_installs rows into 1)
-			(
-				SELECT
-					hsi_group.host_id,
-					hsi_group.software_installer_id,
-					TIMESTAMP(GROUP_CONCAT(hsi_installed_at)) as last_installed_at,
-					GROUP_CONCAT(hsi_install_execution_id) as last_install_execution_id,
-					TIMESTAMP(GROUP_CONCAT(hsi_uninstalled_at)) as last_uninstalled_at,
-					GROUP_CONCAT(hsi_uninstall_execution_id) as last_uninstall_execution_id,
-					IF(GROUP_CONCAT(hsi_status) = '', NULL, GROUP_CONCAT(hsi_status)) as last_status
-				FROM (
-					-- get latest install/uninstall status
-					SELECT
-						host_id, software_installer_id,
-						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
-						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
-						-- get the status of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, COALESCE(status, ''))), 27) AS hsi_status
-					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND host_deleted_at IS NULL
-					GROUP BY host_id, software_installer_id
-					UNION
-					-- get latest install attempt
-					SELECT
-						host_id, software_installer_id,
-						MAX(created_at) as hsi_installed_at,
-						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_install_execution_id,
-						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
-						NULL as hsi_status
-					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0 AND host_deleted_at IS NULL
-					GROUP BY host_id, software_installer_id
-					UNION
-					-- get latest uninstall attempt
-					SELECT
-						host_id, software_installer_id,
-						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
-						MAX(created_at) as hsi_uninstalled_at,
-						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_uninstall_execution_id,
-						NULL as hsi_status
-						FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 1 AND host_deleted_at IS NULL
-					GROUP BY host_id, software_installer_id
-				) as hsi_group
-				GROUP BY hsi_group.host_id, hsi_group.software_installer_id
-			) as hsi ON si.id = hsi.software_installer_id
+		LEFT OUTER JOIN -- get the latest install
+			( SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install ) AS lsia -- latest_software_install_attempt
+				ON si.id = lsia.software_installer_id
+		LEFT OUTER JOIN -- get the latest uninstall
+			( SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall ) AS lsua -- latest_software_uninstall_attempt
+				ON si.id = lsua.software_installer_id
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN -- get the latest vpp install
+			( SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install ) AS lvia -- latest_vpp_install_attempt
+				ON vat.adam_id = lvia.adam_id
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
-		LEFT OUTER JOIN
-			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-		LEFT OUTER JOIN
-			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = hsi.last_uninstall_execution_id
+			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = lsua.execution_id
 		WHERE
-			-- use the latest VPP install attempt only
-			( hvsi.id IS NULL OR hvsi.id = (
-				SELECT hvsi2.id
-				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform AND hvsi2.removed = 0
-				ORDER BY hvsi2.created_at DESC
-				LIMIT 1 ) ) AND
-
-			-- software is installed on host or software install has been attempted
+			-- software is installed on host or software un/install has been attempted
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
-			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			( %s lsia.host_id IS NOT NULL OR lsua.host_id IS NOT NULL OR lvia.host_id IS NOT NULL )
 			AND
 		    -- label membership check
 			(
-			CASE WHEN ((si.ID IS NOT NULL AND hsi.last_uninstalled_at > hsi.last_installed_at AND hsr.exit_code = 0) OR (:avail OR :self_service)) THEN (
+			CASE WHEN ((si.ID IS NOT NULL AND lsua.created_at > lsia.created_at AND hsr.exit_code = 0) OR (:avail OR :self_service)) THEN (
 			 	-- do the label membership check for software installers and VPP apps
 					EXISTS (
 
@@ -2474,13 +2600,11 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			)
 
 			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
-
-	// TODO(uniq): I think this should exclude software and VPP apps that is pending in upcoming activities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2530,6 +2654,19 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hsi.software_installer_id = si.id AND
 					hsi.removed = 0
 			) AND
+			-- sofware install/uninstall is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type IN ('software_install', 'software_uninstall') AND
+					siua.software_installer_id = si.id
+			) AND
+			-- VPP install has not been attempted on host
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -2538,6 +2675,18 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id AND
 					hvsi.removed = 0
+			) AND
+			-- VPP install is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type = 'vpp_app_install' AND
+					vaua.adam_id = vat.adam_id
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
@@ -2983,8 +3132,6 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
-	// TODO(uniq): this only returns installed software, so no impact on upcoming queue
-
 	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
 SELECT
@@ -3031,7 +3178,6 @@ WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
 }
 
 func markHostSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
-	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_software_installs hsi
 INNER JOIN software_installers si ON hsi.software_installer_id = si.id
@@ -3050,7 +3196,6 @@ WHERE hsi.host_id = ? AND st.id IN (?)
 }
 
 func markHostVPPSoftwareInstallsRemoved(ctx context.Context, ex sqlx.ExtContext, hostID uint, titleIDs []uint) error {
-	// TODO(uniq): I think this only matters for non-pending installs, so no impact on upcoming queue
 	const stmt = `
 UPDATE host_vpp_software_installs hvsi
 INNER JOIN vpp_apps vap ON hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
