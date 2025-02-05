@@ -507,8 +507,8 @@ Can only be configured for all teams (`org_settings`).
 org_settings:
   sso_settings:
     enable_sso: true
-    idp_name: SimpleSAML
-    entity_id: https://example.com
+    idp_name: Okta
+    entity_id: https://example.okta.com
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
@@ -711,6 +711,16 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
+
+#### Example
+
+```
+end_user_authentication:
+      entity_id: [dogfood-eula.fleetdm.com](https://example.okta.com)
+      idp_name: Okta
+      metadata: $END_USER_SSO_METADATA
+      metadata_url: ""
+```
 
 Can only be configured for all teams (`org_settings`).
 
