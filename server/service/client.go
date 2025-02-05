@@ -509,11 +509,10 @@ func (c *Client) ApplyGroup(
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
-			case macosSetup.BootstrapPackage.Valid: // explicitly empty
-				if !opts.DryRun {
-					if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
-					}
+			case macosSetup.BootstrapPackage.Valid && !opts.DryRun && appconfig != nil && appconfig.License.IsPremium():
+				// bootstrap package is explicitly empty (only for GitOps)
+				if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 			}
 			if macosSetup.MacOSSetupAssistant.Value != "" {
@@ -618,12 +617,15 @@ func (c *Client) ApplyGroup(
 		tmSoftwareMacOSSetup := make(map[string]map[fleet.MacOSSetupSoftware]struct{}, len(tmMacSetup))
 
 		for k, setup := range tmMacSetup {
-			if setup.BootstrapPackage.Value != "" {
+			switch {
+			case setup.BootstrapPackage.Value != "":
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
+			case setup.BootstrapPackage.Valid: // explicitly empty
+				tmBootstrapPackages[k] = nil
 			}
 			if setup.MacOSSetupAssistant.Value != "" {
 				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
@@ -768,11 +770,17 @@ func (c *Client) ApplyGroup(
 		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
-					if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+					switch {
+					case bp != nil:
+						if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+						}
+					case appconfig != nil && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
+						if err := c.DeleteBootstrapPackageIfNeeded(tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("deleting bootstrap package for team %q: %w", tmName, err)
+						}
 					}
 				}
-				// TODO: Delete team bootstrap package
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
 						if strings.Contains(err.Error(), "Couldn't upload") {
