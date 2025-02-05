@@ -41,7 +41,7 @@ type runScriptResponse struct {
 	ExecutionID string `json:"execution_id,omitempty"`
 }
 
-func (r runScriptResponse) error() error { return r.Err }
+func (r runScriptResponse) Error() error { return r.Err }
 func (r runScriptResponse) Status() int  { return http.StatusAccepted }
 
 func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -79,7 +79,7 @@ type runScriptSyncResponse struct {
 	HostTimeout bool `json:"host_timeout"`
 }
 
-func (r runScriptSyncResponse) error() error { return r.Err }
+func (r runScriptSyncResponse) Error() error { return r.Err }
 func (r runScriptSyncResponse) Status() int {
 	if r.HostTimeout {
 		// The more proper response for a timeout on the server would be: StatusGatewayTimeout = 504
@@ -373,7 +373,7 @@ type getScriptResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getScriptResultResponse) error() error { return r.Err }
+func (r getScriptResultResponse) Error() error { return r.Err }
 
 func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScriptResultRequest)
@@ -485,7 +485,7 @@ type createScriptResponse struct {
 	ScriptID uint  `json:"script_id,omitempty"`
 }
 
-func (r createScriptResponse) error() error { return r.Err }
+func (r createScriptResponse) Error() error { return r.Err }
 
 func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createScriptRequest)
@@ -577,7 +577,7 @@ type deleteScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteScriptResponse) error() error { return r.Err }
+func (r deleteScriptResponse) Error() error { return r.Err }
 func (r deleteScriptResponse) Status() int  { return http.StatusNoContent }
 
 func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -638,7 +638,7 @@ type listScriptsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r listScriptsResponse) error() error { return r.Err }
+func (r listScriptsResponse) Error() error { return r.Err }
 
 func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listScriptsRequest)
@@ -684,7 +684,7 @@ type getScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getScriptResponse) error() error { return r.Err }
+func (r getScriptResponse) Error() error { return r.Err }
 
 type downloadFileResponse struct {
 	Err         error `json:"error,omitempty"`
@@ -693,7 +693,7 @@ type downloadFileResponse struct {
 	contentType string // optional, defaults to application/octet-stream
 }
 
-func (r downloadFileResponse) error() error { return r.Err }
+func (r downloadFileResponse) Error() error { return r.Err }
 
 func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
@@ -797,7 +797,7 @@ type updateScriptResponse struct {
 	ScriptID uint  `json:"script_id,omitempty"`
 }
 
-func (r updateScriptResponse) error() error { return r.Err }
+func (r updateScriptResponse) Error() error { return r.Err }
 
 func updateScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateScriptRequest)
@@ -886,7 +886,7 @@ type getHostScriptDetailsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r getHostScriptDetailsResponse) error() error { return r.Err }
+func (r getHostScriptDetailsResponse) Error() error { return r.Err }
 
 func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostScriptDetailsRequest)
@@ -946,7 +946,7 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
-func (r batchSetScriptsResponse) error() error { return r.Err }
+func (r batchSetScriptsResponse) Error() error { return r.Err }
 
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetScriptsRequest)
@@ -1072,7 +1072,7 @@ type lockHostResponse struct {
 	UnlockPIN     string                    `json:"unlock_pin,omitempty"`
 }
 
-func (r lockHostResponse) error() error { return r.Err }
+func (r lockHostResponse) Error() error { return r.Err }
 
 func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*lockHostRequest)
@@ -1113,7 +1113,7 @@ type unlockHostResponse struct {
 	Err           error                     `json:"error,omitempty"`
 }
 
-func (r unlockHostResponse) error() error { return r.Err }
+func (r unlockHostResponse) Error() error { return r.Err }
 
 func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*unlockHostRequest)
@@ -1154,7 +1154,7 @@ type wipeHostResponse struct {
 	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
 }
 
-func (r wipeHostResponse) error() error { return r.Err }
+func (r wipeHostResponse) Error() error { return r.Err }
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*wipeHostRequest)

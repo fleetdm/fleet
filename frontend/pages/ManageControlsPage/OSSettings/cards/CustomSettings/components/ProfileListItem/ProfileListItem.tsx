@@ -119,6 +119,7 @@ const ProfileListItem = ({
   };
 
   return (
+    // TODO - refactor to use ListItem
     <div className={classnames(subClass, baseClass)}>
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />

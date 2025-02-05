@@ -63,13 +63,21 @@ policies:
   calendar_event_enabled: false
   run_script:
     path: "./disable-guest-account.sh"
-- name: Firefox on Linux installed and up to date
-  platform: linux
-  description: "This policy checks that Firefox is installed and up to date."
-  resolution: "Install Firefox version 129.0.2 or higher."
-  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+- name: Install Firefox on macOS
+  platform: darwin
+  description: "This policy checks that Firefox is installed."
+  resolution: "Install Firefox app if not installed."
+  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "./linux-firefox.deb.package.yml"
+    package_path: "./firefox.package.yml"
+- name: [Install software] Logic Pro
+  platform: darwin
+  description: "This policy checks that Logic Pro is installed"
+  resolution: "Install Logic Pro App Store app if not installed"
+  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  install_software:
+    package_path: ./linux-firefox.deb.package.yml
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -690,19 +698,6 @@ org_settings:
       - "📱🏢 Company-owned iPhones"
       - "🔳🏢 Company-owned iPads"
 ```
-
-Can only be configured for all teams (`org_settings`).
-
-#### end_user_authentication
-
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
-
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
-
-- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
-- `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
-- `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
-- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
 Can only be configured for all teams (`org_settings`).
 

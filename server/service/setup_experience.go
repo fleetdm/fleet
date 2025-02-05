@@ -24,7 +24,7 @@ type putSetupExperienceSoftwareResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r putSetupExperienceSoftwareResponse) error() error { return r.Err }
+func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
@@ -57,7 +57,7 @@ type getSetupExperienceSoftwareResponse struct {
 	Err            error                           `json:"error,omitempty"`
 }
 
-func (r getSetupExperienceSoftwareResponse) error() error { return r.Err }
+func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
@@ -88,7 +88,7 @@ type getSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getSetupExperienceScriptResponse) error() error { return r.Err }
+func (r getSetupExperienceScriptResponse) Error() error { return r.Err }
 
 func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSetupExperienceScriptRequest)
@@ -158,7 +158,7 @@ type setSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r setSetupExperienceScriptResponse) error() error { return r.Err }
+func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
 
 func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*setSetupExperienceScriptRequest)
@@ -192,7 +192,7 @@ type deleteSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteSetupExperienceScriptResponse) error() error { return r.Err }
+func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
 
 // func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
 

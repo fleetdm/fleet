@@ -26,7 +26,7 @@ type createLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r createLabelResponse) error() error { return r.Err }
+func (r createLabelResponse) Error() error { return r.Err }
 
 func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createLabelRequest)
@@ -113,7 +113,7 @@ type modifyLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r modifyLabelResponse) error() error { return r.Err }
+func (r modifyLabelResponse) Error() error { return r.Err }
 
 func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyLabelRequest)
@@ -201,7 +201,7 @@ type getLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r getLabelResponse) error() error { return r.Err }
+func (r getLabelResponse) Error() error { return r.Err }
 
 func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getLabelRequest)
@@ -242,7 +242,7 @@ type listLabelsResponse struct {
 	Err    error           `json:"error,omitempty"`
 }
 
-func (r listLabelsResponse) error() error { return r.Err }
+func (r listLabelsResponse) Error() error { return r.Err }
 
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listLabelsRequest)
@@ -300,7 +300,7 @@ type getLabelsSummaryResponse struct {
 	Err    error                 `json:"error,omitempty"`
 }
 
-func (r getLabelsSummaryResponse) error() error { return r.Err }
+func (r getLabelsSummaryResponse) Error() error { return r.Err }
 
 func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	labels, err := svc.LabelsSummary(ctx)
@@ -395,7 +395,7 @@ type deleteLabelResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteLabelResponse) error() error { return r.Err }
+func (r deleteLabelResponse) Error() error { return r.Err }
 
 func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteLabelRequest)
@@ -433,7 +433,7 @@ type deleteLabelByIDResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteLabelByIDResponse) error() error { return r.Err }
+func (r deleteLabelByIDResponse) Error() error { return r.Err }
 
 func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteLabelByIDRequest)
@@ -482,7 +482,7 @@ type applyLabelSpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyLabelSpecsResponse) error() error { return r.Err }
+func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
@@ -566,7 +566,7 @@ type getLabelSpecsResponse struct {
 	Err   error              `json:"error,omitempty"`
 }
 
-func (r getLabelSpecsResponse) error() error { return r.Err }
+func (r getLabelSpecsResponse) Error() error { return r.Err }
 
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetLabelSpecs(ctx)
@@ -593,7 +593,7 @@ type getLabelSpecResponse struct {
 	Err  error            `json:"error,omitempty"`
 }
 
-func (r getLabelSpecResponse) error() error { return r.Err }
+func (r getLabelSpecResponse) Error() error { return r.Err }
 
 func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)

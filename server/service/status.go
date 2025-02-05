@@ -15,7 +15,7 @@ type statusResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (m statusResponse) error() error { return m.Err }
+func (m statusResponse) Error() error { return m.Err }
 
 func statusResultStoreEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
 	var resp statusResponse

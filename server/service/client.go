@@ -696,6 +696,8 @@ func (c *Client) ApplyGroup(
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
 					InstallDuringSetup: installDuringSetup,
+					LabelsExcludeAny:   app.LabelsExcludeAny,
+					LabelsIncludeAny:   app.LabelsIncludeAny,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {

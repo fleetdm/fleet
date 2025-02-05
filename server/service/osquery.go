@@ -116,7 +116,7 @@ type enrollAgentResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r enrollAgentResponse) error() error { return r.Err }
+func (r enrollAgentResponse) Error() error { return r.Err }
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enrollAgentRequest)
@@ -334,7 +334,7 @@ type getClientConfigResponse struct {
 	Err    error `json:"error,omitempty"`
 }
 
-func (r getClientConfigResponse) error() error { return r.Err }
+func (r getClientConfigResponse) Error() error { return r.Err }
 
 // MarshalJSON implements json.Marshaler.
 //
@@ -580,7 +580,7 @@ type getDistributedQueriesResponse struct {
 	Err        error             `json:"error,omitempty"`
 }
 
-func (r getDistributedQueriesResponse) error() error { return r.Err }
+func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
@@ -884,7 +884,7 @@ type submitDistributedQueryResultsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
 func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
@@ -1010,14 +1010,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
 			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
-		}
-
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
-			logging.WithErr(ctx, err)
 		}
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
@@ -1964,12 +1966,25 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get VPP metadata",
 				"error", err,
 			)
+			continue
+		}
+
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
+		}
+
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since vpp app is out of scope for host")
 			continue
 		}
 
@@ -2203,7 +2218,7 @@ type submitLogsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitLogsResponse) error() error { return r.Err }
+func (r submitLogsResponse) Error() error { return r.Err }
 
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*submitLogsRequest)
@@ -2809,7 +2824,7 @@ type getYaraResponse struct {
 	Content string
 }
 
-func (r getYaraResponse) error() error { return r.Err }
+func (r getYaraResponse) Error() error { return r.Err }
 
 func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

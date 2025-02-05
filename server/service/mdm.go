@@ -46,7 +46,7 @@ type getAppleMDMResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getAppleMDMResponse) error() error { return r.Err }
+func (r getAppleMDMResponse) Error() error { return r.Err }
 
 func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	appleMDM, err := svc.GetAppleMDM(ctx)
@@ -88,7 +88,7 @@ type getAppleBMResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getAppleBMResponse) error() error { return r.Err }
+func (r getAppleBMResponse) Error() error { return r.Err }
 
 func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	appleBM, err := svc.GetAppleBM(ctx)
@@ -121,7 +121,7 @@ type requestMDMAppleCSRResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r requestMDMAppleCSRResponse) error() error { return r.Err }
+func (r requestMDMAppleCSRResponse) Error() error { return r.Err }
 
 func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*requestMDMAppleCSRRequest)
@@ -262,7 +262,7 @@ type createMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r createMDMEULAResponse) error() error { return r.Err }
+func (r createMDMEULAResponse) Error() error { return r.Err }
 
 func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMEULARequest)
@@ -302,7 +302,7 @@ type getMDMEULAResponse struct {
 	eula *fleet.MDMEULA
 }
 
-func (r getMDMEULAResponse) error() error { return r.Err }
+func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
@@ -348,7 +348,7 @@ type getMDMEULAMetadataResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMEULAMetadataResponse) error() error { return r.Err }
+func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	eula, err := svc.MDMGetEULAMetadata(ctx)
@@ -379,7 +379,7 @@ type deleteMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMEULAResponse) error() error { return r.Err }
+func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMEULARequest)
@@ -455,7 +455,7 @@ type runMDMCommandResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r runMDMCommandResponse) error() error { return r.Err }
+func (r runMDMCommandResponse) Error() error { return r.Err }
 
 func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runMDMCommandRequest)
@@ -650,7 +650,7 @@ type getMDMCommandResultsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r getMDMCommandResultsResponse) error() error { return r.Err }
+func (r getMDMCommandResultsResponse) Error() error { return r.Err }
 
 func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMCommandResultsRequest)
@@ -767,7 +767,7 @@ type listMDMCommandsResponse struct {
 	Err     error               `json:"error,omitempty"`
 }
 
-func (r listMDMCommandsResponse) error() error { return r.Err }
+func (r listMDMCommandsResponse) Error() error { return r.Err }
 
 func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMCommandsRequest)
@@ -883,7 +883,7 @@ type getMDMDiskEncryptionSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMDiskEncryptionSummaryResponse) error() error { return r.Err }
+func (r getMDMDiskEncryptionSummaryResponse) Error() error { return r.Err }
 
 func getMDMDiskEncryptionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMDiskEncryptionSummaryRequest)
@@ -920,7 +920,7 @@ type getMDMProfilesSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMProfilesSummaryResponse) error() error { return r.Err }
+func (r getMDMProfilesSummaryResponse) Error() error { return r.Err }
 
 func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMProfilesSummaryRequest)
@@ -1016,7 +1016,7 @@ type getMDMConfigProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMConfigProfileResponse) error() error { return r.Err }
+func (r getMDMConfigProfileResponse) Error() error { return r.Err }
 
 func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMConfigProfileRequest)
@@ -1111,7 +1111,7 @@ type deleteMDMConfigProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMConfigProfileResponse) error() error { return r.Err }
+func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
 
 func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
@@ -1284,7 +1284,7 @@ type newMDMConfigProfileResponse struct {
 	Err         error  `json:"error,omitempty"`
 }
 
-func (r newMDMConfigProfileResponse) error() error { return r.Err }
+func (r newMDMConfigProfileResponse) Error() error { return r.Err }
 
 func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*newMDMConfigProfileRequest)
@@ -1565,7 +1565,7 @@ type batchSetMDMProfilesResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r batchSetMDMProfilesResponse) error() error { return r.Err }
+func (r batchSetMDMProfilesResponse) Error() error { return r.Err }
 
 func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent }
 
@@ -2148,7 +2148,7 @@ type listMDMConfigProfilesResponse struct {
 	Err      error                            `json:"error,omitempty"`
 }
 
-func (r listMDMConfigProfilesResponse) error() error { return r.Err }
+func (r listMDMConfigProfilesResponse) Error() error { return r.Err }
 
 func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMConfigProfilesRequest)
@@ -2204,7 +2204,7 @@ type updateMDMDiskEncryptionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
+func (r updateMDMDiskEncryptionResponse) Error() error { return r.Err }
 
 func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
 
@@ -2257,7 +2257,7 @@ type resendHostMDMProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r resendHostMDMProfileResponse) error() error { return r.Err }
+func (r resendHostMDMProfileResponse) Error() error { return r.Err }
 
 func (r resendHostMDMProfileResponse) Status() int { return http.StatusAccepted }
 
@@ -2386,7 +2386,7 @@ type getMDMAppleCSRResponse struct {
 	Err error  `json:"error,omitempty"`
 }
 
-func (r getMDMAppleCSRResponse) error() error { return r.Err }
+func (r getMDMAppleCSRResponse) Error() error { return r.Err }
 
 func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	signedCSRB64, err := svc.GetMDMAppleCSR(ctx)
@@ -2546,7 +2546,7 @@ type uploadMDMAppleAPNSCertResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r uploadMDMAppleAPNSCertResponse) error() error {
+func (r uploadMDMAppleAPNSCertResponse) Error() error {
 	return r.Err
 }
 
@@ -2694,7 +2694,7 @@ type deleteMDMAppleAPNSCertResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleAPNSCertResponse) error() error {
+func (r deleteMDMAppleAPNSCertResponse) Error() error {
 	return r.Err
 }
 

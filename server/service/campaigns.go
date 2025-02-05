@@ -28,7 +28,7 @@ type createDistributedQueryCampaignResponse struct {
 	Err      error                           `json:"error,omitempty"`
 }
 
-func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
+func (r createDistributedQueryCampaignResponse) Error() error { return r.Err }
 
 func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createDistributedQueryCampaignRequest)

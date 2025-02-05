@@ -102,7 +102,7 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 	return rawjson.CombineRoots(responseData, appConfigData)
 }
 
-func (r appConfigResponse) error() error { return r.Err }
+func (r appConfigResponse) Error() error { return r.Err }
 
 func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
@@ -1418,7 +1418,7 @@ type applyEnrollSecretSpecResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
+func (r applyEnrollSecretSpecResponse) Error() error { return r.Err }
 
 func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
@@ -1476,7 +1476,7 @@ type getEnrollSecretSpecResponse struct {
 	Err  error                   `json:"error,omitempty"`
 }
 
-func (r getEnrollSecretSpecResponse) error() error { return r.Err }
+func (r getEnrollSecretSpecResponse) Error() error { return r.Err }
 
 func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
@@ -1507,7 +1507,7 @@ type versionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r versionResponse) error() error { return r.Err }
+func (r versionResponse) Error() error { return r.Err }
 
 func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	info, err := svc.Version(ctx)
@@ -1535,7 +1535,7 @@ type getCertificateResponse struct {
 	Err              error  `json:"error,omitempty"`
 }
 
-func (r getCertificateResponse) error() error { return r.Err }
+func (r getCertificateResponse) Error() error { return r.Err }
 
 func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	chain, err := svc.CertificateChain(ctx)

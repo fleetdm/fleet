@@ -39,18 +39,18 @@ Before we start to add values to the payload, double-check to make sure that onl
 
 >Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
 
-Enter the following values for the specified keys:
-**Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension
-**Type:** Redirect
-**Team Identifier:** UBF8T346G9
-**URLs:** https://login.microsoftonline.com
-https://login.microsoft.com
-https://sts.windows.net
-**Screen Locked Behavior:** Do Not Handle
-**Authentication Method:** User Secure Enclave Key
-**Platform SSO Authentication Method:** UserSecureEnclaveKey
-**Use Shared Device Keys:** Checked
-**Account Name:** preferred_username
+Enter the following values for the specified keys:\
+**Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension \
+**Type:** Redirect \
+**Team Identifier:** UBF8T346G9 \
+**URLs:** https://login.microsoftonline.com \
+https://login.microsoft.com \
+https://sts.windows.net \
+**Screen Locked Behavior:** Do Not Handle \
+**Authentication Method:** User Secure Enclave Key \
+**Platform SSO Authentication Method:** UserSecureEnclaveKey \
+**Use Shared Device Keys:** Checked \
+**Account Name:** preferred_username \
 **Full Name:** name
 
 The finalized profile should look like this:
@@ -147,6 +147,6 @@ Once registration is complete, the next time an employee logs into an Entra ID p
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ddribeiro">
 <meta name="authorFullName" value="Dale Ribeiro">
-<meta name="publishedOn" value="2024-07-03">
+<meta name="publishedOn" value="2025-02-04">
 <meta name="articleTitle" value="Deploying Platform SSO with Microsoft Entra ID">
 <meta name="description" value="Learn how to use Fleet to deploy the Microsoft Entra ID Platfrom SSO Extension">
