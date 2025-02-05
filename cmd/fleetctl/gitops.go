@@ -83,7 +83,7 @@ func gitopsCommand() *cli.Command {
 
 			// We need to extract the controls from no-team.yml to be able to apply them when applying the global app config.
 			var (
-				noTeamControls spec.Controls
+				noTeamControls spec.GitOpsControls
 				noTeamPresent  bool
 			)
 			isPremium := appConfig.License.IsPremium()

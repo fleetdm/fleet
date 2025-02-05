@@ -1843,7 +1843,7 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, nil, nil
 	}
 
-	// marshaling dance to get the macos_setup data - config.Controls.MacOSSetup
+	// marshaling dance to get the macos_setup data - config.GitOpsControls.MacOSSetup
 	// is of type any and contains a generic map[string]any. By
 	// marshal-unmarshaling it into a properly typed struct, we avoid having to
 	// do a bunch of error-prone and unmaintainable type-assertions to walk down
