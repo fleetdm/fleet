@@ -1,0 +1,2 @@
+* Optimized software ingestion queries to use existing DB indexes in the software titles table.
+* Fixed a bug "software not found for checksum" in software ingestion transaction retries.

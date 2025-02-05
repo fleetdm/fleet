@@ -274,16 +274,6 @@ clean: clean-assets
 clean-assets:
 	git clean -fx assets
 
-docker-build-release: xp-fleet xp-fleetctl
-	docker build -t "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" .
-	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" fleetdm/fleet:${VERSION}
-	docker tag "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" fleetdm/fleet:latest
-
-docker-push-release: docker-build-release
-	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-	docker push fleetdm/fleet:${VERSION}
-	docker push fleetdm/fleet:latest
-
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
@@ -429,6 +419,16 @@ db-backup:
 # Restore the development DB from file
 db-restore:
 	./tools/backup_db/restore.sh
+
+
+# Interactive snapshot / restore
+SNAPSHOT_BINARY = ./build/snapshot
+snapshot: $(SNAPSHOT_BINARY)
+	@ $(SNAPSHOT_BINARY) snapshot
+$(SNAPSHOT_BINARY): tools/snapshot/*.go
+	cd tools/snapshot && go build -o ../../build/snapshot
+restore: $(SNAPSHOT_BINARY)
+	@ $(SNAPSHOT_BINARY) restore
 
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #

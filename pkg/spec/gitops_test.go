@@ -264,12 +264,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.False(t, gitops.Software.Packages[0].SelfService)
 					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
 					require.True(t, gitops.Software.Packages[1].SelfService)
+
+					require.Len(t, gitops.Software.AppStoreApps, 1)
+					require.Equal(t, gitops.Software.AppStoreApps[0].AppStoreID, "123456")
+					require.False(t, gitops.Software.AppStoreApps[0].SelfService)
 				}
 
 				// Check policies
 				expectedPoliciesCount := 5
 				if test.isTeam {
-					expectedPoliciesCount = 8
+					expectedPoliciesCount = 9
 				}
 				require.Len(t, gitops.Policies, expectedPoliciesCount)
 				assert.Equal(t, "😊 Failing policy", gitops.Policies[0].Name)
@@ -283,14 +287,18 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
 
-					assert.Equal(t, "Script run policy", gitops.Policies[6].Name)
-					assert.NotNil(t, gitops.Policies[6].RunScript)
-					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[6].RunScript.Path)
+					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
+					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
+					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.AppStoreID)
 
-					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[7].Name)
+					assert.Equal(t, "Script run policy", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
+					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[7].RunScript.Path)
+
+					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[8].Name)
+					assert.NotNil(t, gitops.Policies[8].RunScript)
 					// . or .. depending on whether with paths or without
-					assert.Contains(t, gitops.Policies[7].RunScript.Path, "./lib/collect-fleetd-logs.sh")
+					assert.Contains(t, gitops.Policies[8].RunScript.Path, "./lib/collect-fleetd-logs.sh")
 				}
 			},
 		)
@@ -911,7 +919,19 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "empty package_path")
+	assert.ErrorContains(t, err, "must include either a package path or app store app ID")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+    app_store_id: "123456"
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -928,6 +948,18 @@ software:
 	path, basePath := createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be 4000 characters or less", tooBigURL))
+
+	// Policy references a VPP app not present on the team
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    app_store_id: "123456"
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "not found on team")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})

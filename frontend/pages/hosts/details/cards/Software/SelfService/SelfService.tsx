@@ -9,6 +9,7 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { pluralize } from "utilities/strings/stringUtils";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
@@ -118,7 +119,7 @@ const SoftwareSelfService = ({
               ) : (
                 <>
                   <div className={`${baseClass}__items-count`}>
-                    <b>{data.count} items</b>
+                    <b>{`${data.count} ${pluralize(data.count, "item")}`}</b>
                   </div>
                   <div className={`${baseClass}__items`}>
                     {data.software.map((s) => {

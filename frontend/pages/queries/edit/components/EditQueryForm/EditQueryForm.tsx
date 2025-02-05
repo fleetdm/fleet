@@ -45,12 +45,12 @@ import {
   ICreateQueryRequestBody,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 
 import queryAPI from "services/entities/queries";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -278,12 +278,12 @@ const EditQueryForm = ({
       // else if Remove OS if All is chosen
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as SelectedPlatformString
+          pull(valArray, "").join(",") as CommaSeparatedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setLastEditedQueryPlatforms("");
       } else {
-        setLastEditedQueryPlatforms(values as SelectedPlatformString);
+        setLastEditedQueryPlatforms(values as CommaSeparatedPlatformString);
       }
     },
     [setLastEditedQueryPlatforms]
@@ -597,7 +597,7 @@ const EditQueryForm = ({
         />
       )}
       {showQueryEditor && (
-        <FleetAce
+        <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
           label="Query"
@@ -712,7 +712,7 @@ const EditQueryForm = ({
             </div>
             <div className="author">{savedQueryMode && renderAuthor()}</div>
           </div>
-          <FleetAce
+          <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"

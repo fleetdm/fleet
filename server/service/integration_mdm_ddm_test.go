@@ -1093,6 +1093,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 
 func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 	fleetHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 

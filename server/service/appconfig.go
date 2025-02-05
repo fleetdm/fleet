@@ -102,7 +102,7 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 	return rawjson.CombineRoots(responseData, appConfigData)
 }
 
-func (r appConfigResponse) error() error { return r.Err }
+func (r appConfigResponse) Error() error { return r.Err }
 
 func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
@@ -134,13 +134,29 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	// Only the Global Admin should be able to see see SMTP, SSO and osquery agent settings.
+	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
+	isAnyTeamAdmin := false
+	if vc.User.Teams != nil {
+		// check if the user is an admin for any team
+		for _, team := range vc.User.Teams {
+			if team.Role == fleet.RoleAdmin {
+				isAnyTeamAdmin = true
+				break
+			}
+		}
+	}
+
+	// Only admins should see SMTP and SSO settings
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
-	var agentOptions *json.RawMessage
-	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
+	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+
+	// Only global admins should see osquery agent settings.
+	var agentOptions *json.RawMessage
+	if isGlobalAdmin {
 		agentOptions = appConfig.AgentOptions
 	}
 
@@ -476,6 +492,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium()); err != nil {
+			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
@@ -1401,7 +1418,7 @@ type applyEnrollSecretSpecResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
+func (r applyEnrollSecretSpecResponse) Error() error { return r.Err }
 
 func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
@@ -1459,7 +1476,7 @@ type getEnrollSecretSpecResponse struct {
 	Err  error                   `json:"error,omitempty"`
 }
 
-func (r getEnrollSecretSpecResponse) error() error { return r.Err }
+func (r getEnrollSecretSpecResponse) Error() error { return r.Err }
 
 func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
@@ -1490,7 +1507,7 @@ type versionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r versionResponse) error() error { return r.Err }
+func (r versionResponse) Error() error { return r.Err }
 
 func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	info, err := svc.Version(ctx)
@@ -1518,7 +1535,7 @@ type getCertificateResponse struct {
 	Err              error  `json:"error,omitempty"`
 }
 
-func (r getCertificateResponse) error() error { return r.Err }
+func (r getCertificateResponse) Error() error { return r.Err }
 
 func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	chain, err := svc.CertificateChain(ctx)

@@ -241,6 +241,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_script_results
   WHERE
     host_id = ? AND
+    host_deleted_at IS NULL AND
     %s
   	%s
   ORDER BY
@@ -336,6 +337,31 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 	}
 	id, _ := res.LastInsertId()
 	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
+}
+
+func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	const stmt = `
+UPDATE script_contents
+INNER JOIN
+  scripts ON scripts.script_content_id = script_contents.id
+SET
+  contents = ?,
+  md5_checksum = UNHEX(?)
+WHERE
+  scripts.id = ?
+`
+	md5Checksum := md5ChecksumScriptContent(scriptContents)
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script updated_at time")
+	}
+
+	return ds.Script(ctx, scriptID)
 }
 
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
@@ -504,7 +530,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 	deleteStmt := fmt.Sprintf(`
 		DELETE FROM
 			host_script_results
-		WHERE 
+		WHERE
 			policy_id = ? AND
 			script_id IN (
 				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?

@@ -8,6 +8,10 @@
     }
   }
 
+  &__condensed {
+    margin-right: $pad-medium;
+  }
+
   // For tabbing through the app
   &:focus-visible.row-hover-link {
     opacity: 1;

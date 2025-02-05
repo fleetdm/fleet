@@ -50,6 +50,7 @@ type profileAssignmentReq struct {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 	s.enableABM(t.Name())
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +153,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	// Set up a mock DEP Apple API
@@ -265,6 +267,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	// Set up a mock DEP Apple API

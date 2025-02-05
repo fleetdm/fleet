@@ -116,7 +116,7 @@ type enrollAgentResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r enrollAgentResponse) error() error { return r.Err }
+func (r enrollAgentResponse) Error() error { return r.Err }
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enrollAgentRequest)
@@ -334,7 +334,7 @@ type getClientConfigResponse struct {
 	Err    error `json:"error,omitempty"`
 }
 
-func (r getClientConfigResponse) error() error { return r.Err }
+func (r getClientConfigResponse) Error() error { return r.Err }
 
 // MarshalJSON implements json.Marshaler.
 //
@@ -580,7 +580,7 @@ type getDistributedQueriesResponse struct {
 	Err        error             `json:"error,omitempty"`
 }
 
-func (r getDistributedQueriesResponse) error() error { return r.Err }
+func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
@@ -884,7 +884,7 @@ type submitDistributedQueryResultsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
 func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
@@ -1010,13 +1010,21 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
-		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1846,6 +1854,155 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	return nil
 }
 
+func (svc *Service) processVPPForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated VPP apps for the team.
+	policiesWithVPP, err := svc.ds.GetPoliciesWithAssociatedVPP(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithVPP) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to VPP apps.
+	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
+	for _, policyWithVPP := range policiesWithVPP {
+		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
+	}
+	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithVPPMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithVPP[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithVPP,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
+		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with VPP apps that are not newly failing.
+	var failingPoliciesWithVPP []fleet.PolicyVPPData
+	for _, policyWithVPP := range policiesWithVPP {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		}
+	}
+
+	if len(failingPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to get host details")
+	}
+	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
+	}
+
+	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
+	}
+
+	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
+		policyID := failingPolicyWithVPP.ID
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"vpp_adam_id", failingPolicyWithVPP.AdamID,
+			"vpp_platform", failingPolicyWithVPP.AdamID,
+			"software_title_id", failingPolicyWithVPP.Platform,
+		)
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			level.Debug(svc.logger).Log(
+				"msg", "install of app is already pending",
+			)
+			continue
+		}
+
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get VPP metadata",
+				"error", err,
+			)
+			continue
+		}
+
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
+		}
+
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get install VPP app",
+				"error", err,
+			)
+			continue
+		}
+
+		level.Debug(logger).Log("msg", "vpp install request sent", "command_uuid", commandUUID)
+	}
+
+	return nil
+}
+
 func (svc *Service) processScriptsForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
@@ -2061,7 +2218,7 @@ type submitLogsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitLogsResponse) error() error { return r.Err }
+func (r submitLogsResponse) Error() error { return r.Err }
 
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*submitLogsRequest)
@@ -2084,6 +2241,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 
 	case "result":
+		// NOTE(dantecatalfamo) We partially unmarshal the data here because osquery can send data we don't
+		// support unmarshaling, like differential query results. We also pass the raw data to logging
+		// facilities further down. Results are unmarshaled one at a time inside of SubmitResultLogs.
+		// We should re-address this once json/v2 releases and we can speed up parsing times.
 		var results []json.RawMessage
 		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
 		// Maybe there's a reason for it, we need to test such a change before fixing what appears
@@ -2298,10 +2459,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 		return
 	}
 
-	// Filter results to only the most recent for each query.
-	filtered := getMostRecentResults(unmarshaledResults)
+	// Transform results that are in "event format" to "snapshot format".
+	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+	// in their agent options.
+	unmarshaledResultsFiltered := transformEventFormatToSnapshotFormat(unmarshaledResults)
 
-	for _, result := range filtered {
+	// Filter results to only the most recent for each query.
+	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
+
+	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -2339,6 +2505,127 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 	}
+}
+
+// transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
+// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+// in their agent options.
+//
+// "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
+//
+//	[
+//		{
+//			"snapshot":[
+//				{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},
+//				{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}
+//			],
+//			"action":"snapshot",
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 22:17:17 2025 UTC",
+//			"unixTime":1738189037,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
+//		}
+//	]
+//
+// "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
+//
+//	[
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns": {
+//				"class":"9",
+//				"model":"AppleUSBVHCIBCE Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		},
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns":{
+//				"class":"9",
+//				"model":"AppleUSBXHCI Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		}
+//	]
+func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
+	isEventFormat := func(result *fleet.ScheduledQueryResult) bool {
+		return result != nil && result.Action == "snapshot" && len(result.Snapshot) == 0 && len(result.Columns) > 0
+	}
+
+	resultsInEventFormat := make(map[string]*fleet.ScheduledQueryResult)
+	for _, result := range results {
+		if !isEventFormat(result) {
+			continue
+		}
+		allResults, ok := resultsInEventFormat[result.QueryName]
+		if !ok {
+			// All snapshot results in "event format" for the same query have the same `hostIdentifier` and `unixTime`.
+			resultsInEventFormat[result.QueryName] = &fleet.ScheduledQueryResult{
+				QueryName:     result.QueryName,
+				OsqueryHostID: result.OsqueryHostID,
+				Snapshot:      []*json.RawMessage{&result.Columns},
+				UnixTime:      result.UnixTime,
+			}
+		} else {
+			resultsInEventFormat[allResults.QueryName].Snapshot = append(resultsInEventFormat[allResults.QueryName].Snapshot, &result.Columns)
+		}
+	}
+
+	if len(resultsInEventFormat) == 0 {
+		return results
+	}
+
+	replaced := make(map[string]struct{})
+	var filteredResults []*fleet.ScheduledQueryResult
+	for _, result := range results {
+		if isEventFormat(result) {
+			if _, ok := replaced[result.QueryName]; !ok {
+				filteredResults = append(filteredResults, resultsInEventFormat[result.QueryName])
+				replaced[result.QueryName] = struct{}{}
+			}
+			continue
+		}
+		filteredResults = append(filteredResults, result)
+	}
+	return filteredResults
 }
 
 // overwriteResultRows deletes existing and inserts the new results for a query and host.
@@ -2537,7 +2824,7 @@ type getYaraResponse struct {
 	Content string
 }
 
-func (r getYaraResponse) error() error { return r.Err }
+func (r getYaraResponse) Error() error { return r.Err }
 
 func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

@@ -2,10 +2,8 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
-  find,
   omit,
   pick,
-  size,
   memoize,
   reduce,
   trim,
@@ -22,13 +20,11 @@ import {
   isAfter,
   addDays,
 } from "date-fns";
-import yaml from "js-yaml";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -44,8 +40,6 @@ import { UserRole } from "interfaces/user";
 import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
-import { checkTable } from "utilities/sql_tools";
-import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -59,7 +53,6 @@ import {
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IActivityDetails } from "interfaces/activity";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -170,87 +163,6 @@ const filterTarget = (targetType: string) => {
       default:
         return [];
     }
-  };
-};
-
-export const formatConfigDataForServer = (config: any): any => {
-  const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
-  const serverSettingsAttrs = pick(config, [
-    "server_url",
-    "osquery_enroll_secret",
-    "live_query_disabled",
-    "enable_analytics",
-  ]);
-  const smtpSettingsAttrs = pick(config, [
-    "authentication_method",
-    "authentication_type",
-    "domain",
-    "enable_ssl_tls",
-    "enable_start_tls",
-    "password",
-    "port",
-    "sender_address",
-    "server",
-    "user_name",
-    "verify_ssl_certs",
-    "enable_smtp",
-  ]);
-  const ssoSettingsAttrs = pick(config, [
-    "entity_id",
-    "idp_image_url",
-    "metadata",
-    "metadata_url",
-    "idp_name",
-    "enable_sso",
-    "enable_sso_idp_login",
-  ]);
-  const hostExpirySettingsAttrs = pick(config, [
-    "host_expiry_enabled",
-    "host_expiry_window",
-  ]);
-  const webhookSettingsAttrs = pick(config, [
-    "enable_host_status_webhook",
-    "destination_url",
-    "host_percentage",
-    "days_count",
-  ]);
-  // because agent_options is already an object
-  const agentOptionsSettingsAttrs = config.agent_options;
-
-  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
-  const serverSettings = size(serverSettingsAttrs) && {
-    server_settings: serverSettingsAttrs,
-  };
-  const smtpSettings = size(smtpSettingsAttrs) && {
-    smtp_settings: smtpSettingsAttrs,
-  };
-  const ssoSettings = size(ssoSettingsAttrs) && {
-    sso_settings: ssoSettingsAttrs,
-  };
-  const hostExpirySettings = size(hostExpirySettingsAttrs) && {
-    host_expiry_settings: hostExpirySettingsAttrs,
-  };
-  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options: yaml.load(agentOptionsSettingsAttrs),
-  };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
-  };
-
-  if (hostExpirySettings) {
-    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
-      hostExpirySettings.host_expiry_settings.host_expiry_window
-    );
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...agentOptionsSettings,
-    ...webhookSettings,
   };
 };
 
@@ -698,6 +610,10 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+export const internationalNumberFormat = (number: number): string => {
+  return new Intl.NumberFormat(navigator.language).format(number);
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -1002,7 +918,6 @@ export default {
   removeOSPrefix,
   compareVersions,
   createHostsByPolicyPath,
-  formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,

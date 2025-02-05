@@ -40,6 +40,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareInstallerID *uint
+	// VPPAppsTeamsID is the team-specific PK of the VPP app that will be installed if the policy fails.
+	//
+	// Only applies to team policies.
+	VPPAppsTeamsID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	//
 	// Only applies to team policies.
@@ -224,6 +228,7 @@ type PolicyData struct {
 
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
 	ScriptID              *uint `json:"-" db:"script_id"`
 
 	UpdateCreateTimestamps
@@ -263,6 +268,12 @@ type PolicyCalendarData struct {
 type PolicySoftwareInstallerData struct {
 	ID          uint `db:"id"`
 	InstallerID uint `db:"software_installer_id"`
+}
+
+type PolicyVPPData struct {
+	ID       uint                `db:"id"`
+	AdamID   string              `db:"adam_id"`
+	Platform AppleDevicePlatform `db:"platform"`
 }
 
 type PolicyScriptData struct {
@@ -335,10 +346,10 @@ type PolicySpec struct {
 // PolicySoftwareTitle contains software title data for policies.
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
-	SoftwareTitleID uint `json:"software_title_id"`
+	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name"`
+	Name string `json:"name" db:"name"`
 }
 
 // PolicyScript contains script data for policies.

@@ -36,6 +36,8 @@ type EnterpriseOverrides struct {
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
+	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
 }
 
 type OsqueryService interface {
@@ -260,6 +262,9 @@ type Service interface {
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
 	ListHostsInLabel(ctx context.Context, lid uint, opt HostListOptions) ([]*Host, error)
+
+	// ListLabelsForHost returns a slice of labels for a given host
+	ListLabelsForHost(ctx context.Context, hostID uint) ([]*Label, error)
 
 	// BatchValidateLabels validates that each of the provided label names exists. The returned map
 	// is keyed by label name. Caller must ensure that appropirate authorization checks are
@@ -648,6 +653,12 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
+	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
+	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+
+	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
+
 	// UninstallSoftwareTitle uninstalls a software title in the given host.
 	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
@@ -674,6 +685,7 @@ type Service interface {
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*VPPAppStoreApp, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
@@ -762,7 +774,7 @@ type Service interface {
 	GetVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
-	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
+	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) ([]VPPAppResponse, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
@@ -1111,6 +1123,9 @@ type Service interface {
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
+
+	// UpdateScript updates a saved script with the contents of io.Reader r
+	UpdateScript(ctx context.Context, scriptID uint, r io.Reader) (*Script, error)
 
 	// DeleteScript deletes an existing (saved) script.
 	DeleteScript(ctx context.Context, scriptID uint) error

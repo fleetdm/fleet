@@ -1,4 +1,4 @@
-import { monthDayYearFormat, uploadedFromNow } from ".";
+import { dateAgo, monthDayYearFormat, uploadedFromNow } from ".";
 
 describe("date_format utilities", () => {
   describe("uploadedFromNow util", () => {
@@ -15,6 +15,23 @@ describe("date_format utilities", () => {
     it("returns a date in the format of 'MonthName Date, Year' (e.g. January 01, 2024)", () => {
       const date = "2024-11-29T00:00:00Z";
       expect(monthDayYearFormat(date)).toEqual("November 29, 2024");
+    });
+  });
+
+  describe("dateAgo util", () => {
+    it("returns a user friendly date ago message from a date string", () => {
+      const currentDate = new Date();
+      currentDate.setDate(currentDate.getDate() - 2);
+      const twoDaysAgo = currentDate.toISOString();
+
+      expect(dateAgo(twoDaysAgo)).toEqual("2 days ago");
+    });
+
+    it("returns a user friendly date ago message from a Date object", () => {
+      const date = new Date();
+      date.setDate(date.getDate() - 2);
+
+      expect(dateAgo(date)).toEqual("2 days ago");
     });
   });
 });

@@ -15,7 +15,6 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 
 # When adding loadtest containers. 
 terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
-
 ```
 
 ### Deploying your code to the loadtesting environment
@@ -23,7 +22,7 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 > IMPORTANT:
 > - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
 > - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
-> - These scripts were tested with terraform 1.5.X.
+> - These scripts were tested with terraform 1.10.4.
 
 1. Push your `$BRANCH_NAME` branch to https://github.com/fleetdm/fleet and trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch).
 1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
@@ -150,3 +149,35 @@ See https://www.terraform.io/internals/debugging for more details.
 In a few instances, it is possible for an ECR repository to still have images left, preventing a full `terraform destroy` of a Loadtesting instance.  Use the following one-liner to clean these up before re-running `terraform destroy`:
 
 `REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`
+
+#### Errors with macOS Docker Desktop
+
+If you are getting the following error when running `terraform apply`:
+```sh
+│ Error: Error pinging Docker server: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+│
+│   with provider["registry.terraform.io/kreuzwerker/docker"],
+│   on init.tf line 45, in provider "docker":
+│   45: provider "docker" {
+```
+Run:
+```sh
+$ docker context ls
+NAME              DESCRIPTION                               DOCKER ENDPOINT                             ERROR
+default           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock
+desktop-linux *   Docker Desktop                            unix:///Users/foobar/.docker/run/docker.sock
+```
+Then add the entry with `*`, in this case `host = unix:///Users/foobar/.docker/run/docker.sock` to `infrastructure/loadtesting/terraform/init.tf`:
+```sh
+[...]
+provider "docker" {
+  # Configuration options
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-2.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
+  host = "unix:///Users/foobar/.docker/run/docker.sock"
+}
+[...]
+```

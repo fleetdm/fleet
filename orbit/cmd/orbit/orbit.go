@@ -63,6 +63,8 @@ const (
 	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
 	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
 	logErrorMissingExecMsg       logError = "bad desktop executable"
+	logErrorMissingDomainSubstr  logError = "Domain=OSLaunchdErrorDomain Code=112"
+	logErrorMissingDomainMsg     logError = "missing specified domain"
 )
 
 func main() {
@@ -103,7 +105,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "update-url",
 			Usage:   "URL for update server",
-			Value:   "https://tuf.fleetctl.com",
+			Value:   update.DefaultURL,
 			EnvVars: []string{"ORBIT_UPDATE_URL"},
 		},
 		&cli.StringFlag{
@@ -813,6 +815,12 @@ func main() {
 			)
 		}
 
+		if runtime.GOOS == "windows" {
+			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
+				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
+			}
+		}
+
 		var certPath string
 		if fleetURL != "https://" && c.Bool("insecure") {
 			proxy, err := insecure.NewTLSProxy(fleetURL)
@@ -1257,6 +1265,7 @@ func main() {
 				trw,
 				startTime,
 				scriptsEnabledFn,
+				opt.ServerURL,
 			)),
 		)
 
@@ -1723,7 +1732,10 @@ func (d *desktopRunner) processLog(log string) {
 		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
 		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
 		msg = string(logErrorMissingExecMsg)
+	case strings.Contains(log, string(logErrorMissingDomainSubstr)):
+		msg = string(logErrorMissingDomainMsg)
 	}
+
 	if msg == "" {
 		return
 	}

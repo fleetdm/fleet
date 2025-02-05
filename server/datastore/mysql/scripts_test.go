@@ -26,6 +26,7 @@ func TestScripts(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"HostScriptResult", testHostScriptResult},
+		{"DEPRestoredHost", testListPendingScriptDEPRestoration},
 		{"Scripts", testScripts},
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
@@ -39,6 +40,7 @@ func TestScripts(t *testing.T) {
 		{"TestGetAnyScriptContents", testGetAnyScriptContents},
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
+		{"UpdateScriptContents", testUpdateScriptContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -257,6 +259,54 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
+}
+
+func testListPendingScriptDEPRestoration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host", "10.0.0.1", "1", "uuid1", time.Now())
+
+	// no script saved yet
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	// create a createdScript execution request (with a user)
+	u := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+	createdScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         host.ID,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, uint(1), createdScript.HostID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, "echo", createdScript.ScriptContents)
+	require.Nil(t, createdScript.ExitCode)
+	require.Empty(t, createdScript.Output)
+	require.NotNil(t, createdScript.UserID)
+	require.Equal(t, u.ID, *createdScript.UserID)
+	require.True(t, createdScript.SyncRequest)
+
+	// the script execution is now listed as pending for this host
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript.ID, pending[0].ID)
+
+	err = ds.DeleteHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	err = ds.RestoreMDMApplePendingDEPHost(ctx, host)
+	require.NoError(t, err)
+
+	// the script execution is no longer listed as pending for this host
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pending, 0)
 }
 
 func testScripts(t *testing.T, ds *Datastore) {
@@ -1536,4 +1586,43 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		scriptExecution.ID,
 	)
 	require.Equal(t, 1, count)
+}
+
+func testUpdateScriptContents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	originalScript, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1",
+		ScriptContents: "hello world",
+	})
+	require.NoError(t, err)
+
+	originalContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, "hello world", string(originalContents))
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE scripts SET updated_at = ? WHERE id = ?", time.Now().Add(-2*time.Minute), originalScript.ID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// Make sure updated_at was changed correctly, but the script is the same
+	oldScript, err := ds.Script(ctx, originalScript.ID)
+	require.Equal(t, originalScript.ScriptContentID, oldScript.ScriptContentID)
+	require.NoError(t, err)
+	require.NotEqual(t, originalScript.UpdatedAt, oldScript.UpdatedAt)
+
+	// Modify the script
+	updatedScript, err := ds.UpdateScriptContents(ctx, originalScript.ID, "updated script")
+	require.NoError(t, err)
+	require.Equal(t, originalScript.ID, updatedScript.ID)
+	require.Equal(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
+
+	updatedContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	require.NoError(t, err)
+	require.Equal(t, "updated script", string(updatedContents))
+	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
 }

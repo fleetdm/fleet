@@ -194,8 +194,9 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		ds.ReportEscrowErrorFuncInvoked = false
 		passphrase, salt := "foo", ""
 		var keySlot *uint
-		ds.SaveLUKSDataFunc = func(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlotToPersist uint) error {
-			require.Equal(t, host.ID, hostID)
+		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
+			encryptedBase64Salt string, keySlotToPersist uint) error {
+			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
 
 			decryptedPassphrase, err := mdm.DecodeAndDecrypt(encryptedBase64Passphrase, key)

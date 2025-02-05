@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
@@ -9,13 +10,15 @@ import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -41,6 +44,12 @@ export interface IQueriesTableProps {
     team_id?: string;
   };
   currentTeamId?: number;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const DEFAULT_SORT_DIRECTION = "asc";
@@ -202,7 +211,7 @@ const QueriesTable = ({
   ]);
 
   const handlePlatformFilterDropdownChange = useCallback(
-    (selectedTargetedPlatform: string) => {
+    (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_QUERIES,
@@ -212,9 +221,9 @@ const QueriesTable = ({
             platform:
               // separate URL & API 0-values of `platform` (undefined) from dropdown
               // 0-value of "all"
-              selectedTargetedPlatform === "all"
+              selectedTargetedPlatform?.value === "all"
                 ? undefined
-                : selectedTargetedPlatform,
+                : selectedTargetedPlatform?.value,
           },
         })
       );
@@ -222,15 +231,23 @@ const QueriesTable = ({
     [queryParams, router]
   );
 
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.QUERY_DETAILS(row.original.id, currentTeamId);
+
+      router && router.push(path);
+    }
+  };
+
   const renderPlatformDropdown = useCallback(() => {
     return (
-      <Dropdown
+      <DropdownWrapper
+        name="platform-dropdown"
         value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
         onChange={handlePlatformFilterDropdownChange}
-        iconName="filter"
+        variant="table-filter"
       />
     );
   }, [curTargetedPlatformFilter, queryParams, router]);
@@ -301,6 +318,8 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable={searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
+          disableMultiRowSelect={onlyInheritedQueries}
+          onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
         />
       </div>

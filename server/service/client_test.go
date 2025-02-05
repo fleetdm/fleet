@@ -778,7 +778,7 @@ func TestGitOpsErrors(t *testing.T) {
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil)
+			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

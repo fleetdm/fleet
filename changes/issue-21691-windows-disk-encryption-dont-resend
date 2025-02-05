@@ -1,0 +1,2 @@
+- remove the resend button for failed windows disk encryption profiles and add messaging that tells
+the user that Fleet with automatically retry this profile again.

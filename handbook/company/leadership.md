@@ -32,7 +32,6 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 - I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's always ok to interrupt and tell me to my face, or send me a direct message.
 -->
 
-
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
 
@@ -189,26 +188,19 @@ If the consultant is international, you will also provide:
 
 At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
 
-> Are you a new fleetie joining the Digital Experience team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
-
 
 ### Hiring restrictions
 
-**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevent us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
 **Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 
-## Interviewing
+### Communicating with applicants 
 
-> TODO: Rewrite this section for the hiring manager as our audience.
+At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. We [track all applicants](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) in the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and respond within one business day. 
 
-We're glad you're interested in joining the team! 
-Here are some of the things you can anticipate throughout this process:
-  - We will reply by email within one business day from the time when the application arrives.
-  - You may receive a rejection email (Bummer, consider applying again in the future).
-  - You may receive an invitation to "book with us."
-If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
+> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -230,7 +222,7 @@ Want to hire? Use these steps to hire a [fleetie, not a consultant](https://flee
     - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
     - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
     - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
-
+  - If needed, you can override the default compensation range ($48,000 - $480,000) in the open position template page by adding a `onTargetEarnings` value to the open position. If provided, `onTargetEarnings` values should be a string containing the salary range for the the proposed position.
 
 A completed open position entry should look something like this:
 
@@ -452,7 +444,12 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
+#### Stubs
 
+The following stubs are included only to make links backward compatible.
+
+##### Interviewing
+Please see 📖[handbook/company/leadership#communicating-with-applicants](https://fleetdm.com/handbook/company/leadership#communicating-with-applicants).
 
 
 <meta name="maintainedBy" value="mikermcneil">

@@ -129,7 +129,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        Set your organization information and configure SSO and SMTP
+        Set your organization information and configure SSO and SMTP.
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

@@ -36,17 +36,22 @@ parasails.registerPage('query-generator', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
-      let argins = this.formData.naturalLanguageQuestion;
-      this.queryResult = await Cloud.getLlmGeneratedSql(argins)
-      .tolerate((err)=>{
-        this.cloudError = err;
-        this.syncing = false;
-      });
+      this.syncing = true;
+      io.socket.get('/api/v1/query-generator/get-llm-generated-sql', {naturalLanguageQuestion: this.formData.naturalLanguageQuestion}, ()=>{});
+      io.socket.on('queryGenerated', this._onQueryResultsReturned);
+      io.socket.on('error', this._onQueryGenerationError);
     },
-    submittedQueryForm: function() {
-      if(!this.cloudError){
-        this.showGeneratedQuery = true;
-      }
+    _onQueryResultsReturned: function(response) {
+      this.queryResult = response.result;
+      this.syncing = false;
+      this.showGeneratedQuery = true;
+      // Disable the socket event listener after we display the results.
+      io.socket.off('queryGenerated', this._onQueryResultsReturned);
+    },
+    _onQueryGenerationError: function(response) {
+      this.cloudError = response.error;
+      this.syncing = false;
+      io.socket.off('error', this._onQueryGenerationError);
     },
     clickResetQueryGenerator: function() {
       this.showGeneratedQuery = false;

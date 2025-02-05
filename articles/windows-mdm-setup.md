@@ -147,17 +147,17 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 Fleet can automatically migrate your Windows hosts from another MDM solution to Fleet without end user interaction.
 
-### Step 1: set up Windows MDM in Fleet
+### Step 1: Set up Windows MDM in Fleet
 
 Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet. 
 
-### Step 2: install Fleet's agent on the hosts
+### Step 2: Install Fleet's agent on the hosts
 
 1. [Enroll](https://fleetdm.com/docs/using-fleet/enroll-hosts) the Windows hosts you want to migrate to Fleet.
 
 2. Navigate to the **Hosts** tab in the main navigation bar and wait until your hosts are visible in the hosts list.
 
-### Step 3: enable automatic migration
+### Step 3: Enable automatic migration
 
 1. Head back to the **Settings > Integrations > Mobile device management (MDM)** page.
 
@@ -165,7 +165,7 @@ Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet.
 
 3. On the **Manage Windows MDM** page, select **Automatically migrate hosts connected to another MDM solution**. Click **Save** to save the change.
 
-### Step 4: monitor your hosts as they migrate to Fleet MDM
+### Step 4: Monitor your hosts as they migrate to Fleet MDM
 
 Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 

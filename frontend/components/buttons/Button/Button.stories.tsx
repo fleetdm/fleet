@@ -1,14 +1,14 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import Button from ".";
-import { IButtonProps } from "./Button";
 
 import "../../../index.scss";
 
-export default {
-  component: Button,
+const meta: Meta<typeof Button> = {
+  // TODO: change this after button is updated to a functional component. For
+  // some reason the typing is incorrect becuase Button is a class component.
+  component: Button as any,
   title: "Components/Button",
   argTypes: {
     variant: {
@@ -47,14 +47,23 @@ export default {
     title: "",
     onClick: noop,
   },
-} as Meta;
+};
 
-const Template: Story<IButtonProps> = (props) => (
-  <Button {...props}>Click Here</Button>
-);
+export default meta;
 
-export const Default = Template.bind({});
-Default.args = { variant: "brand", type: "button" };
+type Story = StoryObj<typeof Button>;
 
-export const Disabled = Template.bind({});
-Disabled.args = { ...Default.args, disabled: true };
+export const Default: Story = {
+  args: {
+    variant: "brand",
+    type: "button",
+    children: "Click Here",
+  },
+};
+
+export const Disabled: Story = {
+  args: {
+    ...Default.args,
+    disabled: true,
+  },
+};

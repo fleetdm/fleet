@@ -351,17 +351,6 @@ export default {
 
     return sendRequest("GET", path);
   },
-  // TODO: change/remove this when backend implments way for client to get
-  // a collection of hosts based on ho  st ids
-  getHosts: (hostIds: number[]) => {
-    return Promise.all(
-      hostIds.map((hostId) => {
-        const { HOSTS } = endpoints;
-        const path = `${HOSTS}/${hostId}`;
-        return sendRequest("GET", path);
-      })
-    );
-  },
 
   loadHosts: ({
     page = 0,

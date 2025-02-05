@@ -1,0 +1,1 @@
+* Revised software installer package validation to mark installers with no version as "unknown" for version rather than rejecting them

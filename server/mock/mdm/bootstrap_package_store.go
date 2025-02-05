@@ -42,37 +42,37 @@ type MDMBootstrapPackageStore struct {
 	mu sync.Mutex
 }
 
-func (fs *MDMBootstrapPackageStore) Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error) {
-	fs.mu.Lock()
-	fs.GetFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.GetFunc(ctx, packageID)
+func (s *MDMBootstrapPackageStore) Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error) {
+	s.mu.Lock()
+	s.GetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFunc(ctx, packageID)
 }
 
-func (fs *MDMBootstrapPackageStore) Put(ctx context.Context, packageID string, content io.ReadSeeker) error {
-	fs.mu.Lock()
-	fs.PutFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.PutFunc(ctx, packageID, content)
+func (s *MDMBootstrapPackageStore) Put(ctx context.Context, packageID string, content io.ReadSeeker) error {
+	s.mu.Lock()
+	s.PutFuncInvoked = true
+	s.mu.Unlock()
+	return s.PutFunc(ctx, packageID, content)
 }
 
-func (fs *MDMBootstrapPackageStore) Exists(ctx context.Context, packageID string) (bool, error) {
-	fs.mu.Lock()
-	fs.ExistsFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.ExistsFunc(ctx, packageID)
+func (s *MDMBootstrapPackageStore) Exists(ctx context.Context, packageID string) (bool, error) {
+	s.mu.Lock()
+	s.ExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExistsFunc(ctx, packageID)
 }
 
-func (fs *MDMBootstrapPackageStore) Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error) {
-	fs.mu.Lock()
-	fs.CleanupFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.CleanupFunc(ctx, usedPackageIDs, removeCreatedBefore)
+func (s *MDMBootstrapPackageStore) Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error) {
+	s.mu.Lock()
+	s.CleanupFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupFunc(ctx, usedPackageIDs, removeCreatedBefore)
 }
 
-func (fs *MDMBootstrapPackageStore) Sign(ctx context.Context, fileID string) (string, error) {
-	fs.mu.Lock()
-	fs.SignFuncInvoked = true
-	fs.mu.Unlock()
-	return fs.SignFunc(ctx, fileID)
+func (s *MDMBootstrapPackageStore) Sign(ctx context.Context, fileID string) (string, error) {
+	s.mu.Lock()
+	s.SignFuncInvoked = true
+	s.mu.Unlock()
+	return s.SignFunc(ctx, fileID)
 }

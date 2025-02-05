@@ -32,7 +32,7 @@ type listActivitiesResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listActivitiesResponse) error() error { return r.Err }
+func (r listActivitiesResponse) Error() error { return r.Err }
 
 func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listActivitiesRequest)
@@ -97,14 +97,8 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			}
 			userName = &user.Name
 			userEmail = &user.Email
-		} else if ranScriptActivity, ok := activity.(fleet.ActivityTypeRanScript); ok {
-			if ranScriptActivity.PolicyID != nil {
-				userName = &automationActivityAuthor
-			}
-		} else if softwareInstallActivity, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
-			if softwareInstallActivity.PolicyID != nil {
-				userName = &automationActivityAuthor
-			}
+		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+			userName = &automationActivityAuthor
 		}
 
 		go func() {
@@ -161,7 +155,7 @@ type listHostUpcomingActivitiesResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listHostUpcomingActivitiesResponse) error() error { return r.Err }
+func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)

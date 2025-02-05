@@ -141,7 +141,7 @@ type SoftwareInstaller struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
-	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	// LabelsIncludeAny is the list of "include any" labels for this software installer (if not nil).
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
@@ -156,6 +156,19 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+}
+
+// VPPAppResponse is the response type used when applying app store apps by batch.
+type VPPAppResponse struct {
+	// TeamID is the ID of the team.
+	// A value of nil means it is scoped to hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID *uint `json:"title_id" db:"title_id"`
+	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
+	AppStoreID string `json:"app_store_id" db:"app_store_id"`
+	// Platform is the platform this title ID corresponds to
+	Platform AppleDevicePlatform `json:"platform" db:"platform"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -444,6 +457,14 @@ type HostSoftwareWithInstaller struct {
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+}
+
+func (h *HostSoftwareWithInstaller) IsPackage() bool {
+	return h.SoftwarePackage != nil
+}
+
+func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
+	return h.AppStoreApp != nil
 }
 
 type AutomaticInstallPolicy struct {

@@ -12,6 +12,7 @@ module.exports.policies = {
 
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
+  'query-generator/*': 'has-query-generator-access',
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
@@ -25,7 +26,10 @@ module.exports.policies = {
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
   'view-query-detail': true,
+  'view-policy-details': true,
   'view-query-library': true,
+  'view-policy-library': true,
+  'view-vital-details': true,
   'docs/*': true,
   'handbook/*': true,
   'download-sitemap': true,

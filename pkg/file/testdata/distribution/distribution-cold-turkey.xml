@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<installer-gui-script authoringTool="Packages" authoringToolVersion="1.2.10" authoringToolBuild="732" minSpecVersion="1.0">
+    <options rootVolumeOnly="true" customize="never" hostArchitectures="x86_64"/>
+    <installation-check script="installation_check()"/>
+    <!--+==========================+
+        |       Presentation       |
+        +==========================+-->
+    <title>DISTRIBUTION_TITLE</title>
+    <license file="license.txt"/>
+    <!--+==========================+
+        |         Installer        |
+        +==========================+-->
+    <choices-outline>
+        <line choice="installer_choice_1"/>
+        <line choice="installer_choice_2"/>
+        <line choice="installer_choice_3"/>
+        <line choice="installer_choice_4"/>
+    </choices-outline>
+    <choice id="installer_choice_1" title="Cold Turkey Blocker" description="">
+        <pkg-ref id="com.getcoldturkey.coldturkeyblocker"/>
+    </choice>
+    <choice id="installer_choice_2" title="NMHChrome" description="">
+        <pkg-ref id="com.getcoldturkey.blocker-chrome-ext"/>
+    </choice>
+    <choice id="installer_choice_3" title="NMHFirefox" description="">
+        <pkg-ref id="com.getcoldturkey.blocker-firefox-ext"/>
+    </choice>
+    <choice id="installer_choice_4" title="NMHEdge" description="">
+        <pkg-ref id="com.getcoldturkey.blocker-edge-ext"/>
+    </choice>
+    <!--+==========================+
+        |    Package References    |
+        +==========================+-->
+    <pkg-ref id="com.getcoldturkey.blocker-firefox-ext" version="4.5" auth="Root" installKBytes="1335">#NMHFirefox.pkg</pkg-ref>
+    <pkg-ref id="com.getcoldturkey.blocker-edge-ext" version="4.5" auth="Root" installKBytes="1333">#NMHEdge.pkg</pkg-ref>
+    <pkg-ref id="com.getcoldturkey.blocker-chrome-ext" version="4.5" auth="Root" installKBytes="1333">#NMHChrome.pkg</pkg-ref>
+    <pkg-ref id="com.getcoldturkey.coldturkeyblocker" version="4.5" auth="Root" installKBytes="22529">#Cold_Turkey_Blocker.pkg</pkg-ref>
+    <!--+==========================+
+        |    JavaScript Scripts    |
+        +==========================+-->
+    <script>
+
+	const __IC_FLAT_DISTRIBUTION__=true;
+	const IC_OS_DISTRIBUTION_TYPE_ANY=0;
+	const IC_OS_DISTRIBUTION_TYPE_CLIENT=1;
+	const IC_DISK_TYPE_DESTINATION=0;
+	const IC_OS_DISTRIBUTION_TYPE_SERVER=2;
+	const IC_DISK_TYPE_STARTUP_DISK=1;
+
+	const IC_CONDITION_EXIST=0;
+	const IC_CONDITION_DOES_NOT_EXIST=1;
+	const IC_SELECTOR_ANY=0;
+	const IC_SELECTOR_ALL=1;
+
+	function IC_CheckOS(inDiskType,inMustBeInstalled,inMinimumVersion,inMaximumVersion,inDistributionType)
+	{
+		var tOSVersion=undefined;
+		
+		/* Check Version Constraints */
+		
+		if (inDiskType==IC_DISK_TYPE_DESTINATION)
+		{
+			if (my.target.systemVersion!=undefined)
+			{
+				tOSVersion=my.target.systemVersion.ProductVersion;
+			}
+			
+			/* Check if no OS is installed on the potential target */
+			
+			if (tOSVersion==undefined)
+			{
+				return (inMustBeInstalled==false);
+			}
+			
+			if (inMustBeInstalled==false)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			tOSVersion=system.version.ProductVersion;
+		}
+		
+		if (system.compareVersions(tOSVersion,inMinimumVersion)==-1)
+			return false;
+			
+		if (inMaximumVersion!=undefined &amp;&amp;
+			system.compareVersions(tOSVersion,inMaximumVersion)==1)
+			return false;
+		
+		/* Check Distribution Type */
+		
+		if (inDistributionType!=IC_OS_DISTRIBUTION_TYPE_ANY)
+		{
+			var tIsServer;
+			
+			if (system.compareVersions(tOSVersion,'10.8.0')==-1)
+			{
+				if (inDiskType==IC_DISK_TYPE_DESTINATION)
+				{
+					tIsServer=system.files.fileExistsAtPath(my.target.mountpoint+'/System/Library/CoreServices/ServerVersion.plist');
+				}
+				else
+				{
+					tIsServer=system.files.fileExistsAtPath('/System/Library/CoreServices/ServerVersion.plist');
+				}
+			}
+			else
+			{
+				if (inDiskType==IC_DISK_TYPE_DESTINATION)
+				{
+					tIsServer=system.files.fileExistsAtPath(my.target.mountpoint+'/Applications/Server.app');
+				}
+				else
+				{
+					tIsServer=system.files.fileExistsAtPath('/Applications/Server.app');
+				}
+			}
+			
+			if (inDistributionType==IC_OS_DISTRIBUTION_TYPE_CLIENT &amp;&amp; tIsServer==true)
+			{
+				return false;
+			}
+			
+			if (inDistributionType==IC_OS_DISTRIBUTION_TYPE_SERVER &amp;&amp; tIsServer==false)
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
+	function IC_CheckFiles(inSelector,inCondition,inDiskType,inFiles)
+	{
+		var tCount;
+		
+		tCount=inFiles.length;
+		
+		if (tCount&gt;0)
+		{
+			var tIndex;
+			var tExists;
+			var tPath;
+			var atLeastOneTrue=false;
+			
+			for(tIndex=0;tIndex&lt;tCount;tIndex++)
+			{
+				tPath=inFiles[tIndex];
+			
+				if (inDiskType==IC_DISK_TYPE_DESTINATION)
+				{
+					tPath=my.target.mountpoint+tPath;
+				}
+			
+				if (system.files.fileExistsAtPath(tPath)==true)
+				{
+					if (inCondition==IC_CONDITION_EXIST)
+					{
+						atLeastOneTrue=true;
+						
+						if (inSelector==IC_SELECTOR_ANY)
+						{
+							return true;
+						}
+					}
+					else if (inCondition==IC_CONDITION_DOES_NOT_EXIST &amp;&amp; inSelector==IC_SELECTOR_ALL)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if (inCondition==IC_CONDITION_EXIST &amp;&amp; inSelector==IC_SELECTOR_ALL)
+					{
+						return false;
+					}
+					else if (inCondition==IC_CONDITION_DOES_NOT_EXIST)
+					{
+						atLeastOneTrue=true;
+						
+						if (inSelector==IC_SELECTOR_ANY)
+						{
+							return true;
+						}
+					}
+				}
+			}
+		
+			return atLeastOneTrue;
+		}
+		
+		return true;
+	}
+
+	function installation_check()
+	{
+		var tResult;
+
+		tResult=IC_CheckOS(IC_DISK_TYPE_STARTUP_DISK,true,'10.13',undefined,IC_OS_DISTRIBUTION_TYPE_ANY);
+
+		if (tResult==false)
+		{
+			my.result.title = system.localizedString('REQUIREMENT_FAILED_MESSAGE_INSTALLATION_CHECK_1');
+			my.result.message = system.localizedString('REQUIREMENT_FAILED_DESCRIPTION_INSTALLATION_CHECK_1');
+			my.result.type = 'Fatal';
+		}
+
+		if (tResult==true)
+		{
+			var tFilesToCheck1=new Array('/Library/Application Support/Cold Turkey/installer-locked');
+
+			tResult=IC_CheckFiles(IC_SELECTOR_ANY,IC_CONDITION_DOES_NOT_EXIST,IC_DISK_TYPE_STARTUP_DISK,tFilesToCheck1);
+
+			if (tResult==false)
+			{
+				my.result.title = system.localizedString('REQUIREMENT_FAILED_MESSAGE_INSTALLATION_CHECK_2');
+				my.result.message = system.localizedString('REQUIREMENT_FAILED_DESCRIPTION_INSTALLATION_CHECK_2');
+				my.result.type = 'Fatal';
+			}
+		}
+
+		return tResult;
+	}
+
+    </script>
+</installer-gui-script>
