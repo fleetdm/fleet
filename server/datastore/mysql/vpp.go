@@ -118,7 +118,6 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	// not handling it as part of the unified queue work.
 
 	// TODO(sarah): refactor vppHostStatusNamedQuery to use the same logic as below
-	// re: ^ : seems like the logic is the same except for pending/null?
 
 	// TODO(sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
