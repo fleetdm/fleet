@@ -80,6 +80,12 @@ acl = private
 ```
 `ACCESS_KEY`, `SECRET_ACCESS_KEY`, and `ACCOUNT_ID` are provided by the infrastructure team.
 
+To smoke test (read) access you can run:
+```sh
+rclone copy --verbose --checksum r2://updates-staging/timestamp.json .
+cat timestamp.json
+```
+
 ### TUF signing keys
 
 > You can skip this step if you already have authorized keys to sign and publish updates.
