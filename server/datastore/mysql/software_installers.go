@@ -1089,45 +1089,50 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := `WITH
 
 -- select most recent upcoming activities for each host
 upcoming AS (
 	SELECT
-		max(ua.id) AS upcoming_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		ua.host_id,
+		IF(ua.activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
 	FROM
 		upcoming_activities ua
 		JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
-		activity_type IN('software_install', 'software_uninstall')
-		AND software_installer_id = :installer_id
-	GROUP BY
-		host_id
+		ua.activity_type IN('software_install', 'software_uninstall')
+		AND ua2.id IS NULL
+		AND siua.software_installer_id = :installer_id
 ),
 
 -- select most recent past activities for each host
 past AS (
 	SELECT
-		max(hsi.id) AS past_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		hsi.host_id,
+		hsi.status
 	FROM
 		host_software_installs hsi
 		JOIN hosts h ON host_id = h.id
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
-		software_installer_id = :installer_id
-		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND host_deleted_at IS NULL
-		AND removed = 0
-	GROUP BY
-		host_id
+		hsi.software_installer_id = :installer_id
+		AND hsi.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hsi.host_deleted_at IS NULL
+		AND hsi.removed = 0
 )
 
 -- count each status
@@ -1142,18 +1147,14 @@ FROM (
 -- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
 	past.host_id,
-	status
-FROM
-	past
-	JOIN host_software_installs hsi ON hsi.id = past_id
+	past.status
+FROM past
 UNION
 SELECT
 	upcoming.host_id,
-	IF(activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
-	FROM
-		upcoming
-		JOIN software_install_upcoming_activities siua ON upcoming_id = siua.upcoming_activity_id
-		JOIN upcoming_activities ua ON ua.id = upcoming_id) t`
+	upcoming.status
+FROM upcoming
+) t`
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":                      installerID,
