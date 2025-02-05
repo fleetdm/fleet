@@ -141,11 +141,16 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
+				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
 				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
-				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -278,13 +283,18 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
+				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
 				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 				require.True(t, ok)
 				windowsSettings := fleet.WindowsSettings{}
 				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
 				mdm["windows_settings"] = windowsSettings
-				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}

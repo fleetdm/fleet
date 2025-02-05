@@ -1075,9 +1075,69 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 	}
 	mos, ok := mmdm[platformKey].(fleet.WithMDMProfileSpecs)
 	if !ok || mos == nil {
-		return nil
+		return legacyExtractAppCfgCustomSettings(mmdm, platformKey)
 	}
 	return mos.GetMDMProfileSpecs()
+}
+
+// legacyExtractAppCfgCustomSettings is used to extract custom settings for legacy fleetctl apply use case
+func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey string) []fleet.MDMProfileSpec {
+	mos, ok := mmdm[platformKey].(map[string]interface{})
+	if !ok || mos == nil {
+		return nil
+	}
+	cs, ok := mos["custom_settings"]
+	if !ok {
+		// custom settings is not present
+		return nil
+	}
+
+	csAny, ok := cs.([]interface{})
+	if !ok || csAny == nil {
+		// return a non-nil, empty slice instead, so the caller knows that the
+		// custom_settings key was actually provided.
+		return []fleet.MDMProfileSpec{}
+	}
+
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
+	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
+	for _, v := range csAny {
+		if m, ok := v.(map[string]interface{}); ok {
+			var profSpec fleet.MDMProfileSpec
+
+			// extract the Path field
+			if path, ok := m["path"].(string); ok {
+				profSpec.Path = path
+			}
+
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
+
+			if profSpec.Path != "" {
+				csSpecs = append(csSpecs, profSpec)
+			}
+		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+			if m != "" {
+				csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
+			}
+		}
+	}
+	return csSpecs
 }
 
 func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
