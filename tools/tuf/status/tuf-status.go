@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -41,61 +42,13 @@ type content struct {
 func main() {
 	app := cli.NewApp()
 	app.Name = "tuf-status"
-	app.Usage = "CLI to query a Fleet TUF repository hosted on AWS S3"
+	app.Usage = "CLI to query a Fleet TUF repository"
 	app.Commands = []*cli.Command{
-		keyFilterCommand(),
 		channelVersionCommand(),
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
 		os.Exit(1)
-	}
-}
-
-func keyFilterCommand() *cli.Command {
-	var (
-		filter string
-		tufURL string
-	)
-	return &cli.Command{
-		Name:  "key-filter",
-		Usage: "Fetch and filter the entries by the given value",
-		UsageText: `- To filter all items on the edge channel use -filter="edge"
-- To filter all items on version 1.3 including patches that run on Linux use -filter="linux/1.3.*"
-- To filter Fleet Desktop items on 1.3.*, stable and edge that run on macOS use -filter="desktop/*.*/macos/(1.3.*|stable|edge)"
-`,
-		Flags: []cli.Flag{
-			urlFlag(&tufURL),
-			&cli.StringFlag{
-				Name:        "filter",
-				EnvVars:     []string{"VALUE"},
-				Value:       "stable",
-				Destination: &filter,
-				Usage:       "Filter string value",
-			},
-		},
-		Action: func(c *cli.Context) error {
-			res, err := http.Get(tufURL) //nolint
-			if err != nil {
-				return err
-			}
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return err
-			}
-			defer res.Body.Close()
-
-			var list listBucketResult
-			if err := xml.Unmarshal(body, &list); err != nil {
-				return err
-			}
-
-			if err := printTable(list.Contents, filter); err != nil {
-				return err
-			}
-			return nil
-		},
 	}
 }
 
@@ -160,47 +113,62 @@ func byteCountSI(b int64) string {
 		float64(b)/float64(div), "kMGTPE"[exp])
 }
 
+var componentFileMap = map[string]map[string]string{
+	"orbit": {
+		"linux":       "orbit",
+		"linux-arm64": "orbit",
+		"macos":       "orbit",
+		"windows":     "orbit.exe",
+	},
+	"desktop": {
+		"linux":       "desktop.tar.gz",
+		"linux-arm64": "desktop.tar.gz",
+		"macos":       "desktop.app.tar.gz",
+		"windows":     "fleet-desktop.exe",
+	},
+	"osqueryd": {
+		"linux":       "osqueryd",
+		"linux-arm64": "osqueryd",
+		"macos-app":   "osqueryd.app.tar.gz",
+		"windows":     "osqueryd.exe",
+	},
+	"nudge": {
+		"macos": "nudge.app.tar.gz",
+	},
+	"swiftDialog": {
+		"macos": "swiftDialog.app.tar.gz",
+	},
+	"escrowBuddy": {
+		"macos": "escrowBuddy.pkg",
+	},
+}
+
 func channelVersionCommand() *cli.Command {
-	componentFileMap := map[string]map[string]string{
-		"orbit": {
-			"linux":       "orbit",
-			"linux-arm64": "orbit",
-			"macos":       "orbit",
-			"windows":     "orbit.exe",
-		},
-		"desktop": {
-			"linux":       "desktop.tar.gz",
-			"linux-arm64": "desktop.tar.gz",
-			"macos":       "desktop.app.tar.gz",
-			"windows":     "fleet-desktop.exe",
-		},
-		"osqueryd": {
-			"linux":       "osqueryd",
-			"linux-arm64": "osqueryd",
-			"macos-app":   "osqueryd.app.tar.gz",
-			"windows":     "osqueryd.exe",
-		},
-		"nudge": {
-			"macos": "nudge.app.tar.gz",
-		},
-		"swiftDialog": {
-			"macos": "swiftDialog.app.tar.gz",
-		},
-		"escrowBuddy": {
-			"macos": "escrowBuddy.pkg",
-		},
-	}
 	var (
 		channel    string
 		tufURL     string
 		components cli.StringSlice
 		format     string
+		vendor     string
 	)
 	return &cli.Command{
 		Name:  "channel-version",
 		Usage: "Fetch display the version of components on a channel (JSON output)",
 		Flags: []cli.Flag{
-			urlFlag(&tufURL),
+			&cli.StringFlag{
+				Name:        "url",
+				EnvVars:     []string{"URL"},
+				Value:       "https://updates.fleetdm.com",
+				Destination: &tufURL,
+				Usage:       "URL of the TUF repository",
+			},
+			&cli.StringFlag{
+				Name:        "s3-vendor",
+				EnvVars:     []string{"S3_VENDOR"},
+				Value:       "cloudflare",
+				Destination: &vendor,
+				Usage:       "Vendor that hosts the TUF repository, currently one of 'cloudflare' or 'amazon'",
+			},
 			&cli.StringFlag{
 				Name:        "channel",
 				EnvVars:     []string{"TUF_STATUS_CHANNEL"},
@@ -227,62 +195,22 @@ func channelVersionCommand() *cli.Command {
 			if format != "json" && format != "markdown" {
 				return errors.New("supported formats are: json, markdown")
 			}
+			if vendor != "cloudflare" && vendor != "amazon" {
+				return errors.New("supported vendors are: cloudflare, amazon")
+			}
 
-			res, err := http.Get(tufURL) //nolint
+			var (
+				foundComponents map[string]map[string]string // component -> OS -> eTag
+				eTagMap         map[string][]string
+				err             error
+			)
+			if vendor == "cloudflare" {
+				foundComponents, eTagMap, err = getComponentsCloudflare(tufURL, components.Value(), channel)
+			} else {
+				foundComponents, eTagMap, err = getComponentsAmazon(tufURL, components.Value(), channel)
+			}
 			if err != nil {
-				return err
-			}
-
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
-				return err
-			}
-			defer res.Body.Close()
-
-			selectedComponents := make(map[string]struct{})
-			for _, component := range components.Value() {
-				selectedComponents[component] = struct{}{}
-			}
-
-			var list listBucketResult
-			if err := xml.Unmarshal(body, &list); err != nil {
-				return err
-			}
-
-			eTagMap := make(map[string][]string)
-			foundComponents := make(map[string]map[string]string) // component -> OS -> eTag
-			for _, content := range list.Contents {
-				parts := strings.Split(content.Key, "/")
-				if len(parts) != 5 {
-					continue
-				}
-				componentPart := parts[1]
-				if _, ok := selectedComponents[componentPart]; !ok {
-					continue
-				}
-				osPart := parts[2]
-				channelPart := parts[3]
-				itemPart := parts[4]
-				if validVersion(channelPart) {
-					eTagMap[content.ETag] = append(eTagMap[content.ETag], channelPart)
-				}
-				if channelPart != channel {
-					continue
-				}
-				m, ok := componentFileMap[componentPart]
-				if !ok {
-					continue
-				}
-				if v, ok := m[osPart]; !ok || v != itemPart {
-					continue
-				}
-
-				osMap := foundComponents[componentPart]
-				if osMap == nil {
-					osMap = make(map[string]string)
-				}
-				osMap[osPart] = content.ETag
-				foundComponents[componentPart] = osMap
+				return fmt.Errorf("get components: %w", err)
 			}
 
 			outputMap := make(map[string]map[string]string) // component -> OS -> version
@@ -364,12 +292,161 @@ func validVersion(version string) bool {
 	return true
 }
 
-func urlFlag(url *string) *cli.StringFlag {
-	return &cli.StringFlag{
-		Name:        "url",
-		EnvVars:     []string{"URL"},
-		Value:       "https://tuf.fleetctl.com",
-		Destination: url,
-		Usage:       "URL of the TUF repository",
+func getComponentsAmazon(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, eTagMap map[string][]string, err error) {
+	res, err := http.Get(tufURL) //nolint
+	if err != nil {
+		return nil, nil, err
 	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer res.Body.Close()
+
+	selectedComponents := make(map[string]struct{})
+	for _, component := range components {
+		selectedComponents[component] = struct{}{}
+	}
+
+	var list listBucketResult
+	if err := xml.Unmarshal(body, &list); err != nil {
+		return nil, nil, err
+	}
+
+	eTagMap = make(map[string][]string)
+	foundComponents = make(map[string]map[string]string) // component -> OS -> eTag
+	for _, content := range list.Contents {
+		parts := strings.Split(content.Key, "/")
+		if len(parts) != 5 {
+			continue
+		}
+		componentPart := parts[1]
+		if _, ok := selectedComponents[componentPart]; !ok {
+			continue
+		}
+		osPart := parts[2]
+		channelPart := parts[3]
+		itemPart := parts[4]
+		if validVersion(channelPart) {
+			eTagMap[content.ETag] = append(eTagMap[content.ETag], channelPart)
+		}
+		if channelPart != channel {
+			continue
+		}
+		m, ok := componentFileMap[componentPart]
+		if !ok {
+			continue
+		}
+		if v, ok := m[osPart]; !ok || v != itemPart {
+			continue
+		}
+
+		osMap := foundComponents[componentPart]
+		if osMap == nil {
+			osMap = make(map[string]string)
+		}
+		osMap[osPart] = content.ETag
+		foundComponents[componentPart] = osMap
+	}
+	return foundComponents, eTagMap, nil
+}
+
+func getComponentsCloudflare(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, eTagMap map[string][]string, err error) {
+	res, err := http.Get(tufURL + "/targets.json") //nolint
+	if err != nil {
+		return nil, nil, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	selectedComponents := make(map[string]struct{})
+	for _, component := range components {
+		selectedComponents[component] = struct{}{}
+	}
+
+	var targetsJSON map[string]interface{}
+	if err := json.Unmarshal(body, &targetsJSON); err != nil {
+		log.Fatal("failed to parse the source targets.json file")
+	}
+
+	signed_ := targetsJSON["signed"]
+	if signed_ == nil {
+		log.Fatal("missing signed key in targets.json file")
+	}
+	signed, ok := signed_.(map[string]interface{})
+	if !ok {
+		log.Fatalf("invalid signed key in targets.json file: %T, expected map", signed_)
+	}
+	targets_ := signed["targets"]
+	if targets_ == nil {
+		log.Fatal("missing signed.targets key in targets.json file")
+	}
+	targets, ok := targets_.(map[string]interface{})
+	if !ok {
+		log.Fatalf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
+	}
+
+	eTagMap = make(map[string][]string)
+	foundComponents = make(map[string]map[string]string) // component -> OS -> eTag
+	for target, metadata_ := range targets {
+		parts := strings.Split(target, "/")
+		if len(parts) != 4 {
+			log.Fatalf("target %q: invalid number of parts, expected 4", target)
+		}
+
+		targetName := parts[0]
+		platformPart := parts[1]
+		channelPart := parts[2]
+		executablePart := parts[3]
+
+		metadata, ok := metadata_.(map[string]interface{})
+		if !ok {
+			log.Fatalf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
+		}
+		custom_ := metadata["custom"]
+		if custom_ == nil {
+			log.Fatalf("target: %q: missing custom field", target)
+		}
+		hashes_ := metadata["hashes"]
+		if hashes_ == nil {
+			log.Fatalf("target: %q: missing hashes field", target)
+		}
+		hashes, ok := hashes_.(map[string]interface{})
+		if !ok {
+			log.Fatalf("target: %q: invalid hashes field: %T", target, hashes_)
+		}
+		sha512_ := hashes["sha512"]
+		if sha512_ == nil {
+			log.Fatalf("target: %q: missing hashes.sha512 field", target)
+		}
+		hashSHA512, ok := sha512_.(string)
+		if !ok {
+			log.Fatalf("target: %q: invalid hashes.sha512 field: %T", target, sha512_)
+		}
+		if validVersion(channelPart) {
+			eTagMap[hashSHA512] = append(eTagMap[hashSHA512], channelPart)
+		}
+		if channelPart != channel {
+			continue
+		}
+		m, ok := componentFileMap[targetName]
+		if !ok {
+			continue
+		}
+		if v, ok := m[platformPart]; !ok || v != executablePart {
+			continue
+		}
+		osMap := foundComponents[targetName]
+		if osMap == nil {
+			osMap = make(map[string]string)
+		}
+		osMap[platformPart] = hashSHA512
+		foundComponents[targetName] = osMap
+	}
+	return foundComponents, eTagMap, nil
 }
