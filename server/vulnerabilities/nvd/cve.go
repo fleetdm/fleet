@@ -676,10 +676,6 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 
 // checkVersion checks if the host software version matches the CPEMatch rule
 func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersionStr string) (string, error) {
-	if softwareVersionStr == "" {
-		return "", nil
-	}
-
 	if rule.VersionStartIncluding == "" && rule.VersionStartExcluding == "" && rule.VersionEndExcluding == "" {
 		return rule.VersionEndExcluding, nil
 	}
