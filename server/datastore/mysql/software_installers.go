@@ -1226,7 +1226,7 @@ WHERE
 	hvsi2.id IS NULL
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
-	AND hvsi.removed = 0 AND
+	AND hvsi.removed = 0 
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
@@ -1242,7 +1242,7 @@ WHERE
 ) hss ON hss.host_id = h.id
 `, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 
-	return sqlx.Named(stmt, map[string]interface{}{
+	q, a, e := sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
@@ -1253,6 +1253,8 @@ WHERE
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 	})
+	fmt.Println(">>> ", q)
+	return q, a, e
 }
 
 func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
