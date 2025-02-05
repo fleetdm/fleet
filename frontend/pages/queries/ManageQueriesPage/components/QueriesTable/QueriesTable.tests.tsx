@@ -143,7 +143,16 @@ const renderAsPremiumGlobalAdmin = createCustomRenderer({
   },
 });
 describe("QueriesTable", () => {
-  it("Renders the page-wide empty state when no queries are present", () => {
+  it("Renders the page-wide empty state when no queries are present (free tier)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -161,14 +170,81 @@ describe("QueriesTable", () => {
     ];
 
     testData.forEach((tableProps) => {
-      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      render(<QueriesTable {...tableProps} />);
       expect(
         screen.getByText("You don't have any queries")
       ).toBeInTheDocument();
       expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
     });
   });
-  it("Renders inherited global queries and team queries when viewing a team, then renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
+
+  it("Renders the page-wide empty state when no queries are present (all teams)", () => {
+    const testData: IQueriesTableProps[] = [
+      {
+        queries: [],
+        totalQueriesCount: 0,
+        hasNextResults: false,
+        onlyInheritedQueries: false,
+        isLoading: false,
+        onDeleteQueryClick: jest.fn(),
+        onCreateQueryClick: jest.fn(),
+        isOnlyObserver: false,
+        isObserverPlus: false,
+        isAnyTeamObserverPlus: false,
+        currentTeamId: undefined,
+        isPremiumTier: true,
+      },
+    ];
+
+    testData.forEach((tableProps) => {
+      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      expect(
+        screen.getByText("You don't have any queries that apply to all teams")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    });
+  });
+
+  it.only("Renders the page-wide empty state when no queries are present (specific team)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testData: IQueriesTableProps[] = [
+      {
+        queries: [],
+        totalQueriesCount: 0,
+        hasNextResults: false,
+        onlyInheritedQueries: false,
+        isLoading: false,
+        onDeleteQueryClick: jest.fn(),
+        onCreateQueryClick: jest.fn(),
+        isOnlyObserver: false,
+        isObserverPlus: false,
+        isAnyTeamObserverPlus: false,
+        isPremiumTier: true,
+        currentTeamId: 1,
+      },
+    ];
+
+    testData.forEach((tableProps) => {
+      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      expect(
+        screen.getByText("You don't have any queries that apply to this team")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    });
+  });
+
+  it.only("Renders inherited global queries and team queries when viewing a team, then renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [...testGlobalQueries, ...testTeamQueries],
