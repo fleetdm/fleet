@@ -14,7 +14,7 @@ Queries in Fleet allow you to ask questions to help you manage, monitor, and ide
 - [Schedule a query](#schedule-a-query)
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/watch?v=07ErAAahRsg" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/07ErAAahRsg?si=javux5zzcfXNTUra" allowfullscreen></iframe>
 </div>
 
 
