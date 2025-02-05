@@ -1223,15 +1223,15 @@ FROM
 			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
 	hvsi2.id IS NULL
-	AND hvsi.adam_id = :adam_id 
+	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND (%s) = :status
 	AND NOT EXISTS (
-		SELECT 1 
+		SELECT 1
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		WHERE 
+		WHERE
 			ua.host_id = hvsi.host_id
 			AND vaua.adam_id = hvsi.adam_id
 			AND vaua.platform = hvsi.platform
@@ -1285,30 +1285,32 @@ WHERE
 		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
 	}
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
-	host_id
+	hsi.host_id
 FROM
 	host_software_installs hsi
+	LEFT JOIN host_software_installs hsi2
+		ON hsi.host_id = hsi2.host_id AND
+			 hsi.software_title_id = hsi2.software_title_id AND
+			 hsi2.removed = 0 AND
+			 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 WHERE
-	software_title_id = :title_id
-	AND hsi.id IN(
-		SELECT
-			max(id) -- ensure we use only the most recent install attempt for each host
-			FROM host_software_installs
+	hsi2.id IS NULL 
+	AND hsi.software_title_id = :title_id
+	AND hsi.removed = 0
+	AND %s
+	AND NOT EXISTS (
+		SELECT 1
+		FROM
+			upcoming_activities ua
+			JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		WHERE
-			host_id = hsi.host_id
-			AND software_title_id = :title_id
-			AND removed = 0
-		GROUP BY
-			host_id, software_title_id)
-	AND %s) hss ON hss.host_id = h.id
+			ua.host_id = hsi.host_id
+			AND siua.software_title_id = hsi.software_title_id
+			AND ua.activity_type = 'software_install'
+	)
+) hss ON hss.host_id = h.id
 `, statusFilter)
 
 	return sqlx.Named(stmt, map[string]interface{}{
