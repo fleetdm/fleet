@@ -58,7 +58,15 @@ func (ds *Datastore) NewActivity(
 		cols = append(cols, "user_email")
 	}
 
-	if vppAct, ok := activity.(fleet.ActivityInstalledAppStoreApp); ok {
+	vppPtrAct, okPtr := activity.(*fleet.ActivityInstalledAppStoreApp)
+	vppAct, ok := activity.(fleet.ActivityInstalledAppStoreApp)
+	if okPtr || ok {
+		hostID := vppAct.HostID
+		cmdUUID := vppAct.CommandUUID
+		if okPtr {
+			cmdUUID = vppPtrAct.CommandUUID
+			hostID = vppPtrAct.HostID
+		}
 		// NOTE: ideally this would be called in the same transaction as storing
 		// the nanomdm command results, but the current design doesn't allow for
 		// that with the nano store being a distinct entity to our datastore (we
@@ -76,7 +84,7 @@ func (ds *Datastore) NewActivity(
 		// gets created only when the MDM command status is in a final state
 		// (success or failure), which is exactly when we want to activate the next
 		// activity.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), vppAct.HostID, vppAct.CommandUUID); err != nil {
+		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
 		}
 	}

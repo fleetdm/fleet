@@ -117,9 +117,9 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	// Currently there is no host_deleted_at in host_vpp_software_installs, so
 	// not handling it as part of the unified queue work.
 
-	// TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as below
+	// TODO(sarah): refactor vppHostStatusNamedQuery to use the same logic as below
 
-	// TODO(uniq): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
+	// TODO(sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
 	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
 	// recent activity since we didn't really need to worry about the order of activities.
 	// Moving to a time-based approach would be more accurate but would require a more complex and
@@ -706,7 +706,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 vat.self_service,
 	 va.title_id,
 	 va.platform,
-	 va.created_at, 
+	 va.created_at,
 	 va.updated_at,
 	 vat.id
 	FROM vpp_apps va

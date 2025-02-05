@@ -230,17 +230,19 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, createdScript3.ID, pending[0].ID)
 
 	// modify the upcoming script to be a sync script that has
-	// been pending for a long time
+	// been pending for a long time doesn't change result
+	// https://github.com/fleetdm/fleet/issues/22866#issuecomment-2575961141
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ?, payload = JSON_SET(payload, '$.sync_request', true) WHERE id = ?",
-			time.Now().Add(-24*time.Hour), createdScript3.ID)
+		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ?, payload = JSON_SET(payload, '$.sync_request', ?) WHERE id = ?",
+			time.Now().Add(-24*time.Hour), true, createdScript3.ID)
 		return err
 	})
 
-	// the script is not pending anymore
+	// the script is still pending
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1, false)
 	require.NoError(t, err)
-	require.Len(t, pending, 0)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript3.ExecutionID, pending[0].ExecutionID)
 
 	// check that scripts with large unsigned error codes get
 	// converted to signed error codes
