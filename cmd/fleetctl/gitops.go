@@ -283,12 +283,12 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 			baseDir := filepath.Dir(flFilename)
 			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
 			if err != nil {
-				return spec.Controls{}, false, err
+				return spec.GitOpsControls{}, false, err
 			}
 			return config.Controls, true, nil
 		}
 	}
-	return spec.Controls{}, false, nil
+	return spec.GitOpsControls{}, false, nil
 }
 
 // checkABMTeamAssignments validates the spec, and finds if:

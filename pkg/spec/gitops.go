@@ -23,12 +23,12 @@ type BaseItem struct {
 
 type GitOpsControls struct {
 	BaseItem
-	MacOSUpdates   interface{}       `json:"macos_updates"`
-	IOSUpdates     interface{}       `json:"ios_updates"`
-	IPadOSUpdates  interface{}       `json:"ipados_updates"`
-	MacOSSettings  interface{}       `json:"macos_settings"`
-	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
-	MacOSMigration interface{}       `json:"macos_migration"`
+	MacOSUpdates   interface{} `json:"macos_updates"`
+	IOSUpdates     interface{} `json:"ios_updates"`
+	IPadOSUpdates  interface{} `json:"ipados_updates"`
+	MacOSSettings  interface{} `json:"macos_settings"`
+	MacOSSetup     interface{} `json:"macos_setup"`
+	MacOSMigration interface{} `json:"macos_migration"`
 
 	WindowsUpdates              interface{} `json:"windows_updates"`
 	WindowsSettings             interface{} `json:"windows_settings"`
@@ -428,48 +428,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		// Nothing to do, return.
 		return multiError
 	}
-	var controlsTop GitOpsControls
-	var err error
 
-	if err = json.Unmarshal(controlsRaw, &controlsTop); err != nil {
+	var controlsTop GitOpsControls
+	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	controlsTop.Defined = true
 	controlsFilePath := yamlFilename
-	if controlsTop.Path == nil {
-		result.Controls = controlsTop
-	} else {
-		controlsFilePath = resolveApplyRelativePath(filepath.Dir(controlsFilePath), *controlsTop.Path)
-		fileBytes, err := os.ReadFile(controlsFilePath)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
-		}
-		// Replace $var and ${var} with env values.
-		fileBytes, err = ExpandEnvBytes(fileBytes)
-		if err != nil {
-			multiError = multierror.Append(
-				multiError, fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err),
-			)
-		} else {
-			var pathControls GitOpsControls
-			if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-				return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
-			}
-			if pathControls.Path != nil {
-				return multierror.Append(
-					multiError,
-					fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
-				)
-			}
-			result.Controls = pathControls
-		}
+	err := processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)
+	if err != nil {
+		return multierror.Append(multiError, err)
 	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
-	controlsFilename := filepath.Base(controlsFilePath)
 	result.Controls.Scripts, err = resolveScriptPaths(result.Controls.Scripts, controlsDir)
 	if err != nil {
-		return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilename, err))
+		return multierror.Append(multiError, fmt.Errorf("failed to parse scripts list in %s: %v", controlsFilePath, err))
 	}
 
 	// Find Fleet secrets in scripts.
@@ -536,6 +510,37 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 	}
 
 	return multiError
+}
+
+func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) error {
+	if controlsTop.Path == nil {
+		result.Controls = controlsTop
+		return nil
+	}
+
+	// There is a path attribute which points to the real controls section in a separate file, so we need to process that.
+	controlsFilePath = ptr.String(resolveApplyRelativePath(filepath.Dir(*controlsFilePath), *controlsTop.Path))
+	fileBytes, err := os.ReadFile(*controlsFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err)
+	}
+
+	// Replace $var and ${var} with env values.
+	fileBytes, err = ExpandEnvBytes(fileBytes)
+	if err != nil {
+		return fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err)
+	}
+
+	var pathControls GitOpsControls
+	if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
+		return fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err)
+	}
+	if pathControls.Path != nil {
+		return fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path)
+	}
+	pathControls.Defined = true
+	result.Controls = pathControls
+	return nil
 }
 
 func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
