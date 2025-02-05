@@ -145,4 +145,3 @@ software:
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
     - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
   app_store_apps:
-      - app_store_id: '803453959' # Slack Desktop
