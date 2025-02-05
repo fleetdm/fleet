@@ -87,7 +87,7 @@ type listHostsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r listHostsResponse) error() error { return r.Err }
+func (r listHostsResponse) Error() error { return r.Err }
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostsRequest)
@@ -271,7 +271,7 @@ type deleteHostsResponse struct {
 	StatusCode int   `json:"-"`
 }
 
-func (r deleteHostsResponse) error() error { return r.Err }
+func (r deleteHostsResponse) Error() error { return r.Err }
 
 // Status implements statuser interface to send out custom HTTP success codes.
 func (r deleteHostsResponse) Status() int { return r.StatusCode }
@@ -393,7 +393,7 @@ type countHostsResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countHostsResponse) error() error { return r.Err }
+func (r countHostsResponse) Error() error { return r.Err }
 
 func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countHostsRequest)
@@ -458,7 +458,7 @@ type searchHostsResponse struct {
 	Err   error                 `json:"error,omitempty"`
 }
 
-func (r searchHostsResponse) error() error { return r.Err }
+func (r searchHostsResponse) Error() error { return r.Err }
 
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*searchHostsRequest)
@@ -526,7 +526,7 @@ type getHostResponse struct {
 	Err  error               `json:"error,omitempty"`
 }
 
-func (r getHostResponse) error() error { return r.Err }
+func (r getHostResponse) Error() error { return r.Err }
 
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostRequest)
@@ -631,7 +631,7 @@ type getHostSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getHostSummaryResponse) error() error { return r.Err }
+func (r getHostSummaryResponse) Error() error { return r.Err }
 
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSummaryRequest)
@@ -765,7 +765,7 @@ type deleteHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteHostResponse) error() error { return r.Err }
+func (r deleteHostResponse) Error() error { return r.Err }
 
 func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostRequest)
@@ -822,7 +822,7 @@ type addHostsToTeamResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addHostsToTeamResponse) error() error { return r.Err }
+func (r addHostsToTeamResponse) Error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
@@ -941,7 +941,7 @@ type addHostsToTeamByFilterResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
+func (r addHostsToTeamByFilterResponse) Error() error { return r.Err }
 
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
@@ -1017,7 +1017,7 @@ type refetchHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r refetchHostResponse) error() error {
+func (r refetchHostResponse) Error() error {
 	return r.Err
 }
 
@@ -1334,7 +1334,7 @@ type getHostQueryReportResponse struct {
 	Err           error                         `json:"error,omitempty"`
 }
 
-func (r getHostQueryReportResponse) error() error { return r.Err }
+func (r getHostQueryReportResponse) Error() error { return r.Err }
 
 func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostQueryReportRequest)
@@ -1454,7 +1454,7 @@ type listHostDeviceMappingResponse struct {
 	Err           error                      `json:"error,omitempty"`
 }
 
-func (r listHostDeviceMappingResponse) error() error { return r.Err }
+func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
@@ -1500,7 +1500,7 @@ type putHostDeviceMappingResponse struct {
 	Err           error                      `json:"error,omitempty"`
 }
 
-func (r putHostDeviceMappingResponse) error() error { return r.Err }
+func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
@@ -1549,7 +1549,7 @@ type getHostMDMResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getHostMDMResponse) error() error { return r.Err }
+func (r getHostMDMResponse) Error() error { return r.Err }
 
 func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostMDMRequest)
@@ -1570,7 +1570,7 @@ type getHostMDMSummaryRequest struct {
 	Platform string `query:"platform,optional"`
 }
 
-func (r getHostMDMSummaryResponse) error() error { return r.Err }
+func (r getHostMDMSummaryResponse) Error() error { return r.Err }
 
 func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostMDMSummaryRequest)
@@ -1597,7 +1597,7 @@ type getMacadminsDataResponse struct {
 	Macadmins *fleet.MacadminsData `json:"macadmins"`
 }
 
-func (r getMacadminsDataResponse) error() error { return r.Err }
+func (r getMacadminsDataResponse) Error() error { return r.Err }
 
 func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMacadminsDataRequest)
@@ -1674,7 +1674,7 @@ type getAggregatedMacadminsDataResponse struct {
 	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
 }
 
-func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
+func (r getAggregatedMacadminsDataResponse) Error() error { return r.Err }
 
 func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAggregatedMacadminsDataRequest)
@@ -1802,7 +1802,7 @@ type hostsReportResponse struct {
 	Err     error                 `json:"error,omitempty"`
 }
 
-func (r hostsReportResponse) error() error { return r.Err }
+func (r hostsReportResponse) Error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
@@ -1971,7 +1971,7 @@ type osVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r osVersionsResponse) error() error { return r.Err }
+func (r osVersionsResponse) Error() error { return r.Err }
 
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*osVersionsRequest)
@@ -2101,7 +2101,7 @@ type getOSVersionResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r getOSVersionResponse) error() error { return r.Err }
+func (r getOSVersionResponse) Error() error { return r.Err }
 
 func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOSVersionRequest)
@@ -2203,7 +2203,7 @@ type getHostEncryptionKeyResponse struct {
 	HostID        uint                         `json:"host_id,omitempty"`
 }
 
-func (r getHostEncryptionKeyResponse) error() error { return r.Err }
+func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
@@ -2329,7 +2329,7 @@ type getHostHealthResponse struct {
 	HostHealth *fleet.HostHealth `json:"health,omitempty"`
 }
 
-func (r getHostHealthResponse) error() error { return r.Err }
+func (r getHostHealthResponse) Error() error { return r.Err }
 
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostHealthRequest)
@@ -2461,7 +2461,7 @@ type addLabelsToHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addLabelsToHostResponse) error() error { return r.Err }
+func (r addLabelsToHostResponse) Error() error { return r.Err }
 
 func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addLabelsToHostRequest)
@@ -2506,7 +2506,7 @@ type removeLabelsFromHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r removeLabelsFromHostResponse) error() error { return r.Err }
+func (r removeLabelsFromHostResponse) Error() error { return r.Err }
 
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*removeLabelsFromHostRequest)
@@ -2638,7 +2638,7 @@ type getHostSoftwareResponse struct {
 	Err      error                              `json:"error,omitempty"`
 }
 
-func (r getHostSoftwareResponse) error() error { return r.Err }
+func (r getHostSoftwareResponse) Error() error { return r.Err }
 
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSoftwareRequest)

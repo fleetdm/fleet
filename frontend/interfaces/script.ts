@@ -19,6 +19,8 @@ export interface ILastExecution {
   status: IScriptExecutionStatus;
 }
 
+export type ScriptContent = string;
+
 export interface IHostScript {
   script_id: number;
   name: string;
