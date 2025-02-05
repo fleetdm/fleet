@@ -138,10 +138,12 @@ The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#te
 
 ## Go-To-Market outreach 
 
-Go-To-Market (GTM) strategy At Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. Regardless of whether you're reaching out to a prospect or customer, each individual in the community has a single DRI that will project manage all communication from Fleet the brand, as well as our team members. This helps us stick to already made decisions and forces us to keep our promise of "Fewer words. Fewer pings". The DRIs for GTM outreach are as follows: 
-- **🦄 Current prospects**: DRI == the Account Development Rep (ADR) assigned to that account.
-- **🛬 Current customers**: DRI == The Customer Support Manager (CSM) assigned to that account.
-- **🛫 Closed lost prospects**: DRI == the Account Development Rep (ADR) assigned to that account.
+Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
+
+When you reach out to a prospect or customer, make sure you're the right person:
+- **🐋 "Sales-ready" prospect**: The rep (AE) reaches out.
+- **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
+- **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
 
 ## Marketing programs
