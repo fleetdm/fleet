@@ -11,6 +11,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 - Automatically install software
 - Faster employee onboarding
+- GitHub (SLSA) attestation
 
 ### Automatically install software
 
@@ -19,6 +20,10 @@ Fleet can now automatically install App Store (VPP) apps when a macOS host fails
 ### Faster employee onboarding
 
 During new employee onboarding, Macs can now optionally download bootstrap packages and software from the nearest CloudFront region. This speeds up onboarding for organizations that onboard new employees at different headquarters across the world. Learn more [here](https://fleetdm.com/guides/cdn-signed-urls).
+
+### GitHub (SLSA) attestation
+
+Fleet and Fleet's agent (`fleetd`) release binaries and images now include Supply-chain Level Software Attestation (SLSA). This allows security-conscious teams to verify that the artifacts they deploy are the exact ones produced by Fleet’s official GitHub workflows, ensuring integrity and preventing tampering. Learn more [here](https://fleetdm.com/guides/fleet-software-attestation). 
 
 ## Changes
 
@@ -32,6 +37,7 @@ During new employee onboarding, Macs can now optionally download bootstrap packa
 
 ## Orchestration
 - Added the ability to install VPP apps on policy failure.
+- Added SLSA attestation to release binaries and images.
 - Implemented user-level settings and used them to persist a user's selection of which columns to display on the hosts table. 
 - Included a host's team-level queries when the user selected a query to target a specific host via the host details page.
 - Included osquery pre-releases in the daily UI constant update GitHub Actions job.
@@ -80,5 +86,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2025-02-04">
-<meta name="articleTitle" value="Fleet 4.63.0 | Automatically install software, faster employee onboarding">
+<meta name="articleTitle" value="Fleet 4.63.0 | Automatically install software, faster employee onboarding, GitHub (SLSA) attestation">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.63.0-1600x900@2x.png">

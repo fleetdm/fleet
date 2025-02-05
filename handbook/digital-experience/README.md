@@ -214,6 +214,21 @@ Use the following steps to cancel a Fleet Premium subscription:
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 
+### Track a Fleet applicant
+
+Use the following steps to track a Fleet applicant:
+1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
+2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
+  - **Full name**
+  - **LinkedIn URL**
+  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
+  - **Interest expressed on**: Date they messaged Fleet
+  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
+  - **Notes**: Copy the message the candidate sent and paste it into this cell.
+  - **Has previous relationship with fleetie?: (if so, who?)
+3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
