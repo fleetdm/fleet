@@ -845,7 +845,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.ErrorContains(t, err, "failed to unmarshal")
 
 				// Test a nested path -- bad
-				tmpFileBad, err = os.CreateTemp(t.TempDir(), "*bad.yml")
+				tmpFileBad, err = os.CreateTemp(filepath.Dir(mainTmpFile.Name()), "*bad.yml")
 				require.NoError(t, err)
 				if test.isArray {
 					_, err = tmpFileBad.WriteString(fmt.Sprintf("- path: %s\n", tmpFile.Name()))
