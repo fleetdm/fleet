@@ -509,7 +509,7 @@ org_settings:
   sso_settings:
     enable_sso: true
     idp_name: SimpleSAML
-    idp_image_url: https://example.com/favicon.ico
+    idp_image_url: https://www.okta.com/favicon.ico
     entity_id: https://example.com
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
