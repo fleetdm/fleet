@@ -441,6 +441,33 @@ type MacOSSetup struct {
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 }
 
+func (mos *MacOSSetup) SetDefaultsIfNeeded() {
+	if mos == nil {
+		return
+	}
+	if !mos.BootstrapPackage.Valid {
+		mos.BootstrapPackage = optjson.SetString("")
+	}
+	if !mos.MacOSSetupAssistant.Valid {
+		mos.MacOSSetupAssistant = optjson.SetString("")
+	}
+	if !mos.EnableReleaseDeviceManually.Valid {
+		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.Script.Valid {
+		mos.Script = optjson.SetString("")
+	}
+	if !mos.Software.Valid {
+		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+}
+
+func NewMacOSSetupWithDefaults() *MacOSSetup {
+	mos := &MacOSSetup{}
+	mos.SetDefaultsIfNeeded()
+	return mos
+}
+
 // MacOSSetupSoftware represents a VPP app or a software package to install
 // during the setup experience of a macOS device.
 type MacOSSetupSoftware struct {

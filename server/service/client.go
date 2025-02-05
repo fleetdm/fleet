@@ -498,14 +498,20 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
-			if macosSetup.BootstrapPackage.Value != "" {
+			switch {
+			case macosSetup.BootstrapPackage.Value != "":
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
-
 				if !opts.DryRun {
-					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
+					if err := c.UploadBootstrapPackageIfNeeded(pkg, uint(0)); err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+					}
+				}
+			case macosSetup.BootstrapPackage.Valid: // explicitly empty
+				if !opts.DryRun {
+					if err := c.DeleteBootstrapPackage(uint(0)); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
@@ -521,6 +527,7 @@ func (c *Client) ApplyGroup(
 					}
 				}
 			}
+			// TODO: Delete setup assistant if needed
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
 			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
@@ -761,10 +768,11 @@ func (c *Client) ApplyGroup(
 		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
-					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
+					if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 					}
 				}
+				// TODO: Delete team bootstrap package
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
 						if strings.Contains(err.Error(), "Couldn't upload") {
@@ -1725,9 +1733,10 @@ func (c *Client) DoGitOps(
 		}
 		// Put in default values for macos_setup
 		if config.Controls.MacOSSetup != nil {
+			config.Controls.MacOSSetup.SetDefaultsIfNeeded()
 			mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
 		} else {
-			mdmAppConfig["macos_setup"] = &fleet.MacOSSetup{}
+			mdmAppConfig["macos_setup"] = fleet.NewMacOSSetupWithDefaults()
 		}
 		// Put in default values for windows_settings
 		if config.Controls.WindowsSettings != nil {
