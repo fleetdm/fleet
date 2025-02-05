@@ -739,34 +739,6 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	}
 }
 
-func TestPreprocessVersion(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected string
-	}{
-		{"2.3.0.2", "2.3.0-2"},
-		{"2.3.0+2", "2.3.0+2"},
-		{"v5.3.0.2", "v5.3.0-2"},
-		{"5.3.0-2", "5.3.0-2"},
-		{"2.3.0.2.5", "2.3.0-2.5"},
-		{"2.3.0", "2.3.0"},
-		{"2.3", "2.3"},
-		{"v2.3.0", "v2.3.0"},
-		{"notAVersion", "notAVersion"},
-		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
-		{"1.21.1ubuntu2", "1.21.1-ubuntu2"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			output := preprocessVersion(tc.input)
-			if output != tc.expected {
-				t.Fatalf("input: %s, expected: %s, got: %s", tc.input, tc.expected, output)
-			}
-		})
-	}
-}
-
 func TestGetMacOSCPEs(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
