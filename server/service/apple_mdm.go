@@ -431,7 +431,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			msg := SameProfileNameUploadErrorMsg
 			if re, ok := existsErr.(interface{ Resource() string }); ok {
 				if re.Resource() == "MDMAppleConfigProfile.PayloadIdentifier" {
-					msg = "Couldn't upload. A configuration profile with this identifier (PayloadIdentifier) already exists."
+					msg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 				}
 			}
 			err = fleet.NewInvalidArgumentError("profile", msg).
