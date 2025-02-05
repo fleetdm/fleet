@@ -196,11 +196,11 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 **Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 
-## Interviewing
+## Communicating with applicants 
 
-At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. We [track all applicants](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) in the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confedintial Google doc). 
+At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. We [track all applicants](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) in the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confedintial Google doc) and respond within one business day. 
 
-> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team). 
+> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
