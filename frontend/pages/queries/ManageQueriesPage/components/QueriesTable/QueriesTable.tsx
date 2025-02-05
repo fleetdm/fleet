@@ -5,6 +5,7 @@ import { Row } from "react-table";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -44,6 +45,7 @@ export interface IQueriesTableProps {
     team_id?: string;
   };
   currentTeamId?: number;
+  isPremiumTier?: boolean;
 }
 
 interface IRowProps extends Row {
@@ -94,6 +96,7 @@ const QueriesTable = ({
   router,
   queryParams,
   currentTeamId,
+  isPremiumTier,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
@@ -170,45 +173,39 @@ const QueriesTable = ({
     ]
   );
 
-  const getEmptyStateParams = useCallback(() => {
-    const emptyParams: IEmptyTableProps = {
-      graphicName: "empty-queries",
-      header: "You don't have any queries",
-    };
-    if (searchQuery || curTargetedPlatformFilter !== "all") {
-      delete emptyParams.graphicName;
-      emptyParams.header = "No matching queries";
-      emptyParams.info = "No queries match the current filters.";
-    } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-      emptyParams.additionalInfo = (
-        <>
-          Create a new query, or{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-            text="import Fleet's standard query library"
-            newTab
-          />
-        </>
-      );
-      emptyParams.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${baseClass}__create-button`}
-          onClick={onCreateQueryClick}
-        >
-          Add query
-        </Button>
-      );
-    }
+  const emptyParams: IEmptyTableProps = {
+    graphicName: "empty-queries",
+    header: "You don't have any queries",
+  };
 
-    return emptyParams;
-  }, [
-    isAnyTeamObserverPlus,
-    isObserverPlus,
-    isOnlyObserver,
-    onCreateQueryClick,
-    searchQuery,
-  ]);
+  if (isPremiumTier) {
+    if (
+      typeof currentTeamId === "undefined" ||
+      currentTeamId === null ||
+      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+    ) {
+      emptyParams.header += " that apply to all teams";
+    } else {
+      emptyParams.header += " that apply to this team";
+    }
+  }
+
+  if (searchQuery || curTargetedPlatformFilter !== "all") {
+    delete emptyParams.graphicName;
+    emptyParams.header = "No matching queries";
+    emptyParams.info = "No queries match the current filters.";
+  } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
+    emptyParams.additionalInfo = (
+      <>
+        Create a new query, or{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/standard-query-library"
+          text="import Fleet's standard query library"
+          newTab
+        />
+      </>
+    );
+  }
 
   const handlePlatformFilterDropdownChange = useCallback(
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
@@ -264,26 +261,7 @@ const QueriesTable = ({
   );
 
   const searchable =
-    (totalQueriesCount ?? 0) > 0 ||
-    !!curTargetedPlatformFilter ||
-    !!searchQuery;
-
-  const emptyComponent = useCallback(() => {
-    const {
-      graphicName,
-      header,
-      info,
-      additionalInfo,
-      primaryButton,
-    } = getEmptyStateParams();
-    return EmptyTable({
-      graphicName,
-      header,
-      info,
-      additionalInfo,
-      primaryButton,
-    });
-  }, [getEmptyStateParams]);
+    (totalQueriesCount ?? 0) > 0 || !!targetedPlatformParam || !!searchQuery;
 
   const trimmedSearchQuery = searchQuery.trim();
 
@@ -310,7 +288,7 @@ const QueriesTable = ({
             variant: "text-icon",
             onActionButtonClick: onDeleteQueryClick,
           }}
-          emptyComponent={emptyComponent}
+          emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() => (
             <TableCount name="queries" count={totalQueriesCount} />
           )}

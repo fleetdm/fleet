@@ -755,8 +755,7 @@ const ManagePolicyPage = ({
     : globalPolicies && globalPolicies.length > 0;
 
   // Show CTA buttons if there is no errors AND there are policy results or a search filter
-  const showCtaButtons =
-    !policiesErrors && (policyResults || searchQuery !== "");
+  const showCtaButtons = !policiesErrors;
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
