@@ -222,10 +222,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:clickstudios:passwordstate:9.5.8.4:*:*:*:*:chrome:*:*": {
 			includedCVEs: []cve{
-				{ID: "CVE-2022-4610"},
-				{ID: "CVE-2022-4611"},
-				{ID: "CVE-2022-4613"},
-				{ID: "CVE-2022-4612"},
+				{ID: "CVE-2022-4610", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4611", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4613", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4612", resolvedInVersion: "9.5"},
 			},
 			continuesToUpdate: true,
 		},
@@ -368,7 +368,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: ""}},
+			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:jetbrains:goland:2024.3:*:*:*:*:macos:*:*": {
