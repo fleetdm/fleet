@@ -1226,6 +1226,7 @@ WHERE
 	hvsi2.id IS NULL
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
+	AND hvsi.removed = 0 AND
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
