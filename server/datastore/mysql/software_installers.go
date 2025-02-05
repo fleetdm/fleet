@@ -1208,30 +1208,36 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When VPP supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
-	host_id
+	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-LEFT OUTER JOIN
-	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+	INNER JOIN
+		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+	LEFT JOIN host_vpp_software_installs hvsi2
+		ON hvsi.host_id = hvsi2.host_id AND
+			 hvsi.adam_id = hvsi2.adam_id AND
+			 hvsi.platform = hvsi2.platform AND
+			 hvsi2.removed = 0 AND
+			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
-	adam_id = :adam_id AND platform = :platform
-	AND hvsi.id IN(
-		SELECT
-			max(id) -- ensure we use only the most recent install attempt for each host
-			FROM host_vpp_software_installs
-		WHERE
-			adam_id = :adam_id AND platform = :platform
-		GROUP BY
-			host_id, adam_id)
-	AND (%s) = :status) hss ON hss.host_id = h.id
+	hvsi2.id IS NULL
+	AND hvsi.adam_id = :adam_id 
+	AND hvsi.platform = :platform
+	AND (%s) = :status
+	AND NOT EXISTS (
+		SELECT 1 
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		WHERE 
+			ua.host_id = hvsi.host_id
+			AND vaua.adam_id = hvsi.adam_id
+			AND vaua.platform = hvsi.platform
+			AND ua.activity_type = 'vpp_app_install'
+	)
+) hss ON hss.host_id = h.id
 `, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
