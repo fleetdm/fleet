@@ -1129,7 +1129,8 @@ past AS (
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
-		hsi.software_installer_id = :installer_id
+		hsi2.id IS NULL
+		AND hsi.software_installer_id = :installer_id
 		AND hsi.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hsi.host_deleted_at IS NULL
 		AND hsi.removed = 0
@@ -1296,7 +1297,7 @@ FROM
 			 hsi2.removed = 0 AND
 			 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 WHERE
-	hsi2.id IS NULL 
+	hsi2.id IS NULL
 	AND hsi.software_title_id = :title_id
 	AND hsi.removed = 0
 	AND %s

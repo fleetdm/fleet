@@ -1430,6 +1430,13 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		DumpTable(t, q, "upcoming_activities")
+		DumpTable(t, q, "software_install_upcoming_activities")
+		DumpTable(t, q, "host_software_installs")
+		return nil
+	})
+
 	// because the install and uninstall are for the same software installer,
 	// only the latest attempt is shown in the summary and it is the uninstall.
 	swSummary, err := ds.GetSummaryHostSoftwareInstalls(ctx, sw1)
