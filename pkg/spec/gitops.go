@@ -492,7 +492,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// Find Fleet secrets in profiles
-	var profiles []fleet.MDMProfileSpec
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
 		// This is inefficient, but it is more robust and less error-prone.
@@ -505,7 +504,15 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
 		}
-		profiles = append(profiles, macOSSettings.CustomSettings...)
+
+		for i := range macOSSettings.CustomSettings {
+			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &macOSSettings.CustomSettings[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+		// Since we already unmarshalled and updated the path, we need to update the result struct.
+		result.Controls.MacOSSettings = macOSSettings
 	}
 	if result.Controls.WindowsSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
@@ -520,22 +527,38 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
 		}
 		if windowsSettings.CustomSettings.Valid {
-			profiles = append(profiles, windowsSettings.CustomSettings.Value...)
+			for i := range windowsSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &windowsSettings.CustomSettings.Value[i], result)
+				if err != nil {
+					return multierror.Append(multiError, err)
+				}
+			}
 		}
-	}
-	for _, profile := range profiles {
-		resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
-		fileBytes, err := os.ReadFile(resolvedPath)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err))
-		}
-		err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
-		if err != nil {
-			return multierror.Append(multiError, err)
-		}
+		// Since we already unmarshalled and updated the path, we need to update the result struct.
+		result.Controls.WindowsSettings = windowsSettings
 	}
 
 	return multiError
+}
+
+func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
+	resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
+	// We switch to absolute path so that we don't have to keep track of the base directory.
+	// This is useful because controls section can come from either the global config file or the no-team file.
+	var err error
+	profile.Path, err = filepath.Abs(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve profile path %s: %v", resolvedPath, err)
+	}
+	fileBytes, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to read profile file %s: %v", resolvedPath, err)
+	}
+	err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {

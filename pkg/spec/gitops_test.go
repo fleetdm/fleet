@@ -218,9 +218,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				}
 
 				// Check controls
-				_, ok := gitops.Controls.MacOSSettings.(map[string]interface{})
+				_, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 				assert.True(t, ok, "macos_settings not found")
-				_, ok = gitops.Controls.WindowsSettings.(map[string]interface{})
+				_, ok = gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
