@@ -58,7 +58,7 @@ org_settings:
     enable_sso_idp_login: false
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
-    idp_name: Google Worksace
+    idp_name: Google Workspace
     issuer_uri: $DOGFOOD_SSO_ISSUER_URI
     metadata: |-
       $DOGFOOD_SSO_METADATA
