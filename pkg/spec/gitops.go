@@ -505,8 +505,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
 		}
 
-		for _, profile := range macOSSettings.CustomSettings {
-			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, profile, result)
+		for i := range macOSSettings.CustomSettings {
+			err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &macOSSettings.CustomSettings[i], result)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -527,8 +527,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
 		}
 		if windowsSettings.CustomSettings.Valid {
-			for _, profile := range windowsSettings.CustomSettings.Value {
-				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, profile, result)
+			for i := range windowsSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &windowsSettings.CustomSettings.Value[i], result)
 				if err != nil {
 					return multierror.Append(multiError, err)
 				}
@@ -541,7 +541,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	return multiError
 }
 
-func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile fleet.MDMProfileSpec, result *GitOps) error {
+func resolveAndUpdateProfilePathToAbsolute(controlsDir string, profile *fleet.MDMProfileSpec, result *GitOps) error {
 	resolvedPath := resolveApplyRelativePath(controlsDir, profile.Path)
 	// We switch to absolute path so that we don't have to keep track of the base directory.
 	// This is useful because controls section can come from either the global config file or the no-team file.

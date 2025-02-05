@@ -1957,7 +1957,7 @@ controls:
     - path: ./config.json
   windows_settings:
     custom_settings:
-    - path: ./config.xml
+    - path: ./config2.xml
 policies:
 name: No team
 software:
@@ -1966,10 +1966,18 @@ software:
 
 		ddmFile, err := os.Create(filepath.Join(noTeamDir, "config.json"))
 		require.NoError(t, err)
-		_, err = ddmFile.WriteString(`{"foo": "bar"}`)
+		_, err = ddmFile.WriteString(`
+{
+    "Type": "com.apple.configuration.passcode.settings",
+    "Identifier": "com.fleetdm.config.passcode.settings",
+    "Payload": {
+        "RequireAlphanumericPasscode": true
+    }
+}
+		`)
 		require.NoError(t, err)
 
-		cspFile, err := os.Create(filepath.Join(noTeamDir, "config.xml"))
+		cspFile, err := os.Create(filepath.Join(noTeamDir, "config2.xml"))
 		require.NoError(t, err)
 		_, err = cspFile.WriteString(`<Replace>bozo</Replace>`)
 		require.NoError(t, err)
