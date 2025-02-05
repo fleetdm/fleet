@@ -426,7 +426,7 @@ SNAPSHOT_BINARY = ./build/snapshot
 snapshot: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) snapshot
 $(SNAPSHOT_BINARY): tools/snapshot/*.go
-	cd tools/snapshot && go install && go build -o ../../build/snapshot
+	cd tools/snapshot && go build -o ../../build/snapshot
 restore: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) restore
 
