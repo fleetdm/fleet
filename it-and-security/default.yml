@@ -18,7 +18,10 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      metadata_url: $DOGFOOD_MDM_SSO_METADATA_URL
+      issuer_uri: $DOGFOOD_SSO_ISSUER_URI
+      metadata: |-
+        $DOGFOOD_SSO_METADATA
+      metadata_url: ""
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
@@ -56,7 +59,7 @@ org_settings:
     enable_sso_idp_login: false
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
-    idp_name: Google
+    idp_name: Google Worksace
     issuer_uri: $DOGFOOD_SSO_ISSUER_URI
     metadata: |-
       $DOGFOOD_SSO_METADATA
