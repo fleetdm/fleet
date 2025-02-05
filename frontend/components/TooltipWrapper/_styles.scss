@@ -17,6 +17,10 @@
 
   &__tip-text {
     @include tooltip-text;
+
+    .custom-link {
+      font-size: $xx-small;
+    }
   }
 }
 
