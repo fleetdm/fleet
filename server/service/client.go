@@ -1030,6 +1030,14 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	if !ok {
 		return nil
 	}
+
+	// GitOps
+	mosGitOps, ok := mmdm["macos_setup"].(*fleet.MacOSSetup)
+	if ok {
+		return mosGitOps
+	}
+
+	// Legacy fleetctl apply
 	mos, ok := mmdm["macos_setup"].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
@@ -1719,17 +1727,7 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSSetup != nil {
 			mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
 		} else {
-			mdmAppConfig["macos_setup"] = map[string]interface{}{}
-		}
-		macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
-		if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
-			macOSSetup["bootstrap_package"] = ""
-		}
-		if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
-			macOSSetup["enable_end_user_authentication"] = false
-		}
-		if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
-			macOSSetup["macos_setup_assistant"] = ""
+			mdmAppConfig["macos_setup"] = &fleet.MacOSSetup{}
 		}
 		// Put in default values for windows_settings
 		if config.Controls.WindowsSettings != nil {
@@ -1805,7 +1803,7 @@ func (c *Client) DoGitOps(
 			teamVPPApps = teamsVPPApps[*config.TeamName]
 			teamScripts = teamsScripts[*config.TeamName]
 		} else {
-			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSoftware(config, baseDir, appConfig, logFn, dryRun)
+			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(config, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
 				return nil, err
 			}
@@ -1832,7 +1830,7 @@ func (c *Client) DoGitOps(
 	return teamAssumptions, nil
 }
 
-func (c *Client) doGitOpsNoTeamSoftware(
+func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	config *spec.GitOps,
 	baseDir string,
 	appconfig *fleet.EnrichedAppConfig,
@@ -1843,19 +1841,11 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, nil, nil
 	}
 
-	// marshaling dance to get the macos_setup data - config.GitOpsControls.MacOSSetup
-	// is of type any and contains a generic map[string]any. By
-	// marshal-unmarshaling it into a properly typed struct, we avoid having to
-	// do a bunch of error-prone and unmaintainable type-assertions to walk down
-	// the untyped map.
-	b, err := json.Marshal(config.Controls.MacOSSetup)
-	if err != nil {
-		return nil, nil, fmt.Errorf("applying software installers: json-encode controls.macos_setup: %w", err)
-	}
 	var macOSSetup fleet.MacOSSetup
-	if err := json.Unmarshal(b, &macOSSetup); err != nil {
-		return nil, nil, fmt.Errorf("applying software installers: json-decode controls.macos_setup: %w", err)
+	if config.Controls.MacOSSetup == nil {
+		config.Controls.MacOSSetup = &macOSSetup
 	}
+	macOSSetup = *config.Controls.MacOSSetup
 
 	// load the no-team macos_setup.script if any
 	var macosSetupScript *fileContent

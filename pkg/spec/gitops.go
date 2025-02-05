@@ -23,12 +23,12 @@ type BaseItem struct {
 
 type GitOpsControls struct {
 	BaseItem
-	MacOSUpdates   interface{} `json:"macos_updates"`
-	IOSUpdates     interface{} `json:"ios_updates"`
-	IPadOSUpdates  interface{} `json:"ipados_updates"`
-	MacOSSettings  interface{} `json:"macos_settings"`
-	MacOSSetup     interface{} `json:"macos_setup"`
-	MacOSMigration interface{} `json:"macos_migration"`
+	MacOSUpdates   interface{}       `json:"macos_updates"`
+	IOSUpdates     interface{}       `json:"ios_updates"`
+	IPadOSUpdates  interface{}       `json:"ipados_updates"`
+	MacOSSettings  interface{}       `json:"macos_settings"`
+	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
+	MacOSMigration interface{}       `json:"macos_migration"`
 
 	WindowsUpdates              interface{} `json:"windows_updates"`
 	WindowsSettings             interface{} `json:"windows_settings"`
