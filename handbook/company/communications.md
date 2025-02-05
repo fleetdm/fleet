@@ -135,15 +135,13 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
-## GTM outreach 
 
-At Fleet, [we don't sell like everyone else](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else). Intentional communication is paramount, make sure customer intros go through the CSM (otherwise we're going to inadvertently overload customers with requests for intros from sales)
-No idea if that's an issue here, but thinking of the amount that I've been bugging Julian assuming no one else was... I think it's a good idea. (I'll probably break this rule sometimes for engineers in particular for a little while longer, but I should follow this rule over the long term as well. Maybe we can set a goal of me always looping in CSM before bugging current customers)
+## Go-To-Market outreach 
 
-Note: The same is true for looping in ADR for closed lost prospects (e.g. if I'm blowing up Zach Fischer about stuff, I'm assuming there aren't 3 other fleeties. ADR can play air traffic control)
-
-Closed lost prospects » :airplane_arriving: » DRI == ADR
-Current customers » :airplane_arriving: » DRI == CSM
+Go-To-Market (GTM) strategy At Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. Regardless of whether you're reaching out to a prospect or customer, each individual in the community has a single DRI that will project manage all communication from Fleet the brand, as well as our team members. This helps us stick to already made decisions and forces us to keep our promise of "Fewer words. Fewer pings". The DRIs for GTM outreach are as follows: 
+- **🦄 Current prospects**: DRI == the Account Development Rep (ADR) assigned to that account.
+- **🛬 Current customers**: DRI == The Customer Support Manager (CSM) assigned to that account.
+- **🛫 Closed lost prospects**: DRI == the Account Development Rep (ADR) assigned to that account.
 
 
 ## Marketing programs
