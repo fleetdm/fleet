@@ -1231,7 +1231,7 @@ WHERE
 		GROUP BY
 			host_id, adam_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", "")) // TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
@@ -1308,9 +1308,7 @@ WHERE
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO(Sarah): prior code was joining based on installer id but based on how list options are parsed [1] it seems like this should be the title id
-		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
-		"title_id": titleID,
+		"title_id":        titleID,
 	})
 }
 

@@ -2320,7 +2320,7 @@ WITH upcoming_software_install AS (
 		) ON ua.host_id = ua2.host_id AND
 			siua.software_installer_id = siua2.software_installer_id AND
 			ua.activity_type = ua2.activity_type AND
-			ua2.created_at > ua.created_at
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_install' AND
@@ -2343,7 +2343,7 @@ upcoming_software_uninstall AS (
 		) ON ua.host_id = ua2.host_id AND
 			siua.software_installer_id = siua2.software_installer_id AND
 			ua.activity_type = ua2.activity_type AND
-			ua2.created_at > ua.created_at
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_uninstall' AND
@@ -2434,7 +2434,7 @@ upcoming_vpp_install AS (
 			vaua.adam_id = vaua2.adam_id AND
 			vaua.platform = vaua2.platform AND
 			ua.activity_type = ua2.activity_type AND
-			ua2.created_at > ua.created_at
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
 		ua.host_id = :host_id AND
 		ua.activity_type = 'vpp_app_install' AND
