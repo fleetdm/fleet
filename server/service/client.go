@@ -511,7 +511,7 @@ func (c *Client) ApplyGroup(
 				}
 			case macosSetup.BootstrapPackage.Valid: // explicitly empty
 				if !opts.DryRun {
-					if err := c.DeleteBootstrapPackage(uint(0)); err != nil {
+					if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}

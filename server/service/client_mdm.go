@@ -78,6 +78,23 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
+	_, err := c.GetBootstrapPackageMetadata(teamID, true)
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting bootstrap package metadata: %w", err)
+	}
+
+	err = c.DeleteBootstrapPackage(teamID)
+	if err != nil {
+		return fmt.Errorf("deleting bootstrap package: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
 	request := deleteBootstrapPackageRequest{}
