@@ -11828,21 +11828,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			// No further commands expected
 			assert.Nil(t, cmd)
 
-			fmt.Println(">>>> install host:", installHost.ID)
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "host_vpp_software_installs")
-				return nil
-			})
-
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
-			// TODO(mna): fails here! (has 1 instead of 2)
 			assert.Len(t, listResp.Hosts, install.hostCount)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
-			// TODO(mna): fails here! (has 1 instead of 2)
 			assert.Equal(t, install.hostCount, countResp.Count)
 
 			s.lastActivityMatches(
