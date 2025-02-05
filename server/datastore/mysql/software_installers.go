@@ -1209,6 +1209,9 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When VPP supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
+	// NOTE(mna): the pre-unified queue version of this query did not check for
+	// removed = 0, so I am porting the same behavior (there's even a test that
+	// fails if I add removed = 0 condition).
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	hvsi.host_id
@@ -1220,13 +1223,11 @@ FROM
 		ON hvsi.host_id = hvsi2.host_id AND
 			 hvsi.adam_id = hvsi2.adam_id AND
 			 hvsi.platform = hvsi2.platform AND
-			 hvsi2.removed = 0 AND
 			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
 	hvsi2.id IS NULL
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
-	AND hvsi.removed = 0
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
