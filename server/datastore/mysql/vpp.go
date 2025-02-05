@@ -1470,3 +1470,11 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 
 	return nil
 }
+
+func (ds *Datastore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	return ds.getIncludedHostIDMapForSoftware(ctx, vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	return ds.getExcludedHostIDMapForSoftware(ctx, vppAppTeamID, softwareTypeVPP)
+}

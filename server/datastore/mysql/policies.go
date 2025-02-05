@@ -432,6 +432,14 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, installerID, hostIDs, softwareTypeInstaller)
+}
+
+func (ds *Datastore) ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, vppAppTeamID, hostIDs, softwareTypeVPP)
+}
+
+func (ds *Datastore) clearAutoInstallPolicyStatusForHosts(ctx context.Context, softwareID uint, hostIDs []uint, swType softwareType) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -443,11 +451,17 @@ UPDATE
 SET
 	passes = NULL
 WHERE
-	p.software_installer_id = ?
+	p.%s_id = ?
 	AND pm.host_id IN (?)
 		`
+	typ := swType
+	if swType == softwareTypeVPP {
+		typ = "vpp_apps_teams" // naming difference between columns in `policies` and in `vpp_app_team_labels`
+	}
 
-	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
+	stmt = fmt.Sprintf(stmt, typ)
+
+	stmt, args, err := sqlx.In(stmt, softwareID, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
 	}
