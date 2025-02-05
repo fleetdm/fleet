@@ -196,7 +196,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 **Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 
-## Communicating with applicants 
+### Communicating with applicants 
 
 At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. We [track all applicants](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) in the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and respond within one business day. 
 
@@ -444,7 +444,12 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
+#### Stubs
 
+The following stubs are included only to make links backward compatible.
+
+##### Interviewing
+Please see 📖[handbook/company/leadership#communicating-with-applicants](https://fleetdm.com/handbook/company/leadership#communicating-with-applicants).
 
 
 <meta name="maintainedBy" value="mikermcneil">
