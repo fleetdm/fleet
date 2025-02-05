@@ -14,21 +14,19 @@ import Checkbox from "components/forms/fields/Checkbox";
 import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
-  InstallType,
-  InstallTypeSection,
-} from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import TargetLabelSelector from "components/TargetLabelSelector";
-
-import PackageAdvancedOptions from "../PackageAdvancedOptions";
-
-import {
   CUSTOM_TARGET_OPTIONS,
-  generateFormValidation,
   generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
-} from "./helpers";
+  InstallType,
+  InstallTypeSection,
+} from "pages/SoftwarePage/helpers";
+import TargetLabelSelector from "components/TargetLabelSelector";
+
+import PackageAdvancedOptions from "../PackageAdvancedOptions";
+
+import { generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
 
@@ -243,6 +241,7 @@ const PackageForm = ({
         />
         {!isEditingSoftware && (
           <InstallTypeSection
+            className={baseClass}
             isCustomPackage
             isExeCustomPackage={isExePackage}
             installType={formData.installType}

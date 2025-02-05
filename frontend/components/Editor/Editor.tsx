@@ -37,6 +37,7 @@ interface IEditorProps {
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: any) => void;
+  onBlur?: () => void;
 }
 
 /**
@@ -61,6 +62,7 @@ const Editor = ({
   maxLines = 20,
   className,
   onChange,
+  onBlur,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
@@ -131,6 +133,7 @@ const Editor = ({
         tabSize={2}
         focus={focus}
         onChange={onChange}
+        onBlur={onBlur}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

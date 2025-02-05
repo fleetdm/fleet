@@ -67,19 +67,8 @@ const generateTableConfig = (
           cveName
         )}?${teamQueryParam}`;
 
-        const onClickCVE = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareVulnerabilityDetailsPath);
-        };
-
         return (
-          <LinkCell
-            value={cveName}
-            path={softwareVulnerabilityDetailsPath}
-            customOnClick={onClickCVE}
-          />
+          <LinkCell value={cveName} path={softwareVulnerabilityDetailsPath} />
         );
       },
     },

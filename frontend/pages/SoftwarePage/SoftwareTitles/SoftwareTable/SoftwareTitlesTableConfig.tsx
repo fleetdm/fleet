@@ -194,7 +194,7 @@ const generateTableHeaders = (
           <ViewAllHostsLink
             queryParams={{
               software_title_id: cellProps.row.original.id,
-              team_id: teamId, // TODO: do we need team id here?
+              team_id: teamId,
             }}
             className="software-link"
             rowHover

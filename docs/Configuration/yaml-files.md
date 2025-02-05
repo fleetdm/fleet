@@ -63,13 +63,21 @@ policies:
   calendar_event_enabled: false
   run_script:
     path: "./disable-guest-account.sh"
-- name: Firefox on Linux installed and up to date
-  platform: linux
-  description: "This policy checks that Firefox is installed and up to date."
-  resolution: "Install Firefox version 129.0.2 or higher."
-  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+- name: Install Firefox on macOS
+  platform: darwin
+  description: "This policy checks that Firefox is installed."
+  resolution: "Install Firefox app if not installed."
+  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "./linux-firefox.deb.package.yml"
+    package_path: "./firefox.package.yml"
+- name: [Install software] Logic Pro
+  platform: darwin
+  description: "This policy checks that Logic Pro is installed"
+  resolution: "Install Logic Pro App Store app if not installed"
+  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  install_software:
+    package_path: ./linux-firefox.deb.package.yml
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`

@@ -8,7 +8,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps wo
 
 For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles.
 
-For Windows hosts, copy out this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). Learn more about Windows CSPs [here](https://fleetdm.com/guides/creating-windows-csps).
 
 Fleet UI:
 
