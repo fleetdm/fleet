@@ -468,7 +468,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 				// We clear the policy status here because otherwise the policy automation machinery
 				// won't pick this up and the software won't install.
-				if err := svc.ds.ClearAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
+				if err := svc.ds.ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
 				}
 			}

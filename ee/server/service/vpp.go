@@ -493,7 +493,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
 
-	var existingLabels *fleet.LabelIdentsWithScope
+	var existingLabels fleet.LabelIdentsWithScope
 	switch {
 	case len(meta.LabelsExcludeAny) > 0:
 		existingLabels.LabelScope = fleet.LabelScopeExcludeAny
@@ -510,7 +510,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	labelsChanged := validatedLabels.Equal(existingLabels)
+	labelsChanged := !validatedLabels.Equal(&existingLabels)
 
 	if selfService && meta.Platform != fleet.MacOSPlatform {
 		return nil, fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
