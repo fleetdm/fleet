@@ -68,7 +68,7 @@ func (r *Runner) Run(execIDs []string) error {
 			break
 		}
 
-		log.Info().Msgf("running script %v", execID)
+		log.Info().Msgf("proceeding to execution of script %v", execID)
 		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
