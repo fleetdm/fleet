@@ -28,7 +28,7 @@ type listTeamsResponse struct {
 	Err   error        `json:"error,omitempty"`
 }
 
-func (r listTeamsResponse) error() error { return r.Err }
+func (r listTeamsResponse) Error() error { return r.Err }
 
 func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamsRequest)
@@ -65,7 +65,7 @@ type getTeamResponse struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r getTeamResponse) error() error { return r.Err }
+func (r getTeamResponse) Error() error { return r.Err }
 
 func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamRequest)
@@ -97,7 +97,7 @@ type teamResponse struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r teamResponse) error() error { return r.Err }
+func (r teamResponse) Error() error { return r.Err }
 
 func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createTeamRequest)
@@ -155,7 +155,7 @@ type deleteTeamResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteTeamResponse) error() error { return r.Err }
+func (r deleteTeamResponse) Error() error { return r.Err }
 
 func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamRequest)
@@ -222,7 +222,7 @@ type applyTeamSpecsResponse struct {
 	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty"`
 }
 
-func (r applyTeamSpecsResponse) error() error { return r.Err }
+func (r applyTeamSpecsResponse) Error() error { return r.Err }
 
 func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyTeamSpecsRequest)
@@ -384,7 +384,7 @@ type teamEnrollSecretsResponse struct {
 	Err     error                 `json:"error,omitempty"`
 }
 
-func (r teamEnrollSecretsResponse) error() error { return r.Err }
+func (r teamEnrollSecretsResponse) Error() error { return r.Err }
 
 func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamEnrollSecretsRequest)

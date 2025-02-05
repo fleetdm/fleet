@@ -1,1 +1,0 @@
-Downgraded expected/common "BootstrapPackage not found" server error to a debug message. Occurs when UI/API checks if bootstrap package exists.

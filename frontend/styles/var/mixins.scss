@@ -166,6 +166,10 @@ $max-width: 2560px;
   gap: $pad-small;
   white-space: nowrap;
   @include link;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 @mixin cell-with-link {
