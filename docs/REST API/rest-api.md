@@ -6321,6 +6321,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6459,6 +6460,28 @@ _Available in Fleet Premium_
   "org_name": "Acme Inc.",
   "renew_date": "2023-11-29T00:00:00Z",
   "location": "Acme Inc. Main Address"
+}
+```
+
+### Get Android Enterprise
+
+`GET /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_id": "LC0445szuv"
 }
 ```
 
