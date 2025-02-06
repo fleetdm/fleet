@@ -144,3 +144,13 @@ Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest 
 ```
 export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
 ```
+
+#### Issue generating linux-arm64 packages when running Docker Desktop on macOS using Apple Silicon
+
+When running Docker Desktop on macOS using Apple Silicon, enrollment packages for ARM Linux may fail to generate and you may see a warning similar to:
+
+```
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+```
+
+Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.
