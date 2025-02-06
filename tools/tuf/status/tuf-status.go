@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -14,27 +13,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
 )
-
-type listBucketResult struct {
-	XMLName     xml.Name  `xml:"ListBucketResult"`
-	Text        string    `xml:",chardata"`
-	Xmlns       string    `xml:"xmlns,attr"`
-	Name        string    `xml:"Name"`
-	Prefix      string    `xml:"Prefix"`
-	Marker      string    `xml:"Marker"`
-	MaxKeys     string    `xml:"MaxKeys"`
-	IsTruncated string    `xml:"IsTruncated"`
-	Contents    []content `xml:"Contents"`
-}
-
-type content struct {
-	Text         string `xml:",chardata"`
-	Key          string `xml:"Key"`
-	LastModified string `xml:"LastModified"`
-	ETag         string `xml:"ETag"`
-	Size         int64  `xml:"Size"`
-	StorageClass string `xml:"StorageClass"`
-}
 
 func main() {
 	app := cli.NewApp()
@@ -85,7 +63,6 @@ func channelVersionCommand() *cli.Command {
 		tufURL     string
 		components cli.StringSlice
 		format     string
-		vendor     string
 	)
 	return &cli.Command{
 		Name:  "channel-version",
@@ -97,13 +74,6 @@ func channelVersionCommand() *cli.Command {
 				Value:       "https://updates.fleetdm.com",
 				Destination: &tufURL,
 				Usage:       "URL of the TUF repository",
-			},
-			&cli.StringFlag{
-				Name:        "s3-vendor",
-				EnvVars:     []string{"S3_VENDOR"},
-				Value:       "cloudflare",
-				Destination: &vendor,
-				Usage:       "Vendor that hosts the TUF repository, currently one of 'cloudflare' or 'amazon'",
 			},
 			&cli.StringFlag{
 				Name:        "channel",
@@ -131,20 +101,13 @@ func channelVersionCommand() *cli.Command {
 			if format != "json" && format != "markdown" {
 				return errors.New("supported formats are: json, markdown")
 			}
-			if vendor != "cloudflare" && vendor != "amazon" {
-				return errors.New("supported vendors are: cloudflare, amazon")
-			}
 
 			var (
-				foundComponents map[string]map[string]string // component -> OS -> eTag
-				eTagMap         map[string][]string
+				foundComponents map[string]map[string]string // component -> OS -> sha512
+				sha512Map       map[string][]string
 				err             error
 			)
-			if vendor == "cloudflare" {
-				foundComponents, eTagMap, err = getComponentsCloudflare(tufURL, components.Value(), channel)
-			} else {
-				foundComponents, eTagMap, err = getComponentsAmazon(tufURL, components.Value(), channel)
-			}
+			foundComponents, sha512Map, err = getComponents(tufURL, components.Value(), channel)
 			if err != nil {
 				return fmt.Errorf("get components: %w", err)
 			}
@@ -152,8 +115,8 @@ func channelVersionCommand() *cli.Command {
 			outputMap := make(map[string]map[string]string) // component -> OS -> version
 			for component, osMap := range foundComponents {
 				outputMap[component] = make(map[string]string)
-				for os, eTag := range osMap {
-					versions := eTagMap[eTag]
+				for os, sha512 := range osMap {
+					versions := sha512Map[sha512]
 					var maxPartsVersion string
 					for _, version := range versions {
 						if len(strings.Split(version, ".")) > len(strings.Split(maxPartsVersion, ".")) {
@@ -228,67 +191,7 @@ func validVersion(version string) bool {
 	return true
 }
 
-func getComponentsAmazon(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, eTagMap map[string][]string, err error) {
-	res, err := http.Get(tufURL) //nolint
-	if err != nil {
-		return nil, nil, err
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer res.Body.Close()
-
-	selectedComponents := make(map[string]struct{})
-	for _, component := range components {
-		selectedComponents[component] = struct{}{}
-	}
-
-	var list listBucketResult
-	if err := xml.Unmarshal(body, &list); err != nil {
-		return nil, nil, err
-	}
-
-	eTagMap = make(map[string][]string)
-	foundComponents = make(map[string]map[string]string) // component -> OS -> eTag
-	for _, content := range list.Contents {
-		parts := strings.Split(content.Key, "/")
-		if len(parts) != 5 {
-			continue
-		}
-		componentPart := parts[1]
-		if _, ok := selectedComponents[componentPart]; !ok {
-			continue
-		}
-		osPart := parts[2]
-		channelPart := parts[3]
-		itemPart := parts[4]
-		if validVersion(channelPart) {
-			eTagMap[content.ETag] = append(eTagMap[content.ETag], channelPart)
-		}
-		if channelPart != channel {
-			continue
-		}
-		m, ok := componentFileMap[componentPart]
-		if !ok {
-			continue
-		}
-		if v, ok := m[osPart]; !ok || v != itemPart {
-			continue
-		}
-
-		osMap := foundComponents[componentPart]
-		if osMap == nil {
-			osMap = make(map[string]string)
-		}
-		osMap[osPart] = content.ETag
-		foundComponents[componentPart] = osMap
-	}
-	return foundComponents, eTagMap, nil
-}
-
-func getComponentsCloudflare(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, eTagMap map[string][]string, err error) {
+func getComponents(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, sha512Map map[string][]string, err error) {
 	res, err := http.Get(tufURL + "/targets.json") //nolint
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get /targets.json: %w", err)
@@ -327,8 +230,8 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 		return nil, nil, fmt.Errorf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
 	}
 
-	eTagMap = make(map[string][]string)
-	foundComponents = make(map[string]map[string]string) // component -> OS -> eTag
+	sha512Map = make(map[string][]string)
+	foundComponents = make(map[string]map[string]string) // component -> OS -> sha512
 	for target, metadata_ := range targets {
 		parts := strings.Split(target, "/")
 		if len(parts) != 4 {
@@ -365,7 +268,7 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 			return nil, nil, fmt.Errorf("target: %q: invalid hashes.sha512 field: %T", target, sha512_)
 		}
 		if validVersion(channelPart) {
-			eTagMap[hashSHA512] = append(eTagMap[hashSHA512], channelPart)
+			sha512Map[hashSHA512] = append(sha512Map[hashSHA512], channelPart)
 		}
 		if channelPart != channel {
 			continue
@@ -384,5 +287,5 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 		osMap[platformPart] = hashSHA512
 		foundComponents[targetName] = osMap
 	}
-	return foundComponents, eTagMap, nil
+	return foundComponents, sha512Map, nil
 }
