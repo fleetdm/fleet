@@ -14,10 +14,6 @@ interface ICustomLinkProps {
   newTab?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
-  // TODO: Refactor to use variant
-  iconColor?: Colors;
-  // TODO: Refactor to use variant
-  color?: "core-fleet-blue" | "core-fleet-black" | "core-fleet-white";
   /** Restricts access via keyboard when CustomLink is part of disabled UI */
   disableKeyboardNavigation?: boolean;
   /**
@@ -29,7 +25,7 @@ interface ICustomLinkProps {
    * Longterm: refactor 14 instances away from iconColor/color combo, which
    * usually are identical and repetitive, toward variants e.g. "banner-link"
    */
-  variant?: "tooltip-link" | "banner-link" | "default" | "flash-message-link";
+  variant?: "tooltip-link" | "banner-link" | "flash-message-link" | "default";
 }
 
 const baseClass = "custom-link";
@@ -40,8 +36,6 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
-  iconColor = "core-fleet-blue",
-  color = "core-fleet-blue",
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
@@ -53,13 +47,11 @@ const CustomLink = ({
       case "banner-link":
         return "core-fleet-black";
       default:
-        return iconColor;
+        return "core-fleet-blue";
     }
   };
 
   const customLinkClass = classnames(baseClass, className, {
-    [`${baseClass}--black`]: color === "core-fleet-black",
-    [`${baseClass}--white`]: color === "core-fleet-white",
     [`${baseClass}--${variant}`]: variant !== "default",
   });
 

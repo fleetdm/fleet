@@ -51,8 +51,8 @@ const SetupAssistantProfileUploader = ({
               text="Learn more"
               className={`${baseClass}__new-tab`}
               newTab
-              color="core-fleet-black"
-              iconColor="core-fleet-white"
+              // color="core-fleet-black"
+              // iconColor="core-fleet-white"
             />
           </>
         );
