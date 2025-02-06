@@ -31,7 +31,7 @@ type getScheduledQueriesInPackResponse struct {
 	Err       error                    `json:"error,omitempty"`
 }
 
-func (r getScheduledQueriesInPackResponse) error() error { return r.Err }
+func (r getScheduledQueriesInPackResponse) Error() error { return r.Err }
 
 func getScheduledQueriesInPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScheduledQueriesInPackRequest)
@@ -79,7 +79,7 @@ type scheduleQueryResponse struct {
 	Err       error                   `json:"error,omitempty"`
 }
 
-func (r scheduleQueryResponse) error() error { return r.Err }
+func (r scheduleQueryResponse) Error() error { return r.Err }
 
 func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*scheduleQueryRequest)
@@ -167,7 +167,7 @@ type getScheduledQueryResponse struct {
 	Err       error                   `json:"error,omitempty"`
 }
 
-func (r getScheduledQueryResponse) error() error { return r.Err }
+func (r getScheduledQueryResponse) Error() error { return r.Err }
 
 func getScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getScheduledQueryRequest)
@@ -207,7 +207,7 @@ type modifyScheduledQueryResponse struct {
 	Err       error                   `json:"error,omitempty"`
 }
 
-func (r modifyScheduledQueryResponse) error() error { return r.Err }
+func (r modifyScheduledQueryResponse) Error() error { return r.Err }
 
 func modifyScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyScheduledQueryRequest)
@@ -297,7 +297,7 @@ type deleteScheduledQueryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteScheduledQueryResponse) error() error { return r.Err }
+func (r deleteScheduledQueryResponse) Error() error { return r.Err }
 
 func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteScheduledQueryRequest)

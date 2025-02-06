@@ -1,0 +1,71 @@
+.metrics-host-counts {
+  display: grid;
+  gap: $pad-smedium;
+
+  // >= 320px and < 576px
+  // Each card is on its own row, up to 3 rows.
+  // 12pt gap
+  @media (min-width: $break-mobile-xs) {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, auto);
+  }
+
+  // >= 576px and < 880px
+  @media (min-width: $break-mobile-md) {
+    display: grid;
+
+    /** Default layout for 3 cards 
+    The first card (TotalHosts) is on a row by itself.
+    The second and third cards are on the second row. */
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto;
+
+    & > *:first-child {
+      grid-column: 1 / -1;
+    }
+
+    /* Adjust layout for only 2 cards to be on the same row */
+    &:has(> :nth-child(2):last-child) {
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: auto;
+
+      & > *:first-child,
+      & > *:nth-child(2) {
+        grid-column: auto;
+      }
+    }
+
+    /* Adjust layout for only 1 card to take a single row */
+    &:has(> :first-child:last-child) {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+    }
+  }
+
+  // >= 880px
+  // Up to 3 cards are in a single row.
+  // 16pt gap
+  @media (min-width: $break-sm) {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-template-rows: 1fr;
+    gap: $pad-medium;
+
+    // Reset all children to default grid behavior
+    & > * {
+      grid-column: auto;
+      min-width: 0; // Prevents content from causing overflow
+    }
+
+    // Reset specific layouts for 2 and 1 card
+    &:has(:nth-child(2)):not(:nth-child(3)),
+    &:has(:nth-child(1)):not(:has(:nth-child(2))) {
+      grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      grid-template-rows: 1fr;
+
+      & > * {
+        grid-column: auto;
+        min-width: 0; // Prevents content from causing overflow
+      }
+    }
+  }
+}

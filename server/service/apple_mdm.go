@@ -63,6 +63,10 @@ const (
 	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
 )
 
+const (
+	SameProfileNameUploadErrorMsg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+)
+
 var (
 	profileVariableRegex            = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 	fleetVarNDESSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPChallenge,
@@ -91,7 +95,7 @@ type getMDMAppleCommandResultsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
+func (r getMDMAppleCommandResultsResponse) Error() error { return r.Err }
 
 func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleCommandResultsRequest)
@@ -193,7 +197,7 @@ type listMDMAppleCommandsResponse struct {
 	Err     error                    `json:"error,omitempty"`
 }
 
-func (r listMDMAppleCommandsResponse) error() error { return r.Err }
+func (r listMDMAppleCommandsResponse) Error() error { return r.Err }
 
 func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMAppleCommandsRequest)
@@ -331,7 +335,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 	return &decoded, nil
 }
 
-func (r newMDMAppleConfigProfileResponse) error() error { return r.Err }
+func (r newMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
 func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*newMDMAppleConfigProfileRequest)
@@ -424,7 +428,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		var existsErr existsErrorInterface
 		if errors.As(err, &existsErr) {
-			msg := "Couldn't upload. A configuration profile with this name already exists."
+			msg := SameProfileNameUploadErrorMsg
 			if re, ok := existsErr.(interface{ Resource() string }); ok {
 				if re.Resource() == "MDMAppleConfigProfile.PayloadIdentifier" {
 					msg = "Couldn't upload. A configuration profile with this identifier (PayloadIdentifier) already exists."
@@ -639,7 +643,7 @@ type listMDMAppleConfigProfilesResponse struct {
 	Err            error                          `json:"error,omitempty"`
 }
 
-func (r listMDMAppleConfigProfilesResponse) error() error { return r.Err }
+func (r listMDMAppleConfigProfilesResponse) Error() error { return r.Err }
 
 func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMAppleConfigProfilesRequest)
@@ -689,7 +693,7 @@ type getMDMAppleConfigProfileResponse struct {
 	fileName   string
 }
 
-func (r getMDMAppleConfigProfileResponse) error() error { return r.Err }
+func (r getMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
 func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
@@ -785,7 +789,7 @@ type deleteMDMAppleConfigProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleConfigProfileResponse) error() error { return r.Err }
+func (r deleteMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
 func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMAppleConfigProfileRequest)
@@ -983,7 +987,7 @@ type getMDMAppleFileVaultSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleFileVaultSummaryResponse) error() error { return r.Err }
+func (r getMDMAppleFileVaultSummaryResponse) Error() error { return r.Err }
 
 func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleFileVaultSummaryRequest)
@@ -1020,7 +1024,7 @@ type getMDMAppleProfilesSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleProfilesSummaryResponse) error() error { return r.Err }
+func (r getMDMAppleProfilesSummaryResponse) Error() error { return r.Err }
 
 func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleProfilesSummaryRequest)
@@ -1081,7 +1085,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 	}, nil
 }
 
-func (r uploadAppleInstallerResponse) error() error { return r.Err }
+func (r uploadAppleInstallerResponse) Error() error { return r.Err }
 
 // Deprecated: Not in Use
 func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -1170,7 +1174,7 @@ type getAppleInstallerDetailsResponse struct {
 	Err       error `json:"error,omitempty"`
 }
 
-func (r getAppleInstallerDetailsResponse) error() error { return r.Err }
+func (r getAppleInstallerDetailsResponse) Error() error { return r.Err }
 
 func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAppleInstallerDetailsRequest)
@@ -1203,7 +1207,7 @@ type deleteAppleInstallerDetailsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteAppleInstallerDetailsResponse) error() error { return r.Err }
+func (r deleteAppleInstallerDetailsResponse) Error() error { return r.Err }
 
 func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteAppleInstallerDetailsRequest)
@@ -1231,7 +1235,7 @@ type listMDMAppleDevicesResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
-func (r listMDMAppleDevicesResponse) error() error { return r.Err }
+func (r listMDMAppleDevicesResponse) Error() error { return r.Err }
 
 func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	devices, err := svc.ListMDMAppleDevices(ctx)
@@ -1257,7 +1261,7 @@ type newMDMAppleDEPKeyPairResponse struct {
 	Err        error  `json:"error,omitempty"`
 }
 
-func (r newMDMAppleDEPKeyPairResponse) error() error { return r.Err }
+func (r newMDMAppleDEPKeyPairResponse) Error() error { return r.Err }
 
 func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	keyPair, err := svc.NewMDMAppleDEPKeyPair(ctx)
@@ -1299,7 +1303,7 @@ type enqueueMDMAppleCommandResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
+func (r enqueueMDMAppleCommandResponse) Error() error { return r.Err }
 
 // Deprecated: enqueueMDMAppleCommandEndpoint is now deprecated, replaced by
 // the platform-agnostic runMDMCommandEndpoint. It is still supported
@@ -1379,7 +1383,7 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	return &decoded, nil
 }
 
-func (r mdmAppleEnrollResponse) error() error { return r.Err }
+func (r mdmAppleEnrollResponse) Error() error { return r.Err }
 
 type mdmAppleEnrollResponse struct {
 	Err error `json:"error,omitempty"`
@@ -1610,7 +1614,7 @@ type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r mdmAppleCommandRemoveEnrollmentProfileResponse) error() error { return r.Err }
+func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Error() error { return r.Err }
 
 func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
@@ -1698,7 +1702,7 @@ type mdmAppleGetInstallerRequest struct {
 	Token string `query:"token"`
 }
 
-func (r mdmAppleGetInstallerResponse) error() error { return r.Err }
+func (r mdmAppleGetInstallerResponse) Error() error { return r.Err }
 
 type mdmAppleGetInstallerResponse struct {
 	Err error `json:"error,omitempty"`
@@ -1792,7 +1796,7 @@ type listMDMAppleInstallersResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listMDMAppleInstallersResponse) error() error { return r.Err }
+func (r listMDMAppleInstallersResponse) Error() error { return r.Err }
 
 func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	installers, err := svc.ListMDMAppleInstallers(ctx)
@@ -1838,7 +1842,7 @@ type deviceLockResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deviceLockResponse) error() error { return r.Err }
+func (r deviceLockResponse) Error() error { return r.Err }
 
 func (r deviceLockResponse) Status() int { return http.StatusNoContent }
 
@@ -1871,7 +1875,7 @@ type deviceWipeResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deviceWipeResponse) error() error { return r.Err }
+func (r deviceWipeResponse) Error() error { return r.Err }
 
 func (r deviceWipeResponse) Status() int { return http.StatusNoContent }
 
@@ -1906,7 +1910,7 @@ type getHostProfilesResponse struct {
 	Err      error                          `json:"error,omitempty"`
 }
 
-func (r getHostProfilesResponse) error() error { return r.Err }
+func (r getHostProfilesResponse) Error() error { return r.Err }
 
 func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostProfilesRequest)
@@ -1944,7 +1948,7 @@ type batchSetMDMAppleProfilesResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r batchSetMDMAppleProfilesResponse) error() error { return r.Err }
+func (r batchSetMDMAppleProfilesResponse) Error() error { return r.Err }
 
 func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoContent }
 
@@ -2015,14 +2019,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = true
 
 		if byIdent[mdmProf.Identifier] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = true
@@ -2046,11 +2050,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 					continue
 				case strings.HasPrefix(p.ProfileUUID, "w"):
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn’t edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit custom_settings. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
 				default:
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
 					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
 				}
 			}
@@ -2097,7 +2101,7 @@ type preassignMDMAppleProfileResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r preassignMDMAppleProfileResponse) error() error { return r.Err }
+func (r preassignMDMAppleProfileResponse) Error() error { return r.Err }
 
 func (r preassignMDMAppleProfileResponse) Status() int { return http.StatusNoContent }
 
@@ -2129,7 +2133,7 @@ type matchMDMApplePreassignmentResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r matchMDMApplePreassignmentResponse) error() error { return r.Err }
+func (r matchMDMApplePreassignmentResponse) Error() error { return r.Err }
 
 func (r matchMDMApplePreassignmentResponse) Status() int { return http.StatusNoContent }
 
@@ -2161,7 +2165,7 @@ type updateMDMAppleSettingsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r updateMDMAppleSettingsResponse) error() error { return r.Err }
+func (r updateMDMAppleSettingsResponse) Error() error { return r.Err }
 
 func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoContent }
 
@@ -2276,7 +2280,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 	return &decoded, nil
 }
 
-func (r uploadBootstrapPackageResponse) error() error { return r.Err }
+func (r uploadBootstrapPackageResponse) Error() error { return r.Err }
 
 func uploadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadBootstrapPackageRequest)
@@ -2315,7 +2319,7 @@ type downloadBootstrapPackageResponse struct {
 	pkg *fleet.MDMAppleBootstrapPackage
 }
 
-func (r downloadBootstrapPackageResponse) error() error { return r.Err }
+func (r downloadBootstrapPackageResponse) Error() error { return r.Err }
 
 func (r downloadBootstrapPackageResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.pkg.Bytes)))
@@ -2371,7 +2375,7 @@ type bootstrapPackageMetadataResponse struct {
 	*fleet.MDMAppleBootstrapPackage `json:",omitempty"`
 }
 
-func (r bootstrapPackageMetadataResponse) error() error { return r.Err }
+func (r bootstrapPackageMetadataResponse) Error() error { return r.Err }
 
 func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*bootstrapPackageMetadataRequest)
@@ -2406,7 +2410,7 @@ type deleteBootstrapPackageResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteBootstrapPackageResponse) error() error { return r.Err }
+func (r deleteBootstrapPackageResponse) Error() error { return r.Err }
 
 func deleteBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteBootstrapPackageRequest)
@@ -2437,7 +2441,7 @@ type getMDMAppleBootstrapPackageSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleBootstrapPackageSummaryResponse) error() error { return r.Err }
+func (r getMDMAppleBootstrapPackageSummaryResponse) Error() error { return r.Err }
 
 func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleBootstrapPackageSummaryRequest)
@@ -2471,7 +2475,7 @@ type createMDMAppleSetupAssistantResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r createMDMAppleSetupAssistantResponse) error() error { return r.Err }
+func (r createMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 
 func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMAppleSetupAssistantRequest)
@@ -2507,7 +2511,7 @@ type getMDMAppleSetupAssistantResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleSetupAssistantResponse) error() error { return r.Err }
+func (r getMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 
 func getMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleSetupAssistantRequest)
@@ -2538,7 +2542,7 @@ type deleteMDMAppleSetupAssistantResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleSetupAssistantResponse) error() error { return r.Err }
+func (r deleteMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 func (r deleteMDMAppleSetupAssistantResponse) Status() int  { return http.StatusNoContent }
 
 func deleteMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -2569,7 +2573,7 @@ type updateMDMAppleSetupResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r updateMDMAppleSetupResponse) error() error { return r.Err }
+func (r updateMDMAppleSetupResponse) Error() error { return r.Err }
 
 func (r updateMDMAppleSetupResponse) Status() int { return http.StatusNoContent }
 
@@ -2603,7 +2607,7 @@ type initiateMDMAppleSSOResponse struct {
 	Err error  `json:"error,omitempty"`
 }
 
-func (r initiateMDMAppleSSOResponse) error() error { return r.Err }
+func (r initiateMDMAppleSSOResponse) Error() error { return r.Err }
 
 func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
@@ -2662,7 +2666,7 @@ func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.Re
 // Error will always be nil because errors are handled by sending a query
 // parameter in the URL response, this way the UI is able to display an erorr
 // message.
-func (r callbackMDMAppleSSOResponse) error() error { return nil }
+func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 
 func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	auth := request.(fleet.Auth)
@@ -4327,12 +4331,12 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 }
 
 func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
-	var status fleet.MDMAppleDDMStatusReport
-	if err := json.Unmarshal(dm.Data, &status); err != nil {
+	var statusReport fleet.MDMAppleDDMStatusReport
+	if err := json.Unmarshal(dm.Data, &statusReport); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling response")
 	}
 
-	configurationReports := status.StatusItems.Management.Declarations.Configurations
+	configurationReports := statusReport.StatusItems.Management.Declarations.Configurations
 	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
 	for i, r := range configurationReports {
 		var status fleet.MDMDeliveryStatus
@@ -4343,8 +4347,21 @@ func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *
 		case r.Valid == fleet.MDMAppleDeclarationInvalid:
 			status = fleet.MDMDeliveryFailed
 			detail = apple_mdm.FmtDDMError(r.Reasons)
-		default:
+		case r.Valid == fleet.MDMAppleDeclarationValid: // should be rare/never
+			// The debug messages here can be used to figure out why a DDM profile is stuck in a certain state on a device.
+			level.Debug(svc.logger).Log("msg", "valid but inactive declaration status", "status", r.Valid, "active", r.Active, "host",
+				dm.UDID, "declaration", r.Identifier)
 			status = fleet.MDMDeliveryVerifying
+		case r.Valid == fleet.MDMAppleDeclarationUnknown: // should be rare
+			level.Debug(svc.logger).Log("msg", "unknown declaration status", "status", r.Valid, "active", r.Active, "host", dm.UDID,
+				"declaration", r.Identifier)
+			status = fleet.MDMDeliveryVerifying
+		default:
+			// This should never happen. If we see this happening, we should handle it.
+			level.Error(svc.logger).Log("msg", "undefined declaration status", "status", r.Valid, "active", r.Active, "host", dm.UDID,
+				"declaration", r.Identifier)
+			status = fleet.MDMDeliveryFailed
+			detail = fmt.Sprintf("undefined declaration status: %s; %s", r.Valid, apple_mdm.FmtDDMError(r.Reasons))
 		}
 
 		updates[i] = &fleet.MDMAppleHostDeclaration{
@@ -4384,7 +4401,7 @@ type generateABMKeyPairResponse struct {
 	Err       error  `json:"error,omitempty"`
 }
 
-func (r generateABMKeyPairResponse) error() error { return r.Err }
+func (r generateABMKeyPairResponse) Error() error { return r.Err }
 
 func generateABMKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	keyPair, err := svc.GenerateABMKeyPair(ctx)
@@ -4486,7 +4503,7 @@ type uploadABMTokenResponse struct {
 	Err   error           `json:"error,omitempty"`
 }
 
-func (r uploadABMTokenResponse) error() error { return r.Err }
+func (r uploadABMTokenResponse) Error() error { return r.Err }
 
 func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadABMTokenRequest)
@@ -4526,7 +4543,7 @@ type deleteABMTokenResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteABMTokenResponse) error() error { return r.Err }
+func (r deleteABMTokenResponse) Error() error { return r.Err }
 func (r deleteABMTokenResponse) Status() int  { return http.StatusNoContent }
 
 func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -4555,7 +4572,7 @@ type listABMTokensResponse struct {
 	Tokens []*fleet.ABMToken `json:"abm_tokens"`
 }
 
-func (r listABMTokensResponse) error() error { return r.Err }
+func (r listABMTokensResponse) Error() error { return r.Err }
 
 func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	tokens, err := svc.ListABMTokens(ctx)
@@ -4587,7 +4604,7 @@ type countABMTokensResponse struct {
 	Count int   `json:"count"`
 }
 
-func (r countABMTokensResponse) error() error { return r.Err }
+func (r countABMTokensResponse) Error() error { return r.Err }
 
 func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
 	tokenCount, err := svc.CountABMTokens(ctx)
@@ -4623,7 +4640,7 @@ type updateABMTokenTeamsResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r updateABMTokenTeamsResponse) error() error { return r.Err }
+func (r updateABMTokenTeamsResponse) Error() error { return r.Err }
 
 func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
@@ -4686,7 +4703,7 @@ type renewABMTokenResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r renewABMTokenResponse) error() error { return r.Err }
+func (r renewABMTokenResponse) Error() error { return r.Err }
 
 func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*renewABMTokenRequest)
@@ -4812,7 +4829,7 @@ type mdmAppleOTAResponse struct {
 	xml []byte
 }
 
-func (r mdmAppleOTAResponse) error() error { return r.Err }
+func (r mdmAppleOTAResponse) Error() error { return r.Err }
 
 func (r mdmAppleOTAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.xml)))

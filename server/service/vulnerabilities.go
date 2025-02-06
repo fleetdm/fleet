@@ -46,7 +46,7 @@ type listVulnerabilitiesResponse struct {
 // Allow formats like: CVE-2017-12345, cve-2017-12345
 var cveRegex = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4}\d*$`)
 
-func (r listVulnerabilitiesResponse) error() error { return r.Err }
+func (r listVulnerabilitiesResponse) Error() error { return r.Err }
 
 func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
 	request := req.(*listVulnerabilitiesRequest)
@@ -133,7 +133,7 @@ type getVulnerabilityResponse struct {
 	statusCode    int
 }
 
-func (r getVulnerabilityResponse) error() error { return r.Err }
+func (r getVulnerabilityResponse) Error() error { return r.Err }
 
 func (r getVulnerabilityResponse) Status() int {
 	if r.statusCode == 0 {

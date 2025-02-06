@@ -194,11 +194,7 @@ build_changelog() {
         make changelog
 
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
-        if [[ "$minor" == "true" ]]; then
-            # Place to make a main targeted prompt
-            prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules: Organize updates into three categories: Endpoint Operations, Device Management (MDM), and Vulnerability Management, with all bug fixes and misc. improvements listed under "Bug fixes and improvements". Start each entry with a past tense verb, using hyphens for bullet points. Include specific details for new features, bug fixes, API changes, and any necessary user actions. Note changes in user interfaces, system feedback, and significant architectural updates. Highlight mandatory actions and major impacts, especially for system administrators. Order seemingly important features at the top of their respective lists.'
-        fi
+        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. All items have correct spelling and punctuation.\n2. All items use sentence casing.\n3. All items are past tense.\n4. Each list item is designated with a dash.\n5. Output in markdown format.'
 
         content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
         question="${prompt}\n\n${content}"

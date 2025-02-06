@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -395,7 +396,7 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 		svc:      svc,
 		opts:     opts,
 		r:        r,
-		authFunc: authenticatedUser,
+		authFunc: auth.AuthenticatedUser,
 		versions: versions,
 	}
 }
@@ -437,7 +438,7 @@ func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.
 		svc:      svc,
 		opts:     opts,
 		r:        r,
-		authFunc: unauthenticatedRequest,
+		authFunc: auth.UnauthenticatedRequest,
 		versions: versions,
 	}
 }

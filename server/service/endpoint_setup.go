@@ -27,7 +27,7 @@ type setupResponse struct {
 	Err          error          `json:"error,omitempty"`
 }
 
-func (r setupResponse) error() error { return r.Err }
+func (r setupResponse) Error() error { return r.Err }
 
 func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
