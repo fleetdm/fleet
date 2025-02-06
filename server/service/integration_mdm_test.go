@@ -13307,10 +13307,11 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	// Create a couple of hosts
+	// Create a host and add to team
 	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	nodeKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &nodeKey
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
@@ -13322,27 +13323,27 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 		Name:  uuid.NewString(),
 		Query: "SELECT 1",
 	}, http.StatusOK, &newLabelResp)
-	lbl1 := newLabelResp.Label
+	label1 := newLabelResp.Label
 
 	newLabelResp = createLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 2",
 	}, http.StatusOK, &newLabelResp)
-	lbl2 := newLabelResp.Label
+	label2 := newLabelResp.Label
 
 	newLabelResp = createLabelResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
 		Name:  uuid.NewString(),
 		Query: "SELECT 3",
 	}, http.StatusOK, &newLabelResp)
-	lbl3 := newLabelResp.Label
+	label3 := newLabelResp.Label
 
 	// Add label1 and label2 to the host
-	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: ptr.Bool(true), label2.ID: ptr.Bool(true)}, time.Now(), false)
 	require.NoError(t, err)
 
-	// add vpp app. Add label1 and label3 as "exclude any" labels.
+	// add VPP app. Add label1 and label3 as "exclude any" labels.
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
 		fmt.Sprint(team.ID))
@@ -13354,10 +13355,10 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 		Platform:         addedApp.Platform,
 		AppStoreID:       addedApp.AdamID,
 		SelfService:      true,
-		LabelsExcludeAny: []string{lbl1.Name, lbl3.Name},
+		LabelsExcludeAny: []string{label1.Name, label3.Name},
 	}, http.StatusOK, &addedMacOSApp)
 
-	// Get software title ID of the uploaded installer.
+	// Get software title ID of the added VPP app
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -13402,28 +13403,18 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	policy1, err = s.ds.Policy(ctx, policy1.ID)
 	require.NoError(t, err)
 
-	// Because the installer is in scope, the policy is failing
+	// Note: host has label1, label2, and at this point the app has exclude_any: label1, label3
+	// Because the VPP app is out of scope, the policy doesn't have a status
 	require.Equal(t, uint(0), policy1.PassingHostCount)
-	require.Equal(t, uint(1), policy1.FailingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
 
-	// Update the include any labels. The host doesn't have label2, so this means that the software
-	// moved out of scope.
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{lbl2.Name}}
+	// Update the include any labels. The host has label2, so this means that the software
+	// moved in scope.
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
-	// Result should have been cleared for the policy
-	err = s.ds.UpdateHostPolicyCounts(ctx)
-	require.NoError(t, err)
-	policy1, err = s.ds.Policy(ctx, policy1.ID)
-	require.NoError(t, err)
-	require.Zero(t, policy1.PassingHostCount)
-	require.Zero(t, policy1.FailingHostCount)
-
-	// Update to exclude any with label 2. This moves the software back into scope. The policy
-	// automation should re-trigger.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{lbl2.Name}}
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
-
+	// Send back a failed result for the policy.
+	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
@@ -13434,7 +13425,47 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.NoError(t, err)
 	policy1, err = s.ds.Policy(ctx, policy1.ID)
 	require.NoError(t, err)
-	// Because the installer is in scope, the policy should be failing again.
+
+	// Note: host has label1, label2, and at this point the app has include_any: label2
+	// Because the VPP app is in scope, the policy is failing
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label2.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
+	// status should clear.
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label3.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
+
+	// Sending back another failed response
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	// Because the app is in scope, the policy should be failing again.
 	require.Equal(t, uint(0), policy1.PassingHostCount)
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
