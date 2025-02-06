@@ -1819,7 +1819,7 @@ FROM (
 						SELECT
 							label_updated_at FROM hosts
 						WHERE
-							id = 1) >= lbl.created_at THEN
+							id = h.id) >= lbl.created_at THEN
 					1
 				ELSE
 					0
@@ -1838,10 +1838,10 @@ HAVING
 	AND count_host_labels = 0) t`
 
 func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
-	return ds.getIncludedHostIDMapForSoftware(ctx, installerID, softwareTypeInstaller)
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), installerID, softwareTypeInstaller)
 }
 
-func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
+func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
 	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 	h.id
@@ -1852,7 +1852,7 @@ WHERE
 `, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
@@ -1879,7 +1879,7 @@ WHERE
 `, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software scope")
 	}
 

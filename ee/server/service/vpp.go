@@ -152,6 +152,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	// appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	if len(vppAppTeams) > 0 {
 		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
 		if err != nil {
@@ -184,6 +185,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if len(vppAppTeams) == 0 {
 		return []fleet.VPPAppResponse{}, nil
 	}
+
+	// for vppAppTeamID, hostsNotInScope := range appsWithChangedLabels {
+	// 	// Get the hosts that are now IN label scope (after the update)
+	// }
 
 	return svc.ds.GetVPPApps(ctx, teamID)
 }
@@ -419,9 +424,9 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
 			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
 		}
 	}
 
@@ -447,6 +452,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						SelfService:        props.SelfService,
 						InstallDuringSetup: props.InstallDuringSetup,
 						ValidatedLabels:    props.ValidatedLabels,
+						AppTeamID:          props.AppTeamID,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,
@@ -486,31 +492,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: validating software labels")
 	}
 
-	// check if labels have changed
-
 	meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp app metadata")
 	}
-
-	var existingLabels fleet.LabelIdentsWithScope
-	switch {
-	case len(meta.LabelsExcludeAny) > 0:
-		existingLabels.LabelScope = fleet.LabelScopeExcludeAny
-		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsExcludeAny))
-		for _, l := range meta.LabelsExcludeAny {
-			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
-		}
-
-	case len(meta.LabelsIncludeAny) > 0:
-		existingLabels.LabelScope = fleet.LabelScopeIncludeAny
-		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsIncludeAny))
-		for _, l := range meta.LabelsIncludeAny {
-			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
-		}
-	}
-
-	labelsChanged := !validatedLabels.Equal(&existingLabels)
 
 	if selfService && meta.Platform != fleet.MacOSPlatform {
 		return nil, fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
@@ -533,6 +518,26 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if meta.IconURL != nil {
 		appToWrite.IconURL = *meta.IconURL
 	}
+
+	// check if labels have changed
+	var existingLabels fleet.LabelIdentsWithScope
+	switch {
+	case len(meta.LabelsExcludeAny) > 0:
+		existingLabels.LabelScope = fleet.LabelScopeExcludeAny
+		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsExcludeAny))
+		for _, l := range meta.LabelsExcludeAny {
+			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+
+	case len(meta.LabelsIncludeAny) > 0:
+		existingLabels.LabelScope = fleet.LabelScopeIncludeAny
+		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsIncludeAny))
+		for _, l := range meta.LabelsIncludeAny {
+			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+	}
+
+	labelsChanged := !validatedLabels.Equal(&existingLabels)
 
 	// Get the hosts that are NOT in label scope currently (before the update happens)
 	var hostsNotInScope map[uint]struct{}

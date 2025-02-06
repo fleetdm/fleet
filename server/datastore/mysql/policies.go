@@ -432,14 +432,18 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
-	return ds.clearAutoInstallPolicyStatusForHosts(ctx, installerID, hostIDs, softwareTypeInstaller)
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, ds.writer(ctx), installerID, hostIDs, softwareTypeInstaller)
 }
 
 func (ds *Datastore) ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error {
-	return ds.clearAutoInstallPolicyStatusForHosts(ctx, vppAppTeamID, hostIDs, softwareTypeVPP)
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, ds.writer(ctx), vppAppTeamID, hostIDs, softwareTypeVPP)
 }
 
-func (ds *Datastore) clearAutoInstallPolicyStatusForHosts(ctx context.Context, softwareID uint, hostIDs []uint, swType softwareType) error {
+func (ds *Datastore) ClearVPPAppAutoInstallPolicyStatusForHostsTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, tx, vppAppTeamID, hostIDs, softwareTypeVPP)
+}
+
+func (ds *Datastore) clearAutoInstallPolicyStatusForHosts(ctx context.Context, tx sqlx.ExtContext, softwareID uint, hostIDs []uint, swType softwareType) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -466,7 +470,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing auto install policy status")
 	}
 

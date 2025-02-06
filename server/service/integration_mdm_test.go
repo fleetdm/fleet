@@ -13286,6 +13286,7 @@ func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
 func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger() {
 	t := s.T()
 	ctx := context.Background()
+	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 
 	// Set up VPP token
 	orgName := "Fleet Device Management Inc."
@@ -13313,6 +13314,8 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	host.OrbitNodeKey = &nodeKey
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
 
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
+
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
@@ -13339,8 +13342,12 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	}, http.StatusOK, &newLabelResp)
 	label3 := newLabelResp.Label
 
+	// Sleep to guarantee that host label updated at timestamp is greater than the label creation timestamps
+	time.Sleep(1 * time.Second)
+
 	// Add label1 and label2 to the host
-	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: ptr.Bool(true), label2.ID: ptr.Bool(true)}, time.Now(), false)
+	host.LabelUpdatedAt = time.Now()
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: ptr.Bool(true), label2.ID: ptr.Bool(true)}, host.LabelUpdatedAt, false)
 	require.NoError(t, err)
 
 	// add VPP app. Add label1 and label3 as "exclude any" labels.
@@ -13444,8 +13451,12 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
 	// status should clear.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label3.Name}}
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: addedApp.AdamID, LabelsExcludeAny: []string{label3.Name}},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", team.Name)
+	require.Len(t, batchAssociateResponse.Apps, 1)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
