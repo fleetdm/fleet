@@ -8,7 +8,7 @@ import FleetAppDetailsModal from "./FleetAppDetailsModal";
 describe("FleetAppDetailsModal", () => {
   const defaultProps = {
     name: "Test App",
-    platform: "macOS",
+    platform: "darwin",
     version: "1.0.0",
     url: "https://example.com/app",
     onCancel: noop,
