@@ -1,6 +1,6 @@
 # Fleet software attestation
 
-As of version 4.63.0 Fleet we will be adding [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the `fleet` and `fleetctl` server software, the Orbit and Fleet Desktop software for hosts, and the `osqueryd` updates periodically downloaded by hosts.
+As of version 4.63.0 Fleet added [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the `fleet` and `fleetctl` server software, the fleetd (Orbit, osquery, and Fleet Desktop) agent for hosts.
 
 ## What is software attestation?
 

@@ -21,9 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
-	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -750,88 +748,6 @@ func CanRun(rootDirPath, targetName string, targetInfo TargetInfo) bool {
 		return false
 	}
 
-	return true
-}
-
-// HasAccessToNewTUFServer will verify if the agent has access to Fleet's new TUF
-// by downloading the metadata and the orbit stable target.
-//
-// The metadata and the test target files will be downloaded to a temporary directory
-// that will be removed before this method returns.
-func HasAccessToNewTUFServer(opt Options) bool {
-	fp := filepath.Join(opt.RootDirectory, "new-tuf-checked")
-	ok, err := file.Exists(fp)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to check new-tuf-checked file exists")
-		return false
-	}
-	if ok {
-		return true
-	}
-	tmpDir, err := os.MkdirTemp(opt.RootDirectory, "tuf-tmp*")
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create tuf-tmp directory")
-		return false
-	}
-	defer os.RemoveAll(tmpDir)
-	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-tmp.json"))
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create tuf-tmp local store")
-		return false
-	}
-	remoteStore, err := createTUFRemoteStore(opt, DefaultURL)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create TUF remote store")
-		return false
-	}
-	tufClient := client.NewClient(localStore, remoteStore)
-	if err := tufClient.Init([]byte(opt.RootKeys)); err != nil {
-		log.Error().Err(err).Msg("failed to pin root keys")
-		return false
-	}
-	if _, err := tufClient.Update(); err != nil {
-		// Logging as debug to not fill logs until users allow connections to new TUF server.
-		log.Debug().Err(err).Msg("failed to update metadata from new TUF")
-		return false
-	}
-	tmpFile, err := secure.OpenFile(
-		filepath.Join(tmpDir, "orbit"),
-		os.O_CREATE|os.O_WRONLY,
-		constant.DefaultFileMode,
-	)
-	if err != nil {
-		log.Error().Err(err).Msg("failed open temp file for download")
-		return false
-	}
-	defer tmpFile.Close()
-	// We are using the orbit stable target as the test target.
-	var (
-		platform   string
-		executable string
-	)
-	switch runtime.GOOS {
-	case "darwin":
-		platform = "macos"
-		executable = "orbit"
-	case "windows":
-		platform = "windows"
-		executable = "orbit.exe"
-	case "linux":
-		platform = "linux"
-		executable = "orbit"
-	}
-	if err := tufClient.Download(fmt.Sprintf("orbit/%s/stable/%s", platform, executable), &fileDestination{tmpFile}); err != nil {
-		// Logging as debug to not fill logs until users allow connections to new TUF server.
-		log.Debug().Err(err).Msg("failed to download orbit from TUF")
-		return false
-	}
-
-	if err := os.WriteFile(fp, []byte("new-tuf-checked"), constant.DefaultFileMode); err != nil {
-		// We log the error and return success below anyway because the access check was successful.
-		log.Error().Err(err).Msg("failed to write new-tuf-checked file")
-	}
-	// We assume access to the whole repository
-	// if the orbit macOS stable target is downloaded successfully.
 	return true
 }
 

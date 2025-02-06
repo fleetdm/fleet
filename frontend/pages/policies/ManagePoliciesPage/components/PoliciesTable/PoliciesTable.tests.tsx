@@ -8,6 +8,35 @@ import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
 
 describe("Policies table", () => {
+  it("Renders the page-wide empty state when no policies are present (free tier)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePolicyClick={noop}
+        currentTeam={{ id: -1, name: "All teams" }}
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        resetPageIndex={false}
+      />
+    );
+
+    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+  });
+
   it("Renders the page-wide empty state when no policies are present (all teams)", async () => {
     const render = createCustomRenderer({
       context: {
@@ -37,6 +66,7 @@ describe("Policies table", () => {
       screen.getByText("You don't have any policies that apply to all teams")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
   });
 
   it("Renders the page-wide empty state when no policies are present (specific team)", async () => {
@@ -96,6 +126,7 @@ describe("Policies table", () => {
     );
 
     expect(screen.getByText("No matching policies")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
