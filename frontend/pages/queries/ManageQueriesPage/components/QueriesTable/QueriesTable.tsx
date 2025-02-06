@@ -289,9 +289,12 @@ const QueriesTable = ({
             onActionButtonClick: onDeleteQueryClick,
           }}
           emptyComponent={() => EmptyTable(emptyParams)}
-          renderCount={() => (
-            <TableCount name="queries" count={totalQueriesCount} />
-          )}
+          renderCount={() =>
+            ((totalQueriesCount || searchQuery) && (
+              <TableCount name="queries" count={totalQueriesCount} />
+            )) ||
+            null
+          }
           inputPlaceHolder="Search by name"
           onQueryChange={onQueryChange}
           searchable={searchable}
