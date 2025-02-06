@@ -232,7 +232,7 @@ List versions changes for any component updates below:
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>`fleetd` local testing</td>
 <td>
-1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/8bc00096d28b7ef26b8574d17ad4c80fab853741/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
 </td>
 <td>
 1. Confirm the hosts install with the updated version and are working correctly.<br>
