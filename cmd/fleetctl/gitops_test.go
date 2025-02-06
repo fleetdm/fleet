@@ -799,6 +799,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return nil, nil
+	}
+	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
 
 	// Team
 	var savedTeam *fleet.Team
@@ -2739,6 +2745,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
+		return nil, nil
+	}
+	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
