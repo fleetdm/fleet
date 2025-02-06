@@ -6,11 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -50,67 +47,6 @@ func main() {
 		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
 		os.Exit(1)
 	}
-}
-
-func printTable(contents []content, filter string) error {
-	data := [][]string{}
-	regFilter, err := regexp.Compile(filter)
-	if err != nil {
-		return err
-	}
-
-	for _, content := range contents {
-		if regFilter.MatchString(content.Key) {
-			r := strings.Split(content.Key, "/")
-			platform, version := r[2], r[3]
-			data = append(data, []string{version, platform, content.Key, content.LastModified, byteCountSI(content.Size), content.ETag})
-		}
-	}
-
-	// sort by version, platform, key
-	sort.Slice(data, func(i, j int) bool {
-		if data[i][0] != data[j][0] {
-			return data[i][0] < data[j][0]
-		}
-
-		if data[i][1] != data[j][1] {
-			return data[i][1] < data[j][1]
-		}
-
-		return data[i][2] < data[j][2]
-	})
-
-	fmt.Printf("\nResults filtered by \"%s\" and sorted by version, platform and key.\n\n", filter)
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"version", "platform", "key", "last modified", "size", "etag"})
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t")
-	table.SetNoWhiteSpace(true)
-	table.AppendBulk(data)
-	table.Render()
-	return nil
-}
-
-func byteCountSI(b int64) string {
-	const unit = 1000
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB",
-		float64(b)/float64(div), "kMGTPE"[exp])
 }
 
 var componentFileMap = map[string]map[string]string{
@@ -355,13 +291,13 @@ func getComponentsAmazon(tufURL string, components []string, channel string) (fo
 func getComponentsCloudflare(tufURL string, components []string, channel string) (foundComponents map[string]map[string]string, eTagMap map[string][]string, err error) {
 	res, err := http.Get(tufURL + "/targets.json") //nolint
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get /targets.json: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to read /targets.json response: %w", err)
 	}
 
 	selectedComponents := make(map[string]struct{})
@@ -371,24 +307,24 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 
 	var targetsJSON map[string]interface{}
 	if err := json.Unmarshal(body, &targetsJSON); err != nil {
-		log.Fatal("failed to parse the source targets.json file")
+		return nil, nil, fmt.Errorf("failed to parse the source targets.json file: %w", err)
 	}
 
 	signed_ := targetsJSON["signed"]
 	if signed_ == nil {
-		log.Fatal("missing signed key in targets.json file")
+		return nil, nil, errors.New("missing signed key in targets.json file")
 	}
 	signed, ok := signed_.(map[string]interface{})
 	if !ok {
-		log.Fatalf("invalid signed key in targets.json file: %T, expected map", signed_)
+		return nil, nil, fmt.Errorf("invalid signed key in targets.json file: %T, expected map", signed_)
 	}
 	targets_ := signed["targets"]
 	if targets_ == nil {
-		log.Fatal("missing signed.targets key in targets.json file")
+		return nil, nil, errors.New("missing signed.targets key in targets.json file")
 	}
 	targets, ok := targets_.(map[string]interface{})
 	if !ok {
-		log.Fatalf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
+		return nil, nil, fmt.Errorf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
 	}
 
 	eTagMap = make(map[string][]string)
@@ -396,7 +332,7 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 	for target, metadata_ := range targets {
 		parts := strings.Split(target, "/")
 		if len(parts) != 4 {
-			log.Fatalf("target %q: invalid number of parts, expected 4", target)
+			return nil, nil, fmt.Errorf("target %q: invalid number of parts, expected 4", target)
 		}
 
 		targetName := parts[0]
@@ -406,27 +342,27 @@ func getComponentsCloudflare(tufURL string, components []string, channel string)
 
 		metadata, ok := metadata_.(map[string]interface{})
 		if !ok {
-			log.Fatalf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
+			return nil, nil, fmt.Errorf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
 		}
 		custom_ := metadata["custom"]
 		if custom_ == nil {
-			log.Fatalf("target: %q: missing custom field", target)
+			return nil, nil, fmt.Errorf("target: %q: missing custom field", target)
 		}
 		hashes_ := metadata["hashes"]
 		if hashes_ == nil {
-			log.Fatalf("target: %q: missing hashes field", target)
+			return nil, nil, fmt.Errorf("target: %q: missing hashes field", target)
 		}
 		hashes, ok := hashes_.(map[string]interface{})
 		if !ok {
-			log.Fatalf("target: %q: invalid hashes field: %T", target, hashes_)
+			return nil, nil, fmt.Errorf("target: %q: invalid hashes field: %T", target, hashes_)
 		}
 		sha512_ := hashes["sha512"]
 		if sha512_ == nil {
-			log.Fatalf("target: %q: missing hashes.sha512 field", target)
+			return nil, nil, fmt.Errorf("target: %q: missing hashes.sha512 field", target)
 		}
 		hashSHA512, ok := sha512_.(string)
 		if !ok {
-			log.Fatalf("target: %q: invalid hashes.sha512 field: %T", target, sha512_)
+			return nil, nil, fmt.Errorf("target: %q: invalid hashes.sha512 field: %T", target, sha512_)
 		}
 		if validVersion(channelPart) {
 			eTagMap[hashSHA512] = append(eTagMap[hashSHA512], channelPart)
