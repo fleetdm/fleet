@@ -15,7 +15,6 @@ import { getNextLocationPath } from "utilities/helpers";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
@@ -31,7 +30,6 @@ export interface IQueriesTableProps {
   onlyInheritedQueries: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
-  onCreateQueryClick: () => void;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
@@ -89,7 +87,6 @@ const QueriesTable = ({
   onlyInheritedQueries,
   isLoading,
   onDeleteQueryClick,
-  onCreateQueryClick,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,

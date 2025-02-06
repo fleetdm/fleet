@@ -161,7 +161,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -188,7 +187,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -208,15 +206,6 @@ describe("QueriesTable", () => {
   });
 
   it("Renders the page-wide empty state when no queries are present (specific team)", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -225,7 +214,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -253,7 +241,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries: false,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -284,7 +271,6 @@ describe("QueriesTable", () => {
       onlyInheritedQueries: false,
       isLoading: false,
       onDeleteQueryClick: jest.fn(),
-      onCreateQueryClick: jest.fn(),
       isOnlyObserver: false,
       isObserverPlus: false,
       isAnyTeamObserverPlus: false,
@@ -323,7 +309,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -364,7 +349,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -404,7 +388,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -433,7 +416,6 @@ describe("QueriesTable", () => {
         onlyInheritedQueries={false}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
