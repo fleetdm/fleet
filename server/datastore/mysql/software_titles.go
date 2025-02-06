@@ -101,6 +101,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
+	if opt.ExcludeFleetMaintainedApps && !opt.AvailableForInstall {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "exclude_fleet_maintained_apps=true may only be provided with available_for_install=true")
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args := selectSoftwareTitlesSQL(opt)
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
@@ -412,8 +416,8 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 
 	// if excluding fleet maintained apps, filter out any row from software_titles
 	// that has a matching row in fleet_library_apps.
-	if opt.ExcludeFleetMaintainedApps {
-		additionalWhere += " AND NOT EXISTS ( SELECT FALSE FROM fleet_library_apps AS fla WHERE fla.bundle_identifier = st.bundle_identifier )"
+	if opt.ExcludeFleetMaintainedApps && opt.AvailableForInstall {
+		additionalWhere += " AND si.fleet_library_app_id IS NULL"
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)

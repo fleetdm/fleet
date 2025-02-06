@@ -1393,7 +1393,7 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// Add a couple of apps to the Fleet library.
-	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	fla1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:    "Awesome Fleet Maintained App",
 		Token:   "abc123",
 		Version: "1.2.3",
@@ -1405,20 +1405,6 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 		InstallScript:    "echo",
 		UninstallScript:  "sleep",
 	})
-	require.NoError(t, err)
-	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:    "Another Fleet Maintained App",
-		Token:   "xxxyyy",
-		Version: "5.5.5",
-		// for now, maintained apps are always macOS (darwin)
-		Platform:         fleet.MacOSPlatform,
-		InstallerURL:     "http://installmycoolapp.com",
-		SHA256:           "xyz999",
-		BundleIdentifier: "fma.com.xyz",
-		InstallScript:    "echo",
-		UninstallScript:  "sleep",
-	})
-	require.NoError(t, err)
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1436,13 +1422,12 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, macOSInstallerNoTeam)
 
-	// Create another macOS software installer on "No team" that we'll set as a Fleet Maintained App.
 	macOSInstallerNoTeam2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "fleetmaintained_installer",
-		BundleIdentifier: "com.fleetmaintained_installer.xyz",
+		Title:            "fizzbuzz",
+		BundleIdentifier: "com.fizz.buzz",
 		Source:           "apps",
 		InstallScript:    "echo",
-		Filename:         "fleetmaintained_installer.pkg",
+		Filename:         "fizzbuzz.pkg",
 		TeamID:           nil,
 		UserID:           user1.ID,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
@@ -1450,24 +1435,22 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, macOSInstallerNoTeam2)
 
-	// Add a macOS host on "No team" with some software.
-	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
-	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", BundleIdentifier: "foo.com.bar"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", BundleIdentifier: "foo.com.bar"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bar.com.baz"},
-		{Name: "fma", Version: "1.2.3", Source: "deb_packages", BundleIdentifier: "fma.com.xyz"},
-	}
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	// Create another macOS software installer on "No team" that we'll set as a Fleet Maintained App.
+	macOSInstallerNoTeam3, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:             "fleetmaintained_installer",
+		BundleIdentifier:  "com.fleetmaintained_installer.xyz",
+		FleetLibraryAppID: &fla1.ID,
+		Source:            "apps",
+		InstallScript:     "echo",
+		Filename:          "fleetmaintained_installer.pkg",
+		TeamID:            nil,
+		UserID:            user1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
 	require.NoError(t, err)
+	require.NotZero(t, macOSInstallerNoTeam3)
 
-	// Simulate vulnerabilities cron
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-
-	// List software titles for "All teams", should only return the host software titles
-	// and no installers/VPP-apps because none is installed yet.
+	// List software for "No team". Should list the non FMA installers.
 	titles, counts, _, err := ds.ListSoftwareTitles(
 		ctx,
 		fleet.SoftwareTitleListOptions{
@@ -1476,7 +1459,8 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 				OrderDirection: fleet.OrderAscending,
 			},
 			ExcludeFleetMaintainedApps: true,
-			TeamID:                     nil,
+			AvailableForInstall:        true,
+			TeamID:                     ptr.Uint(0),
 		},
 		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
 	)
@@ -1487,39 +1471,14 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 		name   string
 		source string
 	}
+
 	names := make([]nameSource, 0, len(titles))
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
 	}
 	assert.ElementsMatch(t, []nameSource{
-		{name: "bar", source: "deb_packages"},
-		{name: "foo", source: "chrome_extensions"},
-	}, names)
-
-	// List software for "No team". Should list the host's software + the macOS installer.
-	titles, counts, _, err = ds.ListSoftwareTitles(
-		ctx,
-		fleet.SoftwareTitleListOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "name",
-				OrderDirection: fleet.OrderAscending,
-			},
-			ExcludeFleetMaintainedApps: true,
-			TeamID:                     ptr.Uint(0),
-		},
-		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
-	)
-	require.NoError(t, err)
-	assert.EqualValues(t, 3, counts)
-	assert.Len(t, titles, 3)
-	names = make([]nameSource, 0, len(titles))
-	for _, title := range titles {
-		names = append(names, nameSource{name: title.Name, source: title.Source})
-	}
-	assert.ElementsMatch(t, []nameSource{
-		{name: "bar", source: "deb_packages"},
-		{name: "foo", source: "chrome_extensions"},
 		{name: "foobar", source: "apps"},
+		{name: "fizzbuzz", source: "apps"},
 	}, names)
 
 	// List software for "No team", with match for non-FMA title.
@@ -1533,6 +1492,7 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 				MatchQuery:     "foobar",
 			},
 			ExcludeFleetMaintainedApps: true,
+			AvailableForInstall:        true,
 			TeamID:                     ptr.Uint(0),
 		},
 		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
@@ -1559,6 +1519,7 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 				MatchQuery:     "fma",
 			},
 			ExcludeFleetMaintainedApps: true,
+			AvailableForInstall:        true,
 			TeamID:                     ptr.Uint(0),
 		},
 		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
@@ -1566,32 +1527,6 @@ func testListSoftwareTitlesNotFleetMaintained(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, counts)
 	assert.Len(t, titles, 0)
-
-	// List software available for install on "No team". Should list "foobar" package only.
-	titles, counts, _, err = ds.ListSoftwareTitles(
-		ctx,
-		fleet.SoftwareTitleListOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "name",
-				OrderDirection: fleet.OrderAscending,
-			},
-			ExcludeFleetMaintainedApps: true,
-			AvailableForInstall:        true,
-			TeamID:                     ptr.Uint(0),
-		},
-		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
-	)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, counts)
-	require.Len(t, titles, 1)
-
-	names = make([]nameSource, 0, len(titles))
-	for _, title := range titles {
-		names = append(names, nameSource{name: title.Name, source: title.Source})
-	}
-	assert.ElementsMatch(t, []nameSource{
-		{name: "foobar", source: "apps"},
-	}, names)
 }
 
 func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
@@ -1900,6 +1835,14 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				KnownExploit: true,
 			},
 			err: fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true"),
+		},
+		{
+			name: "err if exclude_fleet_maintained_apps is set and available_for_install is not",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:                fleet.ListOptions{},
+				ExcludeFleetMaintainedApps: true,
+			},
+			err: fleet.NewInvalidArgumentError("query", "exclude_fleet_maintained_apps=true may only be provided with available_for_install=true"),
 		},
 	}
 
