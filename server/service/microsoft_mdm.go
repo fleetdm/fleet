@@ -72,7 +72,7 @@ type SoapResponseContainer struct {
 	Err  error
 }
 
-func (r SoapResponseContainer) error() error { return r.Err }
+func (r SoapResponseContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -133,7 +133,7 @@ type SyncMLResponseMsgContainer struct {
 	Err  error
 }
 
-func (r SyncMLResponseMsgContainer) error() error { return r.Err }
+func (r SyncMLResponseMsgContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -177,7 +177,7 @@ func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.V
 	return nil
 }
 
-func (req MDMWebContainer) error() error { return req.Err }
+func (req MDMWebContainer) Error() error { return req.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -196,7 +196,7 @@ type MDMAuthContainer struct {
 	Err  error
 }
 
-func (r MDMAuthContainer) error() error { return r.Err }
+func (r MDMAuthContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW XML output
 func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {

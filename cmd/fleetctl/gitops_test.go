@@ -2200,15 +2200,21 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		file            string
 		wantErr         string
 		tokenExpiration time.Time
+		expectedLabels  map[string]uint
 	}{
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour)},
-		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_incorrect_type.yml", "\"app_store_apps.app_store_id\" must be a string, found number", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_incorrect_type.yml", "\"app_store_apps.app_store_id\" must be a string, found number", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_both.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour), map[string]uint{}},
 	}
 
 	for _, c := range cases {
@@ -2238,9 +2244,25 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}, nil
 			}
 
+			found := make(map[string]uint)
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				for _, l := range labels {
+					if id, ok := c.expectedLabels[l]; ok {
+						found[l] = id
+					}
+				}
+				return found, nil
+			}
+
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
+
 			if c.wantErr == "" {
 				require.NoError(t, err)
+				if len(c.expectedLabels) > 0 {
+					require.True(t, ds.LabelIDsByNameFuncInvoked)
+				}
+
+				require.Equal(t, c.expectedLabels, found)
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
@@ -2652,7 +2674,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
-			if *(*tm).Filename == filename {
+			if (*tm).Filename != nil && *(*tm).Filename == filename {
 				return *tm, nil
 			}
 		}
@@ -3431,7 +3453,7 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
-func TestGitOpsWebhooksDisable(t *testing.T) {
+func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := setupFullGitOpsPremiumServer(t)
 
 	webhook := &(*appConfig).WebhookSettings
@@ -3449,6 +3471,38 @@ func TestGitOpsWebhooksDisable(t *testing.T) {
 	require.False(t, webhook.FailingPoliciesWebhook.Enable)
 	require.False(t, webhook.HostStatusWebhook.Enable)
 	require.False(t, webhook.VulnerabilitiesWebhook.Enable)
+}
+
+func TestGitOpsTeamWebhooks(t *testing.T) {
+	teamName := "TestTeamWebhooks"
+
+	ds, _, savedTeams := setupFullGitOpsPremiumServer(t)
+
+	// Create a new team.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "http://saybye.by"},
+		HostStatusWebhook:      &fleet.HostStatusWebhookSettings{Enable: true},
+	}}})
+	require.NoError(t, err)
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Do a GitOps run with no webhook settings.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err = runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	require.NoError(t, err)
+
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.NotNil(t, team.Config.WebhookSettings)
+
+	// Check that the team's failing policy webhook settings are disabled and cleared, since the GitOps
+	// config doesn't include them.
+	require.False(t, team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "", team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	// Check that the team's host status webhook settings are enabled and set to the new values.
+	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
 type memKeyValueStore struct {

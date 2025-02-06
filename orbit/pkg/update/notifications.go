@@ -365,14 +365,16 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 
 	if runtime.GOOS == "darwin" {
 		if cfg.Notifications.RunSetupExperience && !CanRun(h.rootDirPath, "swiftDialog", SwiftDialogMacOSTarget) {
-			log.Debug().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
+			log.Info().Msg("exiting scripts config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}
 	}
 
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		log.Info().Msgf("received notification to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
+
 		if h.mu.TryLock() {
-			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
+			log.Info().Msgf("proceeding to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
 			runner := &scripts.Runner{
 				ScriptExecutionEnabled: h.scriptsEnabled(),
@@ -393,7 +395,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 					log.Info().Err(err).Msg("running scripts failed")
 					return
 				}
-				log.Debug().Msgf("running scripts %v succeeded", cfg.Notifications.PendingScriptExecutionIDs)
+				log.Info().Msgf("running scripts %v succeeded", cfg.Notifications.PendingScriptExecutionIDs)
 			}()
 		}
 	}

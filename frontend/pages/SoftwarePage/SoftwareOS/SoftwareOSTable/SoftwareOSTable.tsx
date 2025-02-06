@@ -162,14 +162,12 @@ const SoftwareOSTable = ({
   }, [data, router, teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      os_version_id: row.original.os_version_id,
+    const teamQueryParam = buildQueryStringFromParams({
       team_id: teamId,
-    };
-
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    });
+    const path = `${PATHS.SOFTWARE_OS_DETAILS(
+      Number(row.original.os_version_id)
+    )}?${teamQueryParam}`;
 
     router.push(path);
   };

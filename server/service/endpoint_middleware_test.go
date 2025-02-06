@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -228,7 +229,7 @@ func TestAuthenticatedUserMW(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			nextCalled := false
-			endpoint := authenticatedUser(svc, func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			endpoint := auth.AuthenticatedUser(svc, func(ctx context.Context, request interface{}) (response interface{}, err error) {
 				nextCalled = true
 				return nil, nil
 			})

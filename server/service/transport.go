@@ -27,15 +27,15 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.error().(kithttp.StatusCoder); ok {
+		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
 		_, err := io.WriteString(w, page.html())
 		return err
 	}
 
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
+	if e, ok := response.(errorer); ok && e.Error() != nil {
+		encodeError(ctx, e.Error(), w)
 		return nil
 	}
 
@@ -65,7 +65,7 @@ type statuser interface {
 // loads a html page
 type htmlPage interface {
 	html() string
-	error() error
+	Error() error
 }
 
 // renderHijacker can be implemented by response values to take control of

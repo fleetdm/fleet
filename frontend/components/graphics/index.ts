@@ -13,6 +13,7 @@ import FilePkg from "./FilePkg";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
 import FileVpp from "./FileVpp";
+import AppStore from "./AppStore";
 import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
@@ -48,6 +49,7 @@ export const GRAPHIC_MAP = {
   "file-p7m": FileP7m,
   "file-pem": FilePem,
   "file-vpp": FileVpp,
+  "app-store": AppStore, // Used in non-editable file uploader for vpp apps edit modal
   // Other graphics
   "collecting-results": CollectingResults,
   "data-error": DataError,

@@ -177,6 +177,8 @@ export default {
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  EDIT_SOFTWARE_VPP: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,

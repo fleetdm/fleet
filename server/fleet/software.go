@@ -223,15 +223,16 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"team_id,optional"`
-	VulnerableOnly      bool    `query:"vulnerable,optional"`
-	AvailableForInstall bool    `query:"available_for_install,optional"`
-	SelfServiceOnly     bool    `query:"self_service,optional"`
-	KnownExploit        bool    `query:"exploit,optional"`
-	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
-	PackagesOnly        bool    `query:"packages_only,optional"`
-	Platform            string  `query:"platform,optional"`
+	TeamID                     *uint   `query:"team_id,optional"`
+	VulnerableOnly             bool    `query:"vulnerable,optional"`
+	AvailableForInstall        bool    `query:"available_for_install,optional"`
+	SelfServiceOnly            bool    `query:"self_service,optional"`
+	KnownExploit               bool    `query:"exploit,optional"`
+	MinimumCVSS                float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                float64 `query:"max_cvss_score,optional"`
+	PackagesOnly               bool    `query:"packages_only,optional"`
+	Platform                   string  `query:"platform,optional"`
+	ExcludeFleetMaintainedApps bool    `query:"exclude_fleet_maintained_apps,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -440,9 +441,11 @@ func SoftwareFromOsqueryRow(
 }
 
 type VPPBatchPayload struct {
-	AppStoreID         string `json:"app_store_id"`
-	SelfService        bool   `json:"self_service"`
-	InstallDuringSetup *bool  `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	AppStoreID         string   `json:"app_store_id"`
+	SelfService        bool     `json:"self_service"`
+	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -450,4 +453,6 @@ type VPPBatchPayloadWithPlatform struct {
 	SelfService        bool                `json:"self_service"`
 	Platform           AppleDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string            `json:"labels_include_any"`
 }

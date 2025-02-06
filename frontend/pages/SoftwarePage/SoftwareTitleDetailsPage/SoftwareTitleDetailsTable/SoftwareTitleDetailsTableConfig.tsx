@@ -68,18 +68,10 @@ const generateSoftwareTitleDetailsTableConfig = ({
           id.toString()
         )}?${teamQueryParam}`;
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          router?.push(softwareVersionDetailsPath);
-        };
-
-        // TODO: make only text clickable
         return (
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            customOnClick={onClickSoftware}
             value={cellProps.cell.value}
           />
         );

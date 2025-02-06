@@ -411,7 +411,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		for _, d := range deleted {
 			// We don't support installing browser plugins as of 2024/08/22
 			if d.Browser == "" {
-				deletedTitles[UniqueSoftwareTitleStr(d.Name, d.Source, d.BundleIdentifier)] = struct{}{}
+				deletedTitles[UniqueSoftwareTitleStr(BundleIdentifierOrName(d.BundleIdentifier, d.Name), d.Source)] = struct{}{}
 			}
 		}
 		for _, i := range inserted {
@@ -436,7 +436,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 			if title.BundleIdentifier != nil {
 				bundleIdentifier = *title.BundleIdentifier
 			}
-			key := UniqueSoftwareTitleStr(title.Name, title.Source, bundleIdentifier)
+			key := UniqueSoftwareTitleStr(BundleIdentifierOrName(bundleIdentifier, title.Name), title.Source)
 			if _, ok := deletedTitles[key]; ok {
 				deletedTitleIDs[title.ID] = deletedValue{vpp: title.VPPAppsCount > 0}
 			}
@@ -547,7 +547,9 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(
+			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.Browser,
+		)] = checksum
 	}
 
 	// Get titles for software without bundle_identifier.
@@ -593,7 +595,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		}
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
 			}
@@ -601,6 +603,14 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	}
 
 	return incomingChecksumToTitle, nil
+}
+
+// BundleIdentifierOrName returns the bundle identifier if it is not empty, otherwise name
+func BundleIdentifierOrName(bundleIdentifier, name string) string {
+	if bundleIdentifier != "" {
+		return bundleIdentifier
+	}
+	return name
 }
 
 // UniqueSoftwareTitleStr creates a unique string representation of the software title
@@ -2375,9 +2385,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			AND
 		    -- label membership check
 			(
-			 	-- do the label membership check only for software installers
-				CASE WHEN (si.ID IS NOT NULL AND hsi.last_uninstalled_at IS NOT NULL AND hsr.exit_code = 0) THEN
-				(
+			CASE WHEN ((si.ID IS NOT NULL AND hsi.last_uninstalled_at > hsi.last_installed_at AND hsr.exit_code = 0) OR (:avail OR :self_service)) THEN (
+			 	-- do the label membership check for software installers and VPP apps
 					EXISTS (
 
 					SELECT 1 FROM (
@@ -2386,7 +2395,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						)
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
 						UNION
 
@@ -2426,11 +2435,45 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							AND sil.exclude = 1
 						HAVING
 							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
 						) t
-					)
-				)
-				-- it's some other type of software that has been checked above
-				ELSE true END
+				)) ELSE true END
 			)
 
 			%s
@@ -2502,9 +2545,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
 			-- label membership check
 			(
-			 	-- do the label membership check only for software installers
-				CASE WHEN si.ID IS NOT NULL THEN
-				(
+			 	-- do the label membership check for software installers and VPP apps
 					EXISTS (
 
 					SELECT 1 FROM (
@@ -2513,7 +2554,7 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 						WHERE NOT EXISTS (
 							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						)
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
 
 						UNION
 
@@ -2553,11 +2594,44 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 							AND sil.exclude = 1
 						HAVING
 							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 						) t
 					)
-				)
-				-- it's some other type of software that has been checked above
-				ELSE true END
 			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
@@ -2599,6 +2673,8 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"global_or_team_id":         globalOrTeamID,
 		"is_mdm_enrolled":           opts.IsMDMEnrolled,
 		"host_label_updated_at":     host.LabelUpdatedAt,
+		"avail":                     opts.OnlyAvailableForInstall,
+		"self_service":              opts.SelfServiceOnly,
 	}
 
 	stmt := stmtInstalled

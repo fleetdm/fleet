@@ -32,6 +32,7 @@ const generateUpdateData = (
     "name",
     "email",
     "sso_enabled",
+    "mfa_enabled",
   ];
   return Object.keys(formData).reduce<IUserUpdateBody | any>(
     (updatedAttributes, attr) => {

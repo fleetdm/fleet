@@ -37,11 +37,12 @@ interface IEditorProps {
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: any) => void;
+  onBlur?: () => void;
 }
 
 /**
  * This component is a generic editor that uses the AceEditor component.
- * TODO: We should move FleetAce and YamlAce into here and deprecate importing
+ * TODO: We should move SQLEditor and YamlAce into here and deprecate importing
  * them directly. This component should be used for all editor components and
  * be configurable from the props. We should look into dynmaic imports for
  * this.
@@ -61,6 +62,7 @@ const Editor = ({
   maxLines = 20,
   className,
   onChange,
+  onBlur,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
@@ -131,6 +133,7 @@ const Editor = ({
         tabSize={2}
         focus={focus}
         onChange={onChange}
+        onBlur={onBlur}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

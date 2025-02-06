@@ -8804,12 +8804,13 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 | exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
+
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin,windows`
 
 ##### Default response
 
@@ -9179,6 +9180,12 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 345,
+          "name": "[Install software] Logic Pro",
+        } 
+      ],
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9644,7 +9651,8 @@ Returns information about the specified Fleet-maintained app.
   "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
-    "version": "8.10.40",
+    "filename": "1Password-8.10.50-aarch64.zip",
+    "version": "8.10.50",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",

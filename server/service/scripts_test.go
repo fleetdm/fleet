@@ -313,12 +313,15 @@ func TestHostRunScript(t *testing.T) {
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with posix hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with usr bash hashbang", "#!/usr/bin/bash\necho 'a'", ""},
+			{"valid with bash hashbang", "#!/bin/bash\necho 'a'", ""},
+			{"valid with bash hashbang and arguments", "#!/bin/bash -x\necho 'a'", ""},
 			{"valid with usr zsh hashbang", "#!/usr/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang", "#!/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang and arguments", "#!/bin/zsh -x\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
-			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
+			{"invalid hashbang", "#!/bin/ksh\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
