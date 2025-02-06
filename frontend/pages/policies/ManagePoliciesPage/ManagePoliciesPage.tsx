@@ -754,7 +754,7 @@ const ManagePolicyPage = ({
     ? teamPolicies && teamPolicies.length > 0
     : globalPolicies && globalPolicies.length > 0;
 
-  // Show CTA buttons if there is no errors AND there are policy results or a search filter
+  // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
