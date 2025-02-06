@@ -152,7 +152,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	// appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	if len(vppAppTeams) > 0 {
 		apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
 		if err != nil {
@@ -185,10 +184,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if len(vppAppTeams) == 0 {
 		return []fleet.VPPAppResponse{}, nil
 	}
-
-	// for vppAppTeamID, hostsNotInScope := range appsWithChangedLabels {
-	// 	// Get the hosts that are now IN label scope (after the update)
-	// }
 
 	return svc.ds.GetVPPApps(ctx, teamID)
 }
