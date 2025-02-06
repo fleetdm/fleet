@@ -16,8 +16,7 @@ const AppleBMTermsMessage = () => {
           text="Go to ABM"
           className={`${baseClass}__new-tab`}
           newTab
-          color="core-fleet-black"
-          iconColor="core-fleet-black"
+          variant="banner-link"
         />
       }
     >

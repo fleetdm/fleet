@@ -29,7 +29,7 @@ interface ICustomLinkProps {
    * Longterm: refactor 14 instances away from iconColor/color combo, which
    * usually are identical and repetitive, toward variants e.g. "banner-link"
    */
-  variant?: "tooltip-link" | "default" | "flash-message-link";
+  variant?: "tooltip-link" | "banner-link" | "default" | "flash-message-link";
 }
 
 const baseClass = "custom-link";
@@ -50,6 +50,8 @@ const CustomLink = ({
       case "tooltip-link":
       case "flash-message-link":
         return "core-fleet-white";
+      case "banner-link":
+        return "core-fleet-black";
       default:
         return iconColor;
     }
