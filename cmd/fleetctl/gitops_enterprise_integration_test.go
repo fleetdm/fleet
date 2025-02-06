@@ -246,7 +246,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) createGitOpsUser(t *testing.T) fl
 	return user
 }
 
-// TestDeleteMacOSSetup tests the deletion of bootstrap package and enrollment profile by `fleetctl gitops` command.
+// TestDeleteMacOSSetup tests the deletion of macOS setup assets by `fleetctl gitops` command.
 func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteMacOSSetup() {
 	t := s.T()
 
@@ -344,7 +344,7 @@ team_settings:
 		return nil
 	})
 
-	// Re-apply configs and expect the bootstrap package to be deleted
+	// Re-apply configs and expect the macOS setup assets to be cleared
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
 
