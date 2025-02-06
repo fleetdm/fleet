@@ -243,6 +243,10 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 		channelPart := parts[2]
 		executablePart := parts[3]
 
+		if _, ok := selectedComponents[targetName]; !ok {
+			continue
+		}
+
 		metadata, ok := metadata_.(map[string]interface{})
 		if !ok {
 			return nil, nil, fmt.Errorf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
