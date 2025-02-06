@@ -5,7 +5,6 @@ import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -19,7 +18,6 @@ const DEFAULT_SORT_HEADER = "name";
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
-  onAddPolicyClick?: () => void;
   onDeletePolicyClick: (selectedTableIds: number[]) => void;
   canAddOrDeletePolicy?: boolean;
   hasPoliciesToDelete?: boolean;
@@ -38,7 +36,6 @@ interface IPoliciesTableProps {
 const PoliciesTable = ({
   policiesList,
   isLoading,
-  onAddPolicyClick,
   onDeletePolicyClick,
   canAddOrDeletePolicy,
   hasPoliciesToDelete,

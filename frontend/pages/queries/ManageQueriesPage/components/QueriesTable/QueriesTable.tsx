@@ -15,7 +15,6 @@ import { getNextLocationPath } from "utilities/helpers";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
@@ -28,10 +27,9 @@ export interface IQueriesTableProps {
   queries: IEnhancedQuery[] | null;
   totalQueriesCount: number | undefined;
   hasNextResults: boolean;
-  onlyInheritedQueries: boolean;
+  curTeamScopeQueriesPresent: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
-  onCreateQueryClick: () => void;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
@@ -86,10 +84,9 @@ const QueriesTable = ({
   queries,
   totalQueriesCount,
   hasNextResults,
-  onlyInheritedQueries,
+  curTeamScopeQueriesPresent,
   isLoading,
   onDeleteQueryClick,
-  onCreateQueryClick,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
@@ -255,9 +252,9 @@ const QueriesTable = ({
       generateColumnConfigs({
         currentUser,
         currentTeamId,
-        omitSelectionColumn: onlyInheritedQueries,
+        omitSelectionColumn: !curTeamScopeQueriesPresent,
       }),
-    [currentUser, currentTeamId, onlyInheritedQueries]
+    [currentUser, currentTeamId, curTeamScopeQueriesPresent]
   );
 
   const searchable =
@@ -299,7 +296,7 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable={searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
-          disableMultiRowSelect={onlyInheritedQueries}
+          disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
         />

@@ -836,7 +836,6 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -870,7 +869,6 @@ const ManagePolicyPage = ({
           isLoading={
             isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
           }
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}

@@ -158,10 +158,9 @@ describe("QueriesTable", () => {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -185,10 +184,9 @@ describe("QueriesTable", () => {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -208,24 +206,14 @@ describe("QueriesTable", () => {
   });
 
   it("Renders the page-wide empty state when no queries are present (specific team)", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -250,10 +238,9 @@ describe("QueriesTable", () => {
         queries: [...testGlobalQueries, ...testTeamQueries],
         totalQueriesCount: 4,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -281,10 +268,9 @@ describe("QueriesTable", () => {
       queries: [],
       totalQueriesCount: 0,
       hasNextResults: false,
-      onlyInheritedQueries: false,
+      curTeamScopeQueriesPresent: true,
       isLoading: false,
       onDeleteQueryClick: jest.fn(),
-      onCreateQueryClick: jest.fn(),
       isOnlyObserver: false,
       isObserverPlus: false,
       isAnyTeamObserverPlus: false,
@@ -320,10 +306,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -361,10 +346,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -401,10 +385,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -430,10 +413,9 @@ describe("QueriesTable", () => {
         queries={[...testTeamQueries, ...testGlobalQueries]}
         totalQueriesCount={4}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
