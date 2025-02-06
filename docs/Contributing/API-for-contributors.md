@@ -575,6 +575,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1327,7 +1329,7 @@ This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn o
 
 This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
 
-`DELETE /api/v1/fleet/android_enterprise/:id/`
+`DELETE /api/v1/fleet/android/enterprise/:id/`
 
 #### Parameters
 
@@ -1335,15 +1337,40 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 | ---- | ------ | ---- | ------------------------------------ |
 | id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
 
-
 #### Example
 
-`DELETE /api/v1/fleet/android_enterprise/5/`
+`DELETE /api/v1/fleet/android/enterprise/5/`
 
 ##### Default response
 
 `Status: 200`
 
+### Create Android enrollment token
+
+This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+
+`POST /api/v1/fleet/android/enterprise/:id/enrollment_token`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/android/enterprise/5/enrollment_token`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
+  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF"
+}
+```
 
 ## Get or apply configuration files
 
