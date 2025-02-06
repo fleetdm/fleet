@@ -1322,7 +1322,9 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
-					return &newMDMConfigProfileResponse{Err: fleet.NewInvalidArgumentError("profile name", SameProfileNameUploadErrorMsg)}, nil
+					return &newMDMConfigProfileResponse{
+						Err: fleet.NewInvalidArgumentError("profile name", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict),
+					}, nil
 				}
 				return &newMDMConfigProfileResponse{Err: err}, nil
 			}
