@@ -692,6 +692,8 @@ If set to `false`, stats are still collected for live queries.
 
 ## License
 
+*Available in Fleet Premium.*
+
 ### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
@@ -1029,7 +1031,7 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ## External activity audit logging
 
-> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -2096,6 +2098,8 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 
 ### s3_software_installers_cloudfront_url
 
+*Available in Fleet Premium.*
+
 CloudFront URL. Leave blank if you don't use CloudFront distribution.
 
 - Default value: none
@@ -2108,6 +2112,8 @@ CloudFront URL. Leave blank if you don't use CloudFront distribution.
 
 ### s3_software_installers_cloudfront_url_signing_public_key_id
 
+*Available in Fleet Premium.*
+
 Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
 
 - Default value: none
@@ -2119,6 +2125,8 @@ Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set
   ```
 
 ### s3_software_installers_cloudfront_url_signing_private_key
+
+*Available in Fleet Premium.*
 
 Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
 
