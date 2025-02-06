@@ -291,6 +291,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={location.query}
         currentTeamId={teamIdForApi}
+        isPremiumTier={isPremiumTier}
       />
     );
   };
@@ -381,13 +382,6 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
-  const hideQueryActions =
-    // there are no filters and no returned queries, indicating there are no global/team queries at all
-    !(!!location.query.query || !!location.query.platform) &&
-    !queriesResponse?.count &&
-    // the user has permission
-    (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);
-
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -398,7 +392,7 @@ const ManageQueriesPage = ({
             </div>
           </div>
 
-          {!hideQueryActions && (
+          {canCustomQuery && (
             <div className={`${baseClass}__action-button-container`}>
               {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
                 <Button

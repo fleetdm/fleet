@@ -62,26 +62,18 @@ const PoliciesTable = ({
       "Add policies to detect device health issues and trigger automations.",
   };
 
-  if (
-    currentTeam?.id === null ||
-    currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-  ) {
-    emptyState.header += " that apply to all teams";
-  } else {
-    emptyState.header += " that apply to this team";
+  if (isPremiumTier) {
+    if (
+      currentTeam?.id === null ||
+      currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+    ) {
+      emptyState.header += " that apply to all teams";
+    } else {
+      emptyState.header += " that apply to this team";
+    }
   }
 
-  if (canAddOrDeletePolicy) {
-    emptyState.primaryButton = (
-      <Button
-        variant="brand"
-        className={`${baseClass}__select-policy-button`}
-        onClick={onAddPolicyClick}
-      >
-        Add policy
-      </Button>
-    );
-  } else {
+  if (!canAddOrDeletePolicy) {
     emptyState.info = "";
   }
 
