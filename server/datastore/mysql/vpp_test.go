@@ -641,6 +641,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
+	require.NoError(t, err)
 	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appNoTeam1.AdamID, app1.Platform, nil)
 	require.NoError(t, err)
 	appTeamID1 = meta.AppTeamID
