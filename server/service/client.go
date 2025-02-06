@@ -516,7 +516,8 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 			}
-			if macosSetup.MacOSSetupAssistant.Value != "" {
+			switch {
+			case macosSetup.MacOSSetupAssistant.Value != "":
 				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -526,8 +527,13 @@ func (c *Client) ApplyGroup(
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
+			case macosSetup.MacOSSetupAssistant.Valid && !opts.DryRun &&
+				appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
+				// setup assistant is explicitly empty (only for GitOps)
+				if err := c.deleteMacOSSetupAssistant(nil); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("deleting macOS enrollment profile: %w", err)
+				}
 			}
-			// TODO: Delete setup assistant if needed
 		}
 		if scripts := extractAppCfgScripts(specs.AppConfig); scripts != nil {
 			scriptPayloads := make([]fleet.ScriptPayload, len(scripts))
@@ -628,12 +634,15 @@ func (c *Client) ApplyGroup(
 			case setup.BootstrapPackage.Valid: // explicitly empty
 				tmBootstrapPackages[k] = nil
 			}
-			if setup.MacOSSetupAssistant.Value != "" {
+			switch {
+			case setup.MacOSSetupAssistant.Value != "":
 				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmMacSetupAssistants[k] = b
+			case setup.MacOSSetupAssistant.Valid: // explicitly empty
+				tmMacSetupAssistants[k] = nil
 			}
 			if setup.Script.Value != "" {
 				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
@@ -783,19 +792,28 @@ func (c *Client) ApplyGroup(
 					}
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
-					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
-						if strings.Contains(err.Error(), "Couldn't upload") {
-							// Then the error should look something like this:
-							// "Couldn't upload. CONFIG_NAME_INVALID"
-							// We want the part after the period (this is the error name from Apple)
-							// to render a more helpful error message.
-							parts := strings.Split(err.Error(), ".")
-							if len(parts) < 2 {
-								return nil, nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w", tmName, err)
+					switch {
+					case b != nil:
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+							if strings.Contains(err.Error(), "Couldn't upload") {
+								// Then the error should look something like this:
+								// "Couldn't upload. CONFIG_NAME_INVALID"
+								// We want the part after the period (this is the error name from Apple)
+								// to render a more helpful error message.
+								parts := strings.Split(err.Error(), ".")
+								if len(parts) < 2 {
+									return nil, nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w",
+										tmName, err)
+								}
+								return nil, nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s",
+									strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
 							}
-							return nil, nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
+							return nil, nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 						}
-						return nil, nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+					case appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
+						if err := c.deleteMacOSSetupAssistant(&tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("deleting macOS enrollment profile for team %q: %w", tmName, err)
+						}
 					}
 				}
 			}

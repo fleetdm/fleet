@@ -323,12 +323,40 @@ team_settings:
 		return nil
 	})
 
+	// Add enrollment profiles
+	_, err = s.ds.SetOrUpdateMDMAppleSetupAssistant(context.Background(), &fleet.MDMAppleSetupAssistant{
+		TeamID:  nil,
+		Name:    "enrollment_profile.json",
+		Profile: []byte(`{"foo":"bar"}`),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateMDMAppleSetupAssistant(context.Background(), &fleet.MDMAppleSetupAssistant{
+		TeamID:  &team.ID,
+		Name:    "enrollment_profile.json",
+		Profile: []byte(`{"foo":"bar"}`),
+	})
+	require.NoError(t, err)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 2, result)
+		return nil
+	})
+
 	// Re-apply configs and expect the bootstrap package to be deleted
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 0, result)
+		return nil
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
 		assert.Equal(t, 0, result)
