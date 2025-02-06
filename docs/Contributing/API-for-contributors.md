@@ -1323,6 +1323,27 @@ This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn o
 
 `Status: 200`
 
+### Delete Android Enterprise
+
+This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise/:id/`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise/5/`
+
+##### Default response
+
+`Status: 200`
+
 
 ## Get or apply configuration files
 
