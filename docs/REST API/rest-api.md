@@ -2572,6 +2572,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "Fedora Linux",
       "description": "All Fedora hosts",
       "label_type": "builtin"
+    },
+    {
+      "id": 16,
+      "name": "Android",
+      "description": "All Android hosts",
+      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2602,8 +2608,11 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     {
       "platform": "windows",
       "hosts_count": 12044
+    },
+    {
+      "platform": "Android",
+      "hosts_count": 200
     }
-
   ]
 }
 ```
