@@ -509,7 +509,8 @@ func (c *Client) ApplyGroup(
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
-			case macosSetup.BootstrapPackage.Valid && !opts.DryRun && appconfig != nil && appconfig.License.IsPremium():
+			case macosSetup.BootstrapPackage.Valid && !opts.DryRun &&
+				appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
 				// bootstrap package is explicitly empty (only for GitOps)
 				if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -775,7 +776,7 @@ func (c *Client) ApplyGroup(
 						if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
 							return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 						}
-					case appconfig != nil && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
+					case appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
 						if err := c.DeleteBootstrapPackageIfNeeded(tmID); err != nil {
 							return nil, nil, nil, nil, fmt.Errorf("deleting bootstrap package for team %q: %w", tmName, err)
 						}
