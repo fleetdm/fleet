@@ -158,7 +158,7 @@ describe("QueriesTable", () => {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        curTeamScopeQueriesPresent: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
         isOnlyObserver: false,
@@ -184,7 +184,7 @@ describe("QueriesTable", () => {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        curTeamScopeQueriesPresent: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
         isOnlyObserver: false,
@@ -211,7 +211,7 @@ describe("QueriesTable", () => {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        curTeamScopeQueriesPresent: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
         isOnlyObserver: false,
@@ -238,7 +238,7 @@ describe("QueriesTable", () => {
         queries: [...testGlobalQueries, ...testTeamQueries],
         totalQueriesCount: 4,
         hasNextResults: false,
-        curTeamScopeQueriesPresent: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
         isOnlyObserver: false,
@@ -268,7 +268,7 @@ describe("QueriesTable", () => {
       queries: [],
       totalQueriesCount: 0,
       hasNextResults: false,
-      curTeamScopeQueriesPresent: false,
+      curTeamScopeQueriesPresent: true,
       isLoading: false,
       onDeleteQueryClick: jest.fn(),
       isOnlyObserver: false,
@@ -306,7 +306,7 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={false}
+        curTeamScopeQueriesPresent={true}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
@@ -346,7 +346,7 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={false}
+        curTeamScopeQueriesPresent={true}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
@@ -385,7 +385,7 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={false}
+        curTeamScopeQueriesPresent={true}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
@@ -413,7 +413,7 @@ describe("QueriesTable", () => {
         queries={[...testTeamQueries, ...testGlobalQueries]}
         totalQueriesCount={4}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={false}
+        curTeamScopeQueriesPresent={true}
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
