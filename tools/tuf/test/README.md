@@ -151,6 +151,9 @@ When running Docker Desktop on macOS using Apple Silicon, enrollment packages fo
 
 ```
 WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[...]
+/usr/local/go/pkg/tool/linux_amd64/compile: signal: illegal instruction
+make: *** [desktop-linux] Error 1
 ```
 
 Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.
