@@ -573,6 +573,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
 - [SCEP proxy](#scep-proxy)
+- [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
+- [Connect Android Enterprise](#connect-android-enterprise)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1278,6 +1280,49 @@ Content-Type: application/octet-stream
 `/mdm/scep/proxy/{identifier}`
 
 This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+
+### Get Android Enterprise signup URL
+
+This endpoint is used to generate URL, which opens Google's wizard to create Android Enterprise.
+
+`GET /api/v1/fleet/android_enterprise`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_signup_url": "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=S7512150D1D59A3BK"
+}
+```
+
+### Connect Android Enterprise
+
+This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn on Android MDM features.
+
+`POST /api/v1/fleet/android_enterprise/:id/connect`
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+| enterpriseToken | string | query | **Required.** The enterprise token that's returned from Google API. |
+
+
+#### Example
+
+`POST /api/v1/fleet/android_enterprise/5/connect?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+
+##### Default response
+
+`Status: 200`
+
 
 ## Get or apply configuration files
 
