@@ -36,18 +36,15 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? %s`
+	vap.title_id = ? AND vat.global_or_team_id = ?`
 
-	// when team id is not nil, we need to filter by the global or team id given.
-	args := []any{titleID}
-	teamFilter := ""
+	var tmID uint
 	if teamID != nil {
-		args = append(args, *teamID)
-		teamFilter = "AND vat.global_or_team_id = ?"
+		tmID = *teamID
 	}
 
 	var app fleet.VPPAppStoreApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, fmt.Sprintf(query, teamFilter), args...)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, query, titleID, tmID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata")
@@ -495,8 +492,8 @@ ON DUPLICATE KEY UPDATE
 	if insertOnDuplicateDidInsertOrUpdate(res) {
 		id, _ = res.LastInsertId()
 	} else {
-		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ?`
-		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform); err != nil {
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ?`
+		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform, globalOrTmID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
 		}
 	}

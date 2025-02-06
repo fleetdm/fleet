@@ -13371,7 +13371,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	var vppAppDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &vppAppDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &vppAppDetail, "team_id", fmt.Sprintf("%d", team.ID))
 	require.NotNil(t, vppAppDetail.SoftwareTitle)
 	require.NotNil(t, vppAppDetail.SoftwareTitle.AppStoreApp)
 

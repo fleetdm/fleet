@@ -503,7 +503,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 
 	case len(meta.LabelsIncludeAny) > 0:
-		existingLabels.LabelScope = fleet.LabelScopeExcludeAny
+		existingLabels.LabelScope = fleet.LabelScopeIncludeAny
 		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsIncludeAny))
 		for _, l := range meta.LabelsIncludeAny {
 			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
