@@ -94,7 +94,7 @@ If it has an **On (automatic)** status follow the first set of instructions. If 
 
 #### On (automatic)
 
-1. You don't need the disk encryption key. Instead login to [Microsoft Azure](portal.azure.com) (Entra) and head to Users
+1. You don't need the disk encryption key. Instead login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
 
 2. Select the end user's user and select **Reset password**.
 
