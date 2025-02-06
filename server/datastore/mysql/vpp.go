@@ -46,11 +46,6 @@ WHERE
 		teamFilter = "AND vat.global_or_team_id = ?"
 	}
 
-	// var tmID uint
-	// if teamID != nil {
-	// 	tmID = *teamID
-	// }
-
 	var app fleet.VPPAppStoreApp
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, fmt.Sprintf(query, teamFilter), args...)
 	if err != nil {
