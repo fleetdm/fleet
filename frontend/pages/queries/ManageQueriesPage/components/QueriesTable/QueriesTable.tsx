@@ -27,7 +27,7 @@ export interface IQueriesTableProps {
   queries: IEnhancedQuery[] | null;
   totalQueriesCount: number | undefined;
   hasNextResults: boolean;
-  onlyInheritedQueries: boolean;
+  curTeamScopeQueriesPresent: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   isOnlyObserver?: boolean;
@@ -84,7 +84,7 @@ const QueriesTable = ({
   queries,
   totalQueriesCount,
   hasNextResults,
-  onlyInheritedQueries,
+  curTeamScopeQueriesPresent,
   isLoading,
   onDeleteQueryClick,
   isOnlyObserver,
@@ -252,9 +252,9 @@ const QueriesTable = ({
       generateColumnConfigs({
         currentUser,
         currentTeamId,
-        omitSelectionColumn: onlyInheritedQueries,
+        omitSelectionColumn: !curTeamScopeQueriesPresent,
       }),
-    [currentUser, currentTeamId, onlyInheritedQueries]
+    [currentUser, currentTeamId, curTeamScopeQueriesPresent]
   );
 
   const searchable =
@@ -296,7 +296,7 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable={searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
-          disableMultiRowSelect={onlyInheritedQueries}
+          disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
         />
