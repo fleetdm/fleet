@@ -9103,6 +9103,12 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       }
+      "automatic_install_policies": [
+        {
+          "id": 343,
+          "name": "[Install software] Logic.app",
+        }
+      ],
     },
     "source": "apps",
     "browser": "",
@@ -9260,7 +9266,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9460,7 +9466,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
+| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
 
 #### Example
 
@@ -9592,6 +9599,7 @@ Add Fleet-maintained app so it's available for install.
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
