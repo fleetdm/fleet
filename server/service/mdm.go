@@ -1320,6 +1320,12 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		if isJSON {
 			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, labelsMode)
 			if err != nil {
+				errStr := err.Error()
+				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
+					return &newMDMConfigProfileResponse{
+						Err: fleet.NewInvalidArgumentError("profile name", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict),
+					}, nil
+				}
 				return &newMDMConfigProfileResponse{Err: err}, nil
 			}
 

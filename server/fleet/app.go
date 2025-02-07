@@ -342,12 +342,23 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
+func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return s.CustomSettings
+}
+
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
+
+type WithMDMProfileSpecs interface {
+	GetMDMProfileSpecs() []MDMProfileSpec
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = MacOSSettings{}
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
@@ -1390,6 +1401,13 @@ type WindowsSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }
+
+func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = WindowsSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

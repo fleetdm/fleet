@@ -163,19 +163,11 @@ const ManageQueriesPage = ({
   const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
 
   const queriesAvailableToAutomate =
-    (teamIdForApi
+    (teamIdForApi !== API_ALL_TEAMS_ID
       ? enhancedQueries?.filter(
           (query: IEnhancedQuery) => query.team_id === currentTeamId
         )
       : enhancedQueries) ?? [];
-
-  const onlyInheritedQueries = useMemo(() => {
-    if (teamIdForApi === API_ALL_TEAMS_ID) {
-      // global scope
-      return false;
-    }
-    return !enhancedQueries?.some((query) => query.team_id === teamIdForApi);
-  }, [teamIdForApi, enhancedQueries]);
 
   const automatedQueryIds = queriesAvailableToAutomate
     .filter((query) => query.automations_enabled)
@@ -280,9 +272,8 @@ const ManageQueriesPage = ({
         queries={enhancedQueries || []}
         totalQueriesCount={queriesResponse?.count}
         hasNextResults={!!queriesResponse?.meta.has_next_results}
-        onlyInheritedQueries={onlyInheritedQueries}
+        curTeamScopeQueriesPresent={!!queriesAvailableToAutomate.length}
         isLoading={isLoadingQueries || isFetchingQueries}
-        onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
@@ -291,6 +282,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={location.query}
         currentTeamId={teamIdForApi}
+        isPremiumTier={isPremiumTier}
       />
     );
   };
@@ -381,13 +373,6 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
-  const hideQueryActions =
-    // there are no filters and no returned queries, indicating there are no global/team queries at all
-    !(!!location.query.query || !!location.query.platform) &&
-    !queriesResponse?.count &&
-    // the user has permission
-    (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);
-
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -398,17 +383,18 @@ const ManageQueriesPage = ({
             </div>
           </div>
 
-          {!hideQueryActions && (
+          {canCustomQuery && (
             <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
-                <Button
-                  onClick={onManageAutomationsClick}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                >
-                  Manage automations
-                </Button>
-              )}
+              {(isGlobalAdmin || isTeamAdmin) &&
+                !!queriesAvailableToAutomate.length && (
+                  <Button
+                    onClick={onManageAutomationsClick}
+                    className={`${baseClass}__manage-automations button`}
+                    variant="inverse"
+                  >
+                    Manage automations
+                  </Button>
+                )}
               {canCustomQuery && (
                 <Button
                   variant="brand"

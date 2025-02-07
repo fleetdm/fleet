@@ -327,13 +327,12 @@ const SoftwareInstallerCard = ({
     <TooltipWrapper
       tipContent={
         <span>
-          Fleet couldn&apos;t read the version from ${name}.{" "}
+          Fleet couldn&apos;t read the version from {name}.{" "}
           <CustomLink
             newTab
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
             text="Learn more"
-            color="core-fleet-white"
-            iconColor="core-fleet-white"
+            variant="tooltip-link"
           />
         </span>
       }
