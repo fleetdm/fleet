@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -1473,6 +1476,32 @@ func newMaintainedAppSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintainedapps.Refresh(ctx, ds, logger)
+		}),
+		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
+			// get all VPP apps
+			apps, err := ds.GetAllVPPApps(ctx)
+			if err != nil {
+				return err
+			}
+
+			var adamIDs []string
+			for _, app := range apps {
+				slog.With("filename", "cmd/fleet/cron.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking apps found ", "adamID", app.AdamID)
+				adamIDs = append(adamIDs, app.AdamID)
+			}
+
+			meta, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
+			if err != nil {
+				return err
+			}
+
+			for _, adamID := range adamIDs {
+				if m, ok := meta[adamID]; ok {
+					slog.With("filename", "cmd/fleet/cron.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: updating versions ", "adamID", adamID, "version", m.Version)
+				}
+			}
+
+			return nil
 		}),
 	)
 

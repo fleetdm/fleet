@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -1516,4 +1518,16 @@ func (ds *Datastore) GetIncludedHostIDMapForVPPAppTx(ctx context.Context, tx sql
 
 func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
 	return ds.getExcludedHostIDMapForSoftware(ctx, vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	query := `SELECT adam_id FROM vpp_apps`
+
+	var apps []*fleet.VPPApp
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting all VPP apps")
+	}
+
+	slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: found apps ", "apps", apps)
+	return apps, nil
 }
