@@ -33,9 +33,9 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 3. **Open the "Add software" modal**: Click on the "Add software" button in the top right of the page.
 
-4. **View your available apps**: Click on the "App Store (VPP)" tab in the "Add software" modal. The modal will list the apps that you have purchased through VPP but still need to add to Fleet.
+4. **View your available apps**: Click on the "App Store (VPP)" tab in the "Add software" page. The page will list the apps that you have purchased through VPP but still need to add to Fleet.
 
-5. **Add an app**: Select an app from the list. You may optionally check the "Self-Service" box at the bottom left of the modal if you wish for the software to be available for user-initiated installs. Finally, click the "Add software" button in the bottom right of the modal. The app should appear in the software list for the selected team.
+5. **Add an app**: Select an app from the list. Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels. You may optionally check the "Self-Service" box at the bottom left of the page if you wish for the software to be available for user-initiated installs. Finally, click the "Add software" button in the bottom right of the page. The app should appear in the software list for the selected team.
 
 ## Remove the app from Fleet
 
@@ -45,7 +45,17 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 3. **Access the app's details page**: Click on the app's name in the table.
 
-4. **Remove the app**: Click on the "Actions" dropdown on the right side of the page. Click "Delete," then click "Delete" on the confirmation modal. Deleting an app will not uninstall the app from the hosts on which it was previously installed.
+4. **Remove the app**: Click on the "Actions" dropdown on the right side of the page. Click "Delete", then click "Delete" on the confirmation modal. Deleting an app will not uninstall the app from the hosts on which it was previously installed.
+
+## Edit the app
+
+1. **Navigate to the Software page**: Click "Software" in the main navigation menu.
+
+2. **Find the app you want to remove**: Search for the app using the search bar in the top right corner of the table.
+
+3. **Access the app's details page**: Click on the app's name in the table.
+
+4. **Edit the app**: Click on the "Actions" dropdown on the right side of the page. Click "Edit". In the "Edit software" modal, you can change the hosts that you want to target with the app as well as the app's self-service status.
 
 ## Install the app
 
