@@ -122,7 +122,7 @@ net user <account> <new-password>
 
 ### Linux 
 
-1. With the Linux host in front of you, restart it. in a USB drive and boot up the host.
+1. With the Linux host in front of you, restart it.
 
 2. When prompted to unlock the disk, enter the disk encryption key. 
 
