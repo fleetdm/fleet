@@ -337,7 +337,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
 			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
 			if err != nil {
@@ -381,11 +381,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
