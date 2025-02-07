@@ -39,7 +39,7 @@ type globalPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r globalPolicyResponse) error() error { return r.Err }
+func (r globalPolicyResponse) Error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalPolicyRequest)
@@ -103,7 +103,7 @@ type listGlobalPoliciesResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r listGlobalPoliciesResponse) error() error { return r.Err }
+func (r listGlobalPoliciesResponse) Error() error { return r.Err }
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listGlobalPoliciesRequest)
@@ -135,7 +135,7 @@ type getPolicyByIDResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r getPolicyByIDResponse) error() error { return r.Err }
+func (r getPolicyByIDResponse) Error() error { return r.Err }
 
 func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPolicyByIDRequest)
@@ -177,7 +177,7 @@ type countGlobalPoliciesResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countGlobalPoliciesResponse) error() error { return r.Err }
+func (r countGlobalPoliciesResponse) Error() error { return r.Err }
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
@@ -214,7 +214,7 @@ type deleteGlobalPoliciesResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
+func (r deleteGlobalPoliciesResponse) Error() error { return r.Err }
 
 func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
@@ -315,7 +315,7 @@ type modifyGlobalPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r modifyGlobalPolicyResponse) error() error { return r.Err }
+func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
@@ -343,7 +343,7 @@ type resetAutomationResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r resetAutomationResponse) error() error { return r.Err }
+func (r resetAutomationResponse) Error() error { return r.Err }
 
 func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetAutomationRequest)
@@ -474,7 +474,7 @@ type applyPolicySpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyPolicySpecsResponse) error() error { return r.Err }
+func (r applyPolicySpecsResponse) Error() error { return r.Err }
 
 func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPolicySpecsRequest)
@@ -578,7 +578,7 @@ type autofillPoliciesResponse struct {
 	Err         error  `json:"error,omitempty"`
 }
 
-func (a autofillPoliciesResponse) error() error {
+func (a autofillPoliciesResponse) Error() error {
 	return a.Err
 }
 

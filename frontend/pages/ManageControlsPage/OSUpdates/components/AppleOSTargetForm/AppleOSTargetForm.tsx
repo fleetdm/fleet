@@ -181,18 +181,6 @@ const AppleOSTargetForm = ({
     );
   };
 
-  const getDeadlineTooltip = (platform: ApplePlatform) => {
-    switch (platform) {
-      case "darwin":
-        return "The end user can't dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
-      case "ios":
-      case "ipados":
-        return "Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
-      default:
-        return "";
-    }
-  };
-
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
@@ -214,7 +202,7 @@ const AppleOSTargetForm = ({
       />
       <InputField
         label="Deadline"
-        tooltip={getDeadlineTooltip(applePlatform)}
+        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
         value={deadline}
         error={deadlineError}

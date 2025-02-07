@@ -39,7 +39,7 @@ type createUserResponse struct {
 	Err   error   `json:"error,omitempty"`
 }
 
-func (r createUserResponse) error() error { return r.Err }
+func (r createUserResponse) Error() error { return r.Err }
 
 func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
@@ -195,7 +195,7 @@ type listUsersResponse struct {
 	Err   error        `json:"error,omitempty"`
 }
 
-func (r listUsersResponse) error() error { return r.Err }
+func (r listUsersResponse) Error() error { return r.Err }
 
 func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listUsersRequest)
@@ -286,7 +286,7 @@ type getUserResponse struct {
 	Err            error                `json:"error,omitempty"`
 }
 
-func (r getUserResponse) error() error { return r.Err }
+func (r getUserResponse) Error() error { return r.Err }
 
 func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getUserRequest)
@@ -357,7 +357,7 @@ type modifyUserResponse struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r modifyUserResponse) error() error { return r.Err }
+func (r modifyUserResponse) Error() error { return r.Err }
 
 func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyUserRequest)
@@ -480,6 +480,9 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	}
 
 	if p.SSOEnabled != nil {
+		if !*p.SSOEnabled && user.SSOEnabled && p.NewPassword == nil {
+			return nil, fleet.NewInvalidArgumentError("missing password", "a new password must be provided when disabling SSO")
+		}
 		user.SSOEnabled = *p.SSOEnabled
 	}
 
@@ -551,7 +554,7 @@ type deleteUserResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteUserResponse) error() error { return r.Err }
+func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteUserRequest)
@@ -605,7 +608,7 @@ type requirePasswordResetResponse struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r requirePasswordResetResponse) error() error { return r.Err }
+func (r requirePasswordResetResponse) Error() error { return r.Err }
 
 func requirePasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*requirePasswordResetRequest)
@@ -657,7 +660,7 @@ type changePasswordResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r changePasswordResponse) error() error { return r.Err }
+func (r changePasswordResponse) Error() error { return r.Err }
 
 func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changePasswordRequest)
@@ -713,7 +716,7 @@ type getInfoAboutSessionsForUserResponse struct {
 	Err      error                         `json:"error,omitempty"`
 }
 
-func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
+func (r getInfoAboutSessionsForUserResponse) Error() error { return r.Err }
 
 func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getInfoAboutSessionsForUserRequest)
@@ -765,7 +768,7 @@ type deleteSessionsForUserResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteSessionsForUserResponse) error() error { return r.Err }
+func (r deleteSessionsForUserResponse) Error() error { return r.Err }
 
 func deleteSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSessionsForUserRequest)
@@ -797,7 +800,7 @@ type changeEmailResponse struct {
 	Err      error  `json:"error,omitempty"`
 }
 
-func (r changeEmailResponse) error() error { return r.Err }
+func (r changeEmailResponse) Error() error { return r.Err }
 
 func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changeEmailRequest)
@@ -956,7 +959,7 @@ type performRequiredPasswordResetResponse struct {
 	Err  error       `json:"error,omitempty"`
 }
 
-func (r performRequiredPasswordResetResponse) error() error { return r.Err }
+func (r performRequiredPasswordResetResponse) Error() error { return r.Err }
 
 func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*performRequiredPasswordResetRequest)
@@ -1050,7 +1053,7 @@ type resetPasswordResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r resetPasswordResponse) error() error { return r.Err }
+func (r resetPasswordResponse) Error() error { return r.Err }
 
 func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetPasswordRequest)
@@ -1124,7 +1127,7 @@ type forgotPasswordResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r forgotPasswordResponse) error() error { return r.Err }
+func (r forgotPasswordResponse) Error() error { return r.Err }
 func (r forgotPasswordResponse) Status() int  { return http.StatusAccepted }
 
 func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {

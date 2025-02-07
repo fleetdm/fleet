@@ -111,6 +111,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+	ActivityEditedAppStoreApp{},
 
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
@@ -1332,6 +1333,28 @@ func (a ActivityTypeAddedScript) Documentation() (activity, details, detailsExam
 }`
 }
 
+type ActivityTypeUpdatedScript struct {
+	ScriptName string  `json:"script_name"`
+	TeamID     *uint   `json:"team_id"`
+	TeamName   *string `json:"team_name"`
+}
+
+func (a ActivityTypeUpdatedScript) ActivityName() string {
+	return "updated_script"
+}
+
+func (a ActivityTypeUpdatedScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a script is updated.`,
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 type ActivityTypeDeletedScript struct {
 	ScriptName string  `json:"script_name"`
 	TeamID     *uint   `json:"team_id"`
@@ -1623,7 +1646,7 @@ func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is installed on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is installed on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1664,7 +1687,7 @@ func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is uninstalled on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is uninstalled on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1700,7 +1723,7 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is added to Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
@@ -1744,7 +1767,7 @@ func (a ActivityTypeEditedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is updated in Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is edited in Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
@@ -1787,7 +1810,7 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet maintained app or custom package is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
@@ -1925,13 +1948,15 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle   string              `json:"software_title"`
-	SoftwareTitleId uint                `json:"software_title_id"`
-	AppStoreID      string              `json:"app_store_id"`
-	TeamName        *string             `json:"team_name"`
-	TeamID          *uint               `json:"team_id"`
-	Platform        AppleDevicePlatform `json:"platform"`
-	SelfService     bool                `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwareTitleId  uint                    `json:"software_title_id"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1946,23 +1971,37 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
-- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
+- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle string              `json:"software_title"`
-	AppStoreID    string              `json:"app_store_id"`
-	TeamName      *string             `json:"team_name"`
-	TeamID        *uint               `json:"team_id"`
-	Platform      AppleDevicePlatform `json:"platform"`
+	SoftwareTitle    string                  `json:"software_title"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1975,12 +2014,24 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
-- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.`, `{
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
@@ -2010,14 +2061,15 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
-- host_id: ID of the host on which the app was installed.
-- self_service: App installation was initiated by device owner.
-- host_display_name: Display name of the host.
-- software_title: Name of the App Store app.
-- app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.
-- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
-- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
+- "host_id": ID of the host on which the app was installed.
+- "self_service": App installation was initiated by device owner.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "status": Status of the App Store app installation.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 `, `{
   "host_id": 42,
   "self_service": true,
@@ -2027,6 +2079,53 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro"
+}`
+}
+
+type ActivityEditedAppStoreApp struct {
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+}
+
+func (a ActivityEditedAppStoreApp) ActivityName() string {
+	return "edited_app_store_app"
+}
+
+func (a ActivityEditedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "software_title_id": ID of the updated app's software title.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "self_service": App installation can be initiated by device owner.
+- "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
+- "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+  "software_title": "Logic Pro",
+  "software_title_id": 123,
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "self_service": true,
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 

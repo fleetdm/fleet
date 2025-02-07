@@ -50,7 +50,7 @@ import { CommaSeparatedPlatformString } from "interfaces/platform";
 import queryAPI from "services/entities/queries";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -597,7 +597,7 @@ const EditQueryForm = ({
         />
       )}
       {showQueryEditor && (
-        <FleetAce
+        <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
           label="Query"
@@ -712,7 +712,7 @@ const EditQueryForm = ({
             </div>
             <div className="author">{savedQueryMode && renderAuthor()}</div>
           </div>
-          <FleetAce
+          <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"

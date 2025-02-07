@@ -1,6 +1,6 @@
 ## Introduction
 
-Deploying Configuration Service Providers (CSPs) for Windows devices—the Windows equivalent of Apple's configuration profiles—can feel daunting, especially if you're new to the process or accustomed to ClickOps and other UI-driven approaches. The scarcity of straightforward documentation and guides can make it feel like you're venturing into a configuration rabbit hole.
+Deploying Windows configurations profiles (aka Configuration Service Providers (CSPs)) for Windows devices can feel daunting, especially if you're new to the process or accustomed to ClickOps and other UI-driven approaches. The scarcity of straightforward documentation and guides can make it feel like you're venturing into a configuration rabbit hole.
 
 ![Rabbit Hole](../website/assets/images/articles/down-the-rabbit-hole.png)
 
@@ -170,9 +170,9 @@ Deploying CSPs for your Windows fleet may seem complex at first, but with a stru
 
 Ready to take control of your Windows device configurations? Explore Fleet’s powerful API and GitOps workflows to start building and managing your CSPs today. Visit fleetdm.com to learn more or get in touch with our team to see how we can help streamline your device management strategy.
 
-<meta name="articleTitle" value="Creating Windows CSPs">
+<meta name="articleTitle" value="Creating Windows configuration profiles (CSPs)">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-12-12">
-<meta name="description" value="Learn how to create and deploy Windows CSPs with Fleet, leveraging ADMX-backed policies for streamlined and secure device management.">
+<meta name="description" value="Learn how to deploy Windows configuration profiles (CSPs) with Fleet">

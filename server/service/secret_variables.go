@@ -27,7 +27,7 @@ type secretVariablesResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r secretVariablesResponse) error() error { return r.Err }
+func (r secretVariablesResponse) Error() error { return r.Err }
 
 func secretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*secretVariablesRequest)

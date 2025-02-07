@@ -7,7 +7,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -27,7 +26,7 @@ type createLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r createLabelResponse) error() error { return r.Err }
+func (r createLabelResponse) Error() error { return r.Err }
 
 func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createLabelRequest)
@@ -89,36 +88,15 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
-	// Next, if membership type is manual, use ApplyLabelSpecs to create label
-	// memberships. Must resolve the host identifiers to hostname so that
-	// ApplySpecs can be used.
 	var hostIDs []uint
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		spec := fleet.LabelSpec{
-			Name:                label.Name,
-			Description:         label.Description,
-			Query:               label.Query,
-			Platform:            label.Platform,
-			LabelType:           label.LabelType,
-			LabelMembershipType: label.LabelMembershipType,
-		}
-		hostnames, err := svc.ds.HostnamesByIdentifiers(ctx, p.Hosts)
+		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
-		spec.Hosts = hostnames
-		if err := svc.ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&spec}); err != nil {
-			return nil, nil, err
-		}
-
-		// must reload it to get the host IDs, refresh its count
-		ctx = ctxdb.RequirePrimary(ctx, true)
-		label, hostIDs, err = svc.ds.Label(ctx, label.ID, filter)
-		if err != nil {
-			return nil, nil, err
-		}
+		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter)
 	}
-	return label, hostIDs, nil
+	return label, nil, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +113,7 @@ type modifyLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r modifyLabelResponse) error() error { return r.Err }
+func (r modifyLabelResponse) Error() error { return r.Err }
 
 func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyLabelRequest)
@@ -196,7 +174,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds); err != nil {
+		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIds, filter); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -223,7 +201,7 @@ type getLabelResponse struct {
 	Err   error         `json:"error,omitempty"`
 }
 
-func (r getLabelResponse) error() error { return r.Err }
+func (r getLabelResponse) Error() error { return r.Err }
 
 func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getLabelRequest)
@@ -264,7 +242,7 @@ type listLabelsResponse struct {
 	Err    error           `json:"error,omitempty"`
 }
 
-func (r listLabelsResponse) error() error { return r.Err }
+func (r listLabelsResponse) Error() error { return r.Err }
 
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listLabelsRequest)
@@ -322,7 +300,7 @@ type getLabelsSummaryResponse struct {
 	Err    error                 `json:"error,omitempty"`
 }
 
-func (r getLabelsSummaryResponse) error() error { return r.Err }
+func (r getLabelsSummaryResponse) Error() error { return r.Err }
 
 func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	labels, err := svc.LabelsSummary(ctx)
@@ -417,7 +395,7 @@ type deleteLabelResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteLabelResponse) error() error { return r.Err }
+func (r deleteLabelResponse) Error() error { return r.Err }
 
 func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteLabelRequest)
@@ -455,7 +433,7 @@ type deleteLabelByIDResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteLabelByIDResponse) error() error { return r.Err }
+func (r deleteLabelByIDResponse) Error() error { return r.Err }
 
 func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteLabelByIDRequest)
@@ -504,7 +482,7 @@ type applyLabelSpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyLabelSpecsResponse) error() error { return r.Err }
+func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
@@ -588,7 +566,7 @@ type getLabelSpecsResponse struct {
 	Err   error              `json:"error,omitempty"`
 }
 
-func (r getLabelSpecsResponse) error() error { return r.Err }
+func (r getLabelSpecsResponse) Error() error { return r.Err }
 
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetLabelSpecs(ctx)
@@ -615,7 +593,7 @@ type getLabelSpecResponse struct {
 	Err  error            `json:"error,omitempty"`
 }
 
-func (r getLabelSpecResponse) error() error { return r.Err }
+func (r getLabelSpecResponse) Error() error { return r.Err }
 
 func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)

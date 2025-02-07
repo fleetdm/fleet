@@ -62,14 +62,22 @@ policies:
   critical: false
   calendar_event_enabled: false
   run_script:
-    path: "../lib/disable-guest-account.sh"
-- name: Firefox on Linux installed and up to date
-  platform: linux
-  description: "This policy checks that Firefox is installed and up to date."
-  resolution: "Install Firefox version 129.0.2 or higher."
-  query: "SELECT 1 FROM deb_packages WHERE name = 'firefox' AND version_compare(version, '129.0.2') >= 0;"
+    path: "./disable-guest-account.sh"
+- name: Install Firefox on macOS
+  platform: darwin
+  description: "This policy checks that Firefox is installed."
+  resolution: "Install Firefox app if not installed."
+  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "../lib/linux-firefox.deb.package.yml"
+    package_path: "./firefox.package.yml"
+- name: [Install software] Logic Pro
+  platform: darwin
+  description: "This policy checks that Logic Pro is installed"
+  resolution: "Install Logic Pro App Store app if not installed"
+  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  install_software:
+    package_path: ./linux-firefox.deb.package.yml
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -77,7 +85,6 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
@@ -135,7 +142,6 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## agent_options
@@ -192,9 +198,8 @@ config:
 > We want `-` for policies and queries because it’s an array. Agent Options we do not use `-` for `path`.
 
 ```yaml
-queries:
+agent_options:
   path: ../lib/agent-options.yml
-# path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
 ```
 
 ## controls
@@ -256,7 +261,6 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-# paths are relative to default.yml or teams/team-name.yml 
 ```
 
 ### macos_updates
@@ -337,7 +341,6 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
-  # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
 ```
@@ -712,19 +715,6 @@ Once the IdP settings are configured, you can use the [`controls.macos_setup.ena
 
 Can only be configured for all teams (`org_settings`).
 
-#### end_user_authentication
-
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
-
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
-
-- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
-- `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
-- `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
-- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
-
-Can only be configured for all teams (`org_settings`).
-
 ##### apple_server_url
 
 Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
@@ -746,8 +736,6 @@ Can only be configured for all teams (`org_settings`).
 The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
 YARA rule functionality. Learn more about authenticated YARA rules in Fleet
 [here](https://fleetdm.com/guides/remote-yara-rules).
-
-Each entry should be the relative path to a valid YARA rule file.
 
 ##### Example
 

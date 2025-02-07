@@ -54,22 +54,22 @@ describe("MDM Card", () => {
 
     expect(
       screen.getByRole("row", {
-        name: /On \(automatic\)(.*?)10 host/i,
+        name: /On \(automatic\)(.*?)10 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /On \(manual\)(.*?)5 host/i,
+        name: /On \(manual\)(.*?)5 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Off(.*?)1 host/i,
+        name: /Off(.*?)1 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Pending(.*?)3 host/i,
+        name: /Pending(.*?)3 view all hosts/i,
       })
     ).toBeInTheDocument();
   });

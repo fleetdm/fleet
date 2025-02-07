@@ -38,7 +38,7 @@ type teamPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r teamPolicyResponse) error() error { return r.Err }
+func (r teamPolicyResponse) Error() error { return r.Err }
 
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamPolicyRequest)
@@ -185,7 +185,7 @@ type listTeamPoliciesResponse struct {
 	Err               error           `json:"error,omitempty"`
 }
 
-func (r listTeamPoliciesResponse) error() error { return r.Err }
+func (r listTeamPoliciesResponse) Error() error { return r.Err }
 
 func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamPoliciesRequest)
@@ -264,7 +264,7 @@ type countTeamPoliciesResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countTeamPoliciesResponse) error() error { return r.Err }
+func (r countTeamPoliciesResponse) Error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
@@ -311,7 +311,7 @@ type getTeamPolicyByIDResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r getTeamPolicyByIDResponse) error() error { return r.Err }
+func (r getTeamPolicyByIDResponse) Error() error { return r.Err }
 
 func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamPolicyByIDRequest)
@@ -360,7 +360,7 @@ type deleteTeamPoliciesResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r deleteTeamPoliciesResponse) error() error { return r.Err }
+func (r deleteTeamPoliciesResponse) Error() error { return r.Err }
 
 func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamPoliciesRequest)
@@ -443,7 +443,7 @@ type modifyTeamPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r modifyTeamPolicyResponse) error() error { return r.Err }
+func (r modifyTeamPolicyResponse) Error() error { return r.Err }
 
 func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamPolicyRequest)

@@ -46,7 +46,7 @@ type getInstallerResponse struct {
 	fileExt    string
 }
 
-func (r getInstallerResponse) error() error { return r.Err }
+func (r getInstallerResponse) Error() error { return r.Err }
 
 func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
@@ -121,7 +121,7 @@ type checkInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r checkInstallerResponse) error() error { return r.Err }
+func (r checkInstallerResponse) Error() error { return r.Err }
 
 func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*checkInstallerRequest)

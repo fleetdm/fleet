@@ -894,10 +894,19 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			software: fleet.Software{
 				Name:             "Python 3.10.6 (64-bit)",
 				Source:           "programs",
-				Version:          "3.10.6150.0",
+				Version:          "3.10.6",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6150.0:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0a1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0-alpha1",
+				Vendor:  "Python Software Foundation",
+				// should be "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*"; see #24810
+			}, cpe: "cpe:2.3:a:python:python:3.14.0-alpha1:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1331,6 +1340,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.jetbrains.goland-EAP",
 			},
 			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
