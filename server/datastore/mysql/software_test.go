@@ -5810,6 +5810,14 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename)
 
+	hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
+	require.NoError(t, err)
+	require.Empty(t, hostsNotInScope)
+
+	hostsInScope, err := ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsInScope)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -5820,6 +5828,14 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename, vppApp.Name)
+
+	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsNotInScope)
+
+	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
+	require.NoError(t, err)
+	require.Empty(t, hostsInScope)
 
 	// Make the label include any. We should have both of them back.
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
