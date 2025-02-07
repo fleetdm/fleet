@@ -5690,15 +5690,17 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
 	require.NoError(t, err)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a regular policy
 	policy1 := newTestPolicy(t, ds, user1, "policy 1"+t.Name(), "darwin", &team1.ID)
 
 	// create an automatic install policy
 	policy2 := newTestPolicy(t, ds, user1, "policy 2"+t.Name(), "darwin", &team1.ID)
+	policy3 := newTestPolicy(t, ds, user1, "policy 3"+t.Name(), "darwin", &team1.ID)
+
 	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-
 	installer1ID, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
@@ -5716,6 +5718,18 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installer1ID)
 	err = ds.SavePolicy(context.Background(), policy2, false, false)
+	require.NoError(t, err)
+
+	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.appy",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
+	require.NoError(t, err)
+
+	policy3.VPPAppsTeamsID = ptr.Uint(team1Meta.VPPAppsTeamsID)
+	err = ds.SavePolicy(context.Background(), policy3, false, false)
 	require.NoError(t, err)
 
 	// create a host
@@ -5737,29 +5751,48 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		policy1.ID: ptr.Bool(true),
 		policy2.ID: ptr.Bool(false), // software isn't installed on host, so Fleet should install it
+		policy3.ID: ptr.Bool(false), // software isn't installed on host, so Fleet should install it
 	}, time.Now(), false)
 	require.NoError(t, err)
 
 	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
 	require.NoError(t, err)
-	require.Len(t, hostPolicies, 2)
+	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
 		return hostPolicies[i].ID < hostPolicies[j].ID
 	})
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Equal(t, hostPolicies[1].Response, "fail")
+	require.Equal(t, hostPolicies[2].Response, "fail")
 
-	// clear status for automatic install policy
-	err = ds.ClearAutoInstallPolicyStatusForHosts(ctx, installer1ID, []uint{host.ID})
+	// clear status for the installer automatic install policy
+	err = ds.ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx, installer1ID, []uint{host.ID})
 	require.NoError(t, err)
 
 	// the status should be NULL for the automatic install policy but not the "regular" one
 	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
 	require.NoError(t, err)
-	require.Len(t, hostPolicies, 2)
+	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
 		return hostPolicies[i].ID < hostPolicies[j].ID
 	})
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Empty(t, hostPolicies[1].Response)
+	// policy for VPP app should still be "fail"
+	require.Equal(t, hostPolicies[2].Response, "fail")
+
+	// clear status for the vpp app automatic install policy
+	err = ds.ClearVPPAppAutoInstallPolicyStatusForHosts(ctx, team1Meta.VPPAppsTeamsID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// the status should be NULL for the automatic install policy but not the "regular" one
+	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 3)
+	sort.Slice(hostPolicies, func(i, j int) bool {
+		return hostPolicies[i].ID < hostPolicies[j].ID
+	})
+	require.Equal(t, hostPolicies[0].Response, "pass")
+	require.Empty(t, hostPolicies[1].Response)
+	require.Empty(t, hostPolicies[2].Response)
 }

@@ -1,1 +1,0 @@
-* Removed rollback to connect to Fleet's old TUF server (added in case 1.38.0 had an emergency bug).

@@ -226,8 +226,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
-				_, ok = gitops.Controls.MacOSSetup.(map[string]interface{})
-				assert.True(t, ok, "macos_setup not found")
+				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
 				_, ok = gitops.Controls.MacOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "macos_updates not found")
 				_, ok = gitops.Controls.IOSUpdates.(map[string]interface{})
@@ -845,7 +844,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.ErrorContains(t, err, "failed to unmarshal")
 
 				// Test a nested path -- bad
-				tmpFileBad, err = os.CreateTemp(t.TempDir(), "*bad.yml")
+				tmpFileBad, err = os.CreateTemp(filepath.Dir(mainTmpFile.Name()), "*bad.yml")
 				require.NoError(t, err)
 				if test.isArray {
 					_, err = tmpFileBad.WriteString(fmt.Sprintf("- path: %s\n", tmpFile.Name()))
