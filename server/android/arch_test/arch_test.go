@@ -3,6 +3,7 @@ package arch_test
 import (
 	"container/list"
 	"go/build"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -13,17 +14,27 @@ import (
 // TestPackageDependencies checks that android packages are not dependent on other packages
 // to maintain decoupling and modularity.
 func TestPackageDependencies(t *testing.T) {
-	packageName := "github.com/fleetdm/fleet/v4/server/android/service"
-	NewPackageTest(t, packageName).ShouldNotDependOn(
-		"github.com/fleetdm/fleet/v4/server/service",
-		"github.com/fleetdm/fleet/v4/server/datastore...",
-		// "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm",
-	)
+	packageName := "github.com/fleetdm/fleet/v4/server/android..."
+	NewPackageTest(t, packageName).
+		WithIncludeRegex(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		ShouldNotDependOn(
+			"github.com/fleetdm/fleet/v4/server/service",
+			"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql...",
+			"github.com/fleetdm/fleet/v4/server/datastore/filesystem...",
+			"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql...",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations...",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis...",
+			"github.com/fleetdm/fleet/v4/server/datastore/redis...",
+			"github.com/fleetdm/fleet/v4/server/datastore/s3...",
+			// "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm",
+		)
 }
 
 type PackageTest struct {
-	t    TestingT
-	pkgs []string
+	t            TestingT
+	pkgs         []string
+	includeRegex *regexp.Regexp
 }
 
 type TestingT interface {
@@ -32,6 +43,13 @@ type TestingT interface {
 
 func NewPackageTest(t TestingT, packageName ...string) *PackageTest {
 	return &PackageTest{t: t, pkgs: packageName}
+}
+
+// WithIncludeRegex sets a regex to filter the packages to include in the dependency check.
+// This significantly speeds up the dependency check by only importing the packages that match the regex.
+func (pt *PackageTest) WithIncludeRegex(regex *regexp.Regexp) *PackageTest {
+	pt.includeRegex = regex
+	return pt
 }
 
 func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) {
@@ -87,9 +105,6 @@ func (pt PackageTest) findDependencies(pkgs []string) <-chan *packageDependency 
 
 func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *packageDependency, cache map[string]struct{}) {
 	queue := list.New()
-
-	context := build.Default
-
 	queue.PushBack(topDependency)
 	for queue.Len() > 0 {
 		front := queue.Front()
@@ -100,10 +115,14 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 			continue
 		}
 
+		if pt.includeRegex != nil && !pt.includeRegex.MatchString(dep.name) {
+			continue
+		}
+
 		cache[dep.name] = struct{}{}
 		pChan <- dep
 
-		pkg, err := context.Import(dep.name, ".", build.ImportMode(0))
+		pkg, err := build.Default.Import(dep.name, ".", build.ImportMode(0))
 		if err != nil {
 			pt.t.Errorf("Error reading: %s", dep.name)
 			continue
