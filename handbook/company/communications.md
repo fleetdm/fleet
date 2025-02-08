@@ -127,7 +127,7 @@ The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#te
 Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
 
 When you reach out to a prospect or customer, make sure you're the right person:
-- **🐋 "Sales-ready" prospect**: The rep (AE) reaches out.
+- **🐋 "Sales-ready" prospect**: The rep (AE) determines the best way to contact the prospective customer, which is often the Solutions Consultant reaching help.
 - **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
 - **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
