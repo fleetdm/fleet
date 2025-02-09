@@ -197,6 +197,12 @@ Using the migration scripts located in fleet/test/upgrade/
   
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
 2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
+</td><td>pass/fail</td>
+<tr><td>Load Tests</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
+  
+1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
+2. After all expected changes have been merged to the RC branch, set up a load test environment and allow it at least 24hrs of run time.
+3. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the load test run. 
 </td><td>pass/fail</td></tr> 
 </table>
 
