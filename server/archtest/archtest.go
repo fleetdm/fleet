@@ -1,4 +1,4 @@
-package arch_test
+package archtest
 
 import (
 	"container/list"
@@ -6,36 +6,23 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"testing"
 
 	"golang.org/x/tools/go/packages"
 )
 
-// TestPackageDependencies checks that android packages are not dependent on other packages
-// to maintain decoupling and modularity.
-func TestPackageDependencies(t *testing.T) {
-	packageName := "github.com/fleetdm/fleet/v4/server/android..."
-	NewPackageTest(t, packageName).
-		WithIncludeRegex(regexp.MustCompile(`^github\.com/fleetdm/`)).
-		ShouldNotDependOn(
-			"github.com/fleetdm/fleet/v4/server/service",
-			"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql...",
-			"github.com/fleetdm/fleet/v4/server/datastore/filesystem...",
-			"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql...",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations...",
-			"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis...",
-			"github.com/fleetdm/fleet/v4/server/datastore/redis...",
-			"github.com/fleetdm/fleet/v4/server/datastore/s3...",
-			// "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm",
-		)
-}
-
+// PackageTest is an architecture test to check package dependencies.
+// It is used to ensure that packages do not depend on each other in a way that increases coupling and maintainability.
+// Based on https://github.com/matthewmcnew/archtest
 type PackageTest struct {
 	t            TestingT
 	pkgs         []string
 	includeRegex *regexp.Regexp
+	ignorePkgs   map[string]struct{}
+	withTests    bool
 }
+
+// PackageTest will ignore dependency on this package.
+const thisPackage = "github.com/fleetdm/fleet/v4/server/archtest"
 
 type TestingT interface {
 	Errorf(format string, args ...any)
@@ -45,10 +32,25 @@ func NewPackageTest(t TestingT, packageName ...string) *PackageTest {
 	return &PackageTest{t: t, pkgs: packageName}
 }
 
-// WithIncludeRegex sets a regex to filter the packages to include in the dependency check.
+// OnlyInclude sets a regex to filter the packages to include in the dependency check.
 // This significantly speeds up the dependency check by only importing the packages that match the regex.
-func (pt *PackageTest) WithIncludeRegex(regex *regexp.Regexp) *PackageTest {
+func (pt *PackageTest) OnlyInclude(regex *regexp.Regexp) *PackageTest {
 	pt.includeRegex = regex
+	return pt
+}
+
+func (pt *PackageTest) IgnorePackages(pkgs ...string) *PackageTest {
+	if pt.ignorePkgs == nil {
+		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
+	}
+	for _, p := range pt.expandPackages(pkgs) {
+		pt.ignorePkgs[p] = struct{}{}
+	}
+	return pt
+}
+
+func (pt *PackageTest) WithTests() *PackageTest {
+	pt.withTests = true
 	return pt
 }
 
@@ -64,6 +66,7 @@ func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) {
 type packageDependency struct {
 	name   string
 	parent *packageDependency
+	xTest  bool
 }
 
 func (pd *packageDependency) String() string {
@@ -73,13 +76,14 @@ func (pd *packageDependency) String() string {
 
 func (pd *packageDependency) chain() (string, int) {
 	name := pd.name
-
+	if pd.xTest {
+		name += "_test"
+	}
 	if pd.parent == nil {
 		return name + "\n", 1
 	}
 
 	pc, numberOfTabs := pd.parent.chain()
-
 	return pc + strings.Repeat("\t", numberOfTabs) + name + "\n", numberOfTabs + 1
 }
 
@@ -88,6 +92,12 @@ func (pd *packageDependency) isDependencyOn(pkgs []string) bool {
 		return false
 	}
 	return slices.Contains(pkgs, pd.name)
+}
+
+// asXTest marks returns a copy of package dependency marked as external test.
+func (pd packageDependency) asXTest() *packageDependency {
+	pd.xTest = true
+	return &pd
 }
 
 func (pt PackageTest) findDependencies(pkgs []string) <-chan *packageDependency {
@@ -111,11 +121,7 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 		queue.Remove(front)
 		dep, _ := (front.Value).(*packageDependency)
 
-		if _, seen := cache[dep.name]; seen || dep.name == "C" {
-			continue
-		}
-
-		if pt.includeRegex != nil && !pt.includeRegex.MatchString(dep.name) {
+		if pt.skip(cache, dep) {
 			continue
 		}
 
@@ -135,7 +141,32 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 			queue.PushBack(&packageDependency{name: importPath, parent: dep})
 		}
 
+		if pt.withTests {
+			for _, i := range pkg.TestImports {
+				queue.PushBack(&packageDependency{name: i, parent: dep})
+			}
+
+			// XTestImports are packages with _test suffix that are in the same directory as the package.
+			for _, i := range pkg.XTestImports {
+				queue.PushBack(&packageDependency{name: i, parent: dep.asXTest()})
+			}
+		}
 	}
+}
+
+func (pt *PackageTest) skip(cache map[string]struct{}, dep *packageDependency) bool {
+	if _, seen := cache[dep.name]; seen {
+		return true
+	}
+
+	if _, ignore := pt.ignorePkgs[dep.name]; ignore || dep.name == "C" || dep.name == thisPackage {
+		return true
+	}
+
+	if pt.includeRegex != nil && !pt.includeRegex.MatchString(dep.name) {
+		return true
+	}
+	return false
 }
 
 func (pt PackageTest) expandPackages(pkgs []string) []string {
