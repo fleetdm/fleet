@@ -23,6 +23,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import { buildQueryStringFromParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -110,12 +111,13 @@ const SoftwareTitleDetailsPage = ({
       refetchSoftwareTitle();
       return;
     }
+
+    const queryParams: string = buildQueryStringFromParams({
+      team_id: teamIdForApi,
+    });
+
     // redirect to software titles page if no versions are available
-    if (teamIdForApi) {
-      router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
-    } else {
-      router.push(paths.SOFTWARE_TITLES);
-    }
+    router.push(`${paths.SOFTWARE_TITLES}?${queryParams}`);
   }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
