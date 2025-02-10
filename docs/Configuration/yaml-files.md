@@ -479,7 +479,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### Example
 
-  ```yaml
+```yaml
 org_settings:
   server_settings:
     ai_features_disabled: false
@@ -488,7 +488,7 @@ org_settings:
     query_reports_disabled: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
-  ```
+```
 
 
 ### sso_settings
