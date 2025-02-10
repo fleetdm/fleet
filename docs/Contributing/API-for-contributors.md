@@ -1287,7 +1287,7 @@ This endpoint is used to proxy SCEP requests to the configured SCEP server. It u
 
 This endpoint is used to generate URL, which opens Google's wizard to create Android Enterprise.
 
-`GET /api/v1/fleet/android_enterprise`
+`GET /api/v1/fleet/android_enterprise/signup_url`
 
 #### Example
 
@@ -1329,17 +1329,11 @@ This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn o
 
 This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
 
-`DELETE /api/v1/fleet/android/enterprise/:id/`
-
-#### Parameters
-
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+`DELETE /api/v1/fleet/android_enterprise/`
 
 #### Example
 
-`DELETE /api/v1/fleet/android/enterprise/5/`
+`DELETE /api/v1/fleet/android_enterprise`
 
 ##### Default response
 
@@ -1349,7 +1343,7 @@ This endpoint is used to delete Android Enterprise. Once deleted, hosts that bel
 
 This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
 
-`POST /api/v1/fleet/android/enterprise/:id/enrollment_token`
+`POST /api/v1/fleet/android_enterprise/enrollment_token`
 
 #### Parameters
 
