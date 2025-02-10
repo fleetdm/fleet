@@ -117,51 +117,64 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	// Currently there is no host_deleted_at in host_vpp_software_installs, so
 	// not handling it as part of the unified queue work.
 
-	// TODO(sarah): refactor vppHostStatusNamedQuery to use the same logic as below
-
-	// TODO(sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := `
 WITH
 
 -- select most recent upcoming activities for each host
 upcoming AS (
 	SELECT
-		max(ua.id) AS upcoming_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		ua.host_id,
+		:software_status_pending AS status
 	FROM
 		upcoming_activities ua
-		JOIN vpp_app_upcoming_activities vua ON ua.id = vua.upcoming_activity_id
+		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
 		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN vpp_app_upcoming_activities vaua2
+				ON ua2.id = vaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			vaua.adam_id = vaua2.adam_id AND
+			vaua.platform = vaua2.platform AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
-		activity_type = 'vpp_app_install'
-		AND adam_id = :adam_id
-		AND vua.platform = :platform
+		ua.activity_type = 'vpp_app_install'
+		AND ua2.id IS NULL
+		AND vaua.adam_id = :adam_id
+		AND vaua.platform = :platform
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-	GROUP BY
-		host_id
 ),
 
 -- select most recent past activities for each host
 past AS (
 	SELECT
-		max(hvsi.id) AS past_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		hvsi.host_id,
+		CASE
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_installed
+			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
+				:software_status_failed
+			ELSE
+				NULL -- either pending or not installed via VPP App
+		END AS status
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON host_id = h.id
+		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN host_vpp_software_installs hvsi2
+			ON hvsi.host_id = hvsi2.host_id AND
+				 hvsi.adam_id = hvsi2.adam_id AND
+				 hvsi.platform = hvsi2.platform AND
+				 hvsi2.removed = 0 AND
+				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
-		adam_id = :adam_id
+		hvsi2.id IS NULL
+		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
-	GROUP BY
-		host_id
 )
 
 -- count each status
@@ -174,27 +187,14 @@ FROM (
 -- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
 	past.host_id,
-	CASE
-		WHEN ncr.status = :mdm_status_acknowledged THEN
-			:software_status_installed
-		WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
-			:software_status_failed
-		ELSE
-			NULL -- either pending or not installed via VPP App
-	END AS status
-FROM
-	past
-	JOIN host_vpp_software_installs hvsi ON hvsi.id = past_id
-	JOIN hosts h ON h.id = past.host_id
-	JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+	past.status
+FROM past
 UNION
 SELECT
 	upcoming.host_id,
-	:software_status_pending AS status
-	FROM
-		upcoming
-		JOIN vpp_app_upcoming_activities vua ON upcoming_id = vua.upcoming_activity_id
-		JOIN upcoming_activities ua ON ua.id = upcoming_id) t`
+	upcoming.status
+FROM upcoming 
+) t`
 
 	var tmID uint
 	if teamID != nil {

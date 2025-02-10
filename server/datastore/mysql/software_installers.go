@@ -1089,45 +1089,51 @@ WHERE
 func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	var dest fleet.SoftwareInstallerStatusSummary
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := `WITH
 
 -- select most recent upcoming activities for each host
 upcoming AS (
 	SELECT
-		max(ua.id) AS upcoming_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		ua.host_id,
+		IF(ua.activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
 	FROM
 		upcoming_activities ua
 		JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
 	WHERE
-		activity_type IN('software_install', 'software_uninstall')
-		AND software_installer_id = :installer_id
-	GROUP BY
-		host_id
+		ua.activity_type IN('software_install', 'software_uninstall')
+		AND ua2.id IS NULL
+		AND siua.software_installer_id = :installer_id
 ),
 
 -- select most recent past activities for each host
 past AS (
 	SELECT
-		max(hsi.id) AS past_id, -- ensure we use only the most recent attempt for each host
-		host_id
+		hsi.host_id,
+		hsi.status
 	FROM
 		host_software_installs hsi
 		JOIN hosts h ON host_id = h.id
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
-		software_installer_id = :installer_id
-		AND host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND host_deleted_at IS NULL
-		AND removed = 0
-	GROUP BY
-		host_id
+		hsi2.id IS NULL
+		AND hsi.software_installer_id = :installer_id
+		AND hsi.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hsi.host_deleted_at IS NULL
+		AND hsi.removed = 0
 )
 
 -- count each status
@@ -1142,18 +1148,14 @@ FROM (
 -- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
 	past.host_id,
-	status
-FROM
-	past
-	JOIN host_software_installs hsi ON hsi.id = past_id
+	past.status
+FROM past
 UNION
 SELECT
 	upcoming.host_id,
-	IF(activity_type = 'software_install', :software_status_pending_install, :software_status_pending_uninstall) AS status
-	FROM
-		upcoming
-		JOIN software_install_upcoming_activities siua ON upcoming_id = siua.upcoming_activity_id
-		JOIN upcoming_activities ua ON ua.id = upcoming_id) t`
+	upcoming.status
+FROM upcoming
+) t`
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"installer_id":                      installerID,
@@ -1207,31 +1209,39 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When VPP supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
+	// NOTE(mna): the pre-unified queue version of this query did not check for
+	// removed = 0, so I am porting the same behavior (there's even a test that
+	// fails if I add removed = 0 condition).
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
-	host_id
+	hvsi.host_id
 FROM
 	host_vpp_software_installs hvsi
-LEFT OUTER JOIN
-	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+	INNER JOIN
+		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+	LEFT JOIN host_vpp_software_installs hvsi2
+		ON hvsi.host_id = hvsi2.host_id AND
+			 hvsi.adam_id = hvsi2.adam_id AND
+			 hvsi.platform = hvsi2.platform AND
+			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
-	adam_id = :adam_id AND platform = :platform
-	AND hvsi.id IN(
-		SELECT
-			max(id) -- ensure we use only the most recent install attempt for each host
-			FROM host_vpp_software_installs
+	hvsi2.id IS NULL
+	AND hvsi.adam_id = :adam_id
+	AND hvsi.platform = :platform
+	AND (%s) = :status
+	AND NOT EXISTS (
+		SELECT 1
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
 		WHERE
-			adam_id = :adam_id AND platform = :platform
-		GROUP BY
-			host_id, adam_id)
-	AND (%s) = :status) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", "")) // TODO(uniq): refactor vppHostStatusNamedQuery to use the same logic as GetSummaryHostVPPAppInstalls?
+			ua.host_id = hvsi.host_id
+			AND vaua.adam_id = hvsi.adam_id
+			AND vaua.platform = hvsi.platform
+			AND ua.activity_type = 'vpp_app_install'
+	)
+) hss ON hss.host_id = h.id
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
@@ -1278,39 +1288,39 @@ WHERE
 		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
 	}
 
-	// TODO(Sarah): AFAICT we don't have uniqueness for host_id + title_id in upcoming or
-	// past activities. In the past the max(id) approach was "good enough" as a proxy for the most
-	// recent activity since we didn't really need to worry about the order of activities.
-	// Moving to a time-based approach would be more accurate but would require a more complex and
-	// potentially slower query.
-
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
-	host_id
+	hsi.host_id
 FROM
 	host_software_installs hsi
+	LEFT JOIN host_software_installs hsi2
+		ON hsi.host_id = hsi2.host_id AND
+			 hsi.software_title_id = hsi2.software_title_id AND
+			 hsi2.removed = 0 AND
+			 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 WHERE
-	software_title_id = :title_id
-	AND hsi.id IN(
-		SELECT
-			max(id) -- ensure we use only the most recent install attempt for each host
-			FROM host_software_installs
+	hsi2.id IS NULL
+	AND hsi.software_title_id = :title_id
+	AND hsi.removed = 0
+	AND %s
+	AND NOT EXISTS (
+		SELECT 1
+		FROM
+			upcoming_activities ua
+			JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		WHERE
-			host_id = hsi.host_id
-			AND software_title_id = :title_id
-			AND removed = 0
-		GROUP BY
-			host_id, software_title_id)
-	AND %s) hss ON hss.host_id = h.id
+			ua.host_id = hsi.host_id
+			AND siua.software_title_id = hsi.software_title_id
+			AND ua.activity_type = 'software_install'
+	)
+) hss ON hss.host_id = h.id
 `, statusFilter)
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
-		// TODO(Sarah): prior code was joining based on installer id but based on how list options are parsed [1] it seems like this should be the title id
-		// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
-		"title_id": titleID,
+		"title_id":        titleID,
 	})
 }
 
