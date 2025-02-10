@@ -8,7 +8,7 @@ team_settings:
     - secret: $DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET
   integrations:
     google_calendar:
-      enable_calendar_events: false
+      enable_calendar_events: true
 agent_options:
 controls:
   ipados_updates:
