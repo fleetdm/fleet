@@ -46,6 +46,8 @@ Restart the Fleet server.
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
+> Windows Tamper Protection is disabled on a host when MDM is turned on.
+
 ## Automatic enrollment
 
 > Available in Fleet Premium
