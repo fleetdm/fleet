@@ -666,16 +666,29 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
+	meta, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, app1.AdamID, app1.Platform, &team.ID)
+	require.NoError(t, err)
+	appTeamID1 := meta.AppTeamID
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, app2.AdamID, app2.Platform, &team.ID)
+	require.NoError(t, err)
+	appTeamID2 := meta.AppTeamID
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
-		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1},
+		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2},
 	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
 	require.NoError(t, err)
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appNoTeam1.AdamID, app1.Platform, nil)
+	require.NoError(t, err)
+	appTeamID1 = meta.AppTeamID
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appNoTeam2.AdamID, app2.Platform, nil)
+	require.NoError(t, err)
+	appTeamID2 = meta.AppTeamID
+	require.NoError(t, err)
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
-		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1},
+		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2},
 	}, appSet)
 
 	var appTitles []fleet.SoftwareTitle

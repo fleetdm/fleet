@@ -2167,7 +2167,7 @@ FROM (
 			0 AS count_installer_labels,
 			0 AS count_host_labels,
 			0 AS count_host_updated_after_labels
-		WHERE NOT EXISTS ( SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = ?)
+		WHERE NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?)
 
 		UNION
 
@@ -2177,11 +2177,11 @@ FROM (
 			COUNT(lm.label_id) AS count_host_labels,
 			0 AS count_host_updated_after_labels
 		FROM
-			software_installer_labels sil
+			%[1]s_labels sil
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 		AND lm.host_id = h.id
 		WHERE
-			sil.software_installer_id = ?
+			sil.%[1]s_id = ?
 			AND sil.exclude = 0
 		HAVING
 			count_installer_labels > 0
@@ -2202,18 +2202,18 @@ FROM (
 						SELECT
 							label_updated_at FROM hosts
 						WHERE
-							id = 1) >= lbl.created_at THEN
+							id = h.id) >= lbl.created_at THEN
 					1
 				ELSE
 					0
 				END) AS count_host_updated_after_labels
 		FROM
-			software_installer_labels sil
+			%[1]s_labels sil
 		LEFT OUTER JOIN labels lbl ON lbl.id = sil.label_id
 	LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 		AND lm.host_id = h.id
 WHERE
-	sil.software_installer_id = ?
+	sil.%[1]s_id = ?
 	AND sil.exclude = 1
 HAVING
 	count_installer_labels > 0
@@ -2221,17 +2221,22 @@ HAVING
 	AND count_host_labels = 0) t`
 
 func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), installerID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
 	hosts h
 WHERE
 	EXISTS (%s)
-`, labelScopedFilter)
+`, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software installer scope")
+	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -2243,17 +2248,22 @@ WHERE
 }
 
 func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	return ds.getExcludedHostIDMapForSoftware(ctx, installerID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) getExcludedHostIDMapForSoftware(ctx context.Context, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
 	hosts h
 WHERE
 	NOT EXISTS (%s)
-`, labelScopedFilter)
+`, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software installer scope")
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))

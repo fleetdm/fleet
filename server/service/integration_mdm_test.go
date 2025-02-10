@@ -10570,11 +10570,14 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform})
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform})
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform})
+	meta, err := s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.MacOSPlatform, &tmGood.ID)
+	require.NoError(t, err)
 	// Only macOS version should be self-service
 	assert.Equal(t, fleet.VPPAppTeam{
 		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
 		SelfService:        true,
 		InstallDuringSetup: ptr.Bool(false),
+		AppTeamID:          meta.AppTeamID,
 	},
 		assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
@@ -10593,22 +10596,34 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 4)
+	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[0].AdamID, fleet.MacOSPlatform, &tmGood.ID)
+	require.NoError(t, err)
 	assert.Equal(t, fleet.VPPAppTeam{
 		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
 		SelfService:        true,
 		InstallDuringSetup: ptr.Bool(false),
+		AppTeamID:          meta.AppTeamID,
 	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}])
+	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IOSPlatform, &tmGood.ID)
+	require.NoError(t, err)
 	assert.Equal(t, fleet.VPPAppTeam{
 		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform},
 		InstallDuringSetup: ptr.Bool(false),
+		AppTeamID:          meta.AppTeamID,
 	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}])
+	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IPadOSPlatform, &tmGood.ID)
+	require.NoError(t, err)
 	assert.Equal(t, fleet.VPPAppTeam{
 		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform},
 		InstallDuringSetup: ptr.Bool(false),
+		AppTeamID:          meta.AppTeamID,
 	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}])
+	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.MacOSPlatform, &tmGood.ID)
+	require.NoError(t, err)
 	assert.Equal(t, fleet.VPPAppTeam{
 		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
 		InstallDuringSetup: ptr.Bool(false),
+		AppTeamID:          meta.AppTeamID,
 	}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Associate an app with a team with no team members
@@ -13294,4 +13309,240 @@ func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
 	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	r = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", winHost.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForWindowsHostsMessage)
+}
+
+func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger() {
+	t := s.T()
+	ctx := context.Background()
+	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
+
+	// Set up VPP token
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Get the token
+	var resp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Create a host and add to team
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	nodeKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &nodeKey
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// Create a few labels
+	var newLabelResp createLabelResponse
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 1",
+	}, http.StatusOK, &newLabelResp)
+	label1 := newLabelResp.Label
+
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 2",
+	}, http.StatusOK, &newLabelResp)
+	label2 := newLabelResp.Label
+
+	newLabelResp = createLabelResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/labels", fleet.LabelPayload{
+		Name:  uuid.NewString(),
+		Query: "SELECT 3",
+	}, http.StatusOK, &newLabelResp)
+	label3 := newLabelResp.Label
+
+	// Sleep to guarantee that host label updated at timestamp is greater than the label creation timestamps
+	time.Sleep(1 * time.Second)
+
+	// Add label1 and label2 to the host
+	host.LabelUpdatedAt = time.Now()
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: ptr.Bool(true), label2.ID: ptr.Bool(true)}, host.LabelUpdatedAt, false)
+	require.NoError(t, err)
+
+	// add VPP app. Add label1 and label3 as "exclude any" labels.
+	var appResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+		fmt.Sprint(team.ID))
+	require.NoError(t, appResp.Err)
+	addedApp := appResp.AppStoreApps[0]
+	var addedMacOSApp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:           &team.ID,
+		Platform:         addedApp.Platform,
+		AppStoreID:       addedApp.AdamID,
+		SelfService:      true,
+		LabelsExcludeAny: []string{label1.Name, label3.Name},
+	}, http.StatusOK, &addedMacOSApp)
+
+	// Get software title ID of the added VPP app
+	listSWTitlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &listSWTitlesResp,
+		"query", addedApp.Name,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
+	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
+
+	var vppAppDetail getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &vppAppDetail, "team_id", fmt.Sprintf("%d", team.ID))
+	require.NotNil(t, vppAppDetail.SoftwareTitle)
+	require.NotNil(t, vppAppDetail.SoftwareTitle.AppStoreApp)
+
+	policy1, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "policy1",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	mtplr := modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy1.ID), modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	// Send back a failed result for the policy.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+
+	// Note: host has label1, label2, and at this point the app has exclude_any: label1, label3
+	// Because the VPP app is out of scope, the policy doesn't have a status
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
+
+	// Update the include any labels. The host has label2, so this means that the software
+	// moved in scope.
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsIncludeAny: []string{label2.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	// Send back a failed result for the policy.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+
+	// Note: host has label1, label2, and at this point the app has include_any: label2
+	// Because the VPP app is in scope, the policy is failing
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label2.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
+	// status should clear.
+
+	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: addedApp.AdamID, LabelsExcludeAny: []string{label3.Name}},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", team.Name)
+	require.Len(t, batchAssociateResponse.Apps, 1)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
+
+	// Sending back another failed response
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	// Because the app is in scope, the policy should be failing again.
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label2.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
+
+	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
+	// status should clear.
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: false, LabelsExcludeAny: []string{label3.Name}}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
+
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(0), policy1.FailingHostCount)
+
+	// Sending back another failed response
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host,
+		map[uint]*bool{
+			policy1.ID: ptr.Bool(false),
+		},
+	), http.StatusOK, &distributedResp)
+	err = s.ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policy1, err = s.ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	// Because the app is in scope, the policy should be failing again.
+	require.Equal(t, uint(0), policy1.PassingHostCount)
+	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
