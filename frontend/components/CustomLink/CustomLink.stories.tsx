@@ -93,8 +93,8 @@ export const FlashMessageVariant: Story = {
 export const DisabledKeyboardNav: Story = {
   render: (args) => (
     <>
-      Here&apos;s you can&apos;t tab to this link even if you wanted to, useful
-      when within a disabled component. <CustomLink {...args} />
+      Here, you can&apos;t tab to this link even if you wanted to which is
+      useful when within a disabled component. <CustomLink {...args} />
     </>
   ),
   args: {

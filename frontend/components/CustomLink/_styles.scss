@@ -1,5 +1,10 @@
 .custom-link {
-  // Changing display key will break multiline links
+  // Changing display will break multiline links
+  &:not(.custom-link--multiline) {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
 
   &__no-wrap {
     white-space: nowrap;
