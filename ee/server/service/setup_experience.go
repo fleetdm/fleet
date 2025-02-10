@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -161,8 +160,6 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			}
 		}
 	}
-
-	fmt.Println(">>>> setup experience next steps: ", installersPending, appsPending, scriptsPending, installersRunning, appsRunning, scriptsRunning)
 
 	// This step is called internally, not by a user
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
