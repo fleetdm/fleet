@@ -132,7 +132,7 @@ export default {
         body.labels_exclude_any = selectedLabels;
       }
     }
-    console.log("body", body);
+
     return sendRequest("PATCH", EDIT_SOFTWARE_VPP(softwareId), body);
   },
 
