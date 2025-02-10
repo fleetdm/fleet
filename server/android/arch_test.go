@@ -16,6 +16,7 @@ func TestPackageDependencies(t *testing.T) {
 		IgnorePackages(
 			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql",
 			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // TODO: remove this dependency
+			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
 		).

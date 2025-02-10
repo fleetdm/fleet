@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -112,7 +113,7 @@ func MakeHandler(
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(fleetSvc),
+			auth.SetRequestsContexts(fleetSvc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
 		kithttp.ServerErrorEncoder(encodeError),

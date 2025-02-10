@@ -191,10 +191,7 @@ func (t *testingT) Errorf(format string, args ...any) {
 }
 
 func (t testingT) errored() bool {
-	if len(t.errors) != 0 {
-		return true
-	}
-	return false
+	return len(t.errors) != 0
 }
 
 func (t *testingT) message() string {
