@@ -19,19 +19,6 @@
       }
 
       tbody {
-        .text-cell.user-name-cell {
-          display: flex; // required for inline icon
-          gap: $pad-xsmall;
-          text-decoration: none;
-          align-items: center;
-
-          // need specificity to override text-cell css
-          .user-name-text {
-            text-overflow: ellipsis;
-            overflow: hidden;
-          }
-        }
-
         // need specificity to override datatable css
         td.name__cell,
         td.role__cell,

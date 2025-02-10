@@ -1,5 +1,6 @@
 import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import { IUser, UserRole } from "interfaces/user";
@@ -99,14 +100,9 @@ const generateColumnConfigs = (
             : false;
 
         return (
-          <TextCell
-            value={
-              <>
-                <div className="user-name-text">{cellProps.cell.value}</div>
-                {!apiOnlyUser && renderApiUserIndicator()}
-              </>
-            }
-            className="user-name-cell"
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            suffix={apiOnlyUser && renderApiUserIndicator()}
           />
         );
       },
