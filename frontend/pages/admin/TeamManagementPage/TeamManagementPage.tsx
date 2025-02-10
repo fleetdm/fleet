@@ -252,9 +252,6 @@ const TeamManagementPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Create, customize, and remove teams from Fleet.
-      </p>
       <SandboxGate
         fallbackComponent={() => (
           <SandboxMessage
