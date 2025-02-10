@@ -1724,16 +1724,16 @@ type Datastore interface {
 	//
 
 	// GetIncludedHostIDMapForSoftwareInstaller gets the set of hosts that are targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
 	// GetExcludedHostIDMapForSoftwareInstaller gets the set of hosts that are NOT targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
-	// ClearAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// ClearSoftwareInstallerAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
 	// software installer for all the given hosts.
-	ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
+	ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
 
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
@@ -1842,6 +1842,18 @@ type Datastore interface {
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
+
+	// GetIncludedHostIDMapForVPPApp gets the set of hosts that are targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// ClearVPPAppAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// VPP app for all the given hosts.
+	ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience

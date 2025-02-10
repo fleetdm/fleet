@@ -2,6 +2,10 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code.
 
+Fleet GitOps is a declarative configuration management system. You define your desired Fleet settings in YAML files and Fleet GitOps makes it so.
+Any settings not defined in your YAML files will be reset to the default values, which may include deleting assets such as software packages.
+Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
+
 To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
@@ -705,27 +709,32 @@ Can only be configured for all teams (`org_settings`).
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
 
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
+Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
+
+Can only be configured for all teams (`org_settings`):
 
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
-Can only be configured for all teams (`org_settings`).
 
-#### end_user_authentication
+#### Example
 
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
 
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
+```yaml
+org_settings:
+  mdm:
+    end_user_authentication:
+      idp_name: SimpleSAML
+      entity_id: https://example.com
+      metadata: $SSO_METADATA
+  controls:
+    macos_setup:
+      enable_end_user_authentication: true
+```
 
-- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
-- `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
-- `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
-- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
-Can only be configured for all teams (`org_settings`).
 
 ##### apple_server_url
 

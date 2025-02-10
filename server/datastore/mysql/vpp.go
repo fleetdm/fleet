@@ -347,9 +347,11 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
+	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	for _, appFleet := range appFleets {
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
+		appFleet.AppTeamID = existingApp.AppTeamID
 		var labelsChanged bool
 		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
@@ -358,6 +360,17 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 
 			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+
+		}
+
+		// Get the hosts that are NOT in label scope currently (before the update happens)
+		if labelsChanged {
+			hostsNotInScope, err := ds.GetExcludedHostIDMapForVPPApp(ctx, appFleet.AppTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting hosts not in scope for vpp app")
+			}
+			appsWithChangedLabels[appFleet.AppTeamID] = hostsNotInScope
+
 		}
 
 		if !isExistingApp ||
@@ -390,6 +403,28 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
 				}
 			}
+
+			if hostsNotInScope, ok := appsWithChangedLabels[toAdd.AppTeamID]; ok {
+				hostsInScope, err := ds.GetIncludedHostIDMapForVPPAppTx(ctx, tx, toAdd.AppTeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting hosts in scope for vpp app")
+				}
+
+				var hostsToClear []uint
+				for id := range hostsInScope {
+					if _, ok := hostsNotInScope[id]; ok {
+						// it was not in scope but now it is, so we should clear policy status
+						hostsToClear = append(hostsToClear, id)
+					}
+				}
+
+				// We clear the policy status here because otherwise the policy automation machinery
+				// won't pick this up and the software won't install.
+				if err := ds.ClearVPPAppAutoInstallPolicyStatusForHostsTx(ctx, tx, toAdd.AppTeamID, hostsToClear); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+				}
+			}
+
 		}
 
 		for _, toRemove := range toRemoveApps {
@@ -464,7 +499,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup
+	adam_id, platform, self_service, install_during_setup, id
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -549,8 +584,8 @@ ON DUPLICATE KEY UPDATE
 	if insertOnDuplicateDidInsertOrUpdate(res) {
 		id, _ = res.LastInsertId()
 	} else {
-		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ?`
-		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform); err != nil {
+		stmt := `SELECT id FROM vpp_apps_teams WHERE adam_id = ? AND platform = ? AND global_or_team_id = ?`
+		if err := sqlx.GetContext(ctx, tx, &id, stmt, appID.AdamID, appID.Platform, globalOrTmID); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "vpp app teams id")
 		}
 	}
@@ -1575,4 +1610,16 @@ func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, 
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) GetIncludedHostIDMapForVPPAppTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint) (map[uint]struct{}, error) {
+	return ds.getIncludedHostIDMapForSoftware(ctx, tx, vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	return ds.getExcludedHostIDMapForSoftware(ctx, vppAppTeamID, softwareTypeVPP)
 }
