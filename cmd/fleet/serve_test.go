@@ -598,6 +598,46 @@ func TestScanVulnerabilities(t *testing.T) {
 	require.Equal(t, 1, webhookCount)
 }
 
+func TestUpdateVulnHostCounts(t *testing.T) {
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx := context.Background()
+
+	ds := new(mock.Store)
+
+	testCases := []struct {
+		desc                   string
+		maxConcurrency         int
+		expectedMaxConcurrency int
+	}{
+		{
+			desc:                   "invalid max concurrency count",
+			maxConcurrency:         0,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "valid max concurrency count",
+			maxConcurrency:         10,
+			expectedMaxConcurrency: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var gotMaxConcurrency int
+			ds.UpdateVulnerabilityHostCountsFunc = func(ctx context.Context, maxRoutines int) error {
+				gotMaxConcurrency = maxRoutines
+				return nil
+			}
+
+			err := updateVulnHostCounts(ctx, ds, logger, tc.maxConcurrency)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedMaxConcurrency, gotMaxConcurrency)
+		})
+	}
+}
+
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	logger := kitlog.NewNopLogger()
 	logger = level.NewFilter(logger, level.AllowDebug())
