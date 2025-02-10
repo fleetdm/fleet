@@ -53,6 +53,7 @@ const CustomLink = ({
 
   const customLinkClass = classnames(baseClass, className, {
     [`${baseClass}--${variant}`]: variant !== "default",
+    [`${baseClass}--multiline`]: multiline,
   });
 
   const target = newTab ? "_blank" : "";
