@@ -154,7 +154,7 @@ func validateFleetProvidedLocURI(locURI string) error {
 func validateUserScopedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	if strings.Contains(sanitizedLocURI, syncml.FleetUserScopedTargetLocURI) {
-		return errors.New(`The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/".`)
+		return errors.New(`The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`)
 	}
 
 	return nil
