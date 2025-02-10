@@ -6,6 +6,7 @@ import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -102,14 +103,9 @@ const generateColumnConfigs = (
             : false;
 
         return (
-          <TextCell
-            value={
-              <>
-                <div className="user-name-text">{cellProps.cell.value}</div>
-                {!apiOnlyUser && renderApiUserIndicator()}
-              </>
-            }
-            className="user-name-cell"
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            suffix={apiOnlyUser && renderApiUserIndicator()}
           />
         );
       },

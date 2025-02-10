@@ -1,19 +1,17 @@
 import React from "react";
 
-import ReactTooltip from "react-tooltip";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import CustomLink from "components/CustomLink";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { COLORS } from "styles/var/colors";
-import ActionsDropdown from "../../../../../components/ActionsDropdown";
 import { renderApiUserIndicator } from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPageTableConfig";
+import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 interface IHeaderProps {
   column: {
@@ -82,14 +80,9 @@ const generateTableHeaders = (
             : false;
 
         return (
-          <TextCell
-            value={
-              <>
-                <div className="user-name-text">{cellProps.cell.value}</div>
-                {!apiOnlyUser && renderApiUserIndicator()}
-              </>
-            }
-            className="user-name-cell"
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            suffix={apiOnlyUser && renderApiUserIndicator()}
           />
         );
       },
