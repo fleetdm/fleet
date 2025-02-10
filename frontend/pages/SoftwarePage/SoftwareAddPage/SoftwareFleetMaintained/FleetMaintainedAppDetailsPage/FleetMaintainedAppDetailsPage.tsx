@@ -17,7 +17,6 @@ import { NotificationContext } from "context/notification";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
-import CustomLink from "components/CustomLink";
 
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
