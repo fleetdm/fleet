@@ -216,6 +216,7 @@ const EditSoftwareModal = ({
   const onEditVpp = async (formData: ISoftwareVppFormData) => {
     setIsUpdatingSoftware(true);
 
+    console.log("formData", formData);
     try {
       await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
 

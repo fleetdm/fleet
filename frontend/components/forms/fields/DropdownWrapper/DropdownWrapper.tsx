@@ -30,13 +30,6 @@ import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/Dropd
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
-
-const getOptionBackgroundColor = (
-  state: OptionProps<CustomOptionType, false>
-) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
-};
-
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
@@ -45,6 +38,8 @@ export interface CustomOptionType {
   isDisabled?: boolean;
   iconName?: IconNames;
 }
+
+type DropdownWrapperVariant = "table-filter" | "button";
 
 export interface IDropdownWrapper {
   options: CustomOptionType[];
@@ -64,12 +59,31 @@ export interface IDropdownWrapper {
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
   /** Table filter dropdowns have filter icon and height: 40px
-   *  Button dropdowns have hover/active state, padding, height like actual buttons */
-  variant?: "table-filter" | "button";
+   *  Button dropdowns have hover/active state, padding, height matching actual buttons, and no selected option styling */
+  variant?: DropdownWrapperVariant;
   /** This makes the menu fit all text without wrapping,
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
 }
+
+const getOptionBackgroundColor = (
+  state: OptionProps<CustomOptionType, false>
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+};
+
+const getOptionFontWeight = (
+  state: OptionProps<CustomOptionType, false>,
+  variant?: DropdownWrapperVariant
+) => {
+  // For "button" dropdowns, selected options are not styled differently
+  if (variant === "button") {
+    return "normal";
+  }
+
+  // For other variants, selected options are bold
+  return state.isSelected ? "bold" : "normal";
+};
 
 const baseClass = "dropdown-wrapper";
 
@@ -380,7 +394,7 @@ const DropdownWrapper = ({
       fontSize: "14px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: state.isSelected ? "bold" : "normal",
+      fontWeight: getOptionFontWeight(state, variant),
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
@@ -473,7 +487,7 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
-        controlShouldRenderValue={variant !== "button"}
+        controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
       />
     </FormField>
   );
