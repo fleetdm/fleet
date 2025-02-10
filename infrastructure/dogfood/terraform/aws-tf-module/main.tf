@@ -69,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.11.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -355,7 +355,7 @@ module "firehose-logging" {
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
-  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003" 
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
   region                = data.aws_region.current.name
 }
 
