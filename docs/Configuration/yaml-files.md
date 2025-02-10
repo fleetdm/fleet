@@ -60,7 +60,7 @@ policies:
   calendar_event_enabled: false
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
-  resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
+  resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   platform: darwin
   critical: false
@@ -303,7 +303,7 @@ Use `labels_include_all` to target hosts that have all labels in the array, `lab
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
-- `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
+- `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
@@ -389,7 +389,7 @@ self_service: true
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
-- `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
 #### Example
 
