@@ -3193,6 +3193,9 @@ Lists the policies applied to the current device.
 
 #### Get device's certificates
 
+Available for macOS, iOS, and iPadOS hosts only. Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+
+
 Lists the certificates installed on the current device.
 
 `GET /api/v1/fleet/device/{token}/certificates`
