@@ -1304,7 +1304,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
-			rootMux.Handle("/api/{version}/fleet/android/", androidAPIHandler)
+			rootMux.Handle("/api/{version}/fleet/android", androidAPIHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

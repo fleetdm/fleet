@@ -70,7 +70,7 @@ type androidResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r androidResponse) error() error { return r.Err }
+func (r androidResponse) Error() error { return r.Err }
 
 type androidEnterpriseSignupResponse struct {
 	*android.SignupDetails
