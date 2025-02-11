@@ -1301,7 +1301,6 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-
 	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
 	token.MacOSDefaultTeamID = nil
 	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}

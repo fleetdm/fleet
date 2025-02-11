@@ -1182,6 +1182,10 @@ type ApplySpecOptions struct {
 	// DryRun indicates that the spec should not be applied, but the validation
 	// errors should be returned.
 	DryRun bool
+	// GitOps options is used to say they request is coming from the the gitops client.
+	// We use this as the update app config behavior is different for gitops clients then it is for other
+	// API clients.
+	GitOps bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
 }
@@ -1215,6 +1219,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.DryRun {
 		query.Set("dry_run", "true")
+	}
+	if o.GitOps {
+		query.Set("gitops", "true")
 	}
 	return query.Encode()
 }
