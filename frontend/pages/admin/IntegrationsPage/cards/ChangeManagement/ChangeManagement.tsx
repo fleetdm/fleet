@@ -1,24 +1,169 @@
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
-import React from "react";
+import React, { useContext, useState } from "react";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import validUrl from "components/forms/validators/valid_url";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IChangeManagement, IConfig } from "interfaces/config";
+import { IFormField } from "interfaces/form_field";
+import { useQuery } from "react-query";
+
+import configAPI from "services/entities/config";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "change-management";
 
-// interface IChangeManagement {
+interface IChangeManagementFormData {
+  gomEnabled: boolean;
+  repoURL: string;
+}
 
-// }
-// {}: IChangeManagement
+interface IChangeManagementFormErrors {
+  repository_url?: string | null;
+}
+
+const validate = (formData: IChangeManagementFormData) => {
+  const errs: IChangeManagementFormErrors = {};
+  const { gomEnabled, repoURL } = formData;
+  if (gomEnabled) {
+    if (!repoURL) {
+      errs.repository_url =
+        "Git repository URL is required when GitOps mode is enabled";
+    } else if (!validUrl({ url: repoURL })) {
+      errs.repository_url = "Git repository URL must be a valid URL";
+    }
+  }
+  return errs;
+};
+
 const ChangeManagement = () => {
+  const { renderFlash } = useContext(NotificationContext);
+
+  const {
+    data: changeManagement,
+    isLoading: isLoadingChangeManagement,
+    error: loadingChangeManagementError,
+    refetch: refetchChangeManagement,
+  } = useQuery<IConfig, Error, IChangeManagement>(
+    ["integrations"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => {
+        return data.change_management;
+      },
+    }
+  );
+
+  const [formData, setFormData] = useState<IChangeManagementFormData>({
+    gomEnabled: changeManagement?.gitops_mode_enabled ?? false,
+    repoURL: changeManagement?.repository_url ?? "",
+  });
+  const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const { gomEnabled, repoURL } = formData;
+
+  const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+
+    const errs = validate(formData);
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await configAPI.update({
+        integrations: {
+          change_management: {
+            gitops_mode_enabled: formData.gomEnabled,
+            repository_url: formData.repoURL,
+          },
+        },
+      });
+      renderFlash("success", "Successfully updated settings");
+      setIsUpdating(false);
+      refetchChangeManagement();
+      // TODO - set new config to context, which should control new navbar indicator
+    } catch (e) {
+      const message = getErrorReason(e);
+      renderFlash("error", message || "Failed ot update settings");
+      setIsUpdating(false);
+    }
+  };
+
+  const onInputChange = ({ name, value }: IFormField) => {
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validate(newFormData);
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur or submit
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
+  };
+
+  const onInputBlur = () => {
+    setFormErrors(validate(formData));
+  };
+
   return (
-    <>
-      {/* <div className={`${baseClass}`}> */}
-      <SectionHeader title="Calendars" />
+    <div className={baseClass}>
+      <SectionHeader title="Change management" />
       <p className={`${baseClass}__page-description`}>
-        To create calendar events for end users with failing policies,
-        you&apos;ll need to configure a dedicated Google Workspace service
-        account.
+        When using a git repository to manage Fleet, you can optionally put the
+        UI in GitOps mode. This prevents you from making changes in the UI that
+        would be overridden by GitOps workflows.
       </p>
-      {/* </div> */}
-    </>
+      <CustomLink
+        newTab
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+        text="Learn more about GitOps"
+      />
+      <form onSubmit={handleSubmit}>
+        <Checkbox
+          onChange={onInputChange}
+          name="gomEnabled"
+          value={gomEnabled}
+          parseTarget
+        >
+          <TooltipWrapper tipContent="GitOps mode is a UI-only setting. API permissions are restricted based on user role.">
+            Enable GitOps mode
+          </TooltipWrapper>
+        </Checkbox>
+        {/* Git repository URL */}
+        <InputField
+          label="Git repository URL"
+          onChange={onInputChange}
+          name="repoURL"
+          value={repoURL}
+          parseTarget
+          onBlur={onInputBlur}
+          error={formErrors.repository_url}
+          helpText="When GitOps mode is enabled, you will be directed here to make changes."
+          disabled={!gomEnabled}
+        />
+        <Button
+          type="submit"
+          disabled={!!Object.keys(formErrors).length}
+          isLoading={isUpdating}
+        >
+          Save
+        </Button>
+      </form>
+    </div>
   );
 };
 
