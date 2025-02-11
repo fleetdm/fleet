@@ -68,6 +68,8 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 	}
 }
 
+// InstallSoftware triggers a software installation (VPP or software package)
+// on the specified host.
 func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
 	verb, path := "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostID, softwareTitleID)
 	var responseBody installSoftwareResponse
