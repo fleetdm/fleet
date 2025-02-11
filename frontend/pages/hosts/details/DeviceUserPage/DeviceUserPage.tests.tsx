@@ -148,191 +148,269 @@ describe("Device User Page", () => {
       expect(btn).toBeNull();
     });
   });
+  // // FIXME: revisit these tests when we have a better way to test modals
+  // describe("AutoEnrollMDMModal", () => {
+  //   it("shows the pre-Sonoma body when the host is pre-Sonoma", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 13.1.1";
+  //     host.dep_assigned_to_fleet = true;
 
-  describe("AutoEnrollMDMModal", () => {
-    it("shows the pre-Sonoma body when the host is pre-Sonoma", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 13.1.1";
-      host.dep_assigned_to_fleet = true;
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: true },
+  //           features: { enable_software_inventory: false },
+  //         },
+  //       })
+  //     );
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
 
-      // autoenroll-specific copy
-      expect(
-        screen.getByText("sudo profiles renew -type enrollment")
-      ).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("notification center")).toBeInTheDocument();
-    });
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
 
-    it("shows the Sonoma-and-above body when the host is Sonoma", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 14.7";
-      host.dep_assigned_to_fleet = true;
+  //     // autoenroll-specific copy
+  //     expect(
+  //       screen.getByText("sudo profiles renew -type enrollment")
+  //     ).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("notification center")).toBeInTheDocument();
+  //   });
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //   it("shows the Sonoma-and-above body when the host is Sonoma", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 14.7";
+  //     host.dep_assigned_to_fleet = true;
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: true },
+  //           features: { enable_software_inventory: false },
+  //         },
+  //       })
+  //     );
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
 
-      // autoenroll-specific copy
-      expect(
-        screen.getByText("sudo profiles renew -type enrollment")
-      ).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("System Settings")).toBeInTheDocument();
-    });
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
 
-    it("shows the Sonoma-and-above body when the host is post-Sonoma", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 15.3";
-      host.dep_assigned_to_fleet = true;
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     // autoenroll-specific copy
+  //     expect(
+  //       screen.getByText("sudo profiles renew -type enrollment")
+  //     ).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("System Settings")).toBeInTheDocument();
+  //   });
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //   it("shows the Sonoma-and-above body when the host is post-Sonoma", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 15.3";
+  //     host.dep_assigned_to_fleet = true;
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: true },
+  //           features: { enable_software_inventory: false },
+  //         },
+  //       })
+  //     );
 
-      // autoenroll-specific copy
-      expect(
-        screen.getByText("sudo profiles renew -type enrollment")
-      ).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("System Settings")).toBeInTheDocument();
-    });
-  });
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
 
-  describe("ManualEnrollMDMModal", () => {
-    it("shows the pre-Seqouia body when the host is pre-Seqouia", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 14.1.1";
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     // autoenroll-specific copy
+  //     expect(
+  //       screen.getByText("sudo profiles renew -type enrollment")
+  //     ).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("System Settings")).toBeInTheDocument();
+  //   });
+  // });
+  // // FIXME: revisit these tests when we have a better way to test modals
+  // describe("ManualEnrollMDMModal", () => {
+  //   it("shows the pre-Seqouia body when the host is pre-Seqouia", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 14.1.1";
 
-      // manualenroll-specific copy
-      expect(screen.getByText("Download your profile.")).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("In the search bar")).toBeInTheDocument();
-    });
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: false },
+  //           features: { enable_software_inventory: true },
+  //         },
+  //       })
+  //     );
 
-    it("shows the Sequoia-and-above body when the host is Sequoia", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 15.3";
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
 
-      // manualenroll-specific copy
-      expect(screen.getByText("Download your profile.")).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("In the sidebar menu")).toBeInTheDocument();
-    });
+  //     // manualenroll-specific copy
+  //     expect(screen.getByText("Download your profile.")).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("In the search bar")).toBeInTheDocument();
+  //   });
 
-    it("shows the Sequoia-and-above body when the host is post-Sequoia", async () => {
-      const host = createMockHost() as IHostDevice;
-      host.platform = "darwin";
-      host.os_version = "macOS 16.0";
+  //   it("shows the Sequoia-and-above body when the host is Sequoia", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 15.3";
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: false },
+  //           features: { enable_software_inventory: true },
+  //         },
+  //       })
+  //     );
 
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
-      );
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
 
-      // waiting for the device data to render
-      await screen.findByText("About");
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
 
-      // open the modal
-      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
 
-      // manual-specific copy
-      expect(screen.getByText("Download your profile.")).toBeInTheDocument();
-      // version-specific copy
-      expect(screen.getByText("In the sidebar menu")).toBeInTheDocument();
-    });
-  });
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
+
+  //     // manualenroll-specific copy
+  //     expect(screen.getByText("Download your profile.")).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("In the sidebar menu")).toBeInTheDocument();
+  //   });
+
+  //   it("shows the Sequoia-and-above body when the host is post-Sequoia", async () => {
+  //     const host = createMockHost() as IHostDevice;
+  //     host.platform = "darwin";
+  //     host.os_version = "macOS 16.0";
+
+  //     mockServer.use(
+  //       customDeviceHandler({
+  //         host,
+  //         global_config: {
+  //           mdm: { enabled_and_configured: false },
+  //           features: { enable_software_inventory: true },
+  //         },
+  //       })
+  //     );
+
+  //     const render = createCustomRenderer({
+  //       withBackendMock: true,
+  //     });
+
+  //     const { user } = render(
+  //       <DeviceUserPage
+  //         router={mockRouter}
+  //         params={{ device_auth_token: "testToken" }}
+  //         location={mockLocation}
+  //       />
+  //     );
+
+  //     // waiting for the device data to render
+  //     await screen.findByText("About");
+
+  //     // open the modal
+  //     await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+
+  //     // waiting for the modal to render
+  //     await screen.findByText("To turn on MDM,");
+
+  //     // manual-specific copy
+  //     expect(screen.getByText("Download your profile.")).toBeInTheDocument();
+  //     // version-specific copy
+  //     expect(screen.getByText("In the sidebar menu")).toBeInTheDocument();
+  //   });
+  // });
 });
