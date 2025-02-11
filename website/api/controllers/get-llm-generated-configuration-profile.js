@@ -30,6 +30,7 @@ module.exports = {
     },
     couldNotGenerateProfile: {
       description: 'A configuration profile could not be generated for a user using the provided instructions',
+      responseType: 'badRequest'
     }
   },
 
@@ -54,6 +55,7 @@ module.exports = {
 
     {
       "configurationProfile": "TODO"
+      "profileFilename": "TODO"
       "settingsEnforced": [// For each setting enforced by the configuration profile.
         {
           // The name (key) of the settings that is enforced. e.g., LoginwindowText
@@ -88,6 +90,7 @@ module.exports = {
     }
     return {
       profile: jsonResult.configurationProfile,
+      profileFilename: jsonResult.profileFilename,
       items: jsonResult.settingsEnforced
     };
 
