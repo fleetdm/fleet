@@ -26,10 +26,10 @@ module.exports = {
 
   exits: {
     success: {
-      description: 'A configuration profile was successfully generated for the user',
+      description: 'A configuration profile was successfully generated for a user.',
     },
     couldNotGenerateProfile: {
-      description: 'A configuration profile could not be generated for a user using the provided instructions',
+      description: 'A configuration profile could not be generated for a user using the provided instructions.',
       responseType: 'badRequest'
     }
   },
