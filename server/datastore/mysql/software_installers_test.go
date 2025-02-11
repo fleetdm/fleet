@@ -971,6 +971,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins0, Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
+	})
 
 	// Add software installer with the same bundle id but different name
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
@@ -978,7 +981,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		InstallerFile:    tfr0,
 		StorageID:        ins0,
 		Filename:         "installer0",
-		Title:            "ins0",
+		Title:            "ins0-different",
 		Source:           "apps",
 		Version:          "1",
 		PreInstallQuery:  "foo",
@@ -992,6 +995,9 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
 	require.NoError(t, err)
 	require.Len(t, softwareInstallers, 1)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: "ins0-different", Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.ins0")},
+	})
 
 	// remove everything
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
