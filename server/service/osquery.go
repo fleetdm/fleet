@@ -1837,8 +1837,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
-			false, // Set Self-service as false because this is triggered by Fleet.
-			&policyID,
+			fleet.HostSoftwareInstallOptions{
+				SelfService: false,
+				PolicyID:    &policyID,
+			},
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1988,7 +1990,10 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+			SelfService: false,
+			PolicyID:    &policyID,
+		})
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get install VPP app",
