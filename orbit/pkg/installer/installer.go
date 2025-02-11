@@ -95,7 +95,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
 	if runtime.GOOS == "darwin" {
 		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
-			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			log.Info().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}
 	}
@@ -129,9 +129,15 @@ func connectOsquery(r *Runner) error {
 }
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
-	log.Debug().Msg("starting software installers run")
+	if len(config.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		log.Info().Msgf("received notification for software installers: %v", config.Notifications.PendingSoftwareInstallerIDs)
+	} else {
+		log.Debug().Msg("starting software installers run")
+	}
+
 	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
+		log.Info().Msgf("processing software installer %s", installerID)
 		if ctx.Err() != nil {
 			errs = append(errs, ctx.Err())
 			break
@@ -146,7 +152,7 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		attemptNum := 1
 		err = retry.Do(func() error {
 			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
-				log.Debug().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				log.Info().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
 				attemptNum++
 				return err
 			}
@@ -195,7 +201,7 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 }
 
 func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.HostSoftwareInstallResultPayload, error) {
-	log.Debug().Msgf("about to install software with installer id: %s", installID)
+	log.Info().Msgf("about to install software with installer id: %s", installID)
 	installer, err := r.OrbitClient.GetInstallerDetails(installID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching software installer details: %w", err)
@@ -205,7 +211,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	payload.InstallUUID = installID
 
 	if installer.PreInstallCondition != "" {
-		log.Debug().Msgf("pre-condition is not empty, about to run the query")
+		log.Info().Msgf("pre-condition is not empty, about to run the query")
 		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
 		payload.PreInstallConditionOutput = &output
 		if err != nil {
@@ -213,14 +219,14 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		}
 
 		if !shouldInstall {
-			log.Debug().Msgf("pre-condition didn't pass, stopping installation")
+			log.Info().Msgf("pre-condition didn't pass, stopping installation")
 			return payload, nil
 		}
 	}
 
 	if !r.scriptsEnabled() {
 		// fleetctl knows that -2 means script was disabled on host
-		log.Debug().Msgf("scripts are disabled for this host, stopping installation")
+		log.Info().Msgf("scripts are disabled for this host, stopping installation")
 		payload.InstallScriptExitCode = ptr.Int(-2)
 		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
 		return payload, nil
@@ -249,7 +255,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 
 	var installerPath string
 	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
-		log.Debug().Str("install_id", installID).Msgf("about to download software installer from URL")
+		log.Info().Str("install_id", installID).Msgf("about to download software installer from URL")
 		installerPath, err = r.OrbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
 			installer.SoftwareInstallerURL.Filename, tmpDir)
 		if err != nil {
@@ -260,7 +266,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 
 	if installerPath == "" {
-		log.Debug().Str("install_id", installID).Msgf("about to download software installer")
+		log.Info().Str("install_id", installID).Msgf("about to download software installer")
 		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 		if err != nil {
 			return payload, err
@@ -271,16 +277,17 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	if runtime.GOOS == "windows" {
 		scriptExtension = ".ps1"
 	}
-	log.Debug().Msgf("about to run install script")
+	log.Info().Str("install_id", installID).Msg("about to run install script")
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
 		return payload, err
 	}
+	log.Info().Str("install_id", installID).Msgf("install script exit code %d", installExitCode)
 
 	if installer.PostInstallScript != "" {
-		log.Debug().Msgf("about to run post-install script for %s", installerPath)
+		log.Info().Msgf("about to run post-install script for %s", installerPath)
 		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode

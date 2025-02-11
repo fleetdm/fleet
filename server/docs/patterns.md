@@ -35,6 +35,10 @@ Exceptions:
 - Extra range of unsigned needed for a specific use case
 - Specific performance/memory requirements
 
+### Unit testing
+
+Use multiple hosts in unit tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
+
 ## MySQL
 
 ### Timestamps
