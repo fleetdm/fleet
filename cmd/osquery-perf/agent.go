@@ -1011,7 +1011,6 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	log.Printf("running scripts: %v", execIDs)
 	for _, execID := range execIDs {
 		if a.disableScriptExec {
-			fmt.Println(">>>>> osquery-perf scripts disabled")
 			// send a no-op result without executing if script exec is disabled
 			if err := orbitClient.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 				ExecutionID: execID,
