@@ -3,15 +3,13 @@ import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
-import SummaryTile from "../HostsSummary/SummaryTile";
+import HostCountCard from "../HostCountCard";
 
 const baseClass = "hosts-low-space";
 
-interface IHostSummaryProps {
+interface ILowDiskSpaceHostsProps {
   lowDiskSpaceGb: number;
   lowDiskSpaceCount: number;
-  isLoadingHosts: boolean;
-  showHostsUI: boolean;
   selectedPlatformLabelId?: number;
   currentTeamId?: number;
   notSupported: boolean;
@@ -20,12 +18,10 @@ interface IHostSummaryProps {
 const LowDiskSpaceHosts = ({
   lowDiskSpaceGb,
   lowDiskSpaceCount,
-  isLoadingHosts,
-  showHostsUI,
   selectedPlatformLabelId,
   currentTeamId,
   notSupported = false, // default to supporting this feature
-}: IHostSummaryProps): JSX.Element => {
+}: ILowDiskSpaceHostsProps): JSX.Element => {
   // build the manage hosts URL filtered by low disk space only
   // currently backend cannot filter by both low disk space and label
   const queryParams = {
@@ -43,18 +39,16 @@ const LowDiskSpaceHosts = ({
     : `Hosts that have ${lowDiskSpaceGb} GB or less disk space available.`;
 
   return (
-    <div className={baseClass}>
-      <SummaryTile
-        iconName="low-disk-space-hosts"
-        count={lowDiskSpaceCount}
-        isLoading={isLoadingHosts}
-        showUI={showHostsUI}
-        title="Low disk space hosts"
-        tooltip={tooltipText}
-        path={path}
-        notSupported={notSupported}
-      />
-    </div>
+    <HostCountCard
+      iconName="low-disk-space-hosts"
+      count={lowDiskSpaceCount}
+      title="Low disk space hosts"
+      tooltip={tooltipText}
+      path={path}
+      notSupported={notSupported}
+      className={baseClass}
+      iconPosition="left"
+    />
   );
 };
 

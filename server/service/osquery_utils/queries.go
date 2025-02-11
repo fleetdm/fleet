@@ -1770,6 +1770,35 @@ var (
 				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
 			},
 		},
+		{
+			// Python versions on Windows encode ABI and release information in a way that's incompatible with NVD lookups
+			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
+			},
+			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+				versionComponents := strings.Split(s.Version, ".")
+				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
+				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
+				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
+
+				candidateSuffix := ""
+				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
+				case "10":
+					candidateSuffix = "-alpha" + releaseSerial
+				case "11":
+					candidateSuffix = "-beta" + releaseSerial
+				case "12":
+					candidateSuffix = "-rc" + releaseSerial
+				} // default
+
+				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
+					patchVersion = "0"
+				}
+
+				versionComponents[2] = patchVersion + candidateSuffix
+				s.Version = strings.Join(versionComponents[0:3], ".")
+			},
+		},
 	}
 )
 
@@ -2068,7 +2097,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
 	}
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 }
 
 // directIngestDiskEncryptionKeyFileLinesDarwin ingests the FileVault key from the `file_lines`
@@ -2127,7 +2156,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
-	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64Key, "", decryptable)
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 }
 
 func directIngestMacOSProfiles(
@@ -2290,7 +2319,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopHostMDMLocURIs(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config` with `Policy/Result`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
@@ -2314,10 +2343,11 @@ func buildConfigProfilesWindowsQuery(
 		return ""
 	}
 	if !gotProfiles {
-		logger.Log(
+		level.Debug(logger).Log(
 			"component", "service",
 			"method", "QueryFunc - windows config profiles",
-			"info", "host doesn't have profiles to check",
+			"msg", "host doesn't have profiles to check",
+			"host_id", host.ID,
 		)
 		return ""
 	}
@@ -2344,5 +2374,5 @@ func directIngestWindowsProfiles(
 	if len(rawResponse) == 0 {
 		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
 	}
-	return microsoft_mdm.VerifyHostMDMProfiles(ctx, ds, host, rawResponse)
+	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
 }

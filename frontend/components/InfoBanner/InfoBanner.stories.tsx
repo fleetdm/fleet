@@ -1,20 +1,21 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 
 import InfoBanner from ".";
-import { IInfoBannerProps } from "./InfoBanner";
 
 import "../../index.scss";
 
-export default {
+const meta: Meta<typeof InfoBanner> = {
   component: InfoBanner,
   title: "Components/InfoBanner",
-} as Meta;
+};
 
-const Template: Story<IInfoBannerProps> = (props) => (
-  <InfoBanner {...props}>
-    <div>This is an Info Banner.</div>
-  </InfoBanner>
-);
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof InfoBanner>;
+
+export const Default: Story = {
+  args: {
+    children: <div>This is an Info Banner.</div>,
+  },
+};

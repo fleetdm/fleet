@@ -518,6 +518,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -1005,7 +1006,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
-	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_follow_redirections", true, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
@@ -1309,6 +1310,11 @@ func (man Manager) addConfigs() {
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
+	man.addConfigInt(
+		"vulnerabilities.max_concurrency",
+		5,
+		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
+	)
 
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
@@ -1580,6 +1586,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),

@@ -328,7 +328,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	return &decoded, nil
 }
 
-func (r uploadSoftwareInstallerResponse) error() error { return r.Err }
+func (r uploadSoftwareInstallerResponse) Error() error { return r.Err }
 
 func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadSoftwareInstallerRequest)
@@ -381,7 +381,7 @@ type deleteSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteSoftwareInstallerResponse) error() error { return r.Err }
+func (r deleteSoftwareInstallerResponse) Error() error { return r.Err }
 func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoContent }
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -480,14 +480,14 @@ type getSoftwareInstallerResponse struct {
 	Err               error                    `json:"error,omitempty"`
 }
 
-func (r getSoftwareInstallerResponse) error() error { return r.Err }
+func (r getSoftwareInstallerResponse) Error() error { return r.Err }
 
 type getSoftwareInstallerTokenResponse struct {
 	Err   error  `json:"error,omitempty"`
 	Token string `json:"token"`
 }
 
-func (r getSoftwareInstallerTokenResponse) error() error { return r.Err }
+func (r getSoftwareInstallerTokenResponse) Error() error { return r.Err }
 
 type orbitDownloadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
@@ -495,7 +495,7 @@ type orbitDownloadSoftwareInstallerResponse struct {
 	payload *fleet.DownloadSoftwareInstallerPayload
 }
 
-func (r orbitDownloadSoftwareInstallerResponse) error() error { return r.Err }
+func (r orbitDownloadSoftwareInstallerResponse) Error() error { return r.Err }
 
 func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
@@ -536,7 +536,7 @@ type installSoftwareResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r installSoftwareResponse) error() error { return r.Err }
+func (r installSoftwareResponse) Error() error { return r.Err }
 
 func (r installSoftwareResponse) Status() int { return http.StatusAccepted }
 
@@ -557,6 +557,14 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
+}
+
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, selfService bool, policyID *uint) (string, error) {
+	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
 type uninstallSoftwareRequest struct {
@@ -590,7 +598,7 @@ type getSoftwareInstallResultsResponse struct {
 	Results *fleet.HostSoftwareInstallerResult `json:"results,omitempty"`
 }
 
-func (r getSoftwareInstallResultsResponse) error() error { return r.Err }
+func (r getSoftwareInstallResultsResponse) Error() error { return r.Err }
 
 func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareInstallResultsRequest)
@@ -626,7 +634,7 @@ type batchSetSoftwareInstallersResponse struct {
 	Err         error  `json:"error,omitempty"`
 }
 
-func (r batchSetSoftwareInstallersResponse) error() error { return r.Err }
+func (r batchSetSoftwareInstallersResponse) Error() error { return r.Err }
 func (r batchSetSoftwareInstallersResponse) Status() int  { return http.StatusAccepted }
 
 func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -660,7 +668,7 @@ type batchSetSoftwareInstallersResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r batchSetSoftwareInstallersResultResponse) error() error { return r.Err }
+func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
@@ -700,7 +708,7 @@ type submitSelfServiceSoftwareInstallResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitSelfServiceSoftwareInstallResponse) error() error { return r.Err }
+func (r submitSelfServiceSoftwareInstallResponse) Error() error { return r.Err }
 func (r submitSelfServiceSoftwareInstallResponse) Status() int  { return http.StatusAccepted }
 
 func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -759,25 +767,25 @@ func (b *batchAssociateAppStoreAppsRequest) DecodeBody(ctx context.Context, r io
 }
 
 type batchAssociateAppStoreAppsResponse struct {
-	Err error `json:"error,omitempty"`
+	Apps []fleet.VPPAppResponse `json:"app_store_apps"`
+	Err  error                  `json:"error,omitempty"`
 }
 
-func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
-
-func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
+func (r batchAssociateAppStoreAppsResponse) Error() error { return r.Err }
 
 func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
 	req := request.(*batchAssociateAppStoreAppsRequest)
-	if err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun); err != nil {
+	apps, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
+	if err != nil {
 		return batchAssociateAppStoreAppsResponse{Err: err}, nil
 	}
-	return batchAssociateAppStoreAppsResponse{}, nil
+	return batchAssociateAppStoreAppsResponse{Apps: apps}, nil
 }
 
-func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }

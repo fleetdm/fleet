@@ -182,6 +182,31 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	}
 }
 
+func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	appID := fleet.VPPAppID{AdamID: "123456", Platform: fleet.IOSPlatform}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+		return true, nil
+	}
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID: appID,
+			},
+		}, nil
+	}
+
+	_, err := svc.NewTeamPolicy(ctx, 1, fleet.NewTeamPolicyPayload{
+		Name:            "query1",
+		Query:           "select 1;",
+		SoftwareTitleID: ptr.Uint(123),
+	})
+	require.ErrorContains(t, err, "is associated to an iOS or iPadOS VPP app")
+}
+
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	t.Helper()
 	if shouldFail {

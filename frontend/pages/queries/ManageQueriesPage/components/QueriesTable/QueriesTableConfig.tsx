@@ -15,7 +15,7 @@ import {
 import {
   isScheduledQueryablePlatform,
   ScheduledQueryablePlatform,
-  SelectedPlatformString,
+  CommaSeparatedPlatformString,
 } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 
@@ -85,7 +85,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SelectedPlatformString;
+    value: CommaSeparatedPlatformString;
   };
 }
 

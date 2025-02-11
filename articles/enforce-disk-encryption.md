@@ -8,7 +8,7 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and 
 
 When disk encryption is enforced, hosts' disk encryption keys will be stored in Fleet.
 
-For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, disk encryption is enforced on the C: volume (default system/OS drive). On Linux, encryption requires user interaction to encrypt the device with LUKS.
+For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, disk encryption is enforced on the C: volume (default system/OS drive). For Linux, encryption requires end user interaction.
 
 ## Enforce disk encryption
 
@@ -48,7 +48,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Enforce disk encryption on Linux
 
-Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux devices. Support for Ubuntu 20.04 will be available soon.
+Fleet supports Linux Unified Key Setup (LUKS) for encrypting volumes to enforce disk encryption on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
@@ -76,7 +76,7 @@ How to view the disk encryption key:
 
 ## Migrate macOS hosts
 
-When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their device.
+When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their Mac.
 
 Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-to-turn-on-disk-encryption) with your end users.
 

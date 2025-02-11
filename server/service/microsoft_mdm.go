@@ -72,7 +72,7 @@ type SoapResponseContainer struct {
 	Err  error
 }
 
-func (r SoapResponseContainer) error() error { return r.Err }
+func (r SoapResponseContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -133,7 +133,7 @@ type SyncMLResponseMsgContainer struct {
 	Err  error
 }
 
-func (r SyncMLResponseMsgContainer) error() error { return r.Err }
+func (r SyncMLResponseMsgContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -177,7 +177,7 @@ func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.V
 	return nil
 }
 
-func (req MDMWebContainer) error() error { return req.Err }
+func (req MDMWebContainer) Error() error { return req.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -196,7 +196,7 @@ type MDMAuthContainer struct {
 	Err  error
 }
 
-func (r MDMAuthContainer) error() error { return r.Err }
+func (r MDMAuthContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW XML output
 func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -897,7 +897,6 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // and better security authentication (done through TLS and in-message hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
-	reqCerts := request.(*SyncMLReqMsgContainer).Certs
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
 	if err := reqSyncML.IsValidMsg(); err != nil {
@@ -906,7 +905,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, reqCerts)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, request.(*SyncMLReqMsgContainer).Certs)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -1508,8 +1507,11 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, reqMsg); err != nil {
-		return nil, fmt.Errorf("store incoming msgs: %w", err)
+	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+	if enrichedSyncML.HasCommands() {
+		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML); err != nil {
+			return nil, fmt.Errorf("store incoming msgs: %w", err)
+		}
 	}
 
 	// Iterate over the operations and process them
@@ -1624,12 +1626,8 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	// Combined cmd responses
-	resCmds := resIncomingCmds
-	resCmds = append(resCmds, resPendingCmds...)
-
 	// Create the response SyncML message
-	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, append(resIncomingCmds, resPendingCmds...))
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
@@ -1900,10 +1898,6 @@ func createSyncMLMessage(sessionID string, msgID string, deviceID string, source
 	// Sanity check on input
 	if len(sessionID) == 0 || len(msgID) == 0 || len(deviceID) == 0 || len(source) == 0 {
 		return nil, errors.New("invalid parameters")
-	}
-
-	if sessionID == "0" {
-		return nil, errors.New("invalid session ID")
 	}
 
 	if msgID == "0" {

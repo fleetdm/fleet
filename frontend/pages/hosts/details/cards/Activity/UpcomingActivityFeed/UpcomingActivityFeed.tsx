@@ -7,9 +7,9 @@ import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 import { upcomingActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";
@@ -17,7 +17,8 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -25,7 +26,8 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
+  onCancel,
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
@@ -51,7 +53,7 @@ const UpcomingActivityFeed = ({
 
   return (
     <div className={baseClass}>
-      <div>
+      <div className={`${baseClass}__feed-list`}>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
           // the backend. For now, if all these fields are empty, then we assume it was
@@ -72,7 +74,9 @@ const UpcomingActivityFeed = ({
               key={activity.id}
               tab="upcoming"
               activity={activity}
-              onShowDetails={onDetailsClick}
+              onShowDetails={onShowDetails}
+              hideCancel // TODO: remove this when canceling is implemented in API
+              onCancel={() => onCancel(activity)}
             />
           );
         })}

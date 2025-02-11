@@ -181,17 +181,6 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
 
-### Respond to a "Contact us" submission
-
-1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
-2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. Mark the Slack message as complete with the "✅" emoji.
-
-> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
-
-
 ### Update the host count of a premium subscription
 
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
@@ -223,6 +212,21 @@ Use the following steps to cancel a Fleet Premium subscription:
 ### Register a domain for Fleet
 
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+
+### Track a Fleet applicant
+
+Use the following steps to track a Fleet applicant:
+1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
+2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
+  - **Full name**
+  - **LinkedIn URL**
+  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
+  - **Interest expressed on**: Date they messaged Fleet
+  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
+  - **Notes**: Copy the message the candidate sent and paste it into this cell.
+  - **Has previous relationship with fleetie?: (if so, who?)
+3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Secure company-issued equipment for a team member
@@ -890,10 +894,13 @@ Agenda:
 
 ### Confirm CEO shadow dates
 
-After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next roundup as a "DISCUSS: CEO shadow dates". Use the following steps to confirm CEO shadow dates:
+Use the following steps to confirm CEO shadow dates:
 1. Create an "All day", "Free" event on the CEO's calendar that matches the CEO shadow dates and name the calendar event "CEO shadow - [NAME] (Job title)".
-3. Confirm the "shadowability" for external and nonrecurring internal meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
-4. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
+2. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
+3. Add a "DISCUSS: CEO shadow YYYY-MM-DD to YYYY-MM-DD TEAM_MEMBER_NAME - POSITION" item to the meeting agenda
+4. Attend the next "🐈‍⬛🌪️ Roundup (~ceo)" meeting to make the CEO aware of the dates and confirm the "shadowability" of external and nonrecurring internal meetings.
+
+> After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next "🐈‍⬛🌪️ Roundup (~ceo)".
 
 
 ### Check GitHub terms

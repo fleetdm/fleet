@@ -195,17 +195,12 @@ const SoftwareTable = ({
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
   const hasSoftwareFilter = softwareFilter !== "allSoftware";
-  const hasVersionFilter = showVersions;
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
     isSoftwareEnabled &&
-    (hasData ||
-      hasQuery ||
-      hasSoftwareFilter ||
-      hasVersionFilter ||
-      hasVulnFilters);
+    (hasData || hasQuery || hasSoftwareFilter || hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -252,24 +247,20 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = showVersions
-      ? buildQueryStringFromParams({
-          software_version_id: row.original.id,
-          team_id: teamId,
-        })
-      : buildQueryStringFromParams({
-          software_title_id: row.original.id,
-          team_id: teamId,
-        });
+    if (row.original.id) {
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
+      const path = `${PATHS.SOFTWARE_TITLE_DETAILS(
+        row.original.id.toString()
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(path);
+    }
   };
 
   const renderSoftwareCount = () => {
-    if (!tableData || !data) return null;
-
     return (
       <>
         <TableCount name="items" count={data?.count} />
@@ -306,7 +297,7 @@ const SoftwareTable = ({
         <DropdownWrapper
           name="software-filter"
           value={softwareFilter}
-          className={`${baseClass}__filter-dropdown`}
+          className={`${baseClass}__software-filter`}
           options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
           onChange={(newValue: SingleValue<CustomOptionType>) =>
             newValue &&
@@ -314,7 +305,7 @@ const SoftwareTable = ({
               newValue.value as ISoftwareDropdownFilterVal
             )
           }
-          iconName="filter"
+          variant="table-filter"
         />
       </div>
     );

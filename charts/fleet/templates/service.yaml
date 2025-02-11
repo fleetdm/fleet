@@ -10,7 +10,7 @@ metadata:
 {{- if .Values.serviceAnnotations }}
   annotations:
   {{- with .Values.serviceAnnotations}}
-  {{ toYaml . | trim | indent 2}}
+  {{- toYaml . | trim | nindent 4}}
   {{- end }}
 {{- end }}
   name: {{ $serviceName }}

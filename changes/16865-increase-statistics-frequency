@@ -1,0 +1,1 @@
+* Raised the frequency of sending anonymous statistics from every 24 hours to every 1 hour. (This is a fairly small packet and should have no impact on network traffic)

@@ -26,6 +26,8 @@ func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uin
   WHERE
     host_id = ?
   AND
+    host_deleted_at IS NULL
+  AND
 	status = ?
   ORDER BY
     created_at ASC
@@ -194,7 +196,7 @@ INSERT INTO software_installers (
 		id, _ := res.LastInsertId()
 		installerID = uint(id) //nolint:gosec // dismiss G115
 
-		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels); err != nil {
+		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
@@ -311,9 +313,16 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
+type softwareType string
+
+const (
+	softwareTypeInstaller softwareType = "software_installer"
+	softwareTypeVPP       softwareType = "vpp_app_team"
+)
+
 // setOrUpdateSoftwareInstallerLabelsDB sets or updates the label associations for the specified software
 // installer. If no labels are provided, it will remove all label associations with the software installer.
-func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope) error {
+func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, labels fleet.LabelIdentsWithScope, softwareType softwareType) error {
 	labelIds := make([]uint, 0, len(labels.ByName))
 	for _, label := range labels.ByName {
 		labelIds = append(labelIds, label.LabelID)
@@ -321,18 +330,18 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 
 	// remove existing labels
 	delArgs := []interface{}{installerID}
-	delStmt := `DELETE FROM software_installer_labels WHERE software_installer_id = ?`
+	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_labels WHERE %[1]s_id = ?`, softwareType)
 	if len(labelIds) > 0 {
 		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build delete existing software installer labels query")
+			return ctxerr.Wrap(ctx, err, "build delete existing software labels query")
 		}
 		delArgs = append(delArgs, args...)
 		delStmt += inStmt
 	}
 	_, err := tx.ExecContext(ctx, delStmt, delArgs...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete existing software installer labels")
+		return ctxerr.Wrap(ctx, err, "delete existing software labels")
 	}
 
 	// insert new labels
@@ -348,7 +357,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 			return ctxerr.New(ctx, "invalid label scope")
 		}
 
-		stmt := `INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
+		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
 		var placeholders string
 		var insertArgs []interface{}
 		for _, lid := range labelIds {
@@ -357,9 +366,9 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, placeholders), insertArgs...)
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, softwareType, placeholders), insertArgs...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert software installer label")
+			return ctxerr.Wrap(ctx, err, "insert software label")
 		}
 	}
 
@@ -441,7 +450,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		}
 
 		if payload.ValidatedLabels != nil {
-			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels); err != nil {
+			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 			}
 		}
@@ -581,7 +590,7 @@ WHERE
 
 	if len(inclAny) > 0 && len(exclAny) > 0 {
 		// there's a bug somewhere
-		level.Debug(ds.logger).Log("msg", "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+		level.Warn(ds.logger).Log("msg", "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
@@ -1020,7 +1029,7 @@ func (ds *Datastore) GetHostLastInstallData(ctx context.Context, hostID, install
 				MAX(id)
 			FROM host_software_installs
 			WHERE
-				software_installer_id = :installer_id AND host_id = :host_id
+				software_installer_id = :installer_id AND host_id = :host_id AND host_deleted_at IS NULL
 			GROUP BY
 				host_id, software_installer_id)
 `
@@ -1681,13 +1690,21 @@ WHERE global_or_team_id = ?
 }
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
+	return ds.isSoftwareLabelScoped(ctx, installerID, hostID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
+	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
+}
+
+func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
 	stmt := `
 		SELECT 1 FROM (
 
 			-- no labels
 			SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 			WHERE NOT EXISTS (
-				SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = :installer_id
+				SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = :software_id
 			)
 
 			UNION
@@ -1698,50 +1715,52 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 				COUNT(lm.label_id) AS count_host_labels,
 				0 as count_host_updated_after_labels
 			FROM
-				software_installer_labels sil
+				%[1]s_labels sil
 				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 				AND lm.host_id = :host_id
 			WHERE
-				sil.software_installer_id = :installer_id
+				sil.%[1]s_id = :software_id
 				AND sil.exclude = 0
 			HAVING
 				count_installer_labels > 0 AND count_host_labels > 0
 
 			UNION
 
-			-- exclude any, ignore software that depends on labels created 
-			-- _after_ the label_updated_at timestamp of the host (because 
-			-- we don't have results for that label yet, the host may or may 
+			-- exclude any, ignore software that depends on labels created
+			-- _after_ the label_updated_at timestamp of the host (because
+			-- we don't have results for that label yet, the host may or may
 			-- not be a member).
 			SELECT
 				COUNT(*) AS count_installer_labels,
 				COUNT(lm.label_id) AS count_host_labels,
-				SUM(CASE 
-				WHEN 
-					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1 
-				ELSE 
-					0 
+				SUM(CASE
+				WHEN
+					lbl.created_at IS NOT NULL AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
+				ELSE
+					0
 				END) as count_host_updated_after_labels
 			FROM
-				software_installer_labels sil
+				%[1]s_labels sil
 				LEFT OUTER JOIN labels lbl
 					ON lbl.id = sil.label_id
-				LEFT OUTER JOIN label_membership lm 
+				LEFT OUTER JOIN label_membership lm
 					ON lm.label_id = sil.label_id AND lm.host_id = :host_id
 			WHERE
-				sil.software_installer_id = :installer_id
+				sil.%[1]s_id = :software_id
 				AND sil.exclude = 1
 			HAVING
 				count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
 			) t
 	`
+
+	stmt = fmt.Sprintf(stmt, swType)
 	namedArgs := map[string]any{
-		"host_id":      hostID,
-		"installer_id": installerID,
+		"host_id":     hostID,
+		"software_id": softwareID,
 	}
 	stmt, args, err := sqlx.Named(stmt, namedArgs)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build named query for is software installer label scoped")
+		return false, ctxerr.Wrap(ctx, err, "build named query for is software label scoped")
 	}
 
 	var res bool
@@ -1750,13 +1769,13 @@ func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, install
 			return false, nil
 		}
 
-		return false, ctxerr.Wrap(ctx, err, "is software installer label scoped")
+		return false, ctxerr.Wrap(ctx, err, "is software label scoped")
 	}
 
 	return res, nil
 }
 
-const labelScopedFilter = `	
+const labelScopedFilter = `
 SELECT
 	1
 FROM (
@@ -1765,7 +1784,7 @@ FROM (
 			0 AS count_installer_labels,
 			0 AS count_host_labels,
 			0 AS count_host_updated_after_labels
-		WHERE NOT EXISTS ( SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = ?)
+		WHERE NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?)
 
 		UNION
 
@@ -1775,11 +1794,11 @@ FROM (
 			COUNT(lm.label_id) AS count_host_labels,
 			0 AS count_host_updated_after_labels
 		FROM
-			software_installer_labels sil
+			%[1]s_labels sil
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 		AND lm.host_id = h.id
 		WHERE
-			sil.software_installer_id = ?
+			sil.%[1]s_id = ?
 			AND sil.exclude = 0
 		HAVING
 			count_installer_labels > 0
@@ -1800,18 +1819,18 @@ FROM (
 						SELECT
 							label_updated_at FROM hosts
 						WHERE
-							id = 1) >= lbl.created_at THEN
+							id = h.id) >= lbl.created_at THEN
 					1
 				ELSE
 					0
 				END) AS count_host_updated_after_labels
 		FROM
-			software_installer_labels sil
+			%[1]s_labels sil
 		LEFT OUTER JOIN labels lbl ON lbl.id = sil.label_id
 	LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 		AND lm.host_id = h.id
 WHERE
-	sil.software_installer_id = ?
+	sil.%[1]s_id = ?
 	AND sil.exclude = 1
 HAVING
 	count_installer_labels > 0
@@ -1819,17 +1838,22 @@ HAVING
 	AND count_host_labels = 0) t`
 
 func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	return ds.getIncludedHostIDMapForSoftware(ctx, ds.writer(ctx), installerID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
 	hosts h
 WHERE
 	EXISTS (%s)
-`, labelScopedFilter)
+`, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software installer scope")
+	if err := sqlx.SelectContext(ctx, tx, &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))
@@ -1841,17 +1865,22 @@ WHERE
 }
 
 func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error) {
+	return ds.getExcludedHostIDMapForSoftware(ctx, installerID, softwareTypeInstaller)
+}
+
+func (ds *Datastore) getExcludedHostIDMapForSoftware(ctx context.Context, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
+	filter := fmt.Sprintf(labelScopedFilter, swType)
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
 	hosts h
 WHERE
 	NOT EXISTS (%s)
-`, labelScopedFilter)
+`, filter)
 
 	var hostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, stmt, installerID, installerID, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software installer scope")
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, stmt, softwareID, softwareID, softwareID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts excluded from software scope")
 	}
 
 	res := make(map[uint]struct{}, len(hostIDs))

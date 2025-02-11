@@ -189,6 +189,10 @@ type Datastore interface {
 	// If a host is already not a member of a label then such label will be ignored.
 	RemoveLabelsFromHost(ctx context.Context, hostID uint, labelIDs []uint) error
 
+	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
+	// IDs, applied in batches
+	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
+
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
@@ -252,6 +256,9 @@ type Datastore interface {
 	// the implementation for the exact list.
 	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
 
+	// ListHostUsers returns a list of users that are currently on the host
+	ListHostUsers(ctx context.Context, hostID uint) ([]HostUser, error)
+
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
@@ -267,7 +274,7 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, or hardware serials.
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
@@ -614,6 +621,7 @@ type Datastore interface {
 	// IsSoftwareInstallerLabelScoped returns whether or not the given installerID is scoped to the
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
+	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -707,6 +715,8 @@ type Datastore interface {
 		hostID *uint) ([]HostPolicyMembershipData, error)
 	// GetPoliciesWithAssociatedInstaller returns team policies that have an associated installer.
 	GetPoliciesWithAssociatedInstaller(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicySoftwareInstallerData, error)
+	// GetPoliciesWithAssociatedVPP returns team policies that have an associated VPP app
+	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
@@ -918,10 +928,10 @@ type Datastore interface {
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
-	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *Host, encryptedBase64Key, clientError string, decryptable *bool) error
 	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
 	// escrowed LUKS data
-	SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
@@ -1042,8 +1052,9 @@ type Datastore interface {
 	// CountVulnerabilities returns the number of unique vulnerabilities based on the provided
 	// options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
-	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
-	UpdateVulnerabilityHostCounts(ctx context.Context) error
+	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.  maxRoutines signifies the number of
+	// goroutines to use for processing parallel database queries.
+	UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error
 	// IsCVEKnownToFleet checks if the provided CVE is known to Fleet.
 	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
@@ -1496,7 +1507,7 @@ type Datastore interface {
 	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
 
 	// MDMWindowsSaveResponse saves a full response
-	MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *SyncML) error
+	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML) error
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
@@ -1634,6 +1645,9 @@ type Datastore interface {
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
 
+	// UpdateScriptContents replaces the script contents of a script
+	UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*Script, error)
+
 	// Script returns the saved script corresponding to id.
 	Script(ctx context.Context, id uint) (*Script, error)
 
@@ -1709,16 +1723,16 @@ type Datastore interface {
 	//
 
 	// GetIncludedHostIDMapForSoftwareInstaller gets the set of hosts that are targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
 	// GetExcludedHostIDMapForSoftwareInstaller gets the set of hosts that are NOT targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
-	// ClearAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// ClearSoftwareInstallerAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
 	// software installer for all the given hosts.
-	ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
+	ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
 
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
@@ -1774,6 +1788,16 @@ type Datastore interface {
 	// specified team and title ids.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 
+	// MapAdamIDsPendingInstall gets App Store IDs of VPP apps pending install for a host
+	MapAdamIDsPendingInstall(ctx context.Context, hostID uint) (map[string]struct{}, error)
+
+	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
+	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
+
+	// GetVPPAppMetadataByAdamIDPlatformTeamID returns the VPP app correspoding to the specified
+	// ADAM ID, platform within the context of the specified team. It includes the vpp_app_team_id value.
+	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform AppleDevicePlatform, teamID *uint) (*VPPApp, error)
+
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
@@ -1804,14 +1828,27 @@ type Datastore interface {
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)
+	GetVPPApps(ctx context.Context, teamID *uint) ([]VPPAppResponse, error)
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
-	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 	GetActivityDataForVPPAppUnInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityUnInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
+
+	// GetIncludedHostIDMapForVPPApp gets the set of hosts that are targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// ClearVPPAppAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// VPP app for all the given hosts.
+	ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience

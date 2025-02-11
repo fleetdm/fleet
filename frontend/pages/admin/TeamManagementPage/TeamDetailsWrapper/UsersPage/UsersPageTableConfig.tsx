@@ -217,6 +217,7 @@ const enhanceUsersData = (
       role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
+      mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,

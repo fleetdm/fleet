@@ -33,6 +33,8 @@ interface IListItemProps {
    * used to render buttons, links, etc.
    */
   actions: React.ReactNode;
+  /** An optional function to call when the user clicks anywhere in the ListItem */
+  onClick?: () => void;
   className?: string;
 }
 
@@ -41,11 +43,12 @@ const ListItem = ({
   title,
   details,
   actions,
+  onClick,
   className,
 }: IListItemProps) => {
   const classNames = classnames(baseClass, className);
   return (
-    <div className={classNames}>
+    <div className={classNames} onClick={onClick}>
       <div className={`${baseClass}__main-content`}>
         <Graphic name={graphic} />
         <div className={`${baseClass}__info`}>

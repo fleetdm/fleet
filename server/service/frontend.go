@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -145,5 +146,13 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 }
 
 func ServeStaticAssets(path string) http.Handler {
-	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+	contentTypes := []string{"text/javascript", "text/css"}
+	withoutGzip := http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+
+	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
+	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
+		return withoutGzip
+	}
+
+	return withOpts(withoutGzip)
 }

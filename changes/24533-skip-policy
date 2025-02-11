@@ -1,1 +1,0 @@
-- Adds functionality for skipping automatic installs if the software is not scoped to the host via labels.

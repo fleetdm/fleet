@@ -20,7 +20,6 @@ interface IAddUserModalProps {
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
   isUpdatingUsers?: boolean | false;
-  serverErrors?: { base: string; email: string };
   addUserErrors: IUserFormErrors;
 }
 
@@ -40,7 +39,6 @@ const AddUserModal = ({
   canUseSso,
   isModifiedByGlobalAdmin,
   isUpdatingUsers,
-  serverErrors,
   addUserErrors,
 }: IAddUserModalProps): JSX.Element => {
   return (
@@ -51,8 +49,7 @@ const AddUserModal = ({
       width="large"
     >
       <UserForm
-        serverErrors={serverErrors}
-        userFormErrors={addUserErrors}
+        ancestorErrors={addUserErrors}
         defaultGlobalRole={defaultGlobalRole}
         defaultTeamRole={defaultTeamRole}
         defaultTeams={defaultTeams}

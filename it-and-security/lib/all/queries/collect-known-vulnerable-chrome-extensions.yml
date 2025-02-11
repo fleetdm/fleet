@@ -1,0 +1,15 @@
+- name: Detect known vunerable Chrome extensions
+  description: "Detects if any device enrolled in Fleet has a known vulnerable Chrome extension installed. More info here: https://www.extensiontotal.com/cyberhaven-incident-live"
+  query: 
+    SELECT 
+      u.username, ce.name, ce.description, ce.version, ce.identifier 
+    FROM 
+      users u CROSS JOIN chrome_extensions ce USING (uid) 
+    WHERE 
+      ce.identifier IN 
+      ("nnpnnpemnckcfdebeekibpiijlicmpom", "kkodiihpgodmdankclfibbiphjkfdenh", "oaikpkmjciadfpddlpjjdapglcihgdle", "dpggmcodlahmljkhlmpgpdcffdaoccni", "acmfnomgphggonodopogfbmkneepfgnh", "mnhffkhmpnefgklngfmlndmkimimbphc", "cedgndijpacnfbdggppddacngjfdkaca", "bbdnohkpnbkdkmnkddobeafboooinpla", "egmennebgadmncfjafcemlecimkepcle", "bibjgkidgpfbblifamdlkdlhgihmfohh", "befflofjcniongenjmbkgkoljhgliihe", "pkgciiiancapdlpcbppfkmeaieppikkk", "llimhhconnjiflfimocjggfjdlmlhblm", "oeiomhmbaapihbilkfkhmlajkeegnjhe", "pajkjnmeojmbapicmbpliphjmcekeaac", "ndlbedplllcgconngcnfmkadhokfaaln", "epdjhgbipjpbbhoccdeipghoihibnfja", "cplhlgabfijoiabgkigdafklbhhdkahj", "jiofmdifioeejeilfkpegipdjiopiekl", "hihblcmlaaademjlakdpicchbjnnnkbo", "ekpkdmohpdnebfedjjfklhpefgpgaaji", "epikoohpebngmakjinphfiagogjcnddm", "miglaibdlgminlepgeifekifakochlka", "eanofdhdfbcalhflpbdipkjjkoimeeod", "ogbhbgkiojdollpjbhbamafmedkeockb", "bgejafhieobnfpjlpcjjggoboebonfcg", "igbodamhgjohafcenbcljfegbipdfjpk", "mbindhfolmpijhodmgkloeeppmkhpmhc", "hodiladlefdpcbemnbbcpclbmknkiaem", "lbneaaedflankmgmfbmaplggbmjjmbae", "eaijffijbobmnonfhilihbejadplhddo", "hmiaoahjllhfgebflooeeefeiafpkfde");
+  interval: 3600 # Every 1 hour
+  observer_can_run: true
+  automations_enabled: true
+  logging: differential
+  platform: darwin,linux,windows

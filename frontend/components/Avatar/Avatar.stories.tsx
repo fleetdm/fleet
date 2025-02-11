@@ -30,3 +30,9 @@ export const Small: Story = {
     size: "small",
   },
 };
+
+export const UseFleetAvatar: Story = {
+  args: {
+    useFleetAvatar: true,
+  },
+};

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
 
 import {
-  SelectedPlatformString,
+  CommaSeparatedPlatformString,
   QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
@@ -21,7 +21,7 @@ export interface IPlatformSelector {
 }
 
 const usePlatformSelector = (
-  platformContext: SelectedPlatformString | null | undefined,
+  platformContext: CommaSeparatedPlatformString | null | undefined,
   baseClass = "",
   disabled = false,
   installSoftware: IPolicySoftwareToInstall | undefined,

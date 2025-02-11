@@ -55,7 +55,7 @@ export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
-export type SelectedPlatformString =
+export type CommaSeparatedPlatformString =
   | ""
   | QueryablePlatform
   | `${QueryablePlatform},${QueryablePlatform}`

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
 
@@ -35,7 +36,7 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | ?
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | "rpm_packages" | "deb_packages" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
@@ -56,7 +57,7 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
-export interface ISoftwarePackagePolicy {
+export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
 }
@@ -82,7 +83,7 @@ export interface ISoftwarePackage {
     pending_uninstall: number;
     failed_uninstall: number;
   };
-  automatic_install_policies?: ISoftwarePackagePolicy[] | null;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
@@ -99,12 +100,26 @@ export interface IAppStoreApp {
   latest_version: string;
   icon_url: string;
   self_service: boolean;
+  platform: typeof HOST_APPLE_PLATFORMS[number];
   status: {
     installed: number;
     pending: number;
     failed: number;
   };
   install_during_setup?: boolean;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  last_install?: {
+    install_uuid: string;
+    command_uuid: string;
+    installed_at: string;
+  } | null;
+  last_uninstall?: {
+    script_execution_id: string;
+    uninstalled_at: string;
+  } | null;
+  version?: string;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
 }
 
 export interface ISoftwareTitle {
@@ -184,6 +199,32 @@ export const SOURCE_TYPE_CONVERSION = {
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
+
+/** Map installable software source to platform  */
+export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
+  apt_sources: "linux",
+  deb_packages: "linux",
+  portage_packages: "linux",
+  rpm_packages: "linux",
+  yum_sources: "linux",
+  npm_packages: null,
+  atom_packages: null,
+  python_packages: null,
+  apps: "darwin",
+  ios_apps: "ios",
+  ipados_apps: "ipados",
+  chrome_extensions: null,
+  firefox_addons: null,
+  safari_extensions: null,
+  homebrew_packages: "darwin",
+  programs: "windows",
+  ie_extensions: null,
+  chocolatey_packages: "windows",
+  pkg_packages: "darwin",
+  vscode_extensions: null,
+} as const;
+
+export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
 const BROWSER_TYPE_CONVERSION = {
   chrome: "Chrome",
@@ -414,16 +455,17 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
 }
 
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
   pre_install_script: string; // TODO: is this needed?
   install_script: string;
   post_install_script: string; // TODO: is this needed?
   uninstall_script: string;
+  url: string;
 }

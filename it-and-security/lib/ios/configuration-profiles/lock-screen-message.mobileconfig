@@ -6,9 +6,9 @@
 	<array>
 		<dict>
 			<key>AssetTagInformation</key>
-			<string>This device is owned by Fleet</string>
+			<string></string>
 			<key>IfLostReturnToMessage</key>
-			<string>Fleet Device Management Inc.</string>
+			<string>This device is property of Fleet Device Management Inc.</string>
 			<key>PayloadDescription</key>
 			<string>Configures ownership information for a shared device</string>
 			<key>PayloadDisplayName</key>

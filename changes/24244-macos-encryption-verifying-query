@@ -1,1 +1,0 @@
-* Fixed "Verifying" disk encryption status count and filter for macOS hosts to not include hosts where end-user action is required

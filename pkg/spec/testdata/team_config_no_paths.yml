@@ -121,6 +121,11 @@ policies:
     query: SELECT 1 FROM apps WHERE name = 'Microsoft Teams.app' AND version_compare(bundle_short_version, '24193.1707.3028.4282') >= 0;
     install_software:
       package_path: ./microsoft-teams.pkg.software.yml
+  - name: Slack on macOS is installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app';
+    install_software:
+      app_store_id: "123456"
   - name: Script run policy
     platform: linux
     description: This should run a script on failure
@@ -135,6 +140,8 @@ policies:
     run_script:
       path: ./lib/collect-fleetd-logs.sh
 software:
+  app_store_apps:
+    - app_store_id: "123456"
   packages:
     - path: ./microsoft-teams.pkg.software.yml
     - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg

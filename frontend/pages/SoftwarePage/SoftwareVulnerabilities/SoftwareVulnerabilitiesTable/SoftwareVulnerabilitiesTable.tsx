@@ -185,16 +185,18 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsByVulnerabilityParams = {
-      vulnerability: row.original.cve,
-      team_id: teamId,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsByVulnerabilityParams
-    )}`;
+      const softwareVulnerabilityDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+        cveName
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const renderVulnerabilityCount = () => {
@@ -238,14 +240,14 @@ const SoftwareVulnerabilitiesTable = ({
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <DropdownWrapper
-        name="exploited-vuln-dropdown"
+        name="exploited-vuln-filter"
         value={showExploitedVulnerabilitiesOnly.toString()}
-        className={`${baseClass}__exploited-vulnerabilities-dropdown`}
+        className={`${baseClass}__exploited-vulnerabilities-filter`}
         options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
         onChange={(newValue: SingleValue<CustomOptionType>) =>
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
-        iconName="filter"
+        variant="table-filter"
       />
     );
   };

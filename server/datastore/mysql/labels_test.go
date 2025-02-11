@@ -41,6 +41,27 @@ func TestBatchHostnamesLarge(t *testing.T) {
 	assert.Equal(t, large[200000:230000], batched[4])
 }
 
+func TestBatchHostIdsSmall(t *testing.T) {
+	small := []uint{1, 2, 3}
+	batched := batchHostIds(small)
+	require.Equal(t, 1, len(batched))
+	assert.Equal(t, small, batched[0])
+}
+
+func TestBatchHostIdsLarge(t *testing.T) {
+	large := []uint{}
+	for i := 0; i < 230000; i++ {
+		large = append(large, uint(i)) //nolint:gosec // dismiss G115
+	}
+	batched := batchHostIds(large)
+	require.Equal(t, 5, len(batched))
+	assert.Equal(t, large[:50000], batched[0])
+	assert.Equal(t, large[50000:100000], batched[1])
+	assert.Equal(t, large[100000:150000], batched[2])
+	assert.Equal(t, large[150000:200000], batched[3])
+	assert.Equal(t, large[200000:230000], batched[4])
+}
+
 func TestLabels(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -60,6 +81,7 @@ func TestLabels(t *testing.T) {
 		{"ChangeDetails", testLabelsChangeDetails},
 		{"GetSpec", testLabelsGetSpec},
 		{"ApplySpecsRoundtrip", testLabelsApplySpecsRoundtrip},
+		{"UpdateLabelMembershipByHostIDs", testUpdateLabelMembershipByHostIDs},
 		{"IDsByName", testLabelsIDsByName},
 		{"ByName", testLabelsByName},
 		{"Save", testLabelsSave},
@@ -1240,8 +1262,8 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	// verifying status
 	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-	createDiskEncryptionRecord(ctx, ds, t, hosts[0].ID, "key-1", true, oneMinuteAfterThreshold)
-	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[0], "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1], "key-1", true, oneMinuteAfterThreshold)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -1595,7 +1617,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 	// add disk encryption key for h1
-	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))
+	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true)))
 	// add disk encryption for h1
 	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
 
@@ -1743,4 +1765,171 @@ func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
 		}
 	}
 	return 0
+}
+
+func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("1"),
+		NodeKey:       ptr.String("1"),
+		UUID:          "1",
+		Hostname:      "foo.local",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("2"),
+		NodeKey:       ptr.String("2"),
+		UUID:          "2",
+		Hostname:      "bar.local",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	// hosts 2 and 3 have the same hostname
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("3"),
+		NodeKey:       ptr.String("3"),
+		UUID:          "3",
+		Hostname:      "bar.local",
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "label1",
+		Query:               "",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	// add hosts 1 and 2 to the label
+	label, hostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 2)
+
+	// expect hosts 1 and 2 to be in the label, but not 3
+	require.NoError(t, err)
+	// correct hosts were added to label
+	require.Len(t, hostIDs, 2)
+	require.Equal(t, host1.ID, hostIDs[0])
+	require.Equal(t, host2.ID, hostIDs[1])
+
+	labelSpec, err := ds.GetLabelSpec(ctx, label1.Name)
+	require.NoError(t, err)
+	// label.Hosts contains hostnames
+	require.Len(t, labelSpec.Hosts, 2)
+	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
+	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
+
+	labels, err := ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	// modify the label to contain hosts 1 and 3, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 2)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	// modify the label to contain hosts 2 and 3, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host2.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 2)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	// modify the label to contain no hosts, confirm
+	label, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{}, filter)
+	require.NoError(t, err)
+	require.Equal(t, label.HostCount, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 0)
+
+	// modify the label to contain all 3 hosts, confirm
+	label, hostIDs, err = ds.UpdateLabelMembershipByHostIDs(ctx, label1.ID, []uint{host1.ID, host2.ID, host3.ID}, filter)
+	require.NoError(t, err)
+
+	require.Equal(t, label.HostCount, 3)
+
+	labels, err = ds.ListLabelsForHost(ctx, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host2.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	labels, err = ds.ListLabelsForHost(ctx, host3.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, "label1", labels[0].Name)
+
+	require.NoError(t, err)
+	require.Len(t, hostIDs, 3)
+	require.Equal(t, host1.ID, hostIDs[0])
+	// 2 and 3 have same name
+	require.Equal(t, host2.ID, hostIDs[1])
+	require.Equal(t, host3.ID, hostIDs[2])
+
+	labelSpec, err = ds.GetLabelSpec(ctx, label1.Name)
+	require.NoError(t, err)
+
+	// label.Hosts contains hostnames
+	require.Len(t, labelSpec.Hosts, 3)
+	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
+	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
+	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
 }

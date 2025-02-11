@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ISoftwarePackagePolicy } from "interfaces/software";
+import { ISoftwareInstallPolicy } from "interfaces/software";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -11,7 +11,7 @@ const baseClass = "automatic-install-modal";
 
 interface IPoliciesListItemProps {
   teamId: number;
-  policy: ISoftwarePackagePolicy;
+  policy: ISoftwareInstallPolicy;
 }
 
 const PoliciesListItem = ({ teamId, policy }: IPoliciesListItemProps) => {
@@ -24,7 +24,7 @@ const PoliciesListItem = ({ teamId, policy }: IPoliciesListItemProps) => {
 
 interface IPoliciesListProps {
   teamId: number;
-  policies: ISoftwarePackagePolicy[];
+  policies: ISoftwareInstallPolicy[];
 }
 
 const PoliciesList = ({ teamId, policies }: IPoliciesListProps) => {
@@ -39,7 +39,7 @@ const PoliciesList = ({ teamId, policies }: IPoliciesListProps) => {
 
 interface IAutomaticInstallModalProps {
   teamId: number;
-  policies: ISoftwarePackagePolicy[];
+  policies: ISoftwareInstallPolicy[];
   onExit: () => void;
 }
 

@@ -16,7 +16,7 @@ type translatorResponse struct {
 	Err  error                    `json:"error,omitempty"`
 }
 
-func (r translatorResponse) error() error { return r.Err }
+func (r translatorResponse) Error() error { return r.Err }
 
 func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*translatorRequest)

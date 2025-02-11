@@ -1207,24 +1207,25 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
-		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
+		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
+		{"unsupported user-scoped profile", 0, `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI></Target></Item></Replace>`, true, `The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
 		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
 		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"team valid windows profile", 1, `<Replace></Replace>`, true, ""},
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
-		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
+		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
-
+		{"team unsupported user-scoped profile", 1, `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI></Target></Item></Replace>`, true, `The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 

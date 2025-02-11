@@ -14,7 +14,7 @@
     &--error {
       border: 1px solid $core-vibrant-red;
       box-sizing: border-box;
-      border-radius: 4px;
+      border-radius: $border-radius;
     }
   }
 
@@ -73,7 +73,7 @@
       color: $core-vibrant-red;
       border: 1px solid $core-vibrant-red;
       box-sizing: border-box;
-      border-radius: 4px;
+      border-radius: $border-radius;
     }
   }
 

@@ -2,15 +2,16 @@ import React from "react";
 
 import { getInstallStatusPredicate } from "interfaces/software";
 
+import ActivityItem from "components/ActivityItem";
+
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
-import HostActivityItem from "../../HostActivityItem";
-import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "installed-software-activity-item";
 
 const InstalledSoftwareActivityItem = ({
   activity,
   onShowDetails,
+  hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
   const { self_service, software_title: title } = details;
@@ -18,17 +19,21 @@ const InstalledSoftwareActivityItem = ({
     details.status === "failed" ? "failed_uninstall" : details.status;
 
   const actorDisplayName = self_service ? (
-    <span>An end user</span>
+    <span>End user</span>
   ) : (
     <b>{actorName}</b>
   );
 
   return (
-    <HostActivityItem className={baseClass} activity={activity}>
+    <ActivityItem
+      className={baseClass}
+      activity={activity}
+      hideCancel={hideCancel}
+      onShowDetails={onShowDetails}
+    >
       <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
-      on this host.{" "}
-      <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
-    </HostActivityItem>
+      on this host {self_service && "(self-service)"}.{" "}
+    </ActivityItem>
   );
 };
 

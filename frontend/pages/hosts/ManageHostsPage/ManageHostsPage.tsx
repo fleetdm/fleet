@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
@@ -71,8 +72,9 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -94,7 +96,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  getHostSelectStatuses,
+  hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
@@ -118,6 +120,12 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -721,7 +729,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleStatusDropdownChange = (statusName: string) => {
+  const handleStatusDropdownChange = (
+    statusName: SingleValue<CustomOptionType>
+  ) => {
     handleResetPageIndex();
 
     router.replace(
@@ -731,7 +741,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName,
+          status: statusName?.value,
           page: 0, // resets page index
         },
       })
@@ -774,6 +784,14 @@ const ManageHostsPage = ({
         },
       })
     );
+  };
+
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.HOST_DETAILS(row.original.id);
+
+      router.push(path);
+    }
   };
 
   const onAddLabelClick = () => {
@@ -1459,13 +1477,13 @@ const ManageHostsPage = ({
 
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
-        <Dropdown
+        <DropdownWrapper
+          name="status-filter"
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          options={getHostSelectStatuses(isSandboxMode)}
-          searchable={false}
+          className={`${baseClass}__status-filter`}
+          options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          iconName="filter"
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1638,6 +1656,7 @@ const ManageHostsPage = ({
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         resetPageIndex={resetPageIndex}
+        onClickRow={handleRowSelect}
         disableNextPage={isLastPage}
       />
     );
@@ -1682,7 +1701,7 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
               {!isSandboxMode && canEnrollHosts && !hasErrors && (
