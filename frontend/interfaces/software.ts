@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
-import { HOST_APPLE_PLATFORMS } from "./platform";
+import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
 
@@ -455,14 +455,14 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
 }
 
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
   pre_install_script: string; // TODO: is this needed?
   install_script: string;
   post_install_script: string; // TODO: is this needed?
