@@ -30,7 +30,7 @@
           <p class="mb-0 ml-2"><strong>What would you like to happen?</strong></p>
         </div>
         <div class="form-group">
-          <select class="form-control" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
+          <select class="form-control" style="color: #515774;" purpose="profile-type-selector" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
             <option value="mobileconfig" selected>.mobileconfig (Apple)</option>
             <option value="ddm">DDM (Apple)</option>
             <option value="csp">CSP (Windows)</option>
@@ -39,7 +39,7 @@
         </div>
         <div class="form-group">
           <textarea class="form-control" type="textarea" id="profile" placeholder="Ensure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
-          <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Ask your question.</div>
+          <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
         </div>
         <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left">Generate</ajax-button>

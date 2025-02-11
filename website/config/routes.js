@@ -476,7 +476,14 @@ module.exports.routes = {
     }
   },
 
-  'GET /os-settings': { action: 'view-os-settings' },
+  'GET /os-settings': {
+    action: 'view-os-settings',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'OS settings',
+      pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗

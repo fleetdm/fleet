@@ -66,8 +66,10 @@ parasails.registerPage('os-settings', {
       }
     },
     closeModal: async function() {
-      this.modal = '';
-      await this.forceRender();
+      if(!this.syncing){
+        this.modal = '';
+        await this.forceRender();
+      }
     },
 
     getUpdatedValueFromEditor: function() {

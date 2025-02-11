@@ -1,4 +1,8 @@
 #os-settings {
+
+  p, strong {
+    color: #515774;
+  }
   a {
     color: #515774;
     text-decoration: underline;
@@ -12,6 +16,7 @@
     margin-left: auto;
     margin-right: auto;
     max-width: 1104px;
+    color: #515774;
   }
   .ace-editor-container {
 
@@ -23,6 +28,7 @@
       margin-bottom: 16px;
     }
     p {
+      color: #515774;
       margin-bottom: 0px;
     }
   }
@@ -31,15 +37,21 @@
     max-width: 100%;
 
   }
-  [parasails-component='modal'] [purpose='modal-dialog'] [purpose='modal-content'] {
-    max-width: 800px;
-    padding: 32px;
+  [parasails-component='modal'] [purpose='modal-dialog'] {
+    max-width: 688px;
+    [purpose='modal-content'] {
+      padding: 32px;
+      max-width: 688px;
+    }
   }
   [purpose='profile-editor'] {
     position: relative;
     .ace_content {
       background: #F9FAFC;
     }
+  }
+  [purpose='profile-type-selector'] {
+    max-width: 361px;
   }
   [purpose='submit-button'] {
     max-width: 141px;
@@ -68,12 +80,15 @@
     line-height: 21px;
     margin-bottom: 16px;
     border-radius: 8px;
-    background: var(--text-text-brand, #192147);
+    background: #192147;
     position: relative;
     img {
       height: 28px;
       margin-right: 8px;
       filter: brightness(3.5);
+    }
+    &:active:focus {
+      box-shadow: none;
     }
     &:before {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
@@ -101,10 +116,14 @@
     padding: 10px;
     border-radius: 50%;
     border: 1px solid #E2E4EA;
-    background: #FFF;
+    background: #192147;
     cursor: pointer;
     img {
+      filter: brightness(3.5);
       height: 28px;
+    }
+    &:hover {
+      background: #515774;
     }
   }
   [purpose='enforced-settings'] {
@@ -143,6 +162,16 @@
   @media(max-width: 767px) {
     [purpose='generate-button'] {
       display: none;
+    }
+    [purpose='page-container'] {
+      padding: 32px 24px;
+    }
+
+  }
+
+  @media(max-width: 576px) {
+    [purpose='page-container'] {
+      padding: 32px 16px;
     }
 
   }
