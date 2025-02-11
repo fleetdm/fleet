@@ -25,11 +25,13 @@
         color: $ui-fleet-black-50;
       }
       &__primary-user {
-        max-width: 270px;
         text-overflow: ellipsis;
         overflow: hidden;
         display: inline-block;
         vertical-align: text-bottom;
+        &.multiple {
+          max-width: 270px;
+        }
       }
     }
 

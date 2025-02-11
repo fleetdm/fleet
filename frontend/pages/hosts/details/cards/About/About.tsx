@@ -129,8 +129,12 @@ const About = ({
       if (!source) {
         displayPrimaryUser = email;
       } else {
+        let className = "device-mapping__primary-user";
+        if (newDeviceMapping.length > 1) {
+          className += " multiple";
+        }
         displayPrimaryUser = (
-          <span className="device-mapping__primary-user">
+          <span className={className}>
             {email}{" "}
             <span className="device-mapping__source">{`(${source})`}</span>
           </span>
