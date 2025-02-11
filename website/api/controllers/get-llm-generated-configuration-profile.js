@@ -93,7 +93,7 @@ module.exports = {
     }).intercept((err)=>{
       return new Error(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
     });
-    console.log(configurationProfileGenerationResult);
+    // console.log(configurationProfileGenerationResult);
     let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
