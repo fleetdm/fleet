@@ -123,6 +123,11 @@ func main() {
 	tick := time.Tick(300 * time.Millisecond)
 	for i, host := range targetedHosts {
 		<-tick
+
+		if hostsTargeted > 0 && hostsTargeted%500 == 0 {
+			printf("In progress: queued scripts=%d, queued installs=%d, hosts targeted=%d, errors=%d\n", queuedScripts, queuedInstalls, hostsTargeted, errors)
+		}
+
 		switch host.Platform {
 		case "darwin":
 			hostsTargeted++
