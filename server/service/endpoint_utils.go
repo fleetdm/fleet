@@ -115,9 +115,9 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
 
-			optional := false
 			var err error
 			if ok {
+				optional := false
 				urlTagValue, optional, err = endpoint_utils.ParseTag(urlTagValue)
 				if err != nil {
 					return nil, err
@@ -165,7 +165,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				return nil, badRequest("Expected JSON Body")
 			}
 
-			err = endpoint_utils.DecodeQueryTagValue(r, fp, optional)
+			err = endpoint_utils.DecodeQueryTagValue(r, fp)
 			if err != nil {
 				return nil, err
 			}

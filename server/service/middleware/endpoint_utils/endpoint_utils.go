@@ -1,6 +1,7 @@
 package endpoint_utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
+	http2 "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -154,11 +159,12 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-func DecodeQueryTagValue(r *http.Request, fp FieldPair, optional bool) error {
+func DecodeQueryTagValue(r *http.Request, fp FieldPair) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
 		var err error
+		var optional bool
 		queryTagValue, optional, err = ParseTag(queryTagValue)
 		if err != nil {
 			return err
@@ -218,4 +224,63 @@ func DecodeQueryTagValue(r *http.Request, fp FieldPair, optional bool) error {
 		}
 	}
 	return nil
+}
+
+// copied from https://github.com/go-chi/chi/blob/c97bc988430d623a14f50b7019fb40529036a35a/middleware/realip.go#L42
+var trueClientIP = http.CanonicalHeaderKey("True-Client-IP")
+var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
+var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
+
+func ExtractIP(r *http.Request) string {
+	ip := r.RemoteAddr
+	if i := strings.LastIndexByte(ip, ':'); i != -1 {
+		ip = ip[:i]
+	}
+
+	if tcip := r.Header.Get(trueClientIP); tcip != "" {
+		ip = tcip
+	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
+		ip = xrip
+	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
+		i := strings.Index(xff, ",")
+		if i == -1 {
+			i = len(xff)
+		}
+		ip = xff[:i]
+	}
+
+	return ip
+}
+
+type ErrorHandler struct {
+	Logger log.Logger
+}
+
+func (h *ErrorHandler) Handle(ctx context.Context, err error) {
+	// get the request path
+	path, _ := ctx.Value(http2.ContextKeyRequestPath).(string)
+	logger := level.Info(log.With(h.Logger, "path", path))
+
+	var ewi fleet.ErrWithInternal
+	if errors.As(err, &ewi) {
+		logger = log.With(logger, "internal", ewi.Internal())
+	}
+
+	var ewlf fleet.ErrWithLogFields
+	if errors.As(err, &ewlf) {
+		logger = log.With(logger, ewlf.LogFields()...)
+	}
+
+	var uuider fleet.ErrorUUIDer
+	if errors.As(err, &uuider) {
+		logger = log.With(logger, "uuid", uuider.UUID())
+	}
+
+	var rle ratelimit.Error
+	if errors.As(err, &rle) {
+		res := rle.Result()
+		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
+	} else {
+		logger.Log("err", err)
+	}
 }

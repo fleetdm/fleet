@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -27,6 +26,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
@@ -43,39 +43,6 @@ import (
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
-
-type errorHandler struct {
-	logger kitlog.Logger
-}
-
-func (h *errorHandler) Handle(ctx context.Context, err error) {
-	// get the request path
-	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
-	logger := level.Info(kitlog.With(h.logger, "path", path))
-
-	var ewi fleet.ErrWithInternal
-	if errors.As(err, &ewi) {
-		logger = kitlog.With(logger, "internal", ewi.Internal())
-	}
-
-	var ewlf fleet.ErrWithLogFields
-	if errors.As(err, &ewlf) {
-		logger = kitlog.With(logger, ewlf.LogFields()...)
-	}
-
-	var uuider fleet.ErrorUUIDer
-	if errors.As(err, &uuider) {
-		logger = kitlog.With(logger, "uuid", uuider.UUID())
-	}
-
-	var rle ratelimit.Error
-	if errors.As(err, &rle) {
-		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
-	} else {
-		logger.Log("err", err)
-	}
-}
 
 func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
 	return func(ctx context.Context, w http.ResponseWriter) context.Context {
@@ -133,7 +100,7 @@ func MakeHandler(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{logger}),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
 		kithttp.ServerErrorEncoder(encodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
@@ -161,7 +128,7 @@ func MakeHandler(
 
 func publicIP(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := extractIP(r)
+		ip := endpoint_utils.ExtractIP(r)
 		if ip != "" {
 			r.RemoteAddr = ip
 		}
