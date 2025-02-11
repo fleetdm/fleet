@@ -67,3 +67,9 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 		}
 	}
 }
+
+func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
+	verb, path := "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostID, softwareTitleID)
+	var responseBody installSoftwareResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}

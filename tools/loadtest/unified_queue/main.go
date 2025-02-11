@@ -153,10 +153,35 @@ func main() {
 				continue
 			}
 			queuedScripts++
+
+			err = apiClient.InstallSoftware(host.ID, macOSSoftware[i%len(macOSSoftware)].ID)
+			if err != nil {
+				printf("Failed to install software on host %v (%v): %v\n", host.Hostname, host.Platform, err)
+				errors++
+				continue
+			}
+			queuedInstalls++
+
 		case "windows":
 			hostsTargeted++
 
 			// enqueue a couple software installs and a script
+			err = apiClient.InstallSoftware(host.ID, windowsSoftware[i%len(windowsSoftware)].ID)
+			if err != nil {
+				printf("Failed to install software on host %v (%v): %v\n", host.Hostname, host.Platform, err)
+				errors++
+				continue
+			}
+			queuedInstalls++
+
+			err = apiClient.InstallSoftware(host.ID, windowsSoftware[(i+1)%len(windowsSoftware)].ID)
+			if err != nil {
+				printf("Failed to install software on host %v (%v): %v\n", host.Hostname, host.Platform, err)
+				errors++
+				continue
+			}
+			queuedInstalls++
+
 			_, err = apiClient.RunHostScriptAsync(host.ID, nil, windowsScripts[i%len(windowsScripts)], 0)
 			if err != nil {
 				printf("Failed to run script on host %v (%v): %v\n", host.Hostname, host.Platform, err)
