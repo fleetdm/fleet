@@ -72,6 +72,16 @@
   },
   {
     "software": {
+      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["python"],
+      "vendor": ["python"]
+    }
+  },
+  {
+    "software": {
       "name": ["Docs"],
       "source": ["chrome_extensions"]
     },
@@ -153,6 +163,16 @@
     "software": {
       "name": ["/^intellij-idea(-ce)?$/"],
       "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^IntelliJ IDEA Community Edition/"],
+      "source": ["programs"]
     },
     "filter": {
       "product": ["intellij_idea"],

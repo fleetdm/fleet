@@ -28,7 +28,7 @@ type listSoftwareTitlesResponse struct {
 	Err             error                           `json:"error,omitempty"`
 }
 
-func (r listSoftwareTitlesResponse) error() error { return r.Err }
+func (r listSoftwareTitlesResponse) Error() error { return r.Err }
 
 func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareTitlesRequest)
@@ -124,7 +124,7 @@ type getSoftwareTitleResponse struct {
 	Err           error                `json:"error,omitempty"`
 }
 
-func (r getSoftwareTitleResponse) error() error { return r.Err }
+func (r getSoftwareTitleResponse) Error() error { return r.Err }
 
 func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareTitleRequest)

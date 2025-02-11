@@ -8691,10 +8691,11 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
-- [Install package or App Store app](#install-package-or-app-store-app)
-- [Get package install result](#get-package-install-result)
-- [Download package](#download-package)
-- [Delete package or App Store app](#delete-package-or-app-store-app)
+- [Install software](#install-software)
+- [Uninstall software](#uninstall-software)
+- [Get software install result](#get-software-install-result)
+- [Download software](#download-package)
+- [Delete software](#delete-package-or-app-store-app)
 
 ### List software
 
@@ -8721,11 +8722,11 @@ Get a list of all software.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| platform | string | query | Filter software by platform. Supported values are `darwin`, `windows`, and `linux`.  |
+| platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?team_id=3`
+`GET /api/v1/fleet/software/titles?team_id=3&platform=darwin,windows`
 
 ##### Default response
 
@@ -9092,11 +9093,23 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
+      "automatic_install_policies": [
+        {
+          "id": 345,
+          "name": "[Install software] Logic Pro",
+        } 
+      ],
       "status": {
         "installed": 3,
         "pending": 1,
         "failed": 2,
       }
+      "automatic_install_policies": [
+        {
+          "id": 343,
+          "name": "[Install software] Logic.app",
+        }
+      ],
     },
     "source": "apps",
     "browser": "",
@@ -9254,7 +9267,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9454,7 +9467,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
+| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
 
 #### Example
 
@@ -9556,7 +9570,8 @@ Returns information about the specified Fleet-maintained app.
   "fleet_maintained_app": {
     "id": 1,
     "name": "1Password",
-    "version": "8.10.40",
+    "filename": "1Password-8.10.50-aarch64.zip",
+    "version": "8.10.50",
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
@@ -9585,6 +9600,7 @@ Add Fleet-maintained app so it's available for install.
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9611,7 +9627,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Download package
+### Download software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9643,7 +9659,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Install package or App Store app
+### Install software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9670,12 +9686,12 @@ Package installs time out after 1 hour.
 
 `Status: 202`
 
-### Uninstall package
+### Uninstall software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` added to be uninstalled.
+Uninstalls software from a host.
 
 `POST /api/v1/fleet/hosts/:id/software/:software_title_id/uninstall`
 
@@ -9694,7 +9710,7 @@ Uninstall software (package) on a macOS, Windows, or Linux (Ubuntu) host. Softwa
 
 `Status: 202`
 
-### Get package install result
+### Get software install result
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -9702,9 +9718,9 @@ _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/:install_uuid/results`
 
-Get the results of a software package install.
+Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install or uninstall, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
@@ -9765,13 +9781,13 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete package or App Store app
+### Delete software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install (package or App Store app).
+Deletes software that's available for install. This won't uninstall the software from hosts.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 

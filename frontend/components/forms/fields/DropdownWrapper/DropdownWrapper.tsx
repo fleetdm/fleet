@@ -269,6 +269,9 @@ const DropdownWrapper = ({
           ".dropdown-wrapper__indicator path": {
             stroke: COLORS["core-vibrant-blue-over"],
           },
+          ".filter-icon path": {
+            fill: COLORS["core-vibrant-blue-over"],
+          },
         },
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
@@ -279,9 +282,6 @@ const DropdownWrapper = ({
           ".dropdown-wrapper__indicator path": {
             stroke: COLORS["core-vibrant-blue-over"],
           },
-        },
-        ".filter-icon path": {
-          fill: COLORS["core-vibrant-blue-over"],
         },
         ...(state.isDisabled && {
           ".dropdown-wrapper__single-value": {
@@ -473,6 +473,7 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
+        controlShouldRenderValue={variant !== "button"}
       />
     </FormField>
   );

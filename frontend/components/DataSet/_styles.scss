@@ -1,7 +1,5 @@
 .data-set {
   font-size: $x-small;
-  max-width: min-content;
-  overflow: hidden;
 
   // ff only
   @-moz-document url-prefix() {

@@ -841,7 +841,7 @@ type MDMAppleDeclarationValidity string
 const (
 	MDMAppleDeclarationValid   MDMAppleDeclarationValidity = "valid"
 	MDMAppleDeclarationInvalid MDMAppleDeclarationValidity = "invalid"
-	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "valid"
+	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "unknown"
 )
 
 // MDMAppleDDMStatusDeclaration represents a processed declaration for the client.

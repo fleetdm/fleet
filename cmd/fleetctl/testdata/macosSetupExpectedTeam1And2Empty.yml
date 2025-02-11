@@ -40,6 +40,7 @@ spec:
     secrets: null
     webhook_settings:
       host_status_webhook: null
+      failing_policies_webhook: null
     name: tm1
 ---
 apiVersion: v1

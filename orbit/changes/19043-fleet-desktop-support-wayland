@@ -1,0 +1,1 @@
+* Added support for Wayland display sessions. Thanks @pboushy for [this](https://github.com/fleetdm/fleet/issues/19043#issuecomment-2625719309) contribution to fixing this issue.

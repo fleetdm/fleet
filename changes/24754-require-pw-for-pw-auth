@@ -1,0 +1,4 @@
+- Update user form validation to require a password be present when switching a user from
+  SSO to password authentication
+- Refactor upstream error logic to allow disabling submit button when form errors are present
+- Add similar check for password presence on server, update integration test accordingly

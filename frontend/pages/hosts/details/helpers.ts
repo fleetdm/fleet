@@ -37,7 +37,7 @@ export const generateWinDiskEncryptionSetting = (
   return {
     profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "windows",
-    name: "Disk Encryption",
+    name: "Disk encryption",
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
     detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
     operation_type: null,
@@ -57,7 +57,7 @@ export const generateLinuxDiskEncryptionSetting = (
   return {
     profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "linux",
-    name: "Disk Encryption",
+    name: "Disk encryption",
     status: diskEncryptionStatus,
     detail,
     operation_type: null,
