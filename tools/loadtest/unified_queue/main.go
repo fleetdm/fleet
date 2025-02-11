@@ -18,17 +18,6 @@ func printf(format string, a ...any) {
 	fmt.Printf(time.Now().UTC().Format("2006-01-02T15:04:05Z")+": "+format, a...)
 }
 
-func batchHostnames(hostnames []string) [][]string {
-	const batchSize = 500
-	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
-
-	for batchSize < len(hostnames) {
-		hostnames, batches = hostnames[batchSize:], append(batches, hostnames[0:batchSize:batchSize])
-	}
-	batches = append(batches, hostnames)
-	return batches
-}
-
 func main() {
 	fleetURL := flag.String("fleet_url", "", "URL (with protocol and port of Fleet server)")
 	apiToken := flag.String("api_token", "", "API authentication token to use on API calls")
