@@ -88,6 +88,9 @@ module.exports = {
     if(jsonResult.couldNotGenerateProfile) {
       throw 'couldNotGenerateProfile';
     }
+    if(!jsonResult.configurationProfile || jsonResult.profileFilename || jsonResult.settingsEnforced){
+      throw 'couldNotGenerateProfile';
+    }
     return {
       profile: jsonResult.configurationProfile,
       profileFilename: jsonResult.profileFilename,
