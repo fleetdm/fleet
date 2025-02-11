@@ -6,7 +6,7 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";

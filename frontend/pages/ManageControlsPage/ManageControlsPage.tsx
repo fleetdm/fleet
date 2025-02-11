@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./OSUpdates/components/CurrentVersionSection/CurrentVersionSection";

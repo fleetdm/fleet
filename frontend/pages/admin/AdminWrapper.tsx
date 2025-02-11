@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import MainContent from "components/MainContent";
 import classnames from "classnames";
 

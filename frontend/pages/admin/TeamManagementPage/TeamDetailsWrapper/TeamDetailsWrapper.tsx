@@ -24,7 +24,7 @@ import sortUtils from "utilities/sort";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";

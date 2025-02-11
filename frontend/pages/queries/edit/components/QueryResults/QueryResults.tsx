@@ -18,7 +18,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";

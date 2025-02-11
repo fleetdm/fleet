@@ -13,7 +13,7 @@ import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Radio from "components/forms/fields/Radio";

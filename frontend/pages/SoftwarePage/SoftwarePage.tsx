@@ -31,7 +31,7 @@ import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
