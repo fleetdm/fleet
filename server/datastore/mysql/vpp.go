@@ -471,6 +471,12 @@ WHERE
 	return appSet, nil
 }
 
+func (ds *Datastore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return insertVPPApps(ctx, tx, apps)
+	})
+}
+
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
@@ -1521,7 +1527,16 @@ func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTe
 }
 
 func (ds *Datastore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
-	query := `SELECT adam_id FROM vpp_apps`
+	query := `
+SELECT 
+    adam_id, 
+	title_id, 
+	bundle_identifier, 
+	icon_url, 
+	name, 
+	latest_version, 
+	platform
+FROM vpp_apps`
 
 	var apps []*fleet.VPPApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {

@@ -991,6 +991,12 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register refresh vpp app versions schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
