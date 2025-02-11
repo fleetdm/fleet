@@ -1,6 +1,6 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 

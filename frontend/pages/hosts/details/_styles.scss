@@ -71,7 +71,7 @@
     }
   }
 
-  &__tabs-wrapper {
+  &__tab-nav {
     background-color: $ui-off-white;
     width: 100%;
 
@@ -160,6 +160,6 @@
 
 // we dont need the margin on the host details page as we are not using grid css
 // for the spacing.
-.host-details__tabs-wrapper .card {
+.host-details__tab-nav .card {
   margin-top: 0;
 }

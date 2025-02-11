@@ -23,7 +23,7 @@ import DeviceUserError from "components/DeviceUserError";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 
@@ -390,7 +390,7 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+            <TabsWrapper className={`${baseClass}__tab-nav`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}

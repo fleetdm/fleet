@@ -10,7 +10,7 @@ interface ITabsWrapperProps {
  * This component exists so we can unify the styles
  * and overwrite the loaded React Tabs styles.
  */
-const baseClass = "component__tabs-wrapper";
+const baseClass = "tab-nav";
 
 const TabsWrapper = ({
   children,

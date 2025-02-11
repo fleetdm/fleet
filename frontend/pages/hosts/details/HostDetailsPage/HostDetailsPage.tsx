@@ -45,7 +45,7 @@ import {
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
@@ -844,7 +844,7 @@ const HostDetailsPage = ({
           )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
-        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+        <TabsWrapper className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}

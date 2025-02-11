@@ -8,7 +8,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";

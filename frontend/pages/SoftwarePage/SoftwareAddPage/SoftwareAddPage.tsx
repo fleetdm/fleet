@@ -11,7 +11,7 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 

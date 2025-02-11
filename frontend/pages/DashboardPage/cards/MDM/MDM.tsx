@@ -4,7 +4,7 @@ import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";

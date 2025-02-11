@@ -8,7 +8,7 @@ import {
 } from "services/entities/activities";
 
 import Card from "components/Card";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";

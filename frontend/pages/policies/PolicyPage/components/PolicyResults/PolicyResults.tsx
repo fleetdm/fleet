@@ -15,7 +15,7 @@ import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
