@@ -12,7 +12,8 @@ const meta: Meta<typeof TargetChipSelector> = {
       control: { type: "object" },
     },
     isSelected: {
-      description: "Whether the chip is currently selected.",
+      description:
+        "Whether the chip is currently selected, updated by parent onClick handler.",
       control: { type: "boolean" },
     },
     onClick: {

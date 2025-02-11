@@ -12,13 +12,10 @@ interface ITabsWrapperProps {
  */
 const baseClass = "tab-nav";
 
-const TabsWrapper = ({
-  children,
-  className,
-}: ITabsWrapperProps): JSX.Element => {
+const TabNav = ({ children, className }: ITabsWrapperProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   return <div className={classNames}>{children}</div>;
 };
 
-export default TabsWrapper;
+export default TabNav;
