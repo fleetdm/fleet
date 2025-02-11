@@ -414,7 +414,7 @@ func applyABMTokenAssignmentIfNeeded(
 		return nil
 	}
 	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying ABM teams\n")
-	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{GitOps: true}); err != nil {
 		return fmt.Errorf("applying fleet config: %w", err)
 	}
 	return nil
