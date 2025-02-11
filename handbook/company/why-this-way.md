@@ -154,17 +154,19 @@ Additional infrastructure:
 
 2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
 
-3. **Development and QA instances**. Long-lived Fleet instances used to support CI/CD pipelines and quality assurance processes are hosted at [Render](https://render.com/).
+3. **Dashboards**. Additional product dashboards such as the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard) and [bulk operations dashboard](https://github.com/fleetdm/fleet/tree/main/ee/bulk-operations-dashboard) are deployed to [Heroku](https://heroku.com) on an as-needed basis per customer.
 
-4. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
+4. **Development and QA instances**. Long-lived Fleet instances used to support CI/CD pipelines and quality assurance processes are hosted at [Render](https://render.com/).
 
-5. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
+5. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
 
-6. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
+6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
 
-7. **DNS**. All domain DNS records and caching rules are hosted with [Cloudflare](https://www.cloudflare.com/).
+7. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
 
-8. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
+8. **DNS**. All domain DNS records and caching rules are hosted with [Cloudflare](https://www.cloudflare.com/).
+
+9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
