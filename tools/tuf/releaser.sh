@@ -268,14 +268,14 @@ print_reminder () {
         if [[ $COMPONENT == "fleetd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --orbit-channel=edge --desktop-channel=edge' on a Linux, Windows and macOS VM."
         elif [[ $COMPONENT == "osqueryd" ]]; then
-            prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --osqueryd-channel=edge' on a Linux, Windows and macOS VM."
+            prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge' on a Linux, Windows and macOS VM."
         fi
     elif [[ $ACTION == "promote-edge-to-stable" ]]; then
         prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m' on a Linux, Windows and macOS VM."
     elif [[ $ACTION == "update-timestamp" ]]; then
         :
     elif [[ $ACTION == "release-to-production" ]]; then
-        prompt "To smoke test the release make sure to generate and install fleetd with on a Linux, Windows and macOS VM. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
+        prompt "To smoke test the release make sure to generate and install fleetd with on a Linux, Windows and macOS VM. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
     else
         echo "Unsupported action: $ACTION"
         exit 1
