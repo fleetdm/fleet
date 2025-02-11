@@ -17,6 +17,12 @@
           <div v-for="item in parsedItemsInProfile">
             <p>{{item.name}}: {{item.value}}</p>
           </div>
+          <div v-if="caveatsAboutGeneratedProfile.length > 0">
+            <p><strong>Caveats:</strong></p>
+            <div v-for="item in caveatsAboutGeneratedProfile">
+              <p>{{item}}</p>
+            </div>
+          </div>
         </div>
       </div>
       <p v-if="hasGeneratedProfile"><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
@@ -41,7 +47,8 @@
           <textarea class="form-control" type="textarea" id="profile" placeholder="Ensure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
           <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
         </div>
-        <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
+        <cloud-error class="mb-2"  v-if="cloudError && cloudError.exit === 'profileGenerationFailed'">{{cloudError.responseInfo.body}}</cloud-error>
+        <p v-else-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left">Generate</ajax-button>
       </ajax-form>
     </div>

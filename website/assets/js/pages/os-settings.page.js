@@ -26,6 +26,7 @@ parasails.registerPage('os-settings', {
     cloudError: '',
     modal: '',
     filenameOfGeneratedProfile: 'Generated profile',
+    caveatsAboutGeneratedProfile: [],
     hasGeneratedProfile: false,
   },
 
@@ -61,6 +62,7 @@ parasails.registerPage('os-settings', {
         this.hasGeneratedProfile = true;
         ace.edit('editor').setValue(generatedResult.profile);
         this.parsedItemsInProfile = generatedResult.items;
+        this.caveatsAboutGeneratedProfile = generatedResult.caveats;
         this.modal = '';
         this.syncing = false;
       }
