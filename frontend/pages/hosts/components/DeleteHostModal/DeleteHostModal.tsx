@@ -64,7 +64,7 @@ const DeleteHostModal = ({
       <>
         <p>
           This will remove the record of <b>{hostText()}</b> and associated data
-          (e.g. unlock PINs).{largeVolumeText()}
+          such as unlock PINs and disk encryption keys. {largeVolumeText()}
         </p>
         <ul>
           <li>

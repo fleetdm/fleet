@@ -67,41 +67,50 @@ const TransferHostModal = ({
 
   return (
     <Modal onExit={onCancel} title="Transfer hosts" className={baseClass}>
-      <form className={`${baseClass}__form`}>
-        <Dropdown
-          wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-          label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
-          value={selectedTeam && selectedTeam.id}
-          options={createTeamDropdownOptions()}
-          onChange={onChangeSelectTeam}
-          placeholder="Select a team"
-          searchable={false}
-          autoFocus
-        />
-        {isGlobalAdmin ? (
-          <p>
-            Team not here?{" "}
-            <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__team-link`}>
-              Create a team
-            </Link>
-          </p>
-        ) : null}
-        <div className="modal-cta-wrap">
-          <Button
-            disabled={selectedTeam === undefined}
-            type="button"
-            variant="brand"
-            onClick={onSubmitTransferHost}
-            className="transfer-loading"
-            isLoading={isUpdating}
-          >
-            Transfer
-          </Button>
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
-        </div>
-      </form>
+      <>
+        <p>
+          The hosts&apos; disk encryption keys are deleted if they&apos;re
+          transferred to a team with disk encryption turned off.
+        </p>
+        <form className={`${baseClass}__form`}>
+          <Dropdown
+            wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+            label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
+            value={selectedTeam && selectedTeam.id}
+            options={createTeamDropdownOptions()}
+            onChange={onChangeSelectTeam}
+            placeholder="Select a team"
+            searchable={false}
+            autoFocus
+          />
+          {isGlobalAdmin ? (
+            <p>
+              Team not here?{" "}
+              <Link
+                to={PATHS.ADMIN_TEAMS}
+                className={`${baseClass}__team-link`}
+              >
+                Create a team
+              </Link>
+            </p>
+          ) : null}
+          <div className="modal-cta-wrap">
+            <Button
+              disabled={selectedTeam === undefined}
+              type="button"
+              variant="brand"
+              onClick={onSubmitTransferHost}
+              className="transfer-loading"
+              isLoading={isUpdating}
+            >
+              Transfer
+            </Button>
+            <Button onClick={onCancel} variant="inverse">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </>
     </Modal>
   );
 };
