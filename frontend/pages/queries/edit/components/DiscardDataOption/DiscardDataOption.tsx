@@ -1,3 +1,4 @@
+import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
@@ -67,12 +68,15 @@ const DiscardDataOption = ({
       {["differential", "differential_ignore_removals"].includes(
         selectedLoggingType
       ) && (
-        <InfoBanner color="purple-bold-border">
-          <>
-            The <b>Discard data</b> setting is ignored when differential logging
-            is enabled. This query&apos;s results will not be saved in Fleet.
-          </>
-        </InfoBanner>
+        <>
+          <InfoBanner color="purple">
+            <>
+              The <b>Discard data</b> setting is ignored when differential
+              logging is enabled. This query&apos;s results will not be saved in
+              Fleet.
+            </>
+          </InfoBanner>
+        </>
       )}
       <Checkbox
         name="discardData"

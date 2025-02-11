@@ -1672,6 +1672,21 @@ const ManageHostsPage = ({
       !globalSecrets?.length;
 
     return (
+      <InfoBanner
+        className={`${baseClass}__no-enroll-secret-banner`}
+        pageLevel
+        closable
+        // color="grey"
+      >
+        <div>
+          <span>
+            You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
+            <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
+          </span>
+        </div>
+      </InfoBanner>
+    );
+    return (
       ((canEnrollHosts && noTeamEnrollSecrets) ||
         (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner && (

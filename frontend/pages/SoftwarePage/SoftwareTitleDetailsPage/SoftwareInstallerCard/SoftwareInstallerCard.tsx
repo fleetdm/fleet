@@ -363,7 +363,7 @@ const SoftwareInstallerCard = ({
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__row-1`}>
-        {/* TODO: main-info could be a seperate component as its reused on a couple
+        {/* TODO: main-info could be a separate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
           {renderIcon()}
