@@ -11,7 +11,7 @@ import {
 } from "interfaces/software";
 
 import Modal from "components/Modal";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";

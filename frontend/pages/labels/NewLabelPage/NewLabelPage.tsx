@@ -6,7 +6,7 @@ import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
 import PATHS from "router/paths";
@@ -79,7 +79,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
           Dynamic (smart) labels are assigned to hosts if the query returns
           results. Manual labels are assigned to selected hosts.
         </p>
-        <TabsWrapper className={`${baseClass}__new-label-tabs-wrapper`}>
+        <TabsWrapper className={`${baseClass}__new-label-tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}

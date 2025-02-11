@@ -1,4 +1,4 @@
-.component__tabs-wrapper {
+.tab-nav {
   position: sticky;
   top: 0;
   background-color: $core-white;
@@ -6,10 +6,10 @@
 
   .react-tabs {
     &__tab-list {
-      border-bottom: 1px solid $ui-gray;
+      border-bottom: 1px solid $ui-fleet-black-10;
     }
     &__tab {
-      padding: $pad-small 0;
+      padding: $pad-small 0 $pad-medium;
       margin-right: $pad-xxlarge;
       font-size: $x-small;
       border: none;
@@ -50,12 +50,37 @@
           content: "";
           width: 100%;
           height: 0;
-          border-bottom: 2px solid #6a67fe;
+          border-bottom: 2px solid $core-vibrant-blue;
           position: absolute;
           bottom: 0;
           left: 0;
         }
       }
+
+      &:hover {
+        &::after {
+          content: "";
+          width: 100%;
+          height: 0;
+          border-bottom: 2px solid $core-vibrant-blue;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+      }
+
+      &:active {
+        &::after {
+          content: "";
+          width: 100%;
+          height: 0;
+          border-bottom: 2px solid $core-vibrant-blue-down;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+      }
+
       &--disabled {
         cursor: not-allowed;
       }
