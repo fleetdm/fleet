@@ -946,6 +946,10 @@ None.
   "vulnerability_settings": {
     "databases_path": ""
   },
+  "change_management": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
+  },
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
@@ -994,10 +998,6 @@ None.
       "password": "********",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
-    },
-    "change_management": {
-      "gitops_mode_enabled": false,
-      "repository_url": "",
     },
     "zendesk": []
   },
@@ -1058,6 +1058,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
+| change_management        | object  | body  | See [change_management](#change-management). |
 | integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
@@ -1230,6 +1231,10 @@ Modifies the Fleet's configuration with the supplied information.
   "fleet_desktop": {
     "transparency_url": "https://fleetdm.com/better"
   },
+  "change_management": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
+  },
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
@@ -1270,10 +1275,6 @@ Modifies the Fleet's configuration with the supplied information.
       }
     ],
     "ndes_scep_proxy": null,
-    "change_management": {
-      "gitops_mode_enabled": false,
-      "repository_url": "",
-    },
     "zendesk": []
   },
   "logging": {
@@ -1486,6 +1487,28 @@ _Available in Fleet Premium._
 }
 ```
 
+#### change_management
+
+_Available in Fleet Premium._
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| gitops_mode_enabled               | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
+| repository_url                    | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "change_management": {
+    "gitops_mode_enabled": true,
+    "repository_url": "https://github.com/exampleorg/it-and-security"
+  }
+}
+```
+
 #### webhook_settings
 
 <!--
@@ -1598,7 +1621,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| change_management | object | See [`integrations.change_management`](#integrations-change-management). |
+
 
 <br/>
 
@@ -1662,14 +1685,6 @@ _Available in Fleet Premium._
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
 
-##### integrations.change_management
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| gitops_mode_enabled               | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
-| repository_url                    | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
-
-
 
 ##### Example request body
 
@@ -1698,10 +1713,6 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
       "password": "abc123",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
-    },
-    "change_management": {
-      "gitops_mode_enabled": true,
-      "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
     }
   }
 }
