@@ -612,8 +612,13 @@ func TestUpdateVulnHostCounts(t *testing.T) {
 		expectedMaxConcurrency int
 	}{
 		{
-			desc:                   "invalid max concurrency count",
+			desc:                   "invalid max concurrency count: 0",
 			maxConcurrency:         0,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "invalid max concurrency count: < 0",
+			maxConcurrency:         -1,
 			expectedMaxConcurrency: 1,
 		},
 		{
