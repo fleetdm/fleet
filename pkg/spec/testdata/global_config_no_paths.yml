@@ -140,7 +140,7 @@ org_settings:
     idp_image_url: ""
     idp_name: MockSAML
     issuer_uri: ""
-    metadata: ""
+    metadata: "unused metadata, the URL has priority"
     metadata_url: https://mocksaml.com/api/saml/metadata
   integrations:
     jira:
