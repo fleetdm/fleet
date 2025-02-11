@@ -24,6 +24,18 @@ type newAndExciting struct{}
 
 func (newAndExciting) Error() string { return "" }
 
+type notFoundError struct {
+	fleet.ErrorWithUUID
+}
+
+func (e *notFoundError) Error() string {
+	return "not found"
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
 func TestHandlesErrorsCode(t *testing.T) {
 	errorTests := []struct {
 		name string
@@ -89,16 +101,4 @@ func TestHandlesErrorsCode(t *testing.T) {
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}
-}
-
-type notFoundError struct {
-	fleet.ErrorWithUUID
-}
-
-func (e *notFoundError) Error() string {
-	return "not found"
-}
-
-func (e *notFoundError) IsNotFound() bool {
-	return true
 }

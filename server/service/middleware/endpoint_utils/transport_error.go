@@ -15,6 +15,9 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+// ErrBadRoute is used for mux errors
+var ErrBadRoute = errors.New("bad route")
+
 type JsonError struct {
 	Message string              `json:"message"`
 	Code    int                 `json:"code,omitempty"`

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -83,13 +84,29 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		v := reflect.New(t)
 		nilBody := false
 		buf := bufio.NewReader(r.Body)
+		var body io.Reader = buf
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
+		} else {
+			if r.Header.Get("content-encoding") == "gzip" {
+				gzr, err := gzip.NewReader(buf)
+				if err != nil {
+					return nil, endpoint_utils.BadRequestErr("gzip decoder error", err)
+				}
+				defer gzr.Close()
+				body = gzr
+			}
+
+			req := v.Interface()
+			if err := json.NewDecoder(body).Decode(req); err != nil {
+				return nil, endpoint_utils.BadRequestErr("json decoder error", err)
+			}
+			v = reflect.ValueOf(req)
 		}
 
-		v := reflect.New(t)
 		fields := endpoint_utils.AllFields(v)
 		for _, fp := range fields {
 			field := fp.V

@@ -1262,7 +1262,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/", frontendHandler)
 
 			debugHandler := &debugMux{
-				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, androidSvc),
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
 			rootMux.Handle("/debug/", debugHandler)
 
