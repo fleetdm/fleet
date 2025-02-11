@@ -289,7 +289,7 @@ func TestEndpointer(t *testing.T) {
 			auth.SetRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(kitlog.NewNopLogger()),
@@ -409,7 +409,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			auth.SetRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(kitlog.NewNopLogger()),

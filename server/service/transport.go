@@ -31,7 +31,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	}
 
 	if e, ok := response.(errorer); ok && e.Error() != nil {
-		encodeError(ctx, e.Error(), w)
+		endpoint_utils.EncodeError(ctx, e.Error(), w)
 		return nil
 	}
 

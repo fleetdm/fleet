@@ -1,4 +1,4 @@
-package service
+package endpoint_utils
 
 import (
 	"context"
@@ -47,17 +47,17 @@ func TestHandlesErrorsCode(t *testing.T) {
 		},
 		{
 			"mail error",
-			mailError{},
+			MailError{},
 			http.StatusInternalServerError,
 		},
 		{
 			"osquery error - invalid node",
-			&osqueryError{nodeInvalid: true},
+			&OsqueryError{nodeInvalid: true},
 			http.StatusUnauthorized,
 		},
 		{
 			"osquery error - valid node",
-			&osqueryError{},
+			&OsqueryError{},
 			http.StatusInternalServerError,
 		},
 		{
@@ -85,8 +85,20 @@ func TestHandlesErrorsCode(t *testing.T) {
 	for _, tt := range errorTests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			encodeError(context.Background(), tt.err, recorder)
+			EncodeError(context.Background(), tt.err, recorder)
 			assert.Equal(t, recorder.Code, tt.code)
 		})
 	}
+}
+
+type notFoundError struct {
+	fleet.ErrorWithUUID
+}
+
+func (e *notFoundError) Error() string {
+	return "not found"
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
 }
