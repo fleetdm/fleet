@@ -3,9 +3,10 @@
     <div purpose="page-content">
       <docs-nav-and-search  current-section="osSettings" ></docs-nav-and-search>
       <div purpose="page-headline">
-        <h1>OS Settings</h1>
-        <p>Create or generate OS settings in CSP, .mobileconfig, and DDM format.</p>
+        <h1>OS settings</h1>
+        <p>Generate OS settings in CSP, .mobileconfig, and DDM format. Just click the sparkle button.</p>
       </div>
+      <div purpose="mobile-generate-button" class="d-flex d-md-none" @click="modal = 'generate-profile'"><img alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">Generate OS settings</div>
       <div class="d-flex flex-lg-row flex-column mb-4">
         <div purpose="profile-editor">
           <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
@@ -18,30 +19,32 @@
           </div>
         </div>
       </div>
-      <p><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet.</p>
+      <p v-if="hasGeneratedProfile"><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
     </div>
   </div>
   <modal v-if="modal === 'generate-profile'" @close="closeModal()">
-    <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
-      <div class="d-flex flex-row align-items-center mb-3">
-        <img style="height: 24px;" alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">
-        <p class="mb-0 ml-2"><strong>What would you like to happen?</strong></p>
-      </div>
-      <div class="form-group">
-        <select class="form-control" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
-          <option value="mobileconfig" selected>.mobileconfig (Apple)</option>
-          <option value="ddm">DDM (Apple)</option>
-          <option value="csp">CSP (Windows)</option>
-        </select>
-        <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
-      </div>
-      <div class="form-group">
-        <textarea class="form-control" type="textarea" id="profile"  :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
-        <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Ask your question.</div>
-      </div>
-      <cloud-error v-if="cloudError">An error occurred while processing your request.</cloud-error>
-      <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left" v-if="!cloudError">Generate</ajax-button>
-    </ajax-form>
+    <div purpose="modal-form">
+      <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
+        <div class="d-flex flex-row align-items-center mb-3">
+          <img style="height: 24px;" alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">
+          <p class="mb-0 ml-2"><strong>What would you like to happen?</strong></p>
+        </div>
+        <div class="form-group">
+          <select class="form-control" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
+            <option value="mobileconfig" selected>.mobileconfig (Apple)</option>
+            <option value="ddm">DDM (Apple)</option>
+            <option value="csp">CSP (Windows)</option>
+          </select>
+          <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
+        </div>
+        <div class="form-group">
+          <textarea class="form-control" type="textarea" id="profile" placeholder="Ensure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
+          <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Ask your question.</div>
+        </div>
+        <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
+        <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left">Generate</ajax-button>
+      </ajax-form>
+    </div>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
