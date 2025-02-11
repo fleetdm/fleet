@@ -25,7 +25,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc android.Service) (errorer, error)
+type handlerFunc func(ctx context.Context, request interface{}, svc android.Service) errorer
 
 // parseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func parseTag(tag string) (string, bool, error) {
@@ -518,13 +518,12 @@ func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb str
 }
 
 func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
-	endpoint := e.makeEndpoint(f, v)
-	e.handleHTTPHandler(path, endpoint, verb)
+	e.handleHTTPHandler(path, e.makeEndpoint(f, v), verb)
 }
 
 func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
-		return f(ctx, request, e.svc)
+		return f(ctx, request, e.svc), nil
 	}
 	endp := e.authFunc(e.fleetSvc, next)
 

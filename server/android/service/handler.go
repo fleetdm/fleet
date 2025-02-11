@@ -235,13 +235,11 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
-	apiVersions := []string{"v1", "2022-04"}
 
 	// user-authenticated endpoints
-	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions...)
+	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
 	ue.GET("/api/_version_/fleet/android/enterprise/signup", androidEnterpriseSignupEndpoint, nil)
-	ue.PATCH("/api/_version_/fleet/android/enterprise/{id:[0-9]+}/policies/default", androidPoliciesEndpoint, androidPoliciesRequest{})
 	ue.GET("/api/_version_/fleet/android/enterprise/{id:[0-9]+}/enrollment_token", androidEnrollmentTokenEndpoint,
 		androidEnrollmentTokenRequest{})
 
@@ -249,12 +247,16 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
-	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
+	ne := newNoAuthEndpointer(svc, opts, r, apiVersions()...)
 
 	// Android management
 	ne.GET("/api/_version_/fleet/android/enterprise/{id:[0-9]+}/callback", androidEnterpriseSignupCallbackEndpoint,
 		androidEnterpriseSignupCallbackRequest{})
 
+}
+
+func apiVersions() []string {
+	return []string{"v1"}
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {

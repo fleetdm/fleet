@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
 )
@@ -170,7 +171,7 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
 var noMFASupported = errors.New("client with no MFA email support")
-var mfaNotSupportedForClient = badRequestErr(
+var mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
 	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
 	noMFASupported,
 )
@@ -399,7 +400,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL

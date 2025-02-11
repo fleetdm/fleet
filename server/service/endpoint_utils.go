@@ -6,10 +6,8 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -20,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -27,56 +26,6 @@ import (
 )
 
 type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error)
-
-// parseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
-func parseTag(tag string) (string, bool, error) {
-	parts := strings.Split(tag, ",")
-	switch len(parts) {
-	case 0:
-		return "", false, fmt.Errorf("Error parsing %s: too few parts", tag)
-	case 1:
-		return tag, false, nil
-	case 2:
-		return parts[0], parts[1] == "optional", nil
-	default:
-		return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
-	}
-}
-
-type fieldPair struct {
-	sf reflect.StructField
-	v  reflect.Value
-}
-
-// allFields returns all the fields for a struct, including the ones from embedded structs
-func allFields(ifv reflect.Value) []fieldPair {
-	if ifv.Kind() == reflect.Ptr {
-		ifv = ifv.Elem()
-	}
-	if ifv.Kind() != reflect.Struct {
-		return nil
-	}
-
-	var fields []fieldPair
-
-	if !ifv.IsValid() {
-		return nil
-	}
-
-	t := ifv.Type()
-
-	for i := 0; i < ifv.NumField(); i++ {
-		v := ifv.Field(i)
-
-		if v.Kind() == reflect.Struct && t.Field(i).Anonymous {
-			fields = append(fields, allFields(v)...)
-			continue
-		}
-		fields = append(fields, fieldPair{sf: ifv.Type().Field(i), v: v})
-	}
-
-	return fields
-}
 
 // A value that implements requestDecoder takes control of decoding the request
 // as a whole - that is, it is responsible for decoding the body and any url
@@ -145,7 +94,7 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			if r.Header.Get("content-encoding") == "gzip" {
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
-					return nil, badRequestErr("gzip decoder error", err)
+					return nil, endpoint_utils.BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
 				body = gzr
@@ -154,22 +103,22 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			if !isBodyDecoder {
 				req := v.Interface()
 				if err := json.NewDecoder(body).Decode(req); err != nil {
-					return nil, badRequestErr("json decoder error", err)
+					return nil, endpoint_utils.BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
 		}
 
-		fields := allFields(v)
+		fields := endpoint_utils.AllFields(v)
 		for _, fp := range fields {
-			field := fp.v
+			field := fp.V
 
-			urlTagValue, ok := fp.sf.Tag.Lookup("url")
+			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
 
 			optional := false
 			var err error
 			if ok {
-				urlTagValue, optional, err = parseTag(urlTagValue)
+				urlTagValue, optional, err = endpoint_utils.ParseTag(urlTagValue)
 				if err != nil {
 					return nil, err
 				}
@@ -203,109 +152,22 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					field.Set(reflect.ValueOf(opts))
 
 				default:
-					switch field.Kind() {
-					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-						v, err := intFromRequest(r, urlTagValue)
-						if err != nil {
-							if err == errBadRoute && optional {
-								continue
-							}
-							return nil, badRequestErr("intFromRequest", err)
-						}
-						field.SetInt(v)
-
-					case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-						v, err := uintFromRequest(r, urlTagValue)
-						if err != nil {
-							if err == errBadRoute && optional {
-								continue
-							}
-							return nil, badRequestErr("uintFromRequest", err)
-						}
-						field.SetUint(v)
-
-					case reflect.String:
-						v, err := stringFromRequest(r, urlTagValue)
-						if err != nil {
-							if err == errBadRoute && optional {
-								continue
-							}
-							return nil, badRequestErr("stringFromRequest", err)
-						}
-						field.SetString(v)
-
-					default:
-						return nil, fmt.Errorf("unsupported type for field %s for 'url' decoding: %s", urlTagValue, field.Kind())
+					err := endpoint_utils.DecodeURLTagValue(r, field, urlTagValue, optional)
+					if err != nil {
+						return nil, err
 					}
+					continue
 				}
 			}
 
-			_, jsonExpected := fp.sf.Tag.Lookup("json")
+			_, jsonExpected := fp.Sf.Tag.Lookup("json")
 			if jsonExpected && nilBody {
 				return nil, badRequest("Expected JSON Body")
 			}
 
-			queryTagValue, ok := fp.sf.Tag.Lookup("query")
-
-			if ok {
-				queryTagValue, optional, err = parseTag(queryTagValue)
-				if err != nil {
-					return nil, err
-				}
-				queryVal := r.URL.Query().Get(queryTagValue)
-				// if optional and it's a ptr, leave as nil
-				if queryVal == "" {
-					if optional {
-						continue
-					}
-					return nil, badRequest(fmt.Sprintf("Param %s is required", fp.sf.Name))
-				}
-				if field.Kind() == reflect.Ptr {
-					// create the new instance of whatever it is
-					field.Set(reflect.New(field.Type().Elem()))
-					field = field.Elem()
-				}
-				switch field.Kind() {
-				case reflect.String:
-					field.SetString(queryVal)
-				case reflect.Uint:
-					queryValUint, err := strconv.Atoi(queryVal)
-					if err != nil {
-						return nil, badRequestErr("parsing uint from query", err)
-					}
-					field.SetUint(uint64(queryValUint)) //nolint:gosec // dismiss G115
-				case reflect.Float64:
-					queryValFloat, err := strconv.ParseFloat(queryVal, 64)
-					if err != nil {
-						return nil, badRequestErr("parsing float from query", err)
-					}
-					field.SetFloat(queryValFloat)
-				case reflect.Bool:
-					field.SetBool(queryVal == "1" || queryVal == "true")
-				case reflect.Int:
-					queryValInt := 0
-					switch queryTagValue {
-					case "order_direction", "inherited_order_direction":
-						switch queryVal {
-						case "desc":
-							queryValInt = int(fleet.OrderDescending)
-						case "asc":
-							queryValInt = int(fleet.OrderAscending)
-						case "":
-							queryValInt = int(fleet.OrderAscending)
-						default:
-							return fleet.ListOptions{}, badRequest("unknown order_direction: " + queryVal)
-						}
-					default:
-						queryValInt, err = strconv.Atoi(queryVal)
-						if err != nil {
-							return nil, badRequestErr("parsing int from query", err)
-						}
-					}
-					field.SetInt(int64(queryValInt))
-				default:
-					return nil, fmt.Errorf("Cant handle type for field %s %s", fp.sf.Name, field.Kind())
-				}
+			err = endpoint_utils.DecodeQueryTagValue(r, fp, optional)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -323,15 +185,15 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 		if !license.IsPremium(ctx) {
 			for _, fp := range fields {
-				if prem, ok := fp.sf.Tag.Lookup("premium"); ok {
+				if prem, ok := fp.Sf.Tag.Lookup("premium"); ok {
 					val, err := strconv.ParseBool(prem)
 					if err != nil {
 						return nil, err
 					}
-					if val && !fp.v.IsZero() {
+					if val && !fp.V.IsZero() {
 						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							fp.sf.Name,
+							fp.Sf.Name,
 						)}
 					}
 					continue
@@ -345,18 +207,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 
 func badRequest(msg string) error {
 	return &fleet.BadRequestError{Message: msg}
-}
-
-func badRequestErr(publicMsg string, internalErr error) error {
-	// ensure timeout errors don't become BadRequestErrors.
-	var opErr *net.OpError
-	if errors.As(internalErr, &opErr) {
-		return fmt.Errorf(publicMsg+", internal: %w", internalErr)
-	}
-	return &fleet.BadRequestError{
-		Message:     publicMsg,
-		InternalErr: internalErr,
-	}
 }
 
 type authEndpointer struct {

@@ -77,12 +77,12 @@ type androidEnterpriseSignupResponse struct {
 	androidResponse
 }
 
-func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) (errorer, error) {
+func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) errorer {
 	result, err := svc.EnterpriseSignup(ctx)
 	if err != nil {
-		return androidResponse{Err: err}, nil
+		return androidResponse{Err: err}
 	}
-	return androidEnterpriseSignupResponse{SignupDetails: result}, nil
+	return androidEnterpriseSignupResponse{SignupDetails: result}
 }
 
 func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
@@ -126,10 +126,10 @@ type androidEnterpriseSignupCallbackRequest struct {
 	EnterpriseToken string `query:"enterpriseToken"`
 }
 
-func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
+func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) errorer {
 	req := request.(*androidEnterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
-	return androidResponse{Err: err}, nil
+	return androidResponse{Err: err}
 }
 
 func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
@@ -171,57 +171,6 @@ func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpri
 	return nil
 }
 
-type androidPoliciesRequest struct {
-	EnterpriseID uint `url:"id"`
-}
-
-func androidPoliciesEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
-	req := request.(*androidPoliciesRequest)
-	err := svc.CreateOrUpdatePolicy(ctx, req.EnterpriseID)
-	return androidResponse{Err: err}, nil
-}
-
-func (s Service) CreateOrUpdatePolicy(ctx context.Context, fleetEnterpriseID uint) error {
-	s.authz.SkipAuthorization(ctx)
-
-	enterprise, err := s.ds.GetEnterpriseByID(ctx, fleetEnterpriseID)
-	switch {
-	case fleet.IsNotFound(err):
-		return fleet.NewInvalidArgumentError("id",
-			fmt.Sprintf("Enterprise with ID %d not found", fleetEnterpriseID)).WithStatus(http.StatusNotFound)
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "getting enterprise")
-	}
-
-	policyName := fmt.Sprintf("enterprises/%s/policies/default", enterprise.EnterpriseID)
-	_, err = s.mgmt.Enterprises.Policies.Patch(policyName, &androidmanagement.Policy{
-		CameraAccess: "CAMERA_ACCESS_DISABLED",
-		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
-			ApplicationReportsEnabled:    true,
-			DeviceSettingsEnabled:        true,
-			SoftwareInfoEnabled:          true,
-			MemoryInfoEnabled:            true,
-			NetworkInfoEnabled:           true,
-			DisplayInfoEnabled:           true,
-			PowerManagementEventsEnabled: true,
-			HardwareStatusEnabled:        true,
-			SystemPropertiesEnabled:      true,
-			ApplicationReportingSettings: &androidmanagement.ApplicationReportingSettings{
-				IncludeRemovedApps: true,
-			},
-			CommonCriteriaModeEnabled: true,
-		},
-	}).Do()
-	switch {
-	case googleapi.IsNotModified(err):
-		s.logger.Log("msg", "Android policy not modified", "enterprise_id", enterprise.EnterpriseID)
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "creating or updating policy via Google API")
-	}
-
-	return nil
-}
-
 type androidEnrollmentTokenRequest struct {
 	EnterpriseID uint `url:"id"`
 }
@@ -231,17 +180,17 @@ type androidEnrollmentTokenResponse struct {
 	androidResponse
 }
 
-func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) (errorer, error) {
-	req := request.(*androidEnrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnterpriseID)
+func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) errorer {
+	token, err := svc.CreateEnrollmentToken(ctx)
 	if err != nil {
-		return androidResponse{Err: err}, nil
+		return androidResponse{Err: err}
 	}
-	return androidEnrollmentTokenResponse{EnrollmentToken: token}, nil
+	return androidEnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (s Service) CreateEnrollmentToken(ctx context.Context, fleetEnterpriseID uint) (*android.EnrollmentToken, error) {
+func (s Service) CreateEnrollmentToken(ctx context.Context) (*android.EnrollmentToken, error) {
 	s.authz.SkipAuthorization(ctx)
+	fleetEnterpriseID := uint(1)
 	enterprise, err := s.ds.GetEnterpriseByID(ctx, fleetEnterpriseID)
 	switch {
 	case fleet.IsNotFound(err):
