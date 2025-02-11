@@ -24,7 +24,7 @@ const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   const format = (d: IDeviceUser) =>
     d.source ? `${d.email} (${d.source})` : d.email;
 
-  return deviceMapping.slice(1).map((d) => (
+  return deviceMapping.map((d) => (
     <span key={format(d)}>
       {format(d)}
       <br />
@@ -130,10 +130,10 @@ const About = ({
         displayPrimaryUser = email;
       } else {
         displayPrimaryUser = (
-          <>
+          <span className="device-mapping__primary-user">
             {email}{" "}
             <span className="device-mapping__source">{`(${source})`}</span>
-          </>
+          </span>
         );
       }
     }
