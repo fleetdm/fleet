@@ -511,8 +511,8 @@ Can only be configured for all teams (`org_settings`).
 org_settings:
   sso_settings:
     enable_sso: true
-    idp_name: SimpleSAML
-    entity_id: https://example.com
+    idp_name: Okta
+    entity_id: https://example.okta.com
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
@@ -718,23 +718,19 @@ Can only be configured for all teams (`org_settings`):
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
-
 #### Example
 
-
-```yaml
+```
 org_settings:
   mdm:
     end_user_authentication:
-      idp_name: SimpleSAML
-      entity_id: https://example.com
-      metadata: $SSO_METADATA
-  controls:
-    macos_setup:
-      enable_end_user_authentication: true
+      entity_id: https://example.okta.com
+      idp_name: Okta
+      metadata: $END_USER_SSO_METADATA
+      metadata_url: ""
 ```
 
-
+Can only be configured for all teams (`org_settings`).
 
 ##### apple_server_url
 
