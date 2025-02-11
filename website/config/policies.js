@@ -65,4 +65,6 @@ module.exports.policies = {
   'view-app-library': true,
   'view-app-details': true,
   'view-meetups': true,
+  'view-os-settings': true,
+  'get-llm-generated-configuration-profile': true,
 };
