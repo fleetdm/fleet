@@ -16,6 +16,7 @@ policies:
 queries:
 agent_options:
 controls: # Can be defined in teams/no-team.yml too.
+software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
