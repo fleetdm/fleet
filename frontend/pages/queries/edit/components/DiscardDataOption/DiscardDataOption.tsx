@@ -70,11 +70,8 @@ const DiscardDataOption = ({
       ) && (
         <>
           <InfoBanner color="purple">
-            <>
-              The <b>Discard data</b> setting is ignored when differential
-              logging is enabled. This query&apos;s results will not be saved in
-              Fleet.
-            </>
+            The <b>Discard data</b> setting is ignored when differential logging
+            is enabled. This query&apos;s results will not be saved in Fleet.
           </InfoBanner>
         </>
       )}
