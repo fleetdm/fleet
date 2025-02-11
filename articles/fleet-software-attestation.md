@@ -6,26 +6,26 @@ As of version 4.63.0 Fleet added [SLSA attestations](https://slsa.dev/) to our r
 
 A software attestation is a cryptographically-signed statement provided by a software creator that certifies the build process and provenance of one or more software _artifacts_ (which might be files, container images, or other outputs). In other words, it's a promise to our users that the software we're providing was built by us, using a process that they can trust and verify. We utilize the SLSA framework for attestations which you can read more about [here](https://slsa.dev/).  After each release, attestations are added to https://github.com/fleetdm/fleet/attestations.
 
-## Verifying our release artifacts
+## Verifying a release
 
-Any product of a Fleet release can be _verified_ to prove that it was indeed created by Fleet, using the `gh` command line tool from Github.  See the [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify) docs for more info.
+Any Fleet release can be _verified_ to prove that it was indeed created by Fleet, using the `gh` command line tool from Github.  See the [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify) docs for more info.
 
-Here's how to verify the Fleet server:
-
-```
-gh attestation verify --owner fleetdm TODO
-```
-
-Verify Fleet's agent (fleetd):
+After downloading the [Fleet server binary](https://github.com/fleetdm/fleet/releases), here's how to verify:
 
 ```
-gh attestation verify --owner fleetdm TODO
+gh attestation verify --owner fleetdm /path/to/fleet
 ```
 
-Verify the fleetctl command-line tool (CLI):
+Download the [Fleet's agent (fleetd) source code](https://github.com/fleetdm/fleet/tags) and verify:
 
 ```
-gh attestation verify --owner fleetdm TODO
+gh attestation verify --owner fleetdm /path/to/fleetd
+```
+
+Verify the [fleetctl command-line tool binary](https://github.com/fleetdm/fleet/releases) (CLI):
+
+```
+gh attestation verify --owner fleetdm fleetdm /path/to/fleetctl
 ```
 
 <meta name="authorGitHubUsername" value="sgress454">
