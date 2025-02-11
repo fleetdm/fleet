@@ -61,10 +61,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -1083,7 +1085,7 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
-			var apiHandler, androidAPIHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
@@ -1092,8 +1094,8 @@ the way that the Fleet server works.
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
-				androidAPIHandler = android_service.MakeHandler(svc, androidSvc, config, httpLogger, limiterStore)
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
+					[]func(r *mux.Router, opts []kithttp.ServerOption){android_service.GetRoutes(svc, androidSvc)})
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1255,7 +1257,6 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
-			rootMux.Handle("/api/{version}/fleet/android", androidAPIHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

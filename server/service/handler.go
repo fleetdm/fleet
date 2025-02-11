@@ -88,6 +88,7 @@ func MakeHandler(
 	config config.FleetConfig,
 	logger kitlog.Logger,
 	limitStore throttled.GCRAStore,
+	featureRoutes []func(r *mux.Router, opts []kithttp.ServerOption),
 	extra ...ExtraHandlerOption,
 ) http.Handler {
 	var eopts extraHandlerOpts
@@ -121,6 +122,9 @@ func MakeHandler(
 	r.Use(publicIP)
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
+	for _, featureRoute := range featureRoutes {
+		featureRoute(r, fleetAPIOptions)
+	}
 	addMetrics(r)
 
 	return r

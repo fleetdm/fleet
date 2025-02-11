@@ -7,9 +7,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/archtest"
 )
 
-// TestPackageDependencies checks that android packages are not dependent on other Fleet packages
+// TestAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
 // to maintain decoupling and modularity.
-func TestPackageDependencies(t *testing.T) {
+func TestAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/android...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
@@ -18,6 +18,7 @@ func TestPackageDependencies(t *testing.T) {
 			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // TODO(#26218): remove this dependency on Jira and Zendesk
 			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
+			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
 		).
 		ShouldNotDependOn(
