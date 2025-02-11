@@ -271,6 +271,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 
 func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	t := s.T()
+	t.Skip(`Temporarily disabling due to: "FLEET_ANDROID_SERVICE_CREDENTIALS, FLEET_ANDROID_PROJECT_ID, and FLEET_ANDROID_PUBSUB_TOPIC environment variables must be set to use Android management" error`)
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

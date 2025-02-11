@@ -26,6 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/android"
+	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -267,6 +269,58 @@ the way that the Fleet server works.
 					os.Exit(1)
 				}
 			case fleet.NoMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# ERROR:\n"+
+					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to initialize the database.\n"+
+					"################################################################################\n",
+					os.Args[0])
+				os.Exit(1)
+			}
+
+			androidDS := mysql.NewAndroidDS(ds)
+			androidMigrationStatus, err := androidDS.MigrationStatus(cmd.Context())
+			if err != nil {
+				initFatal(err, "retrieving feature migration status")
+			}
+
+			// TODO(victor): Refactor this check to be more DRY
+			switch androidMigrationStatus.StatusCode {
+			case android.AllMigrationsCompleted:
+				// OK
+			case android.UnknownMigrations:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database has unrecognized feature migrations. This could happen when\n"+
+					"#   running an older version of Fleet on a newer migrated database.\n"+
+					"#\n"+
+					"#   Unknown migrations: tables=%v.\n"+
+					"################################################################################\n",
+					androidMigrationStatus.UnknownTable)
+				if dev {
+					os.Exit(1)
+				}
+			case android.SomeMigrationsCompleted:
+				fmt.Printf("################################################################################\n"+
+					"# WARNING:\n"+
+					"#   Your Fleet database is missing required feature migrations. This is likely to cause\n"+
+					"#   errors in Fleet.\n"+
+					"#\n"+
+					"#   Missing migrations: tables=%v.\n"+
+					"#\n"+
+					"#   Run `%s prepare db` to perform migrations.\n"+
+					"#\n"+
+					"#   To run the server without performing migrations:\n"+
+					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+					"################################################################################\n",
+					androidMigrationStatus.MissingTable, os.Args[0])
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
+			case android.NoMigrationsCompleted:
 				fmt.Printf("################################################################################\n"+
 					"# ERROR:\n"+
 					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
@@ -758,6 +812,15 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			androidSvc, err := android_service.NewService(
+				ctx,
+				logger,
+				androidDS,
+				ds,
+			)
+			if err != nil {
+				initFatal(err, "initializing android service")
+			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
@@ -967,6 +1030,18 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAndroidManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					androidDS,
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, fmt.Sprintf("failed to register %s schedule", fleet.CronMDMAndroidManager))
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,
@@ -1059,7 +1134,7 @@ the way that the Fleet server works.
 				KeyPrefix: "ratelimit::",
 			}
 
-			var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+			var apiHandler, androidAPIHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
 			{
 				frontendHandler = service.PrometheusMetricsHandler(
 					"get_frontend",
@@ -1069,6 +1144,7 @@ the way that the Fleet server works.
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
+				androidAPIHandler = android_service.MakeHandler(svc, androidSvc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1228,6 +1304,7 @@ the way that the Fleet server works.
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
+			rootMux.Handle("/api/{version}/fleet/android", androidAPIHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

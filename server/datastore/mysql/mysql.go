@@ -18,6 +18,8 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	"github.com/fleetdm/fleet/v4/server/android"
+	android_mysql "github.com/fleetdm/fleet/v4/server/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -275,6 +277,11 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	go ds.writeChanLoop()
 
 	return ds, nil
+}
+
+func NewAndroidDS(ds fleet.Datastore) android.Datastore {
+	mysqlDs := ds.(*Datastore)
+	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
 }
 
 type itemToWrite struct {
