@@ -65,11 +65,11 @@ func main() {
 		platform := fleet.PlatformFromHost(record[2])
 		switch platform {
 		case "linux":
-			linuxHosts = append(linuxHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform})
+			linuxHosts = append(linuxHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform}) // nolint:gosec
 		case "darwin":
-			macOSHosts = append(macOSHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform})
+			macOSHosts = append(macOSHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform}) // nolint:gosec
 		case "windows":
-			windowsHosts = append(windowsHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform})
+			windowsHosts = append(windowsHosts, smallHost{ID: uint(hostID), Hostname: hostname, Platform: platform}) // nolint:gosec
 		}
 	}
 	printf("Got linux=%d, windows=%d, macOS=%d\n", len(linuxHosts), len(windowsHosts), len(macOSHosts))
@@ -115,7 +115,7 @@ func main() {
 	printf("Got scripts windows=%d, macOS=%d\n", len(windowsScripts), len(macOSScripts))
 
 	var queuedScripts, queuedInstalls, hostsTargeted, errors int
-	targetedHosts := append(macOSHosts, windowsHosts...)
+	targetedHosts := append(macOSHosts, windowsHosts...) // nolint:gocritic
 	rand.Shuffle(len(targetedHosts), func(i, j int) {
 		targetedHosts[i], targetedHosts[j] = targetedHosts[j], targetedHosts[i]
 	})
