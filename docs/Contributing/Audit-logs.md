@@ -1450,15 +1450,14 @@ Generated when an App Store app is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
-- "self_service": App installation was initiated by device owner.
+- "self_service":" App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
 - "status": Status of the App Store app installation.
-- "command_uuid": UUID of the MDM command used to install the app.
+- "command_uuid": UUID of the MDM command used to install the app. If the host has MDM turned off or there are no licenses available, no MDM command is sent and this is set to a random UUID. 
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-
 
 #### Example
 
