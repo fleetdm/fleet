@@ -20,7 +20,7 @@ org_settings:
       idp_name: Google Workspace
       issuer_uri: $DOGFOOD_SSO_ISSUER_URI
       metadata: |-
-        $DOGFOOD_END_USER_SSO_METADATA
+          $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
