@@ -1,4 +1,4 @@
-package mysql
+package testing_utils
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/log"
-	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ const (
 	testReplicaDatabaseSuffix = "_replica"
 )
 
-func connectMySQL(t testing.TB, testName string) *Datastore {
+func connectMySQL(t testing.TB, testName string) *mysql.Datastore {
 	cfg := config.MysqlConfig{
 		Username: testUsername,
 		Password: testPassword,
@@ -36,8 +36,8 @@ func connectMySQL(t testing.TB, testName string) *Datastore {
 
 	dbWriter, err := newDB(&cfg)
 	require.NoError(t, err)
-	ds := New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter)
-	return ds.(*Datastore)
+	ds := mysql.New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter)
+	return ds.(*mysql.Datastore)
 }
 
 func newDB(conf *config.MysqlConfig) (*sqlx.DB, error) {
@@ -112,10 +112,10 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
+func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *mysql.Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	base := path.Dir(filename)
-	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
+	schema, err := os.ReadFile(path.Join(base, "../schema.sql"))
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -192,7 +192,7 @@ type DatastoreTestOptions struct {
 	RealReplica bool
 }
 
-func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
+func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *mysql.Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
@@ -228,25 +228,21 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 		cleanName = cleanName[len(cleanName)-60:]
 	}
 	ds := initializeDatabase(t, cleanName, opts)
-	t.Cleanup(func() { ds.Close() })
+	t.Cleanup(func() { Close(ds) })
 	return ds
 }
 
-func (ds *Datastore) Close() error {
-	var err error
-	if errWriter := ds.primary.Close(); errWriter != nil {
-		err = multierror.Append(err, errWriter)
-	}
-	return err
+func Close(ds *mysql.Datastore) {
+	_ = ds.Writer(context.Background()).Close()
 }
 
-func CreateMySQLDS(t testing.TB) *Datastore {
+func CreateMySQLDS(t testing.TB) *mysql.Datastore {
 	return createMySQLDSWithOptions(t, nil)
 }
 
-func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
+func ExecAdhocSQL(tb testing.TB, ds *mysql.Datastore, fn func(q sqlx.ExtContext) error) {
 	tb.Helper()
-	err := fn(ds.primary)
+	err := fn(ds.Writer(context.Background()))
 	require.NoError(tb, err)
 }
 
@@ -254,7 +250,7 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
+func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
 	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
 	// by inspecting mysql tables.
 	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
@@ -265,16 +261,11 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":                  true,
-		"migration_status_tables":          true,
-		"osquery_options":                  true,
-		"mdm_delivery_status":              true,
-		"mdm_operation_types":              true,
-		"mdm_apple_declaration_categories": true,
+		// put tables here that should not be truncated
 	}
 	ctx := context.Background()
 
-	require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	require.NoError(t, ds.WithRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var skipSeeded bool
 
 		if len(tables) == 0 {
@@ -312,8 +303,4 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		}
 		return nil
 	}))
-}
-
-func testCtx() context.Context {
-	return context.Background()
 }

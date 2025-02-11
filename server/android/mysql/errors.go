@@ -3,8 +3,6 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type notFoundError struct {
@@ -12,8 +10,6 @@ type notFoundError struct {
 	Name         string
 	Message      string
 	ResourceType string
-
-	fleet.ErrorWithUUID
 }
 
 func notFound(kind string) *notFoundError {

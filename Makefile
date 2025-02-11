@@ -144,7 +144,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 	go run ./tools/dbutils/android ./server/android/mysql/schema.sql
 
-# TODO(victor): Add CI test for server/android/mysql/schema.sql
+# TODO(#26218): Add CI test for server/android/mysql/schema.sql
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).

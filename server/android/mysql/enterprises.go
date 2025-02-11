@@ -12,9 +12,8 @@ import (
 
 func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
 	stmt := `INSERT INTO android_enterprises (signup_name) VALUES ('')`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {
-		// Note: ctxerr is dependent on the fleet package -- the fleet package should be factored out or android should have its own version of ctxerr
 		return 0, ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}
 	id, _ := res.LastInsertId()
@@ -42,7 +41,7 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
     SET signup_name = ?,
         enterprise_id = ?
 	WHERE id = ?`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.ID)
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}

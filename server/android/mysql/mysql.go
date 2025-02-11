@@ -1,4 +1,4 @@
-// Package mysql is a MySQL implementation of the Datastore interface.
+// Package mysql is a MySQL implementation of the android.Datastore interface.
 package mysql
 
 import (
@@ -43,18 +43,18 @@ func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 	return ds.replica
 }
 
-// writer returns the DB instance to use for write statements, which is always
+// Writer returns the DB instance to use for write statements, which is always
 // the primary.
-func (ds *Datastore) writer(_ context.Context) *sqlx.DB {
+func (ds *Datastore) Writer(_ context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+func (ds *Datastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
 }
 
 func (ds *Datastore) MigrateTables(ctx context.Context) error {
-	return android_migrations.MigrationClient.Up(ds.writer(ctx).DB, "")
+	return android_migrations.MigrationClient.Up(ds.Writer(ctx).DB, "")
 }
 
 // loadMigrations manually loads the applied migrations in ascending
@@ -103,8 +103,8 @@ func compareTableMigrations(knownTable goose.Migrations, appliedTable []int64) *
 		}
 	}
 
-	missingTable, unknownTable, equalTable := compareVersions(
-		getVersionsFromMigrations(knownTable),
+	missingTable, unknownTable, equalTable := common_mysql.CompareVersions(
+		common_mysql.GetVersionsFromMigrations(knownTable),
 		appliedTable,
 		knownUnknownTableMigrations,
 	)
@@ -134,49 +134,3 @@ func compareTableMigrations(knownTable goose.Migrations, appliedTable []int64) *
 var (
 	knownUnknownTableMigrations = map[int64]struct{}{}
 )
-
-func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
-	var result []int64
-	for _, t := range in {
-		if _, ok := knownUnknowns[t]; !ok {
-			result = append(result, t)
-		}
-	}
-	return result
-}
-
-// compareVersions returns any missing or extra elements in v2 with respect to v1
-// (v1 or v2 need not be ordered).
-func compareVersions(v1, v2 []int64, knownUnknowns map[int64]struct{}) (missing []int64, unknown []int64, equal bool) {
-	v1s := make(map[int64]struct{})
-	for _, m := range v1 {
-		v1s[m] = struct{}{}
-	}
-	v2s := make(map[int64]struct{})
-	for _, m := range v2 {
-		v2s[m] = struct{}{}
-	}
-	for _, m := range v1 {
-		if _, ok := v2s[m]; !ok {
-			missing = append(missing, m)
-		}
-	}
-	for _, m := range v2 {
-		if _, ok := v1s[m]; !ok {
-			unknown = append(unknown, m)
-		}
-	}
-	unknown = unknownUnknowns(unknown, knownUnknowns)
-	if len(missing) == 0 && len(unknown) == 0 {
-		return nil, nil, true
-	}
-	return missing, unknown, false
-}
-
-func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
-	versions := make([]int64, len(migrations))
-	for i := range migrations {
-		versions[i] = migrations[i].Version
-	}
-	return versions
-}
