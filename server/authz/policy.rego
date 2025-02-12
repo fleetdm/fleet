@@ -1019,3 +1019,13 @@ allow {
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
+
+##
+# Android
+##
+# Global admins can connect enteprise.
+allow {
+  object.type == "android_enterprise"
+  subject.global_role == admin
+  action == write
+}

@@ -10,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -27,6 +29,10 @@ func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return appConfigDB(ctx, ds.reader(ctx))
+}
+
+func (ds *Datastore) CommonAppConfig(ctx context.Context) (common.AppConfig, error) {
+	return ds.AppConfig(ctx)
 }
 
 func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {
@@ -106,6 +112,16 @@ func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.Ext
 	}
 	// asset already exists and is the same, so not need to update
 	return nil
+}
+
+func (ds *Datastore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	appConfig.MDM.AndroidEnabledAndConfigured = configured
+	return ds.SaveAppConfig(ctx, appConfig)
 }
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

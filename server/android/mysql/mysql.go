@@ -24,6 +24,9 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 }
 
+// Compile-time interface check
+var _ android.Datastore = &Datastore{}
+
 // New creates a new Datastore
 func New(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Datastore {
 	return &Datastore{
