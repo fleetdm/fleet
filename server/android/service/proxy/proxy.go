@@ -11,6 +11,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
 
@@ -66,4 +67,25 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 		Url:  signupURL.Url,
 		Name: signupURL.Name,
 	}, nil
+}
+
+func (p *Proxy) EnterprisesCreate(enabledNotificationTypes []string, enterpriseToken string, signupUrlName string) (string, error) {
+	if p == nil || p.mgmt == nil {
+		return "", errors.New("android management service not initialized")
+	}
+	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
+		EnabledNotificationTypes: enabledNotificationTypes,
+		PubsubTopic:              androidPubSubTopic,
+	}).
+		ProjectId(androidProjectID).
+		EnterpriseToken(enterpriseToken).
+		SignupUrlName(signupUrlName).
+		Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		return "", fmt.Errorf("android enterprise %s was already created", signupUrlName)
+	case err != nil:
+		return "", fmt.Errorf("creating enterprise: %w", err)
+	}
+	return enterprise.Name, nil
 }

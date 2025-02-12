@@ -1224,6 +1224,8 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3027,6 +3029,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
+
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7236,4 +7241,11 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }

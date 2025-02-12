@@ -8,4 +8,5 @@ import (
 
 type FleetDatastore interface {
 	CommonAppConfig(ctx context.Context) (common.AppConfig, error)
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 }

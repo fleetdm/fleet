@@ -51,6 +51,15 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
 	return nil
 }
 
+func (ds *Datastore) DeleteTempEnterprises(ctx context.Context) error {
+	stmt := `DELETE FROM android_enterprises WHERE enterprise_id = ''`
+	_, err := ds.Writer(ctx).ExecContext(ctx, stmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting temp enterprises")
+	}
+	return nil
+}
+
 func (ds *Datastore) ListEnterprises(ctx context.Context) ([]*android.Enterprise, error) {
 	stmt := `SELECT id, signup_name, enterprise_id FROM android_enterprises`
 	var enterprises []*android.Enterprise

@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/android/interfaces"
 	"github.com/fleetdm/fleet/v4/server/android/service/proxy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet/common"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -56,7 +58,7 @@ func newErrResponse(err error) androidResponse {
 }
 
 type androidEnterpriseSignupResponse struct {
-	*android.SignupDetails
+	Url string `json:"android_enterprise_signup_url"`
 	androidResponse
 }
 
@@ -65,17 +67,21 @@ func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc and
 	if err != nil {
 		return newErrResponse(err)
 	}
-	return androidEnterpriseSignupResponse{SignupDetails: result}
+	return androidEnterpriseSignupResponse{Url: result.Url}
 }
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
-	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, common.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
 	appConfig, err := svc.fleetDS.CommonAppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if appConfig.AndroidEnabledAndConfigured() {
+		return nil, fleet.NewInvalidArgumentError("android",
+			"Android is already enabled and configured").WithStatus(http.StatusConflict)
 	}
 
 	id, err := svc.ds.CreateEnterprise(ctx)
@@ -112,13 +118,55 @@ func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interf
 }
 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
-	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, common.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	// TODO: remove me
-	level.Warn(svc.logger).Log("msg", "EnterpriseSignupCallback called", "id", id, "enterpriseToken", enterpriseToken)
-	return errors.New("not implemented")
+	appConfig, err := svc.fleetDS.CommonAppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if appConfig.AndroidEnabledAndConfigured() {
+		return fleet.NewInvalidArgumentError("android",
+			"Android is already enabled and configured").WithStatus(http.StatusConflict)
+	}
+
+	enterprise, err := svc.ds.GetEnterpriseByID(ctx, id)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewInvalidArgumentError("id",
+			fmt.Sprintf("Enterprise with ID %d not found", id)).WithStatus(http.StatusNotFound)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+
+	name, err := svc.proxy.EnterprisesCreate(
+		[]string{"ENROLLMENT", "STATUS_REPORT", "COMMAND", "USAGE_LOGS"},
+		enterpriseToken,
+		enterprise.SignupName,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating enterprise")
+	}
+
+	enterpriseID := strings.TrimPrefix(name, "enterprises/")
+	enterprise.EnterpriseID = enterpriseID
+	err = svc.ds.UpdateEnterprise(ctx, enterprise)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating enterprise")
+	}
+
+	err = svc.ds.DeleteTempEnterprises(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting temp enterprises")
+	}
+
+	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting android enabled and configured")
+	}
+
+	return nil
 }
 
 type androidEnrollmentTokenRequest struct {

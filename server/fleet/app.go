@@ -208,6 +208,8 @@ type MDM struct {
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
+	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
@@ -740,6 +742,10 @@ func (c *AppConfig) Copy() *AppConfig {
 
 func (c *AppConfig) ServerURL() string {
 	return c.ServerSettings.ServerURL
+}
+
+func (c *AppConfig) AndroidEnabledAndConfigured() bool {
+	return c.MDM.AndroidEnabledAndConfigured
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
