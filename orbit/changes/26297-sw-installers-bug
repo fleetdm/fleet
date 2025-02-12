@@ -1,0 +1,1 @@
+- Fixed a bug where fleetd could not install software from an old fleet server
