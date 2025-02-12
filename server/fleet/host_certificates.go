@@ -1,7 +1,7 @@
 package fleet
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery data
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
