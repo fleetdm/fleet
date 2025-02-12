@@ -32,6 +32,7 @@ import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
@@ -421,7 +422,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               {softwareSubNav.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
