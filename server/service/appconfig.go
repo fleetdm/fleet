@@ -187,10 +187,11 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			FleetDesktop: fleetDesktop,
 
-			WebhookSettings: appConfig.WebhookSettings,
-			Integrations:    appConfig.Integrations,
-			MDM:             appConfig.MDM,
-			Scripts:         appConfig.Scripts,
+			WebhookSettings:  appConfig.WebhookSettings,
+			Integrations:     appConfig.Integrations,
+			MDM:              appConfig.MDM,
+			Scripts:          appConfig.Scripts,
+			ChangeManagement: appConfig.ChangeManagement,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
