@@ -1,0 +1,15 @@
+.tab-text {
+  &-count {
+    margin-left: $pad-small;
+    padding: $pad-xxsmall 12px;
+    background-color: $core-vibrant-blue;
+    display: inline-block;
+    border-radius: 29px;
+    color: $core-white;
+    font-weight: $bold;
+
+    &--error {
+      background-color: $core-vibrant-red;
+    }
+  }
+}
