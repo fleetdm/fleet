@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -301,7 +303,7 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		return &labels, nil
 
 	case len(inclAny) > 0:
-		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.LabelScope = fleet.LabelScopeIncludeAny
 		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
 		for _, l := range inclAny {
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
@@ -349,6 +351,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	for _, appFleet := range appFleets {
+		slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking labels ", "labels", appFleet.ValidatedLabels.ByName, "scope", appFleet.ValidatedLabels.LabelScope)
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
 		appFleet.AppTeamID = existingApp.AppTeamID
@@ -359,9 +362,13 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 				return ctxerr.Wrap(ctx, err, "getting existing labels for vpp app")
 			}
 
+			slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking existing labels ", "labels", existingLabels.ByName, "scope", existingLabels.LabelScope)
+
 			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
 
 		}
+
+		slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: checking labels ", "labels", appFleet.ValidatedLabels.ByName, "scope", appFleet.ValidatedLabels.LabelScope, "labelsChanged", labelsChanged)
 
 		// Get the hosts that are NOT in label scope currently (before the update happens)
 		if labelsChanged {
