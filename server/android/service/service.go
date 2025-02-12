@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/android/interfaces"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -34,14 +33,14 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	mgmt, err := androidmanagement.NewService(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating android management service")
-	}
+	// mgmt, err := androidmanagement.NewService(ctx)
+	// if err != nil {
+	// 	return nil, ctxerr.Wrap(ctx, err, "creating android management service")
+	// }
 	return Service{
 		logger:  logger,
 		authz:   authorizer,
-		mgmt:    mgmt,
+		mgmt:    nil,
 		ds:      ds,
 		fleetDS: fleetDS,
 	}, nil

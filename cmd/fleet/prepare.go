@@ -53,12 +53,14 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "retrieving migration status")
 			}
 
+			mainMigrationsCompleted := false
 			switch status.StatusCode {
 			case fleet.NoMigrationsCompleted:
 				// OK
 			case fleet.AllMigrationsCompleted:
-				fmt.Println("Main migrations already completed. Nothing to do.")
+				fmt.Println("Main migrations already completed.")
 				// We will check feature migrations next.
+				mainMigrationsCompleted = true
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
 					printMissingMigrationsPrompt(status.MissingTable, status.MissingData)
@@ -81,8 +83,10 @@ To setup Fleet infrastructure, use one of the available commands.
 			case android.NoMigrationsCompleted:
 				// OK
 			case android.AllMigrationsCompleted:
-				fmt.Println("Android migrations already completed. Nothing to do.")
-				return
+				fmt.Println("Android migrations already completed.")
+				if mainMigrationsCompleted {
+					return
+				}
 			case android.SomeMigrationsCompleted:
 				if !noPrompt {
 					printMissingMigrationsPrompt(androidStatus.MissingTable, nil)
