@@ -45,7 +45,7 @@ interface ITargetChooserProps {
 
 const TargetChooser = ({ selectedTarget, onSelect }: ITargetChooserProps) => {
   return (
-    <div className={`form-field`}>
+    <div className={"form-field"}>
       <div className="form-field__label">Target</div>
       <Radio
         className={`${baseClass}__radio-input`}
