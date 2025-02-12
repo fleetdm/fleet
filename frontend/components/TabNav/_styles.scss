@@ -5,12 +5,20 @@
   z-index: 2;
 
   .react-tabs {
+    display: flex; // Prevent shifting with keyboard access
+    padding-top: 10px;
+
     &__tab-list {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: $pad-xxlarge;
       border-bottom: 1px solid $ui-fleet-black-10;
+      width: 100%;
+      height: 43px;
     }
+
     &__tab {
       padding: $pad-small 0 $pad-medium;
-      margin-right: $pad-xxlarge;
       font-size: $x-small;
       border: none;
       display: inline-flex;
@@ -27,11 +35,6 @@
         }
       }
 
-      // focus-visible only highlights when tabbing not clicking
-      &:focus-visible {
-        background-color: $ui-vibrant-blue-10;
-      }
-
       // Bolding text when the button is active causes a layout shift
       // so we add a hidden pseudo element with the same text string
       &:before {
@@ -43,6 +46,7 @@
         pointer-events: none;
         font-weight: $bold;
       }
+
       &--selected {
         font-weight: $bold;
 
@@ -57,24 +61,37 @@
         }
       }
 
+      // focus-visible only highlights when tabbing not clicking
+      &:focus-visible {
+        position: relative; // Required for pseudo-element positioning
+
+        // Note: Figma design system uses an inner div, this styling does
+        // not to allow <Tab> children to be strings
+        &::before {
+          content: ""; // Use this for both purposes
+          position: absolute;
+          padding-top: $pad-medium;
+          top: 5px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          border-radius: $border-radius;
+          border: 1px solid $ui-vibrant-blue-25;
+          box-sizing: border-box;
+          pointer-events: none;
+          font-weight: $bold; // Hidden bold text
+          visibility: visible; // Show when focused
+          white-space: nowrap;
+          height: 23px; // Adjust as needed
+        }
+      }
+
       &:hover {
         &::after {
           content: "";
           width: 100%;
           height: 0;
           border-bottom: 2px solid $core-vibrant-blue;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
-      }
-
-      &:active {
-        &::after {
-          content: "";
-          width: 100%;
-          height: 0;
-          border-bottom: 2px solid $core-vibrant-blue-down;
           position: absolute;
           bottom: 0;
           left: 0;
