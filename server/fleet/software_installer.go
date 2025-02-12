@@ -683,3 +683,28 @@ type SoftwareScopeLabel struct {
 	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
+
+// HostSoftwareInstallOptions contains options that apply to a software or VPP
+// app install request.
+type HostSoftwareInstallOptions struct {
+	SelfService        bool
+	PolicyID           *uint
+	ForSetupExperience bool
+}
+
+// IsFleetInitiated returns true if the software install is initiated by Fleet.
+// Software installs initiated via a policy are fleet-initiated (and we also
+// make sure SelfService is false, as this case is always user-initiated).
+func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
+	return !o.SelfService && o.PolicyID != nil
+}
+
+// Priority returns the upcoming activities queue priority to use for this
+// software installation. Software installed for the setup experience is
+// prioritized over other software installations.
+func (o HostSoftwareInstallOptions) Priority() int {
+	if o.ForSetupExperience {
+		return 100
+	}
+	return 0
+}

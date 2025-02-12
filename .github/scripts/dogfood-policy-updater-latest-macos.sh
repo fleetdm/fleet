@@ -70,8 +70,8 @@ if [ "$policy_version_number" != "$latest_macos_version" ]; then
     echo "$updated_response" > "$temp_file"
 
     # Configure Git
-    git config --global user.name "$DOGFOOD_GIT_USER_NAME"
-    git config --global user.email "$DOGFOOD_GIT_USER_EMAIL"
+    git config --global user.name "$DOGFOOD_AUTOMATION_USER_NAME"
+    git config --global user.email "$DOGFOOD_AUTOMATION_USER_EMAIL"
 
     # Clone the repository and create a new branch
     git clone "https://$DOGFOOD_AUTOMATION_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git" repo || {

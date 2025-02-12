@@ -171,32 +171,6 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
-func (svc *MDMAppleCommander) InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error {
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-        <key>ManagementFlags</key>
-        <integer>0</integer>
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>%s</integer>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, adamID, uuid)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
-}
-
 func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
