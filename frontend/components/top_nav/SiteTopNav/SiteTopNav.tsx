@@ -97,7 +97,7 @@ const GitOpsModeIndicator = () => {
       showArrow
       tipContent={tipContent}
       className={baseClass}
-      tipOffset={10}
+      tipOffset={2}
     >
       <Icon name="gitops-mode" />
       <div className={`${baseClass}__text`}>GitOps mode</div>

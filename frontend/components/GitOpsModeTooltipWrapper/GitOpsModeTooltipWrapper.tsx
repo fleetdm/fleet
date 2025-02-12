@@ -5,17 +5,19 @@ import TooltipWrapper, {
 import { AppContext } from "context/app";
 import React, { useContext } from "react";
 
-interface IGitOpsModeTooltip {
+interface IGitOpsModeTooltipWrapper {
   children: ITooltipWrapper["children"];
-  position: ITooltipWrapper["position"];
-  tipOffset: ITooltipWrapper["tipOffset"];
+  position?: ITooltipWrapper["position"];
+  tipOffset?: ITooltipWrapper["tipOffset"];
 }
 
-const GitOpsModeTooltip = ({
+const baseClass = "gitops-mode-tooltip-wrapper";
+
+const GitOpsModeTooltipWrapper = ({
   children,
   position,
   tipOffset,
-}: IGitOpsModeTooltip) => {
+}: IGitOpsModeTooltipWrapper) => {
   const { config } = useContext(AppContext);
   const tipContent = (
     <>
@@ -36,13 +38,16 @@ const GitOpsModeTooltip = ({
   );
   return (
     <TooltipWrapper
+      className={baseClass}
       position={position}
       tipOffset={tipOffset}
       tipContent={tipContent}
+      underline={false}
+      showArrow
     >
       {children}
     </TooltipWrapper>
   );
 };
 
-export default GitOpsModeTooltip;
+export default GitOpsModeTooltipWrapper;
