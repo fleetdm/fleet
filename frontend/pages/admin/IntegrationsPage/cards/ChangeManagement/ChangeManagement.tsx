@@ -16,6 +16,9 @@ import { useQuery } from "react-query";
 import configAPI from "services/entities/config";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
+import { AppContext } from "context/app";
 
 const baseClass = "change-management";
 
@@ -43,31 +46,46 @@ const validate = (formData: IChangeManagementFormData) => {
 };
 
 const ChangeManagement = () => {
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const {
-    data: changeManagement,
-    isLoading: isLoadingChangeManagement,
-    error: loadingChangeManagementError,
-    refetch: refetchChangeManagement,
-  } = useQuery<IConfig, Error, IChangeManagement>(
-    ["integrations"],
-    () => configAPI.loadAll(),
-    {
-      select: (data: IConfig) => {
-        return data.change_management;
-      },
-    }
-  );
-
   const [formData, setFormData] = useState<IChangeManagementFormData>({
-    gomEnabled: changeManagement?.gitops_mode_enabled ?? false,
-    repoURL: changeManagement?.repository_url ?? "",
+    // dummy 0 values, will be populated with fresh config API response
+    gomEnabled: false,
+    repoURL: "",
   });
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const {
+    isLoading: isLoadingConfig,
+    error: isLoadingConfigError,
+    refetch: refetchConfig,
+  } = useQuery<IConfig, Error, IConfig>(
+    ["integrations"],
+    () => configAPI.loadAll(),
+    {
+      onSuccess: (data) => {
+        const {
+          change_management: {
+            gitops_mode_enabled: gomEnabled,
+            repository_url: repoURL,
+          },
+        } = data;
+        setFormData({ gomEnabled, repoURL });
+        setConfig(data);
+      },
+    }
+  );
+
   const { gomEnabled, repoURL } = formData;
+
+  if (isLoadingConfig) {
+    return <Spinner />;
+  }
+  if (isLoadingConfigError) {
+    return <DataError />;
+  }
 
   const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -80,17 +98,14 @@ const ChangeManagement = () => {
     setIsUpdating(true);
     try {
       await configAPI.update({
-        integrations: {
-          change_management: {
-            gitops_mode_enabled: formData.gomEnabled,
-            repository_url: formData.repoURL,
-          },
+        change_management: {
+          gitops_mode_enabled: formData.gomEnabled,
+          repository_url: formData.repoURL,
         },
       });
       renderFlash("success", "Successfully updated settings");
       setIsUpdating(false);
-      refetchChangeManagement();
-      // TODO - set new config to context, which should control new navbar indicator
+      refetchConfig();
     } catch (e) {
       const message = getErrorReason(e);
       renderFlash("error", message || "Failed ot update settings");
