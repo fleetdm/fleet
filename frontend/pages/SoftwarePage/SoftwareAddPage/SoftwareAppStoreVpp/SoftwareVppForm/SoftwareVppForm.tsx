@@ -206,7 +206,6 @@ const SoftwareVppForm = ({
     return null;
   };
 
-  console.log("formData", formData);
   const renderContent = () => {
     if (softwareVppForEdit) {
       return (
