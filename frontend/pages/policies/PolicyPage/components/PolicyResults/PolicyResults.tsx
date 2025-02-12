@@ -16,6 +16,7 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -243,14 +244,14 @@ const PolicyResults = ({
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
-            <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
+            <Tab className={firstTabClass}>
+              <TabText>{NAV_TITLES.RESULTS}</TabText>
+            </Tab>
             <Tab disabled={!errors?.length}>
-              <span>
-                {errors?.length > 0 && (
-                  <span className="count">{errors.length}</span>
-                )}
-                {NAV_TITLES.ERRORS}
-              </span>
+              {errors?.length > 0 && (
+                <span className="count">{errors.length}</span>
+              )}
+              <TabText>{NAV_TITLES.ERRORS}</TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTable()}</TabPanel>

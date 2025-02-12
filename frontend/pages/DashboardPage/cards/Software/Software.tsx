@@ -9,6 +9,7 @@ import { ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -79,8 +80,12 @@ const Software = ({
         <TabsWrapper>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>All</Tab>
-              <Tab>Vulnerable</Tab>
+              <Tab>
+                <TabText>All</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Vulnerable</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (

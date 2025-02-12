@@ -9,6 +9,7 @@ import {
 
 import Card from "components/Card";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -73,9 +74,11 @@ const Activity = ({
           onSelect={onChangeTab}
         >
           <TabList>
-            <Tab>Past</Tab>
             <Tab>
-              Upcoming
+              <TabText>Past</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Upcoming</TabText>
               {!!upcomingCount && (
                 <span className={`${baseClass}__upcoming-count`}>
                   {upcomingCount}

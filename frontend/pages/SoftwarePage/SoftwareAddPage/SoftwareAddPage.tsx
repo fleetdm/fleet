@@ -12,6 +12,7 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
@@ -121,7 +122,7 @@ const SoftwareAddPage = ({
                 {addSoftwareSubNav.map((navItem) => {
                   return (
                     <Tab key={navItem.name} data-text={navItem.name}>
-                      {navItem.name}
+                      <TabText>{navItem.name}</TabText>
                     </Tab>
                   );
                 })}
