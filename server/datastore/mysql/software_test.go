@@ -5609,7 +5609,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	}
 
 	// Add a new label and apply it to the installer. There are no hosts with this label.
-	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name()})
+	label4, err := ds.NewLabel(ctx, &fleet.Label{Name: "label4" + t.Name(), LabelMembershipType: fleet.LabelMembershipTypeDynamic})
 	require.NoError(t, err)
 
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID3, fleet.LabelIdentsWithScope{
@@ -5629,6 +5629,11 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, scoped)
 
+	// TODO(JVE): dump labels table and check type
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		DumpTable(t, q, "labels")
+		return nil
+	})
 	// installer3 is not in scope yet, because label is "exclude any" and host doesn't have results
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
 	require.NoError(t, err)
