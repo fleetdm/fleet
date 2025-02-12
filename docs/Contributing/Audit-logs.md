@@ -894,18 +894,6 @@ Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
-## enabled_android_mdm
-
-Generated when a user turns on MDM features for all Android hosts.
-
-This activity does not contain any detail fields.
-
-## disabled_android_mdm
-
-Generated when a user turns off MDM features for all Android hosts.
-
-This activity does not contain any detail fields.
-
 ## enabled_windows_mdm_migration
 
 Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.

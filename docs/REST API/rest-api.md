@@ -2572,12 +2572,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "Fedora Linux",
       "description": "All Fedora hosts",
       "label_type": "builtin"
-    },
-    {
-      "id": 16,
-      "name": "Android",
-      "description": "All Android hosts",
-      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2608,10 +2602,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     {
       "platform": "windows",
       "hosts_count": 12044
-    },
-    {
-      "platform": "Android",
-      "hosts_count": 200
     }
   ]
 }
@@ -6330,7 +6320,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6469,30 +6458,6 @@ _Available in Fleet Premium_
   "org_name": "Acme Inc.",
   "renew_date": "2023-11-29T00:00:00Z",
   "location": "Acme Inc. Main Address"
-}
-```
-
-### Get Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-`GET /api/v1/fleet/android_enterprise`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "android_enterprise_id": "LC0445szuv"
 }
 ```
 
