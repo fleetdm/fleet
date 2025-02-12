@@ -15,12 +15,12 @@
       display: inline-block;
       vertical-align: text-bottom;
 
-      &.multiple {
+      &.about-card__multiple {
         max-width: 270px;
       }
     }
   }
-  
+
   // Adjusts for edge cases of extra long MDM server URL and used by email
   .info-flex {
     display: flex;
