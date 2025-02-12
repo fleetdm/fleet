@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { uniqueId } from "lodash";
 
 import { stringToClipboard } from "utilities/copy_text";
@@ -8,6 +8,8 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Icon from "components/Icon";
+import { AppContext } from "context/app";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "enroll-secrets";
 
@@ -27,6 +29,9 @@ const EnrollSecretRow = ({
 }: IEnrollSecretRowProps): JSX.Element | null => {
   const [showSecret, setShowSecret] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
+
+  const gomEnabled = useContext(AppContext).config?.change_management
+    .gitops_mode_enabled;
 
   const onCopySecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -92,24 +97,44 @@ const EnrollSecretRow = ({
     );
   };
 
-  const renderEditDeleteButtons = () => (
-    <div className="buttons">
-      <Button
-        onClick={onEditSecretClick}
-        className={`${baseClass}__edit-secret-icon`}
-        variant="text-icon"
-      >
-        <Icon name="pencil" />
-      </Button>
-      <Button
-        onClick={onDeleteSecretClick}
-        className={`${baseClass}__delete-secret-icon`}
-        variant="text-icon"
-      >
-        <Icon name="trash" />
-      </Button>
-    </div>
-  );
+  const renderEditDeleteButtons = () =>
+    gomEnabled ? (
+      <GitOpsModeTooltipWrapper position="top" tipOffset={8}>
+        <div className="buttons">
+          <Button
+            disabled
+            className={`${baseClass}__edit-secret-icon`}
+            variant="text-icon"
+          >
+            <Icon name="pencil" />
+          </Button>
+          <Button
+            disabled
+            className={`${baseClass}__delete-secret-icon`}
+            variant="text-icon"
+          >
+            <Icon name="trash" />
+          </Button>
+        </div>
+      </GitOpsModeTooltipWrapper>
+    ) : (
+      <div className="buttons">
+        <Button
+          onClick={onEditSecretClick}
+          className={`${baseClass}__edit-secret-icon`}
+          variant="text-icon"
+        >
+          <Icon name="pencil" />
+        </Button>
+        <Button
+          onClick={onDeleteSecretClick}
+          className={`${baseClass}__delete-secret-icon`}
+          variant="text-icon"
+        >
+          <Icon name="trash" />
+        </Button>
+      </div>
+    );
 
   return (
     <div

@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -31,6 +34,9 @@ const EnrollSecretModal = ({
   setSelectedSecret,
   globalSecrets,
 }: IEnrollSecretModal): JSX.Element => {
+  const gomEnabled = useContext(AppContext).config?.change_management
+    .gitops_mode_enabled;
+
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
@@ -81,15 +87,25 @@ const EnrollSecretModal = ({
           </>
         )}
         <div className={`${baseClass}__add-secret`}>
-          <Button
-            onClick={addNewSecretClick}
-            className={`${baseClass}__add-secret-btn`}
-            variant="text-icon"
-          >
-            <>
+          {gomEnabled ? (
+            <GitOpsModeTooltipWrapper position="right" tipOffset={8}>
+              <Button
+                disabled
+                className={`${baseClass}__add-secret-btn`}
+                variant="text-icon"
+              >
+                Add secret <Icon name="plus" />
+              </Button>
+            </GitOpsModeTooltipWrapper>
+          ) : (
+            <Button
+              onClick={addNewSecretClick}
+              className={`${baseClass}__add-secret-btn`}
+              variant="text-icon"
+            >
               Add secret <Icon name="plus" />
-            </>
-          </Button>
+            </Button>
+          )}
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onReturnToApp} variant="brand">
