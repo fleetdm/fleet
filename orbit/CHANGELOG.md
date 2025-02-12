@@ -1,6 +1,6 @@
 ## Orbit 1.39.1 (Feb 12, 2025)
 
-* Fixed a bug where fleetd could not install software from an old fleet server
+* Fixed a bug where fleetd could not install software from an old fleet server.
 
 ## Orbit 1.39.0 (Feb 07, 2025)
 
