@@ -1,4 +1,4 @@
-# Fleet 4.64.0 | TODO
+# Fleet 4.64.0 | Custom targets for software, Bash scripts, Fleetctl for Linux ARM
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/JM-0PKO6xvY" frameborder="0" allowfullscreen></iframe>
@@ -9,21 +9,23 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Highlights
 
-- TODO
-- TODO
-- TODO
+- Custom targets for software
+- Bash scripts
+- Fleetctl for Linux ARM
 
-### TODO
+### Custom targets for software
 
-TODO
+IT admins can now install App Store apps only on macOS hosts that match specific labels. This allows for more precise deployments based on department, role, or hardware type, reducing unnecessary installations and ensuring the right apps reach the right devices.
 
-### TODO
+### Bash scripts
 
-TODO
+Fleet now supports running Bash scripts (`#!/bin/bash`) on macOS and Linux. IT teams can execute scripts with ["bashisms"](https://mywiki.wooledge.org/Bashism) instead of rewriting these scripts to run in Z shell (Zsh).
 
-### TODO
+Also, IT can now edit scripts within the Fleet UI. This eliminates the need to download, modify, and re-upload scripts, making it faster to fix typos or make small adjustments on the fly.
 
-TODO
+### Fleetctl for Linux ARM
+
+Fleet users with Linux ARM workstations can now use the fleetctl command-line interface (CLI) to run scripts, queries, and more. This expands Fleet’s CLI capabilities, allowing users to manage hosts on their preferred operating system (OS). Learn more about fleetctl [here](https://fleetdm.com/guides/fleetctl).
 
 ## Changes
 
