@@ -11184,9 +11184,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
-		// Test out an iOS device
-		iOSHost, iOSMDMDevice := s.createAppleMobileHostThenEnrollMDM("ios")
-		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{iOSHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		// iOS and iPadOS
 
 		iOSApp := fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{
@@ -11201,45 +11199,86 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			LatestVersion:    "2.0.0",
 		}
 
-		addAppReq = &addAppStoreAppRequest{
-			TeamID:           &team.ID,
-			AppStoreID:       iOSApp.AdamID,
-			LabelsIncludeAny: []string{l2.Name},
-			Platform:         iOSApp.Platform,
+		iPadOSApp := fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   "2",
+					Platform: fleet.IPadOSPlatform,
+				},
+			},
+			Name:             "App 2",
+			BundleIdentifier: "b-2",
+			IconURL:          "https://example.com/images/2",
+			LatestVersion:    "2.0.0",
 		}
-		s.Do("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK)
-		titleID = getSoftwareTitleIDFromApp(&iOSApp)
-		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iOSMDMDevice.SerialNumber)
 
-		// Should fail because label is include_any and the host doesn't have it
-		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iOSHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. This host isn't a member of the labels defined for this software title.")
+		testCases := []struct {
+			desc      string
+			app       fleet.VPPApp
+			addAppReq *addAppStoreAppRequest
+		}{
+			{
+				desc: "ios device",
+				app:  iOSApp,
+				addAppReq: &addAppStoreAppRequest{
+					TeamID:           &team.ID,
+					AppStoreID:       iOSApp.AdamID,
+					LabelsIncludeAny: []string{l2.Name},
+					Platform:         iOSApp.Platform,
+				},
+			},
 
-		// Create a new label
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label3" + t.Name(), Hosts: []string{iOSMDMDevice.SerialNumber}}, http.StatusOK, &createLabelResp)
-		l3 := createLabelResp.Label
-		require.NotNil(t, l3)
+			{
+				desc: "ipados device",
+				app:  iPadOSApp,
+				addAppReq: &addAppStoreAppRequest{
+					TeamID:           &team.ID,
+					AppStoreID:       iPadOSApp.AdamID,
+					LabelsIncludeAny: []string{l2.Name},
+					Platform:         iPadOSApp.Platform,
+				},
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.desc, func(t *testing.T) {
+				mobileHost, mobileMDMDevice := s.createAppleMobileHostThenEnrollMDM(string(tc.app.Platform))
+				s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{mobileHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
-		// Should fail because label is exclude_any and the host does have it
-		updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsExcludeAny: []string{l3.Name}}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
-		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iOSHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. This host isn't a member of the labels defined for this software title.")
+				s.Do("POST", "/api/latest/fleet/software/app_store_apps", tc.addAppReq, http.StatusOK)
+				titleID = getSoftwareTitleIDFromApp(&tc.app)
+				s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mobileMDMDevice.SerialNumber)
 
-		// Should succeed because the label is include_any and the host does have it
-		updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsIncludeAny: []string{l3.Name}}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iOSHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
+				// Should fail because label is include_any and the host doesn't have it
+				res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mobileHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
+				require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. This host isn't a member of the labels defined for this software title.")
 
-		// Create a new host
-		iOSHost, iOSMDMDevice = s.createAppleMobileHostThenEnrollMDM("ios")
-		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{iOSHost.ID}, TeamID: &team.ID}, http.StatusOK)
-		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iOSMDMDevice.SerialNumber)
+				// Create a new label
+				s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label3" + t.Name(), Hosts: []string{mobileMDMDevice.SerialNumber}}, http.StatusOK, &createLabelResp)
+				l3 := createLabelResp.Label
+				require.NotNil(t, l3)
 
-		// Should succeed because the label is exclude_any and the iOS host doesn't have it
-		updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsExcludeAny: []string{l3.Name}}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iOSHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
+				// Should fail because label is exclude_any and the host does have it
+				updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsExcludeAny: []string{l3.Name}}
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
+				res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mobileHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest)
+				require.Contains(t, extractServerErrorText(res.Body), "Couldn't install. This host isn't a member of the labels defined for this software title.")
+
+				// Should succeed because the label is include_any and the host does have it
+				updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsIncludeAny: []string{l3.Name}}
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
+				s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mobileHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
+
+				// Create a new host
+				mobileHost, mobileMDMDevice = s.createAppleMobileHostThenEnrollMDM(string(tc.app.Platform))
+				s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{mobileHost.ID}, TeamID: &team.ID}, http.StatusOK)
+				s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mobileMDMDevice.SerialNumber)
+
+				// Should succeed because the label is exclude_any and the iOS host doesn't have it
+				updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, LabelsExcludeAny: []string{l3.Name}}
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
+				s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mobileHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
+			})
+		}
 	})
 
 	// Create a team
