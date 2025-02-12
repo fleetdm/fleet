@@ -1792,4 +1792,63 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
 	}
+
+	// switch label types
+	app1.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app1.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	app2.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app2.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		app1.VPPAppTeam,
+		app2.VPPAppTeam,
+	})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+
+	app1Meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+
+	app2Meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+
+	require.Len(t, app1Meta.LabelsIncludeAny, 0)
+	require.Len(t, app1Meta.LabelsExcludeAny, 2)
+	for _, l := range app1Meta.LabelsExcludeAny {
+		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+
+	require.Len(t, app2Meta.LabelsExcludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAny, 2)
+	for _, l := range app2Meta.LabelsIncludeAny {
+		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
 }
