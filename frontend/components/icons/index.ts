@@ -68,6 +68,7 @@ import Settings from "./Settings";
 import AutomaticSelfService from "./AutomaticSelfService";
 import User from "./User";
 import InfoOutline from "./InfoOutline";
+import GitOpsMode from "./GitOpsMode";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -142,6 +143,7 @@ export const ICON_MAP = {
   settings: Settings,
   "automatic-self-service": AutomaticSelfService,
   user: User,
+  "gitops-mode": GitOpsMode,
 };
 
 export type IconNames = keyof typeof ICON_MAP;
