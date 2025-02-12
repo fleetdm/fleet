@@ -1,17 +1,27 @@
 package fleet
 
 import (
+	"crypto/sha1"
+	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"time"
 )
 
-// HostCertificateDB is the database model for a host certificate.
-type HostCertificateDB struct {
-	HostID        uint `json:"-" db:"host_id"`
-	CertificateID uint `json:"-" db:"cert_id"`
+// HostCertificateRecord is the database model for a host certificate.
+type HostCertificateRecord struct {
+	ID     uint `json:"-" db:"id"`
+	HostID uint `json:"-" db:"host_id"`
 
-	// Checksum is a SHA-1 hash of the DER encoded certificate.
-	Checksum []byte `json:"-" db:"checksum"`
+	// SHA1Sum is a SHA-1 hash of the DER encoded certificate.
+	SHA1Sum []byte `json:"-" db:"sha1_sum"`
+
+	// CreatedAt is the time the certificate was recorded by Fleet (i.e. certificate initially
+	// reported to Fleet).
+	CreatedAt time.Time `json:"-" db:"created_at"`
+	// DeletedAt is the time the certificate was soft deleted by Fleet (i.e. previously reported to
+	// Fleet certificate is subsequently not reported).
+	DeletedAt *time.Time `json:"-" db:"deleted_at"`
 
 	// The following fields are extracted from the certificate.
 
@@ -32,6 +42,13 @@ type HostCertificateDB struct {
 	IssuerOrganization        string    `json:"-" db:"issuer_org"`
 	IssuerOrganizationalUnit  string    `json:"-" db:"issuer_org_unit"`
 	IssuerCommonName          string    `json:"-" db:"issuer_common_name"`
+}
+
+type HostCertificateNameDetails struct {
+	CommonName         string `json:"common_name"`
+	Country            string `json:"country"`
+	Organization       string `json:"organization"`
+	OrganizationalUnit string `json:"organizational_unit"`
 }
 
 // MDMAppleCertificateListResponse is the plist model for a certificate list response.
@@ -59,6 +76,45 @@ type MDMAppleCertificateListItem struct {
 	IsIdentity bool    `plist:"IsIdentity"`
 }
 
+func (c *MDMAppleCertificateListItem) Parse() (*HostCertificateRecord, error) {
+	hash := sha1.Sum(c.Data) // nolint:gosec
+
+	parsed, err := x509.ParseCertificate(c.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &HostCertificateRecord{
+		SHA1Sum:              hash[:],
+		NotValidBefore:       parsed.NotBefore,
+		NotValidAfter:        parsed.NotAfter,
+		CertificateAuthority: parsed.IsCA,
+		// TODO: we need to define methodology for determining common name analogous to osquery,
+		// which seems to preferentially use Subject.CommonName for this value:
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L253
+		CommonName:   parsed.Subject.CommonName,
+		KeyAlgorithm: parsed.PublicKeyAlgorithm.String(),
+		// TODO: we need to define methodology for determining key strength analogous to osquery,
+		// which describes this value as "Key size used for RSA/DSA, or curve name":
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L337
+		KeyStrength: 0,
+		// TODO: we need to define methodology for determining key usage analogous to osquery, which
+		// describes this as "Certificate key usage and extended key usage":
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L166
+		KeyUsage:                  "",
+		Serial:                    parsed.SerialNumber.String(),
+		SigningAlgorithm:          parsed.SignatureAlgorithm.String(),
+		SubjectCommonName:         parsed.Subject.CommonName,
+		SubjectCountry:            parsed.Subject.Country[0],            // TODO: confirm methodology
+		SubjectOrganization:       parsed.Subject.Organization[0],       // TODO: confirm methodology
+		SubjectOrganizationalUnit: parsed.Subject.OrganizationalUnit[0], // TODO: confirm methodology
+		IssuerCommonName:          parsed.Issuer.CommonName,
+		IssuerCountry:             parsed.Issuer.Country[0],            // TODO: confirm methodology
+		IssuerOrganization:        parsed.Issuer.Organization[0],       // TODO: confirm methodology
+		IssuerOrganizationalUnit:  parsed.Issuer.OrganizationalUnit[0], // TODO: confirm methodology
+	}, nil
+}
+
 // MdmAppleErrorChainItem is the plist model for an error chain item.
 // https://developer.apple.com/documentation/devicemanagement/certificatelistresponse/errorchainitem
 type MDMAppleErrorChainItem struct {
@@ -74,4 +130,16 @@ type b64Data []byte
 // String returns the base64-encoded string form of b
 func (b b64Data) String() string {
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+// ExtractDetailsFromOsqueryDistinguishedName parses a distinguished name and returns the country,
+// organization, and organizational unit. It assumes provided string follows the formatting used by
+// osquery `certificates` table[1], which appears to follow the style used by openSSL for `-subj`
+// values). Key-value pairs are assumed to be separated by forward slashes, for example:
+// "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM".
+//
+// See https://osquery.io/schema/5.15.0/#certificates
+func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
+	// TODO
+	return nil, errors.New("not implemented")
 }
