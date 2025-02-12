@@ -5,16 +5,13 @@
   z-index: 2;
 
   .react-tabs {
-    display: flex; // Prevent shifting with keyboard access
-    padding-top: 10px;
-
     &__tab-list {
       display: inline-flex;
       align-items: flex-start;
       gap: $pad-xxlarge;
       border-bottom: 1px solid $ui-fleet-black-10;
       width: 100%;
-      height: 43px;
+      height: 44px;
     }
 
     &__tab {
@@ -24,7 +21,7 @@
       display: inline-flex;
       flex-direction: column;
       align-items: center;
-      line-height: 19px; // Fix shifty bold text
+      line-height: 16px; // Fix shifty bold text
 
       &:focus {
         box-shadow: none;
@@ -88,15 +85,6 @@
       }
       &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
         bottom: -2px;
-      }
-      .count {
-        margin-right: $pad-small;
-        padding: $pad-xxsmall 12px;
-        background-color: $core-vibrant-red;
-        display: inline-block;
-        border-radius: 29px;
-        color: $core-white;
-        font-weight: $bold;
       }
     }
     &__tab-panel {
