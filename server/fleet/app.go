@@ -213,6 +213,11 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+type ChangeManagement struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
+}
+
 func (c *AppConfig) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
@@ -552,6 +557,8 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
+	ChangeManagement ChangeManagement `json:"change_management"`
+
 	// Scripts is a slice of script file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
@@ -600,6 +607,7 @@ func (c *AppConfig) Copy() *AppConfig {
 		return nil
 	}
 
+	// AppConfig fields with `json:"omitempty"` struct tag won't be automatically copied during this assignment, so set them explicitly
 	clone := *c
 
 	// OrgInfo: nothing needs cloning
@@ -724,6 +732,8 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
+
+	// ChangeManagement: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
