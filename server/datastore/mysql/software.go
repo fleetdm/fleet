@@ -2593,8 +2593,8 @@ last_vpp_install AS (
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels,
 							SUM(CASE 
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_type = 1 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_type = 0 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 							ELSE 0 END) as count_host_updated_after_labels
 						FROM
 							vpp_app_team_labels vatl
@@ -2779,8 +2779,8 @@ last_vpp_install AS (
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels,
 							SUM(CASE 
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_type = 1 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_type = 0 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 							ELSE 0 END) as count_host_updated_after_labels
 						FROM
 							vpp_app_team_labels vatl
