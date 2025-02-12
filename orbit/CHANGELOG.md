@@ -1,3 +1,5 @@
+## Orbit 1.39.1 (Feb 12, 2025)
+
 ## Orbit 1.39.0 (Feb 07, 2025)
 
 * Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.
