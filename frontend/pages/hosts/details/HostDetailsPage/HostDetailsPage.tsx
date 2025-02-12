@@ -125,6 +125,7 @@ interface IHostDetailsSubNavItem {
   name: string | JSX.Element;
   title: string;
   pathname: string;
+  count?: number;
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
@@ -753,16 +754,10 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
-      name: (
-        <>
-          {failingPoliciesCount > 0 && (
-            <span className="count">{failingPoliciesCount}</span>
-          )}
-          Policies
-        </>
-      ),
+      name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+      count: failingPoliciesCount,
     },
   ];
 
@@ -853,7 +848,9 @@ const HostDetailsPage = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.title}>
-                    <TabText>{navItem.name}</TabText>
+                    <TabText count={navItem.count || 5000} isErrorCount>
+                      {navItem.name}
+                    </TabText>
                   </Tab>
                 );
               })}

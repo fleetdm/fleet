@@ -412,10 +412,9 @@ const DeviceUserPage = ({
                   )}
                   {isPremiumTier && (
                     <Tab>
-                      {failingPoliciesCount > 0 && (
-                        <span className="count">{failingPoliciesCount}</span>
-                      )}
-                      <TabText>Policies</TabText>
+                      <TabText count={failingPoliciesCount} isErrorCount>
+                        Policies
+                      </TabText>
                     </Tab>
                   )}
                 </TabList>

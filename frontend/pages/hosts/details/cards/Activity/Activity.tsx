@@ -78,12 +78,7 @@ const Activity = ({
               <TabText>Past</TabText>
             </Tab>
             <Tab>
-              <TabText>Upcoming</TabText>
-              {!!upcomingCount && (
-                <span className={`${baseClass}__upcoming-count`}>
-                  {upcomingCount}
-                </span>
-              )}
+              <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel>

@@ -289,10 +289,9 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              {errors?.length > 0 && (
-                <span className="count">{errors.length.toLocaleString()}</span>
-              )}
-              <TabText> {NAV_TITLES.ERRORS}</TabText>
+              <TabText count={errors.length} isErrorCount>
+                {NAV_TITLES.ERRORS}
+              </TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
