@@ -1,12 +1,16 @@
 .tab-text {
-  &-count {
-    margin-left: $pad-small;
+  display: flex;
+  flex-direction: row;
+  gap: $pad-small;
+
+  &__count {
     padding: $pad-xxsmall 12px;
     background-color: $core-vibrant-blue;
     display: inline-block;
     border-radius: 29px;
     color: $core-white;
     font-weight: $bold;
+    margin: -$pad-small 0; // Align vertically with text without increasing height of TabText component
 
     &--error {
       background-color: $core-vibrant-red;
