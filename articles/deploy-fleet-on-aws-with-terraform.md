@@ -23,7 +23,7 @@ Remote state can be simple (local state) or complicated (S3, state locking, etc.
 
 ### Modules
 
-[Fleet terraform](https://github.com/fleetdm/fleet/tree/main/terraform) is made up of multiple modules. These modules can be used independently, or as group to stand up an opinionated set of infrastructure that we have found success with.
+[Fleet terraform](https://github.com/fleetdm/fleet-terraform) is made up of multiple modules. These modules can be used independently, or as group to stand up an opinionated set of infrastructure that we have found success with.
 
 Each module defines the required resource and consumes the next nested module. The root module creates the VPC and then pulls in the `byo-vpc` module configuring it as necessary. The `byo-vpc` module creates the database and cache instances that get passed into the `byo-db` module. And finally the `byo-db` module creates the ECS cluster and load balancer to be consumed by the `byo-ecs` module.
 
@@ -45,7 +45,7 @@ terraform {
 }
 
 module "fleet" {
-  source = "github.com/fleetdm/fleet//terraform?ref=main"
+  source = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
 }
 ```
 This configuration utilizes all the modules Fleet defines with the default configurations. In essence this would provision:
@@ -56,7 +56,7 @@ This configuration utilizes all the modules Fleet defines with the default confi
 ##### Bring your own VPC
 ```hcl
 module "fleet_vpcless" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=main"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.12.1"
 
   alb_config = {
     subnets         = ["public-subnet-789"]
@@ -76,7 +76,7 @@ This configuration allows you to bring your own VPC, public & private subnets, a
 ##### Bring only Fleet
 ```hcl
 module "fleet_ecs" {
-  source      = "github.com/fleetdm/fleet//terraform/byo-vpc/byo-db/byo-ecs?ref=main"
+  source      = "github.com/fleetdm/fleet-terraform//byo-vpc/byo-db/byo-ecs?ref=tf-mod-byo-ecs-v1.8.1"
   ecs_cluster = "my_ecs_cluster"
   vpc_id      = "vpc123"
   fleet_config = {
@@ -105,7 +105,7 @@ This configuration assumes you have brought all the required dependencies of Fle
 
 
 ## Infrastructure
-https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws
+https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module
 
 ![Architecture Diagram](https://fleetdm.com/images/docs/fleet-aws-reference-arch-diagram-925x886@2x.png)
 
@@ -148,7 +148,7 @@ terraform {
 }
 
 module "fleet" {
-  source = "github.com/fleetdm/fleet//terraform?ref=main"
+  source = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
 
   fleet_config = {
     image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
@@ -191,7 +191,7 @@ resource "aws_route53_record" "main" {
 Now we can edit the module declaration:
 ```hcl
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=main"
+  source          = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {
@@ -203,7 +203,7 @@ module "fleet" {
 We're also going to pull in the auto-migration addon that will ensure Fleet migrations run:
 ```hcl
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=main"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.fleet.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -224,7 +224,7 @@ terraform {
 }
 
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=main"
+  source          = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
   certificate_arn = module.acm.acm_certificate_arn
 
   fleet_config = {
@@ -233,7 +233,7 @@ module "fleet" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=main"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.fleet.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -296,7 +296,7 @@ Let’s say we own `queryops.com` and have an ACM certificate issued to it. We w
 To modify Fleet, you can override any of the exposed keys in `fleet_config`. Here is an example:
 ```hcl
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=main"
+  source          = "github.com/fleetdm/fleet-terraform/?ref=tf-mod-root-v1.11.1"
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {

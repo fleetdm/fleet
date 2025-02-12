@@ -197,6 +197,12 @@ Using the migration scripts located in fleet/test/upgrade/
   
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
 2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
+</td><td>pass/fail</td>
+<tr><td>Load Tests</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
+  
+1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
+2. After all expected changes have been merged to the RC branch, set up a load test environment and allow it at least 24hrs of run time.
+3. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the load test run. 
 </td><td>pass/fail</td></tr> 
 </table>
 
@@ -230,14 +236,13 @@ List versions changes for any component updates below:
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-<tr><td>`fleetd` tests</td>
+<tr><td>`fleetd` local testing</td>
 <td>
-1. Create binaries for Mac, Windows, and Ubuntu running against the `edge` channels and install (--orbit-channel edge, --desktop-channel edge).<br>
-2. Work with engineer leading the release to push changes to the `edge` channel.
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
 </td>
 <td>
-1. Confirm the hosts running on the edge channel receive the update and are working correctly.<br>
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
+1. Confirm the hosts install with the updated version and are working correctly.<br>
+2. Confirm any new features and/or bug fixes associated with this release are working as intended.<br>
 </td>
 <td>pass/fail</td></tr>
 <td>`fleetd` auto-update tests</td>
@@ -253,6 +258,16 @@ List versions changes for any component updates below:
 4. Confirms agents running on `stable` receive the new update.
 </td>
 <td>pass/fail</td></tr>
+<td>`fleetd` tests</td>
+<td>
+1. Set up a host in your instance to receive updates from the `edge` channels.<br>
+2. Work with engineer leading the release to push changes to the `edge` channel.<br>
+</td>
+<td>
+1. Confirm the hosts running on the edge channel receive the update and are working correctly.<br>
+2. Confirm any new features and/or bug fixes associated with this release are working as intended.
+</td>
+<td>pass/fail</td></tr></tr>
 </table>
 
   

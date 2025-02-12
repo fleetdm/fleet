@@ -127,7 +127,7 @@ The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#te
 Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
 
 When you reach out to a prospect or customer, make sure you're the right person:
-- **🐋 "Sales-ready" prospect**: The rep (AE) reaches out.
+- **🐋 "Sales-ready" prospect**: The rep (AE) determines the best way to contact the prospective customer, which is often the Solutions Consultant reaching help.
 - **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
 - **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
@@ -1045,9 +1045,9 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
-If you are in need of additional equipment for any reason, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
-- **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+- **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
 - **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
