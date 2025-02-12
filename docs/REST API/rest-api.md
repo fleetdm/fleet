@@ -9563,6 +9563,7 @@ Returns information about the specified Fleet-maintained app.
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
     "platform": "darwin",
+    "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
   }
