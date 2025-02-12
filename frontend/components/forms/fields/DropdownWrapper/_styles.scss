@@ -20,4 +20,12 @@
       height: 40px;
     }
   }
+
+  &--disabled {
+  .react-select__placeholder {
+      &--disabled {
+        color: red
+      }
+    }
+  }  
 }
