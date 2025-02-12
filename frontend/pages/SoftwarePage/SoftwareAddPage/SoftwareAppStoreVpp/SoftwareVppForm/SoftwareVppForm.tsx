@@ -8,6 +8,7 @@ import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
@@ -192,8 +193,20 @@ const SoftwareVppForm = ({
   const isSubmitDisabled = !formValidation.isValid;
 
   const renderSelfServiceContent = (platform: string) => {
-    if (platform !== "ios" && platform !== "ipados") {
-      return (
+    const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
+    const isAutomaticInstallDisabled =
+      platform === "ios" || platform === "ipados";
+
+    return (
+      <div className={"form-field"}>
+        <div className="form-field__label">Options</div>
+        {isSelfServiceDisabled && (
+          <p>
+            Currently, self-service and automatic installation are not available
+            for iOS and iPadOS. Manually install on the Host details page for
+            each host.
+          </p>
+        )}
         <Checkbox
           value={formData.selfService}
           onChange={(newVal: boolean) =>
@@ -206,12 +219,26 @@ const SoftwareVppForm = ({
               <b>Self-service</b>.
             </>
           }
+          disabled={isSelfServiceDisabled}
         >
           Self-service
         </Checkbox>
-      );
-    }
-    return null;
+        <Checkbox
+          value={formData.selfService} // TODO: change
+          onChange={
+            (newVal: boolean) =>
+              setFormData({ ...formData, selfService: newVal }) // TODO: change
+          }
+          className={`${baseClass}__automatic-install-checkbox`}
+          tooltipContent={
+            <>Automatically install only on hosts missing this software.</>
+          }
+          disabled={isAutomaticInstallDisabled}
+        >
+          Automatic install
+        </Checkbox>
+      </div>
+    );
   };
 
   const renderContent = () => {
@@ -223,21 +250,26 @@ const SoftwareVppForm = ({
             fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
             canEdit={false}
           />
-          <TargetLabelSelector
-            selectedTargetType={formData.targetType}
-            selectedCustomTarget={formData.customTarget}
-            selectedLabels={formData.labelTargets}
-            customTargetOptions={CUSTOM_TARGET_OPTIONS}
-            className={`${baseClass}__target`}
-            onSelectTargetType={onSelectTargetType}
-            onSelectCustomTarget={onSelectCustomTargetOption}
-            onSelectLabel={onSelectLabel}
-            labels={labels || []}
-            dropdownHelpText={
-              generateHelpText("manual", formData.customTarget) // maps to manual install help text
-            }
-          />
-          {renderSelfServiceContent(softwareVppForEdit.platform)}
+          <div className={`${baseClass}__form-frame`}>
+            <Card>
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTargetOption}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  generateHelpText("manual", formData.customTarget) // maps to manual install help text
+                }
+              />
+            </Card>
+            {/* TODO: Make into reusable component */}
+            {renderSelfServiceContent(softwareVppForEdit.platform)}
+          </div>
         </div>
       );
     }
@@ -255,26 +287,32 @@ const SoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-          <TargetLabelSelector
-            selectedTargetType={formData.targetType}
-            selectedCustomTarget={formData.customTarget}
-            selectedLabels={formData.labelTargets}
-            customTargetOptions={CUSTOM_TARGET_OPTIONS}
-            className={`${baseClass}__target`}
-            onSelectTargetType={onSelectTargetType}
-            onSelectCustomTarget={onSelectCustomTargetOption}
-            onSelectLabel={onSelectLabel}
-            labels={labels || []}
-            dropdownHelpText={
-              generateHelpText("manual", formData.customTarget) // maps to manual install help text
-            }
-          />
-          {renderSelfServiceContent(
-            ("selectedApp" in formData &&
-              formData.selectedApp &&
-              formData.selectedApp.platform) ||
-              ""
-          )}
+          <div className={`${baseClass}__form-frame`}>
+            <Card paddingSize="medium" borderRadiusSize="medium">
+              {renderSelfServiceContent(
+                ("selectedApp" in formData &&
+                  formData.selectedApp &&
+                  formData.selectedApp.platform) ||
+                  ""
+              )}
+            </Card>
+            <Card paddingSize="medium" borderRadiusSize="medium">
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTargetOption}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  generateHelpText("manual", formData.customTarget) // maps to manual install help text
+                }
+              />
+            </Card>
+          </div>
         </div>
       );
     }

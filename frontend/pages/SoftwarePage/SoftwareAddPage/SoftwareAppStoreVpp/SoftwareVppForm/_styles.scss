@@ -34,6 +34,29 @@
     gap: $pad-medium;
   }
 
+  &__form-frame {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+    align-self: stretch;
+
+    .card {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 12px;
+      flex: 1 0 0;
+      align-self: stretch;
+    }
+  }
+
+  @media (min-width: $break-md) {
+    &__form-frame {
+      flex-direction: row;
+    }
+  }
+
   // list styles
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
