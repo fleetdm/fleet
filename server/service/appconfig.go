@@ -623,6 +623,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
+	gmo, rurl := newAppConfig.ChangeManagement.GitopsModeEnabled, newAppConfig.ChangeManagement.RepositoryURL
+	if gmo {
+		if rurl == "" {
+			return nil, fleet.NewInvalidArgumentError("Change management: ", "Repository URL is required when GitOps mode is enabled")
+		}
+		if err := validateServerURL(rurl); err != nil {
+			return nil, fleet.NewInvalidArgumentError("Change management: ", err.Error())
+		}
+	}
+	appConfig.ChangeManagement = newAppConfig.ChangeManagement
+
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
