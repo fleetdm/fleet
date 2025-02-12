@@ -2,15 +2,20 @@
   display: flex;
   flex-direction: row;
   gap: $pad-small;
+  align-items: center;
 
   &__count {
-    padding: $pad-xxsmall 12px;
+    display: flex;
+    height: 23px;
+    padding: 0 12px;
+    justify-content: center;
+    align-items: center;
     background-color: $core-vibrant-blue;
-    display: inline-block;
     border-radius: 29px;
     color: $core-white;
     font-weight: $bold;
-    margin: -$pad-small 0; // Align vertically with text without increasing height of TabText component
+    margin-top: -$pad-small;
+    margin-bottom: -$pad-small; // Taller count doesn't push text further from bottom line
 
     &--error {
       background-color: $core-vibrant-red;

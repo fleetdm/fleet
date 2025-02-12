@@ -13,6 +13,22 @@
       width: 100%;
       height: 40px;
     }
+    .tab-text {
+      display: flex; /* Ensure text and count are aligned horizontally */
+      align-items: center; /* Vertically align items */
+
+      .tab-text__text {
+        display: relative;
+
+        // Reserve space for bold text using a hidden pseudo-element
+        &::before {
+          content: attr(data-text); /* Same text as the visible one */
+          font-weight: bold; /* Mimic bold styling */
+          visibility: hidden; /* Keep it invisible */
+          position: absolute; /* Prevent it from affecting layout */
+        }
+      }
+    }
 
     &__tab {
       padding: $pad-small 0 $pad-medium;
@@ -32,17 +48,27 @@
         }
       }
 
-      // Bolding text when the button is active causes a layout shift
-      // so we add a hidden pseudo element with the same text string
-      &:before {
-        content: attr(data-text);
-        height: 0;
-        visibility: hidden;
-        overflow: hidden;
-        user-select: none;
-        pointer-events: none;
-        font-weight: $bold;
+      // focus-visible only highlights when tabbing not clicking
+      &:focus-visible {
+        .tab-text {
+          border-radius: $border-radius;
+          // Outline used instead of border not to shift component
+          outline: 1px solid $ui-vibrant-blue-25;
+          outline-offset: -1px;
+        }
       }
+
+      // // Bolding text when the button is active causes a layout shift
+      // // so we add a hidden pseudo element with the same text string
+      // &:before {
+      //   content: attr(data-text);
+      //   height: 0;
+      //   visibility: hidden;
+      //   overflow: hidden;
+      //   user-select: none;
+      //   pointer-events: none;
+      //   font-weight: $bold;
+      // }
 
       &--selected {
         font-weight: $bold;
@@ -55,16 +81,6 @@
           position: absolute;
           bottom: 0;
           left: 0;
-        }
-      }
-
-      // focus-visible only highlights when tabbing not clicking
-      &:focus-visible {
-        .tab-text__text {
-          border-radius: $border-radius;
-          // Outline used instead of border not to shift component
-          outline: 1px solid $ui-vibrant-blue-25;
-          outline-offset: -1px;
         }
       }
 
