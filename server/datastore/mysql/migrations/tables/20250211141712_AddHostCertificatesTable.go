@@ -15,7 +15,7 @@ CREATE TABLE host_certificates (
 	host_id                     INT UNSIGNED NOT NULL,
 	not_valid_after             DATETIME(6) NOT NULL,
 	not_valid_before            DATETIME(6) NOT NULL,
-	certificate_authority 		TINYINT(1) NOT NULL,
+	certificate_authority       TINYINT(1) NOT NULL,
 	common_name                 VARCHAR(255) NOT NULL,
 	key_algorithm               VARCHAR(255) NOT NULL,
 	key_strength                INT NOT NULL,
