@@ -1,4 +1,4 @@
-# Fleet 4.64.0 | Custom targets for software, Bash scripts, Fleetctl for Linux ARM
+# Fleet 4.64.0 | Custom targets for software, Bash scripts, fleetctl for Linux ARM
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/JM-0PKO6xvY" frameborder="0" allowfullscreen></iframe>
@@ -38,6 +38,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-02-04">
-<meta name="articleTitle" value="Fleet 4.64.0 | TODO">
+<meta name="publishedOn" value="2025-02-13">
+<meta name="articleTitle" value="Fleet 4.64.0 | Custom targets for software, Bash scripts, fleetctl for Linux ARM">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.64.0-1600x900@2x.png">
