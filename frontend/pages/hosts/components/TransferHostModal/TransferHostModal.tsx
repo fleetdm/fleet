@@ -65,13 +65,19 @@ const TransferHostModal = ({
     return [NO_TEAM_OPTION, ...teamOptions];
   };
 
+  const diskEncryptionMsg = (
+    <>
+      The {multipleHosts ? "hosts'" : "host's"} disk encryption{" "}
+      {multipleHosts ? "keys are" : "key is"} deleted if{" "}
+      {multipleHosts ? "they're" : "it's"} transferred to a team with disk
+      encryption turned off.
+    </>
+  );
+
   return (
     <Modal onExit={onCancel} title="Transfer hosts" className={baseClass}>
       <>
-        <p>
-          The hosts&apos; disk encryption keys are deleted if they&apos;re
-          transferred to a team with disk encryption turned off.
-        </p>
+        <p>{diskEncryptionMsg}</p>
         <form className={`${baseClass}__form`}>
           <Dropdown
             wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
