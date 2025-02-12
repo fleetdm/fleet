@@ -126,11 +126,13 @@ net user <account> <new-password>
 
 2. When prompted to unlock the disk, enter the disk encryption key. 
 
-3. Next, reset the local password (passphrase) by opening Terminal and running the following command:
+3. Next, delete the local password (passphrase) by opening Terminal and running the following command:
 
 ```
-TODO
+passwd -d
 ```
+
+4. Now you can login to the workstation.
 
 #### 
 
