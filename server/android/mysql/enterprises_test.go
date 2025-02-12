@@ -65,6 +65,11 @@ func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)
 
+	result, err = ds.GetEnterprise(testCtx())
+	require.NoError(t, err)
+	assert.Equal(t, enterprise.ID, result.ID)
+	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
+
 	enterprises, err := ds.ListEnterprises(testCtx())
 	require.NoError(t, err)
 	assert.Len(t, enterprises, 1)
@@ -72,11 +77,12 @@ func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {
-	enterprise := createEnterprise(t, ds)
-
-	err := ds.DeleteTempEnterprises(testCtx())
+	err := ds.DeleteEnterprises(testCtx())
+	require.NoError(t, err)
+	err = ds.DeleteOtherEnterprises(testCtx(), 9999)
 	require.NoError(t, err)
 
+	enterprise := createEnterprise(t, ds)
 	result, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)
@@ -94,12 +100,17 @@ func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {
 	err = ds.UpdateEnterprise(testCtx(), tempEnterprise)
 	require.NoError(t, err)
 
-	err = ds.DeleteTempEnterprises(testCtx())
+	err = ds.DeleteOtherEnterprises(testCtx(), enterprise.ID)
 	require.NoError(t, err)
 	result, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)
 	_, err = ds.GetEnterpriseByID(testCtx(), tempEnterprise.ID)
+	assert.True(t, fleet.IsNotFound(err))
+
+	err = ds.DeleteEnterprises(testCtx())
+	require.NoError(t, err)
+	_, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))
 
 }

@@ -20,7 +20,7 @@ func Up_20250101000000(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create android_enterprise table: %w", err)
 	}
 
-	logger.Info.Println("Done with initial migration.")
+	logger.Info.Println("Done with initial Android migration.")
 	return nil
 }
 

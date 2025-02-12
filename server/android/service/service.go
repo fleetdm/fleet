@@ -89,7 +89,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
 
-	callbackURL := fmt.Sprintf("%svc/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerURL(), id)
+	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerURL(), id)
 	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
@@ -156,7 +156,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	err = svc.ds.DeleteTempEnterprises(ctx)
+	err = svc.ds.DeleteOtherEnterprises(ctx, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting temp enterprises")
 	}
@@ -164,6 +164,33 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting android enabled and configured")
+	}
+
+	return nil
+}
+
+func androidDeleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) errorer {
+	err := svc.DeleteEnterprise(ctx)
+	return androidResponse{Err: err}
+}
+
+func (svc *Service) DeleteEnterprise(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Get enterprise
+
+	// Tell google to delete enterprise
+
+	err := svc.ds.DeleteEnterprises(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting enterprises")
+	}
+
+	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, false)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
 
 	return nil
