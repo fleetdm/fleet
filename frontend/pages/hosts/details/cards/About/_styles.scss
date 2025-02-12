@@ -1,4 +1,26 @@
 .about-card {
+
+  &__device-mapping {
+    &__source {
+      color: $ui-fleet-black-75;
+    }
+
+    &__more {
+      color: $ui-fleet-black-50;
+    }
+
+    &__primary-user {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: text-bottom;
+
+      &.multiple {
+        max-width: 270px;
+      }
+    }
+  }
+  
   // Adjusts for edge cases of extra long MDM server URL and used by email
   .info-flex {
     display: flex;
@@ -16,25 +38,7 @@
     .component__tooltip-wrapper__element {
       max-width: 350px;
     }
-    
-    .device-mapping {
-      &__source {
-        color: $ui-fleet-black-75;
-      }
-      &__more {
-        color: $ui-fleet-black-50;
-      }
-      &__primary-user {
-        text-overflow: ellipsis;
-        overflow: hidden;
-        display: inline-block;
-        vertical-align: text-bottom;
-        &.multiple {
-          max-width: 270px;
-        }
-      }
-    }
-
+  
     @media (min-width: $break-md) {
       max-height: 250px;
 
