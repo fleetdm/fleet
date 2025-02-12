@@ -1,6 +1,6 @@
 # Fleet software attestation
 
-As of version 4.63.0 Fleet added [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the `fleet` and `fleetctl` server software, the fleetd (Orbit, osquery, and Fleet Desktop) agent for hosts.
+As of version 4.63.0 Fleet added [SLSA attestations](https://slsa.dev/) to our released binaries and container images.  This includes the Fleet server, [fleetctl](https://fleetdm.com/docs/get-started/anatomy#fleetctl) command-line tool (CLI), and Fleet's agent (specifically the [Orbit](https://fleetdm.com/docs/get-started/anatomy#fleetd) component).
 
 ## What is software attestation?
 
@@ -10,23 +10,25 @@ A software attestation is a cryptographically-signed statement provided by a sof
 
 Any Fleet release can be _verified_ to prove that it was indeed created by Fleet, using the `gh` command line tool from Github.  See the [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify) docs for more info.
 
-After downloading the [Fleet server binary](https://github.com/fleetdm/fleet/releases), here's how to verify:
+After downloading the [Fleet binary](https://github.com/fleetdm/fleet/releases), here's how to verify:
 
 ```
 gh attestation verify --owner fleetdm /path/to/fleet
 ```
 
-Download the [Fleet's agent (fleetd) source code](https://github.com/fleetdm/fleet/tags) and verify:
-
-```
-gh attestation verify --owner fleetdm /path/to/fleetd
-```
-
-Verify the [fleetctl command-line tool binary](https://github.com/fleetdm/fleet/releases) (CLI):
+Verify the [fleetctl binary](https://github.com/fleetdm/fleet/releases) (CLI):
 
 ```
 gh attestation verify --owner fleetdm fleetdm /path/to/fleetctl
 ```
+
+After, installing Fleet's agent (fleetd) on a macOS host, run this command on the host to verify:
+
+```
+gh attestation verify --owner fleetdm /usr/local/bin/orbit
+```
+
+TODO: Filepath for Windows and Linux
 
 <meta name="authorGitHubUsername" value="sgress454">
 <meta name="authorFullName" value="Scott Gress">
