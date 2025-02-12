@@ -15,13 +15,13 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Custom targets for software
 
-IT admins can now install App Store apps only on macOS hosts that match specific labels. This allows for more precise deployments based on department, role, or hardware type, reducing unnecessary installations and ensuring the right apps reach the right devices.
+IT admins can now install App Store apps only on macOS hosts that match specific labels. This allows for precise app deployment based host attributes like operating system (OS) version, hardware type, and more, ensuring the right apps reach the right devices.
 
 ### Bash scripts
 
 Fleet now supports running Bash scripts (`#!/bin/bash`) on macOS and Linux. IT teams can execute scripts with ["bashisms"](https://mywiki.wooledge.org/Bashism) instead of rewriting these scripts to run in Z shell (Zsh).
 
-Also, IT can now edit scripts within the Fleet UI. This eliminates the need to download, modify, and re-upload scripts, making it faster to fix typos or make small adjustments on the fly.
+Also, IT admins can now edit scripts within the Fleet UI. This eliminates the need to download, modify, and re-upload scripts, making it faster to fix typos or make small adjustments on the fly.
 
 ### Fleetctl for Linux ARM
 
