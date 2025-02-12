@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -27,6 +28,10 @@ func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return appConfigDB(ctx, ds.reader(ctx))
+}
+
+func (ds *Datastore) CommonAppConfig(ctx context.Context) (common.AppConfig, error) {
+	return ds.AppConfig(ctx)
 }
 
 func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {

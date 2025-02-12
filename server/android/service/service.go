@@ -7,42 +7,41 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/android/interfaces"
+	"github.com/fleetdm/fleet/v4/server/android/service/proxy"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service struct {
 	logger  kitlog.Logger
 	authz   *authz.Authorizer
-	mgmt    *androidmanagement.Service
 	ds      android.Datastore
 	fleetDS interfaces.FleetDatastore
+	proxy   *proxy.Proxy
 }
 
 func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds android.Datastore,
-	fleetDS fleet.Datastore,
+	fleetDS interfaces.FleetDatastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	// mgmt, err := androidmanagement.NewService(ctx)
-	// if err != nil {
-	// 	return nil, ctxerr.Wrap(ctx, err, "creating android management service")
-	// }
-	return Service{
+	prx := proxy.NewProxy(ctx, logger)
+
+	return &Service{
 		logger:  logger,
 		authz:   authorizer,
-		mgmt:    nil,
 		ds:      ds,
 		fleetDS: fleetDS,
+		proxy:   prx,
 	}, nil
 }
 
@@ -52,6 +51,10 @@ type androidResponse struct {
 
 func (r androidResponse) Error() error { return r.Err }
 
+func newErrResponse(err error) androidResponse {
+	return androidResponse{Err: err}
+}
+
 type androidEnterpriseSignupResponse struct {
 	*android.SignupDetails
 	androidResponse
@@ -60,18 +63,41 @@ type androidEnterpriseSignupResponse struct {
 func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) errorer {
 	result, err := svc.EnterpriseSignup(ctx)
 	if err != nil {
-		return androidResponse{Err: err}
+		return newErrResponse(err)
 	}
 	return androidEnterpriseSignupResponse{SignupDetails: result}
 }
 
-func (s Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
-	s.authz.SkipAuthorization(ctx)
+func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, common.ActionWrite); err != nil {
+		return nil, err
+	}
 
-	// TODO: remove me
-	level.Warn(s.logger).Log("msg", "EnterpriseSignup called")
-	return nil, errors.New("not implemented")
+	appConfig, err := svc.fleetDS.CommonAppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
 
+	id, err := svc.ds.CreateEnterprise(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
+	}
+
+	callbackURL := fmt.Sprintf("%svc/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerURL(), id)
+	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
+	}
+
+	err = svc.ds.UpdateEnterprise(ctx, &android.Enterprise{
+		ID:         id,
+		SignupName: signupDetails.Name,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating enterprise")
+	}
+
+	return signupDetails, nil
 }
 
 type androidEnterpriseSignupCallbackRequest struct {
@@ -85,11 +111,13 @@ func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interf
 	return androidResponse{Err: err}
 }
 
-func (s Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
-	s.authz.SkipAuthorization(ctx)
+func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, common.ActionWrite); err != nil {
+		return err
+	}
 
 	// TODO: remove me
-	level.Warn(s.logger).Log("msg", "EnterpriseSignupCallback called", "id", id, "enterpriseToken", enterpriseToken)
+	level.Warn(svc.logger).Log("msg", "EnterpriseSignupCallback called", "id", id, "enterpriseToken", enterpriseToken)
 	return errors.New("not implemented")
 }
 
@@ -110,10 +138,10 @@ func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, sv
 	return androidEnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (s Service) CreateEnrollmentToken(ctx context.Context) (*android.EnrollmentToken, error) {
-	s.authz.SkipAuthorization(ctx)
+func (svc *Service) CreateEnrollmentToken(ctx context.Context) (*android.EnrollmentToken, error) {
+	svc.authz.SkipAuthorization(ctx)
 
 	// TODO: remove me
-	level.Warn(s.logger).Log("msg", "CreateEnrollmentToken called")
+	level.Warn(svc.logger).Log("msg", "CreateEnrollmentToken called")
 	return nil, errors.New("not implemented")
 }

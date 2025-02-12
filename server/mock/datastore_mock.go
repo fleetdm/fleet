@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -331,6 +332,8 @@ type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.A
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
+type CommonAppConfigFunc func(ctx context.Context) (common.AppConfig, error)
+
 type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
 type GetEnrollSecretsFunc func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error)
@@ -538,8 +541,6 @@ type MigrateTablesFunc func(ctx context.Context) error
 type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
-
-type FeatureMigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
 
@@ -1689,6 +1690,9 @@ type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
 
+	CommonAppConfigFunc        CommonAppConfigFunc
+	CommonAppConfigFuncInvoked bool
+
 	SaveAppConfigFunc        SaveAppConfigFunc
 	SaveAppConfigFuncInvoked bool
 
@@ -2000,9 +2004,6 @@ type DataStore struct {
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
-
-	FeatureMigrationStatusFunc        FeatureMigrationStatusFunc
-	FeatureMigrationStatusFuncInvoked bool
 
 	ListSoftwareFunc        ListSoftwareFunc
 	ListSoftwareFuncInvoked bool
@@ -4115,6 +4116,13 @@ func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return s.AppConfigFunc(ctx)
 }
 
+func (s *DataStore) CommonAppConfig(ctx context.Context) (common.AppConfig, error) {
+	s.mu.Lock()
+	s.CommonAppConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.CommonAppConfigFunc(ctx)
+}
+
 func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	s.mu.Lock()
 	s.SaveAppConfigFuncInvoked = true
@@ -4841,13 +4849,6 @@ func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus
 	s.MigrationStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.MigrationStatusFunc(ctx)
-}
-
-func (s *DataStore) FeatureMigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
-	s.mu.Lock()
-	s.FeatureMigrationStatusFuncInvoked = true
-	s.mu.Unlock()
-	return s.FeatureMigrationStatusFunc(ctx)
 }
 
 func (s *DataStore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {

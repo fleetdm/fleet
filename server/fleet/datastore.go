@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -442,6 +443,7 @@ type Datastore interface {
 
 	NewAppConfig(ctx context.Context, info *AppConfig) (*AppConfig, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
+	CommonAppConfig(ctx context.Context) (common.AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).

@@ -19,6 +19,10 @@ func (e Enterprise) IsValid() bool {
 	return e.EnterpriseID != ""
 }
 
+func (e Enterprise) AuthzType() string {
+	return "android_enterprise"
+}
+
 type EnrollmentToken struct {
 	Value string `json:"value"`
 }

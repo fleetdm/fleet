@@ -3,9 +3,9 @@ package interfaces
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/fleet/common"
 )
 
 type FleetDatastore interface {
-	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
+	CommonAppConfig(ctx context.Context) (common.AppConfig, error)
 }
