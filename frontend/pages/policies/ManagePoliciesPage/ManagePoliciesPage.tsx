@@ -21,7 +21,12 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
@@ -1001,17 +1006,24 @@ const ManagePolicyPage = ({
       </div>
     );
     if (!hasPoliciesToAutomateOrDelete) {
+      let tipContent = (
+        <p>
+          To manage automations add a policy to this team.
+          <br />
+          For inherited policies select “All teams”.
+        </p>
+      );
+      if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
+        tipContent = (
+          <p>
+            To manage automations, first add a policy.
+            <br />
+            Select a different team to manage team-specific automations.
+          </p>
+        );
+      }
       automationsDropdown = (
-        <TooltipWrapper
-          underline={false}
-          tipContent={
-            <p>
-              To manage automations add a policy to this team.
-              <br />
-              For inherited policies select “All teams”.
-            </p>
-          }
-        >
+        <TooltipWrapper underline={false} tipContent={tipContent}>
           {automationsDropdown}
         </TooltipWrapper>
       );
