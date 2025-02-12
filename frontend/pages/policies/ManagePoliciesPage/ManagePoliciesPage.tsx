@@ -1021,7 +1021,7 @@ const ManagePolicyPage = ({
             <p>
               To manage automations add a policy to this team.
               <br />
-              For inherited policies select “All teams”.
+              For inherited policies select &ldquo;All teams&rdquo;.
             </p>
           );
         }
