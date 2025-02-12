@@ -1,11 +1,4 @@
 .host-details {
-  &__tab-nav {
-    .react-tabs__tab {
-      display: inline-flex;
-      flex-direction: row;
-    }
-  }
-
   // grid layout styles for the host details page
   &__details-panel {
     display: grid;

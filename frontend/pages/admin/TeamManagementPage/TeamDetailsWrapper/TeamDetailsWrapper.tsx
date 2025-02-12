@@ -388,69 +388,66 @@ const TeamDetailsWrapper = ({
   return (
     <MainContent className={baseClass}>
       <>
-        <TabsWrapper>
-          {isGlobalAdmin ? (
-            <div className={`${baseClass}__header-links`}>
-              <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
-            </div>
-          ) : (
-            <></>
-          )}
-          <div className={`${baseClass}__team-header`}>
-            <div className={`${baseClass}__team-details`}>
-              {userTeams?.length === 1 ? (
-                <h1>{currentTeamDetails.name}</h1>
-              ) : (
-                <TeamsDropdown
-                  selectedTeamId={currentTeamId}
-                  currentUserTeams={userTeams || []}
-                  isDisabled={isLoadingTeams}
-                  includeAll={false}
-                  onChange={handleTeamChange}
-                />
-              )}
-              {!!hostsTotalDisplay && (
-                <span className={`${baseClass}__host-count`}>
-                  {hostsTotalDisplay}
-                </span>
-              )}
-            </div>
-            <ActionButtons
-              baseClass={baseClass}
-              actions={[
-                {
-                  type: "primary",
-                  label: "Add hosts",
-                  onClick: toggleAddHostsModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Manage enroll secrets",
-                  buttonVariant: "text-icon",
-                  iconSvg: "eye",
-                  onClick: toggleManageEnrollSecretsModal,
-                  gitOpsModeCompatible: true,
-                },
-                {
-                  type: "secondary",
-                  label: "Rename team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "pencil",
-                  onClick: toggleRenameTeamModal,
-                  gitOpsModeCompatible: true,
-                },
-                {
-                  type: "secondary",
-                  label: "Delete team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "trash",
-                  hideAction: !isGlobalAdmin,
-                  onClick: toggleDeleteTeamModal,
-                  gitOpsModeCompatible: true,
-                },
-              ]}
-            />
+        {isGlobalAdmin ? (
+          <div className={`${baseClass}__header-links`}>
+            <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
           </div>
+        ) : (
+          <></>
+        )}
+        <div className={`${baseClass}__team-header`}>
+          <div className={`${baseClass}__team-details`}>
+            {userTeams?.length === 1 ? (
+              <h1>{currentTeamDetails.name}</h1>
+            ) : (
+              <TeamsDropdown
+                selectedTeamId={currentTeamId}
+                currentUserTeams={userTeams || []}
+                isDisabled={isLoadingTeams}
+                includeAll={false}
+                onChange={handleTeamChange}
+              />
+            )}
+            {!!hostsTotalDisplay && (
+              <span className={`${baseClass}__host-count`}>
+                {hostsTotalDisplay}
+              </span>
+            )}
+          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "text-icon",
+                iconSvg: "eye",
+                onClick: toggleManageEnrollSecretsModal,
+              },
+              {
+                type: "secondary",
+                label: "Rename team",
+                buttonVariant: "text-icon",
+                iconSvg: "pencil",
+                onClick: toggleRenameTeamModal,
+              },
+              {
+                type: "secondary",
+                label: "Delete team",
+                buttonVariant: "text-icon",
+                iconSvg: "trash",
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteTeamModal,
+              },
+            ]}
+          />
+        </div>
+        <TabsWrapper>
           <Tabs
             selectedIndex={getTabIndex(
               location.pathname,

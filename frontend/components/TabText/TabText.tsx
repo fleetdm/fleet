@@ -23,8 +23,8 @@ const TabText = ({
 }: ITabTextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const countClassNames = classnames(`${baseClass}-count`, {
-    [`${baseClass}-count--error`]: isErrorCount,
+  const countClassNames = classnames(`${baseClass}__count`, {
+    [`${baseClass}__count--error`]: isErrorCount,
   });
 
   const renderCount = () => {
@@ -35,10 +35,10 @@ const TabText = ({
   };
 
   return (
-    <>
-      <div className={classNames}>{children}</div>
+    <div className={classNames}>
+      <div className={`${baseClass}__text}`}>{children}</div>
       {renderCount()}
-    </>
+    </div>
   );
 };
 

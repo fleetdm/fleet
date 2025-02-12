@@ -69,8 +69,6 @@ const PlatformTabs = ({
           onSelect={onTabChange}
         >
           <TabList>
-            {/* Bolding text when the tab is active causes a layout shift so
-            we add a hidden pseudo element with the same text string */}
             <Tab key="macOS" data-text="macOS">
               <TabText>macOS</TabText>
             </Tab>

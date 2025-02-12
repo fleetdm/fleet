@@ -248,7 +248,7 @@ const PolicyResults = ({
               <TabText>{NAV_TITLES.RESULTS}</TabText>
             </Tab>
             <Tab disabled={!errors?.length}>
-              <TabText count={errors.length} isErrorCount>
+              <TabText count={errors?.length} isErrorCount>
                 {NAV_TITLES.ERRORS}
               </TabText>
             </Tab>
