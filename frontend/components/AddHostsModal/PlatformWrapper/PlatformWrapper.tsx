@@ -17,6 +17,7 @@ import TabsWrapper from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Radio from "components/forms/fields/Radio";
+import TabText from "components/TabText";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
@@ -584,7 +585,7 @@ const PlatformWrapper = ({
               // so we add a hidden pseudo element with the same text string
               return (
                 <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
+                  <TabText>{navItem.name}</TabText>
                 </Tab>
               );
             })}

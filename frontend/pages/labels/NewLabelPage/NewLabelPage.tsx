@@ -7,6 +7,7 @@ import useToggleSidePanel from "hooks/useToggleSidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
 import PATHS from "router/paths";
@@ -88,7 +89,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
               {labelSubNav.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}

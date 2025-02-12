@@ -63,26 +63,11 @@
 
       // focus-visible only highlights when tabbing not clicking
       &:focus-visible {
-        position: relative; // Required for pseudo-element positioning
-
-        // Note: Figma design system uses an inner div, this styling does
-        // not to allow <Tab> children to be strings
-        &::before {
-          content: ""; // Use this for both purposes
-          position: absolute;
-          padding-top: $pad-medium;
-          top: 5px;
-          left: 0;
-          right: 0;
-          bottom: 0;
+        .tab-text {
           border-radius: $border-radius;
-          border: 1px solid $ui-vibrant-blue-25;
-          box-sizing: border-box;
-          pointer-events: none;
-          font-weight: $bold; // Hidden bold text
-          visibility: visible; // Show when focused
-          white-space: nowrap;
-          height: 23px; // Adjust as needed
+          // Outline used instead of border not to shift component
+          outline: 1px solid $ui-vibrant-blue-25;
+          outline-offset: -1px;
         }
       }
 

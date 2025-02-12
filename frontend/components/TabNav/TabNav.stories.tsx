@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import TabText from "components/TabText";
 import TabNav from "./TabNav";
 
 const meta: Meta<typeof TabNav> = {
@@ -59,7 +60,7 @@ export const Default: Story = {
           <TabList>
             {platformSubNav.map((navItem) => (
               <Tab key={navItem.name} data-text={navItem.name}>
-                {navItem.name}
+                <TabText>{navItem.name}</TabText>
               </Tab>
             ))}
           </TabList>

@@ -5,6 +5,7 @@ import { Row } from "react-table";
 import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
@@ -142,8 +143,12 @@ const Mdm = ({
         <TabsWrapper>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>Solutions</Tab>
-              <Tab>Status</Tab>
+              <Tab>
+                <TabText>Solutions</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Status</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {error ? (

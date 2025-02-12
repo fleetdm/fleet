@@ -12,6 +12,7 @@ import {
 
 import Modal from "components/Modal";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
@@ -172,8 +173,12 @@ const TabsContent = ({
     <TabsWrapper>
       <Tabs>
         <TabList>
-          <Tab>Software details</Tab>
-          <Tab>Install details</Tab>
+          <Tab>
+            <TabText>Software details</TabText>
+          </Tab>
+          <Tab>
+            <TabText>Install details</TabText>
+          </Tab>
         </TabList>
         <TabPanel>
           <SoftwareDetailsContent software={software} />

@@ -25,6 +25,7 @@ import sortUtils from "utilities/sort";
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
@@ -463,7 +464,7 @@ const TeamDetailsWrapper = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}

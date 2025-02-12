@@ -24,6 +24,7 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 
@@ -396,19 +397,25 @@ const DeviceUserPage = ({
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
-                  <Tab>Details</Tab>
+                  <Tab>
+                    <TabText>Details</TabText>
+                  </Tab>
                   {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                    <Tab>Self-service</Tab>
+                    <Tab>
+                      <TabText>Self-service</TabText>
+                    </Tab>
                   )}
-                  {isSoftwareEnabled && <Tab>Software</Tab>}
+                  {isSoftwareEnabled && (
+                    <Tab>
+                      <TabText>Software</TabText>
+                    </Tab>
+                  )}
                   {isPremiumTier && (
                     <Tab>
-                      <div>
-                        {failingPoliciesCount > 0 && (
-                          <span className="count">{failingPoliciesCount}</span>
-                        )}
-                        Policies
-                      </div>
+                      {failingPoliciesCount > 0 && (
+                        <span className="count">{failingPoliciesCount}</span>
+                      )}
+                      <TabText>Policies</TabText>
                     </Tab>
                   )}
                 </TabList>

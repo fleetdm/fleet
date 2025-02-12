@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import TabText from "components/TabText";
 import TabNav from "./TabNav";
 
 describe("TabNav", () => {
@@ -9,8 +10,12 @@ describe("TabNav", () => {
       <TabNav>
         <Tabs>
           <TabList>
-            <Tab>Tab 1</Tab>
-            <Tab>Tab 2</Tab>
+            <Tab>
+              <TabText>Tab 1</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Tab 2</TabText>
+            </Tab>
           </TabList>
           <TabPanel>
             <div>Content for Tab 1</div>
@@ -36,8 +41,12 @@ describe("TabNav", () => {
       <TabNav>
         <Tabs>
           <TabList>
-            <Tab>Tab 1</Tab>
-            <Tab>Tab 2</Tab>
+            <Tab>
+              <TabText>Tab 1</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Tab 2</TabText>
+            </Tab>
           </TabList>
           <TabPanel>
             <div>Content for Tab 1</div>
