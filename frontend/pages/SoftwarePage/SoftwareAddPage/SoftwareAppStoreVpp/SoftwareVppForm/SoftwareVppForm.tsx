@@ -15,6 +15,7 @@ import TargetLabelSelector from "components/TargetLabelSelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
   CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
@@ -205,6 +206,7 @@ const SoftwareVppForm = ({
     return null;
   };
 
+  console.log("formData", formData);
   const renderContent = () => {
     if (softwareVppForEdit) {
       return (
@@ -224,6 +226,9 @@ const SoftwareVppForm = ({
             onSelectCustomTarget={onSelectCustomTargetOption}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            dropdownHelpText={
+              generateHelpText("manual", formData.customTarget) // maps to manual install help text
+            }
           />
           {renderSelfServiceContent(softwareVppForEdit.platform)}
         </div>
@@ -253,6 +258,9 @@ const SoftwareVppForm = ({
             onSelectCustomTarget={onSelectCustomTargetOption}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            dropdownHelpText={
+              generateHelpText("manual", formData.customTarget) // maps to manual install help text
+            }
           />
           {renderSelfServiceContent(
             ("selectedApp" in formData &&
