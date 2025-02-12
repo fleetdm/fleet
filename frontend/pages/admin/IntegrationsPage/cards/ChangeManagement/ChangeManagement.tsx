@@ -9,7 +9,7 @@ import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import validUrl from "components/forms/validators/valid_url";
 import TooltipWrapper from "components/TooltipWrapper";
-import { IChangeManagement, IConfig } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import { IFormField } from "interfaces/form_field";
 import { useQuery } from "react-query";
 
