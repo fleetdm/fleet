@@ -149,13 +149,11 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    isSandboxMode,
     userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
-    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -1563,7 +1561,6 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
-        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1704,7 +1701,7 @@ const ManageHostsPage = ({
           <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+              {canEnrollHosts && !hasErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}

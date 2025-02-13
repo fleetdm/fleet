@@ -53,11 +53,6 @@
               width: $col-md;
             }
 
-            .hosts_count__header {
-              width: auto;
-              border-right: 0;
-            }
-
             @media (min-width: $break-lg) {
               // expand the width of version header at larger screen sizes
               .versions__header {

@@ -104,7 +104,7 @@ const generateErrorTooltip = (
           text="Learn more"
           url="https://fleetdm.com/learn-more-about/idp-email"
           newTab
-          iconColor="core-fleet-white"
+          variant="tooltip-link"
         />
       </>
     );

@@ -88,8 +88,7 @@ const DeviceUserBanners = ({
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
                 text="Guide"
-                color="core-fleet-black"
-                iconColor="core-fleet-black"
+                variant="banner-link"
               />
             }
             color="yellow"
