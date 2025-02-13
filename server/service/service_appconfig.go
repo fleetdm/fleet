@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"strings"
 
@@ -13,25 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
-
-// mailError is set when an error performing mail operations
-type mailError struct {
-	message string
-}
-
-func (e mailError) Error() string {
-	return fmt.Sprintf("a mail error occurred: %s", e.message)
-}
-
-func (e mailError) MailError() []map[string]string {
-	return []map[string]string{
-		{
-			"name":   "base",
-			"reason": e.message,
-		},
-	}
-}
 
 func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
 	// skipauth: No user context yet when the app config is first created.
@@ -86,7 +68,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
-		return mailError{message: err.Error()}
+		return endpoint_utils.MailError{Message: err.Error()}
 	}
 	return nil
 }

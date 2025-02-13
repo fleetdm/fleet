@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
@@ -27,7 +28,7 @@ type getInstallerRequest struct {
 func (getInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	k, ok := mux.Vars(r)["kind"]
 	if !ok {
-		return "", errBadRoute
+		return "", endpoint_utils.ErrBadRoute
 	}
 
 	return getInstallerRequest{

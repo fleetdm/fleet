@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
@@ -21,7 +22,7 @@ func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) 
 	var req calendarWebhookRequest
 	eventUUID, ok := mux.Vars(r)["event_uuid"]
 	if !ok {
-		return nil, errBadRoute
+		return nil, endpoint_utils.ErrBadRoute
 	}
 	unescaped, err := url.PathUnescape(eventUUID)
 	if err != nil {

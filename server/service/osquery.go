@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -30,43 +31,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// osqueryError is the error returned to osquery agents.
-type osqueryError struct {
-	message     string
-	nodeInvalid bool
-	statusCode  int
-	fleet.ErrorWithUUID
+func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, true)
 }
 
-var _ fleet.ErrorUUIDer = (*osqueryError)(nil)
-
-// Error implements the error interface.
-func (e *osqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *osqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *osqueryError) Status() int {
-	return e.statusCode
-}
-
-func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: true,
-	}
-}
-
-func newOsqueryError(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: false,
-	}
+func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -2354,7 +2324,7 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2439,7 +2409,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil

@@ -46,6 +46,11 @@ func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint,
 	if !updateNeeded {
 		return nil
 	}
+
+	const maxDisplayVersionLength = 10 // per DB schema
+	if len(hostOS.DisplayVersion) > maxDisplayVersionLength {
+		return ctxerr.Errorf(ctx, "host OS display version too long: %s", hostOS.DisplayVersion)
+	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		os, err := getOrGenerateOperatingSystemDB(ctx, tx, hostOS)
 		if err != nil {

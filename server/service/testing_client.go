@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -274,7 +275,7 @@ func (ts *withServer) DoRawWithHeaders(
 
 	if resp.StatusCode != expectedStatusCode {
 		defer resp.Body.Close()
-		var je jsonError
+		var je endpoint_utils.JsonError
 		err := json.NewDecoder(resp.Body).Decode(&je)
 		if err != nil {
 			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
