@@ -16,6 +16,7 @@ import {
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
+import classnames from "classnames";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -24,7 +25,7 @@ const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   const format = (d: IDeviceUser) =>
     d.source ? `${d.email} (${d.source})` : d.email;
 
-  return deviceMapping.slice(1).map((d) => (
+  return deviceMapping.map((d) => (
     <span key={format(d)}>
       {format(d)}
       <br />
@@ -129,11 +130,19 @@ const About = ({
       if (!source) {
         displayPrimaryUser = email;
       } else {
+        const classNames = classnames(
+          `${baseClass}__device-mapping__primary-user`,
+          {
+            [`${baseClass}__multiple`]: newDeviceMapping.length > 1,
+          }
+        );
         displayPrimaryUser = (
-          <>
+          <span className={classNames}>
             {email}{" "}
-            <span className="device-mapping__source">{`(${source})`}</span>
-          </>
+            <span
+              className={`${baseClass}__device-mapping__source`}
+            >{`(${source})`}</span>
+          </span>
         );
       }
     }
