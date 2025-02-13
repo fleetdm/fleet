@@ -198,7 +198,7 @@ const DiskEncryption = ({
                 />
               )}
               <Checkbox
-                disabled={config?.change_management.gitops_mode_enabled}
+                disabled={config?.gitops.gitops_mode_enabled}
                 onChange={onToggleCheckbox}
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}

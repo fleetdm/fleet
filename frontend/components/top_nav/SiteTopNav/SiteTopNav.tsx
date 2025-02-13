@@ -244,9 +244,7 @@ const SiteTopNav = ({
           })}
         </ul>
         <div className="site-nav-right">
-          {config.change_management.gitops_mode_enabled && (
-            <GitOpsModeIndicator />
-          )}
+          {config.gitops.gitops_mode_enabled && <GitOpsModeIndicator />}
           <UserMenu
             onLogout={onLogoutUser}
             onUserMenuItemClick={onUserMenuItemClick}
