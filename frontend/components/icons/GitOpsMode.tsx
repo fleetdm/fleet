@@ -3,7 +3,7 @@ import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 // import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
-interface IGitOpsModeProps {
+interface IGitOpsModeIconProps {
   // size?: IconSizes;
   color?: Colors;
 }
@@ -11,7 +11,7 @@ interface IGitOpsModeProps {
 const GitOpsMode = ({
   // size = "small",
   color = "core-fleet-white",
-}: IGitOpsModeProps) => {
+}: IGitOpsModeIconProps) => {
   // const iconSize = ICON_SIZES[size];
   return (
     <svg
