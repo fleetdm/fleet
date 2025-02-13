@@ -74,6 +74,68 @@ How to view the disk encryption key:
 
 > The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
 
+## Use disk encryption key to login
+
+Disk encryption keys are used to login to workstations (hosts) when the end user forgets their password or when the host is returned to the organization after an end user leaves. 
+
+### macOS
+
+1. With the macOS host in front of you, restart the host and select the end user's account.
+
+2. Select the question mark icon **(?)** next to the password field and select **Restart and show password reset options**. If you don't see the **(?)** icon, try entering any incorrect password several times.
+
+3. Follow the instructions on the Mac to enter the disk encryption (recovery) key.
+
+### Windows
+
+1. In Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. 
+
+If it has an **On (automatic)** status follow the first set of instructions. If it has an **On (manual)** status follow the second set of instructions.
+
+#### On (automatic)
+
+1. You don't need the disk encryption key. Instead login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
+
+2. Select the end user's user and select **Reset password**.
+
+3. Use the new password to login to the Windows workstation.
+
+#### On (manual)
+
+1. With the Windows host in front of you, hold the **Shift** key and restart the host.
+
+2. Select **Troubleshoot > Advanced options > Command Prompt** and enter the disk encryption (BitLocker) key when prompted.
+
+3. Run the following command to list the local users accounts:
+
+```
+net user
+```
+
+4. Identify the end user's account and run this command to reset the end user's password:
+
+```
+net user <account> <new-password>
+```
+
+5. Use the new password to login to the Windows workstation.
+
+### Linux 
+
+1. With the Linux host in front of you, restart it.
+
+2. When prompted to unlock the disk, enter the disk encryption key. 
+
+3. Next, delete the local password (passphrase) by opening Terminal and running the following command:
+
+```
+passwd -d
+```
+
+4. Now you can login to the workstation.
+
+#### 
+
 ## Migrate macOS hosts
 
 When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their Mac.
