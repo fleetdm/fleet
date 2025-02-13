@@ -233,7 +233,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	apiVersions := []string{"v1", "2022-04"}
 
 	// user-authenticated endpoints
-	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
+	ue := NewUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
 
 	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
@@ -873,7 +873,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
-	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
+	ne := NewNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 

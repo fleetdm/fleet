@@ -467,7 +467,7 @@ func (r callbackSSOResponse) Error() error { return r.Err }
 // If html is present we return a web page
 func (r callbackSSOResponse) html() string { return r.content }
 
-func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
+func makeCallbackSSOEndpoint(urlPrefix string) HandlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		authResponse := request.(fleet.Auth)
 		session, err := getSSOSession(ctx, svc, authResponse)

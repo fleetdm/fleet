@@ -29,7 +29,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
@@ -53,7 +53,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 		ID1        uint   `url:"some-id"`
 		SomeString string `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -76,7 +76,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 		ID1 uint `url:"some-id"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(UniversalStruct{})
+	decoder := MakeDecoder(UniversalStruct{})
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -97,7 +97,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 		Opts       fleet.ListOptions `url:"list_options"`
 		SomeString string            `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -123,7 +123,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 		Opts fleet.ListOptions `url:"list_options"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -145,7 +145,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -160,7 +160,7 @@ func TestUniversalDecoderOptionalQueryParams(t *testing.T) {
 	type universalStruct struct {
 		ID1 *uint `query:"some_id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -186,7 +186,7 @@ func TestUniversalDecoderOptionalQueryParamString(t *testing.T) {
 	type universalStruct struct {
 		ID1 *string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -212,7 +212,7 @@ func TestUniversalDecoderOptionalQueryParamNotPtr(t *testing.T) {
 	type universalStruct struct {
 		ID1 string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -238,7 +238,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 		ID1  *uint             `query:"some_id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := MakeDecoder(universalStruct{})
 
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&some_id=444", nil)
 
@@ -297,7 +297,7 @@ func TestEndpointer(t *testing.T) {
 		),
 	}
 
-	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
+	e := NewUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
 	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("nop"), nil
@@ -418,7 +418,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	e := newNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
+	e := NewNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
 	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		buf.WriteString("H1")
 		return nil, nil

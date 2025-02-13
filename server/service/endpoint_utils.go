@@ -1,8 +1,6 @@
 package service
 
 import (
-	"bufio"
-	"compress/gzip"
 	"context"
 	"crypto/x509"
 	"encoding/json"
@@ -11,11 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
@@ -25,14 +21,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
-
-// A value that implements requestDecoder takes control of decoding the request
-// as a whole - that is, it is responsible for decoding the body and any url
-// or query argument itself.
-type requestDecoder interface {
-	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
-}
+type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
 
 // A value that implements bodyDecoder takes control of decoding the request
 // body.
@@ -40,176 +29,70 @@ type bodyDecoder interface {
 	DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error
 }
 
-// makeDecoder creates a decoder for the type for the struct passed on. If the
-// struct has at least 1 json tag it'll unmarshall the body. If the struct has
-// a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options). Note that these behaviors do not work for embedded structs.
-//
-// Finally, any other `url` tag will be treated as a path variable (of the form
-// /path/{name} in the route's path) from the URL path pattern, and it'll be
-// decoded and set accordingly. Variables can be optional by setting the tag as
-// follows: `url:"some-id,optional"`.
-// The "list_options" are optional by default and it'll ignore the optional
-// portion of the tag.
-//
-// If iface implements the requestDecoder interface, it returns a function that
-// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
-// own decoding.
-//
-// If iface implements the bodyDecoder interface, it calls iface.DecodeBody
-// after having decoded any non-body fields (such as url and query parameters)
-// into the struct.
-func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
-	if iface == nil {
-		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			return nil, nil
-		}
-	}
-	if rd, ok := iface.(requestDecoder); ok {
-		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			return rd.DecodeRequest(ctx, r)
-		}
-	}
-
-	t := reflect.TypeOf(iface)
-	if t.Kind() != reflect.Struct {
-		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
-	}
-
-	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		v := reflect.New(t)
-		nilBody := false
-
-		var isBodyDecoder bool
-		if _, ok := v.Interface().(bodyDecoder); ok {
-			isBodyDecoder = true
-		}
-
-		buf := bufio.NewReader(r.Body)
-		var body io.Reader = buf
-		if _, err := buf.Peek(1); err == io.EOF {
-			nilBody = true
-		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
-				gzr, err := gzip.NewReader(buf)
-				if err != nil {
-					return nil, endpoint_utils.BadRequestErr("gzip decoder error", err)
-				}
-				defer gzr.Close()
-				body = gzr
-			}
-
-			if !isBodyDecoder {
-				req := v.Interface()
-				if err := json.NewDecoder(body).Decode(req); err != nil {
-					return nil, endpoint_utils.BadRequestErr("json decoder error", err)
-				}
-				v = reflect.ValueOf(req)
-			}
-		}
-
-		fields := endpoint_utils.AllFields(v)
-		for _, fp := range fields {
-			field := fp.V
-
-			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
-
-			var err error
-			if ok {
-				optional := false
-				urlTagValue, optional, err = endpoint_utils.ParseTag(urlTagValue)
-				if err != nil {
-					return nil, err
-				}
-				switch urlTagValue {
-				case "list_options":
-					opts, err := listOptionsFromRequest(r)
-					if err != nil {
-						return nil, err
-					}
-					field.Set(reflect.ValueOf(opts))
-
-				case "user_options":
-					opts, err := userListOptionsFromRequest(r)
-					if err != nil {
-						return nil, err
-					}
-					field.Set(reflect.ValueOf(opts))
-
-				case "host_options":
-					opts, err := hostListOptionsFromRequest(r)
-					if err != nil {
-						return nil, err
-					}
-					field.Set(reflect.ValueOf(opts))
-
-				case "carve_options":
-					opts, err := carveListOptionsFromRequest(r)
-					if err != nil {
-						return nil, err
-					}
-					field.Set(reflect.ValueOf(opts))
-
-				default:
-					err := endpoint_utils.DecodeURLTagValue(r, field, urlTagValue, optional)
-					if err != nil {
-						return nil, err
-					}
-					continue
-				}
-			}
-
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
-			if jsonExpected && nilBody {
-				return nil, badRequest("Expected JSON Body")
-			}
-
-			err = endpoint_utils.DecodeQueryTagValue(r, fp)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if isBodyDecoder {
-			bd := v.Interface().(bodyDecoder)
-			var certs []*x509.Certificate
-			if (r.TLS != nil) && (r.TLS.PeerCertificates != nil) {
-				certs = r.TLS.PeerCertificates
-			}
-
-			if err := bd.DecodeBody(ctx, body, r.URL.Query(), certs); err != nil {
-				return nil, err
-			}
-		}
-
-		if !license.IsPremium(ctx) {
-			for _, fp := range fields {
-				if prem, ok := fp.Sf.Tag.Lookup("premium"); ok {
-					val, err := strconv.ParseBool(prem)
-					if err != nil {
-						return nil, err
-					}
-					if val && !fp.V.IsZero() {
-						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
-							"option %s requires a premium license",
-							fp.Sf.Name,
-						)}
-					}
-					continue
-				}
-			}
-		}
-
-		return v.Interface(), nil
-	}
+func MakeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+	return endpoint_utils.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody)
 }
 
-func badRequest(msg string) error {
-	return &fleet.BadRequestError{Message: msg}
+func decodeBody(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error {
+	bd := v.Interface().(bodyDecoder)
+	var certs []*x509.Certificate
+	if (r.TLS != nil) && (r.TLS.PeerCertificates != nil) {
+		certs = r.TLS.PeerCertificates
+	}
+
+	if err := bd.DecodeBody(ctx, body, r.URL.Query(), certs); err != nil {
+		return err
+	}
+	return nil
 }
 
-type authEndpointer struct {
+func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
+	switch urlTagValue {
+	case "list_options":
+		opts, err := listOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
+
+	case "user_options":
+		opts, err := userListOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
+
+	case "host_options":
+		opts, err := hostListOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
+
+	case "carve_options":
+		opts, err := carveListOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
+	}
+	return false, nil
+}
+
+func jsonDecode(body io.Reader, req any) error {
+	return json.NewDecoder(body).Decode(req)
+}
+
+func isBodyDecoder(v reflect.Value) bool {
+	_, ok := v.Interface().(bodyDecoder)
+	return ok
+}
+
+type AuthEndpointer struct {
 	svc               fleet.Service
 	opts              []kithttp.ServerOption
 	r                 *mux.Router
@@ -222,27 +105,8 @@ type authEndpointer struct {
 	usePathPrefix     bool
 }
 
-func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedDevice(svc, logger, next)
-	}
-
-	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
-	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
-	// Add the capabilities reported by the device to the request context
-	opts = append(opts, capabilitiesContextFunc())
-
-	return &authEndpointer{
-		svc:      svc,
-		opts:     opts,
-		r:        r,
-		authFunc: authFunc,
-		versions: versions,
-	}
-}
-
-func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	return &authEndpointer{
+func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *AuthEndpointer {
+	return &AuthEndpointer{
 		svc:      svc,
 		opts:     opts,
 		r:        r,
@@ -251,40 +115,8 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 	}
 }
 
-func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedHost(svc, logger, next)
-	}
-	return &authEndpointer{
-		svc:      svc,
-		opts:     opts,
-		r:        r,
-		authFunc: authFunc,
-		versions: versions,
-	}
-}
-
-func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-		return authenticatedOrbitHost(svc, logger, next)
-	}
-
-	// Inject the fleet.Capabilities header to the response for Orbit hosts
-	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
-	// Add the capabilities reported by Orbit to the request context
-	opts = append(opts, capabilitiesContextFunc())
-
-	return &authEndpointer{
-		svc:      svc,
-		opts:     opts,
-		r:        r,
-		authFunc: authFunc,
-		versions: versions,
-	}
-}
-
-func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
-	return &authEndpointer{
+func NewNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *AuthEndpointer {
+	return &AuthEndpointer{
 		svc:      svc,
 		opts:     opts,
 		r:        r,
@@ -307,64 +139,27 @@ func getNameFromPathAndVerb(verb, path, startAt string) string {
 	return prefix + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOption {
-	return kithttp.ServerAfter(func(ctx context.Context, w http.ResponseWriter) context.Context {
-		writeCapabilitiesHeader(w, capabilities)
-		return ctx
-	})
-}
-
-func capabilitiesContextFunc() kithttp.ServerOption {
-	return kithttp.ServerBefore(capabilities.NewContext)
-}
-
-func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.CapabilityMap) {
-	if len(capabilities) == 0 {
-		return
-	}
-
-	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
-}
-
-func writeBrowserSecurityHeaders(w http.ResponseWriter) {
-	// Strict-Transport-Security informs browsers that the site should only be
-	// accessed using HTTPS, and that any future attempts to access it using
-	// HTTP should automatically be converted to HTTPS.
-	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
-	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
-	// <iframe>, <embed> or <object>, which can prevent attacks like
-	// clickjacking.
-	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-	// X-Content-Type-Options prevents browsers from trying to guess the MIME
-	// type which can cause browsers to transform non-executable content into
-	// executable content.
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Referrer-Policy prevents leaking the origin of the referrer in the
-	// Referer.
-	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-}
-
-func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) POST(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "POST")
 }
 
-func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) GET(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
-func (e *authEndpointer) PUT(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) PUT(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "PUT")
 }
 
-func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) PATCH(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
 
-func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) DELETE(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *authEndpointer) HEAD(path string, f handlerFunc, v interface{}) {
+func (e *AuthEndpointer) HEAD(path string, f HandlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "HEAD")
 }
 
@@ -372,11 +167,11 @@ func (e *authEndpointer) HEAD(path string, f handlerFunc, v interface{}) {
 // a function that receives the actual path to which it will be mounted, and
 // returns the actual http.Handler that will handle this endpoint. This is for
 // when the handler needs to know on which path it was called.
-func (e *authEndpointer) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
+func (e *AuthEndpointer) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
 	e.handlePathHandler(path, pathHandler, verb)
 }
 
-func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
+func (e *AuthEndpointer) handlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -429,17 +224,17 @@ func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path st
 	}
 }
 
-func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
+func (e *AuthEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
 	self := func(_ string) http.Handler { return h }
 	e.handlePathHandler(path, self, verb)
 }
 
-func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
+func (e *AuthEndpointer) handleEndpoint(path string, f HandlerFunc, v interface{}, verb string) {
 	endpoint := e.makeEndpoint(f, v)
 	e.handleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
+func (e *AuthEndpointer) makeEndpoint(f HandlerFunc, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return f(ctx, request, e.svc)
 	}
@@ -452,35 +247,130 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 		endp = mw(endp)
 	}
 
-	return newServer(endp, makeDecoder(v), e.opts)
+	return newServer(endp, MakeDecoder(v), e.opts)
 }
 
-func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
+func (e *AuthEndpointer) StartingAtVersion(version string) *AuthEndpointer {
 	ae := *e
 	ae.startingAtVersion = version
 	return &ae
 }
 
-func (e *authEndpointer) EndingAtVersion(version string) *authEndpointer {
+func (e *AuthEndpointer) EndingAtVersion(version string) *AuthEndpointer {
 	ae := *e
 	ae.endingAtVersion = version
 	return &ae
 }
 
-func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
+func (e *AuthEndpointer) WithAltPaths(paths ...string) *AuthEndpointer {
 	ae := *e
 	ae.alternativePaths = paths
 	return &ae
 }
 
-func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
+func (e *AuthEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *AuthEndpointer {
 	ae := *e
 	ae.customMiddleware = mws
 	return &ae
 }
 
-func (e *authEndpointer) UsePathPrefix() *authEndpointer {
+func (e *AuthEndpointer) UsePathPrefix() *AuthEndpointer {
 	ae := *e
 	ae.usePathPrefix = true
 	return &ae
+}
+
+func badRequest(msg string) error {
+	return &fleet.BadRequestError{Message: msg}
+}
+
+func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string) *AuthEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedDevice(svc, logger, next)
+	}
+
+	// Inject the fleet.CapabilitiesHeader header to the response for device endpoints
+	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerDeviceCapabilities()))
+	// Add the capabilities reported by the device to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &AuthEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string) *AuthEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedHost(svc, logger, next)
+	}
+	return &AuthEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+	versions ...string) *AuthEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedOrbitHost(svc, logger, next)
+	}
+
+	// Inject the fleet.Capabilities header to the response for Orbit hosts
+	opts = append(opts, capabilitiesResponseFunc(fleet.GetServerOrbitCapabilities()))
+	// Add the capabilities reported by Orbit to the request context
+	opts = append(opts, capabilitiesContextFunc())
+
+	return &AuthEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func capabilitiesResponseFunc(capabilities fleet.CapabilityMap) kithttp.ServerOption {
+	return kithttp.ServerAfter(func(ctx context.Context, w http.ResponseWriter) context.Context {
+		writeCapabilitiesHeader(w, capabilities)
+		return ctx
+	})
+}
+
+func capabilitiesContextFunc() kithttp.ServerOption {
+	return kithttp.ServerBefore(capabilities.NewContext)
+}
+
+func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.CapabilityMap) {
+	if len(capabilities) == 0 {
+		return
+	}
+
+	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
+}
+
+func writeBrowserSecurityHeaders(w http.ResponseWriter) {
+	// Strict-Transport-Security informs browsers that the site should only be
+	// accessed using HTTPS, and that any future attempts to access it using
+	// HTTP should automatically be converted to HTTPS.
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
+	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
+	// <iframe>, <embed> or <object>, which can prevent attacks like
+	// clickjacking.
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	// X-Content-Type-Options prevents browsers from trying to guess the MIME
+	// type which can cause browsers to transform non-executable content into
+	// executable content.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// Referrer-Policy prevents leaking the origin of the referrer in the
+	// Referer.
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
