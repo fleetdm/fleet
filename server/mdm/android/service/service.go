@@ -117,9 +117,9 @@ func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interf
 }
 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
-	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
-		return err
-	}
+	// Skip authorization because the callback is called by Google.
+	// TODO: Add some authorization here so random people can't bind random Android enterprises just for fun.
+	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
