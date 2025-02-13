@@ -946,7 +946,7 @@ None.
   "vulnerability_settings": {
     "databases_path": ""
   },
-  "change_management": {
+  "gitops": {
     "gitops_mode_enabled": false,
     "repository_url": "",
   },
@@ -1231,7 +1231,7 @@ Modifies the Fleet's configuration with the supplied information.
   "fleet_desktop": {
     "transparency_url": "https://fleetdm.com/better"
   },
-  "change_management": {
+  "gitops": {
     "gitops_mode_enabled": false,
     "repository_url": "",
   },
@@ -1487,7 +1487,7 @@ _Available in Fleet Premium._
 }
 ```
 
-#### change_management
+#### gitops
 
 _Available in Fleet Premium._
 
@@ -1502,7 +1502,7 @@ _Available in Fleet Premium._
 
 ```json
 {
-  "change_management": {
+  "gitops": {
     "gitops_mode_enabled": true,
     "repository_url": "https://github.com/exampleorg/it-and-security"
   }
