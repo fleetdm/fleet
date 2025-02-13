@@ -305,7 +305,7 @@ type getMDMEULAResponse struct {
 
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
-func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

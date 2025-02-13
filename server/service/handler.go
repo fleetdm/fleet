@@ -25,11 +25,9 @@ import (
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
-	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -233,7 +231,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	apiVersions := []string{"v1", "2022-04"}
 
 	// user-authenticated endpoints
-	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
+	ue := NewUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
 
 	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
@@ -873,7 +871,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// invite-related or host-enrolling. So they typically do some kind of
 	// one-time authentication by verifying that a valid secret token is provided
 	// with the request.
-	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
+	ne := NewNoAuthEndpointer(svc, opts, r, apiVersions...)
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
@@ -985,15 +983,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMAppleSSOEndpoint, callbackMDMAppleSSORequest{})
-}
-
-func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
-	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
-	// endpoint handler, any middleware that raises errors before the handler is reached will end up
-	// returning authz check missing instead of the more relevant error. Should be addressed as part
-	// of #4406.
-	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.

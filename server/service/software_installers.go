@@ -498,7 +498,7 @@ type orbitDownloadSoftwareInstallerResponse struct {
 
 func (r orbitDownloadSoftwareInstallerResponse) Error() error { return r.Err }
 
-func (r orbitDownloadSoftwareInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r orbitDownloadSoftwareInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.payload.Filename))
