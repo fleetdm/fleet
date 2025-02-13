@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
-	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -44,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -328,6 +328,7 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
+			unCachedDS := ds
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
@@ -750,7 +751,7 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				mysql.NewAndroidDS(ds),
+				mysql.NewAndroidDS(unCachedDS),
 				ds,
 			)
 			if err != nil {
