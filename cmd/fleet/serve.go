@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/android"
 	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -251,30 +250,6 @@ the way that the Fleet server works.
 					os.Exit(1)
 				}
 			case fleet.NoMigrationsCompleted:
-				printDatabaseNotInitializedError()
-				os.Exit(1)
-			}
-
-			androidDS := mysql.NewAndroidDS(ds)
-			androidMigrationStatus, err := androidDS.MigrationStatus(cmd.Context())
-			if err != nil {
-				initFatal(err, "retrieving feature migration status")
-			}
-
-			switch androidMigrationStatus.StatusCode {
-			case android.AllMigrationsCompleted:
-				// OK
-			case android.UnknownMigrations:
-				printUnknownMigrationsMessage(androidMigrationStatus.UnknownTable, nil)
-				if dev {
-					os.Exit(1)
-				}
-			case android.SomeMigrationsCompleted:
-				printMissingMigrationsWarning(androidMigrationStatus.MissingTable, nil)
-				if !config.Upgrades.AllowMissingMigrations {
-					os.Exit(1)
-				}
-			case android.NoMigrationsCompleted:
 				printDatabaseNotInitializedError()
 				os.Exit(1)
 			}
@@ -775,7 +750,7 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				androidDS,
+				mysql.NewAndroidDS(ds),
 				ds,
 			)
 			if err != nil {

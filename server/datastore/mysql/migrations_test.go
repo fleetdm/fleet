@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO(#26218): Add test for android migrations.
-
 func TestMigrationStatus(t *testing.T) {
 	ds := createMySQLDSForMigrationTests(t, t.Name())
 	t.Cleanup(func() {

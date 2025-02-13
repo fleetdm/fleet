@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/android"
-	"github.com/fleetdm/fleet/v4/server/android/interfaces"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
@@ -19,7 +18,7 @@ type Service struct {
 	authz   *authz.Authorizer
 	mgmt    *androidmanagement.Service
 	ds      android.Datastore
-	fleetDS interfaces.FleetDatastore
+	fleetDS fleet.Datastore
 }
 
 func NewService(

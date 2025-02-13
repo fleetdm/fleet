@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/server/android"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -53,14 +52,12 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "retrieving migration status")
 			}
 
-			mainMigrationsCompleted := false
 			switch status.StatusCode {
 			case fleet.NoMigrationsCompleted:
 				// OK
 			case fleet.AllMigrationsCompleted:
 				fmt.Println("Main migrations already completed.")
-				// We will check feature migrations next.
-				mainMigrationsCompleted = true
+				return
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
 					printMissingMigrationsPrompt(status.MissingTable, status.MissingData)
@@ -73,42 +70,12 @@ To setup Fleet infrastructure, use one of the available commands.
 				}
 			}
 
-			androidDs := mysql.NewAndroidDS(ds)
-			androidStatus, err := androidDs.MigrationStatus(cmd.Context())
-			if err != nil {
-				initFatal(err, "retrieving feature migration status")
-			}
-
-			switch androidStatus.StatusCode {
-			case android.NoMigrationsCompleted:
-				// OK
-			case android.AllMigrationsCompleted:
-				fmt.Println("Android migrations already completed.")
-				if mainMigrationsCompleted {
-					return
-				}
-			case android.SomeMigrationsCompleted:
-				if !noPrompt {
-					printMissingMigrationsPrompt(androidStatus.MissingTable, nil)
-					bufio.NewScanner(os.Stdin).Scan()
-				}
-			case android.UnknownMigrations:
-				printUnknownMigrationsMessage(androidStatus.UnknownTable, nil)
-				if dev {
-					os.Exit(1)
-				}
-			}
-
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
 				initFatal(err, "migrating db schema")
 			}
 
 			if err := ds.MigrateData(cmd.Context()); err != nil {
 				initFatal(err, "migrating builtin data")
-			}
-
-			if err := androidDs.MigrateTables(cmd.Context()); err != nil {
-				initFatal(err, "migrating db schema")
 			}
 
 			fmt.Println("Migrations completed.")
