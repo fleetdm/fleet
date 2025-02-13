@@ -1,37 +1,37 @@
 import React, {
   FormEvent,
-  useContext,
-  useEffect,
-  useRef,
   useState,
+  useEffect,
+  useContext,
+  useRef,
 } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
-import { IFormField } from "interfaces/form_field";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IFormField } from "interfaces/form_field";
 
+import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import validEmail from "components/forms/validators/valid_email";
-import validatePresence from "components/forms/validators/validate_presence";
 import ModalFooter from "components/ModalFooter";
-import { SingleValue } from "react-select-5";
+import validatePresence from "components/forms/validators/validate_presence";
+import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
 // @ts-ignore
-import CustomLink from "components/CustomLink";
-import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { roleOptions } from "../../helpers/userManagementHelpers";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
+import { roleOptions } from "../../helpers/userManagementHelpers";
 
 const baseClass = "user-form";
 
