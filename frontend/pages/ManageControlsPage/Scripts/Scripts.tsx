@@ -87,11 +87,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     setShowEditScriptModal(true);
   };
 
-  const onCancelScriptDetails = () => {
-    selectedScript.current = null;
-    setShowEditScriptModal(false);
-  };
-
   const onEditScript = (script: IScript) => {
     selectedScript.current = script;
     setShowEditScriptModal(true);
