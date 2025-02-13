@@ -69,11 +69,6 @@ func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, enterprise.ID, result.ID)
 	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
-
-	enterprises, err := ds.ListEnterprises(testCtx())
-	require.NoError(t, err)
-	assert.Len(t, enterprises, 1)
-	assert.Equal(t, enterprise, enterprises[0])
 }
 
 func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {

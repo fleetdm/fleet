@@ -28,7 +28,7 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds android.Datastore,
-	fleetDS fleet.FleetDatastore,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {

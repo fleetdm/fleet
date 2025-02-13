@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fleetdm/fleet/v4/server/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
