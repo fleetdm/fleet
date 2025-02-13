@@ -1148,6 +1148,7 @@ type orbitGetSoftwareInstallRequest struct {
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
+	r.OrbotNodeKey = nodeKey // legacy typo -- keep for backwards compatability with fleet server < 4.63.0
 }
 
 // interface implementation required by the OrbitClient
