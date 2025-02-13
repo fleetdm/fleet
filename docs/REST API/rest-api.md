@@ -3934,7 +3934,6 @@ Resends a configuration profile for the specified host.
       "name": "Google Chrome.app",
       "software_package": {
         "name": "GoogleChrome.pkg",
-        "platform": "darwin",
         "version": "125.12.0.3",
         "self_service": true,
         "last_install": {
@@ -3966,7 +3965,6 @@ Resends a configuration profile for the specified host.
       "name": "Falcon.app",
       "software_package": {
         "name": "FalconSensor-6.44.pkg",
-        "platform": "darwin",
         "self_service": false,
         "last_install": null,
         "last_uninstall": {
@@ -3985,7 +3983,6 @@ Resends a configuration profile for the specified host.
       "software_package": null,
       "app_store_app": {
         "app_store_id": "1091189122",
-        "platform": "darwin",
         "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
         "self_service": false,
@@ -4229,14 +4226,8 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
-```json
-{
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
 
 #### Example
 
@@ -4248,13 +4239,9 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 ```json
 {
-  "unlock_pin": "123456",
-  "device_status": "unlocked",
-  "pending_action": "lock"
+  "unlock_pin": "123456"
 }
 ```
-
-> To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Unlock host
 
@@ -4278,15 +4265,8 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ##### Default response (Windows or Linux hosts)
 
-`Status: 200`
+`Status: 204`
 
-```json
-{
-  "host_id": 8,
-  "device_status": "locked",
-  "pending_action": "unlock"
-}
-```
 
 ##### Default response (macOS hosts)
 
@@ -4295,13 +4275,9 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 ```json
 {
   "host_id": 8,
-  "unlock_pin": "123456",
-  "device_status": "locked",
-  "pending_action": "unlock"
+  "unlock_pin": "123456"
 }
 ```
-
-> To verify the host successfully unlocked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`. macOS hosts require entering `unlock_pin` to unlock.
 
 ### Wipe host
 
@@ -4323,16 +4299,8 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
-```json
-{
-  "device_status": "unlocked",
-  "pending_action": "wipe"
-}
-```
-
-> To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Get host's past activity
 
@@ -6081,7 +6049,6 @@ List software that can or will be automatically installed during macOS setup. If
       "name": "Firefox.app",
       "software_package": {
         "name": "FirefoxInsall.pkg",
-        "platform": "darwin",
         "version": "125.6",
         "self_service": true,
         "install_during_setup": true
@@ -8816,8 +8783,6 @@ Get a list of all software.
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | platform | string | query | Filter software titles by platforms. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
-| exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
-
 
 #### Example
 
@@ -8836,7 +8801,6 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
-        "platform": "darwin",
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
@@ -9111,7 +9075,6 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
-      "platform": "darwin",
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
@@ -9187,7 +9150,6 @@ Returns information about the specified software. By default, `versions` are sor
     "app_store_app": {
       "name": "Logic Pro",
       "app_store_id": 1091189122,
-      "platform": "darwin",
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
@@ -9482,7 +9444,6 @@ Content-Type: application/octet-stream
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "version": "6.44",
-    "platform": "darwin",
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
