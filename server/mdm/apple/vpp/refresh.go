@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 )
 
+// RefreshVersions updatest the LatestVersion fields for the VPP apps stored in Fleet.
 func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 	apps, err := ds.GetAllVPPApps(ctx)
 	if err != nil {
