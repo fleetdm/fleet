@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -247,7 +248,17 @@ func (e *AuthEndpointer) makeEndpoint(f HandlerFunc, v interface{}) http.Handler
 		endp = mw(endp)
 	}
 
-	return newServer(endp, MakeDecoder(v), e.opts)
+	return newServer(endp, MakeDecoder(v), encodeResponse, e.opts)
+}
+
+func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
+	opts []kithttp.ServerOption) http.Handler {
+	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
+	// endpoint handler, any middleware that raises errors before the handler is reached will end up
+	// returning authz check missing instead of the more relevant error. Should be addressed as part
+	// of #4406.
+	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
 }
 
 func (e *AuthEndpointer) StartingAtVersion(version string) *AuthEndpointer {
@@ -355,22 +366,4 @@ func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.Capabilit
 	}
 
 	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
-}
-
-func writeBrowserSecurityHeaders(w http.ResponseWriter) {
-	// Strict-Transport-Security informs browsers that the site should only be
-	// accessed using HTTPS, and that any future attempts to access it using
-	// HTTP should automatically be converted to HTTPS.
-	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains;")
-	// X-Frames-Options disallows embedding the UI in other sites via <frame>,
-	// <iframe>, <embed> or <object>, which can prevent attacks like
-	// clickjacking.
-	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-	// X-Content-Type-Options prevents browsers from trying to guess the MIME
-	// type which can cause browsers to transform non-executable content into
-	// executable content.
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// Referrer-Policy prevents leaking the origin of the referrer in the
-	// Referer.
-	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }

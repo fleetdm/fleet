@@ -18,15 +18,24 @@ import (
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	return EncodeCommonResponse(ctx, w, response, jsonMarshal)
+}
+
+func EncodeCommonResponse(
+	ctx context.Context,
+	w http.ResponseWriter,
+	response interface{},
+	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+) error {
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		writeBrowserSecurityHeaders(w)
+		endpoint_utils.WriteBrowserSecurityHeaders(w)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
-		_, err := io.WriteString(w, page.html())
+		_, err := io.WriteString(w, page.Html())
 		return err
 	}
 
@@ -36,7 +45,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	}
 
 	if render, ok := response.(renderHijacker); ok {
-		render.hijackRender(ctx, w)
+		render.HijackRender(ctx, w)
 		return nil
 	}
 
@@ -47,6 +56,10 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		}
 	}
 
+	return jsonMarshal(w, response)
+}
+
+func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
@@ -60,14 +73,14 @@ type statuser interface {
 
 // loads a html page
 type htmlPage interface {
-	html() string
+	Html() string
 	Error() error
 }
 
 // renderHijacker can be implemented by response values to take control of
 // their own rendering.
 type renderHijacker interface {
-	hijackRender(ctx context.Context, w http.ResponseWriter)
+	HijackRender(ctx context.Context, w http.ResponseWriter)
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
