@@ -128,7 +128,6 @@ export const FileUploader = ({
         )}
         {gitopsCompatible ? (
           <GitOpsModeTooltipWrapper
-            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
