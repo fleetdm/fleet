@@ -20,8 +20,11 @@ interface IPaginatedListProps<TItem> {
   idKey?: string; // defaults to `id`
   labelKey?: string;
   isSelected: string | ((item: TItem) => boolean);
-  renderItemLabel?: (item: TItem) => ReactElement | false | null | undefined;
-  renderItemRow?: (item: TItem, onChange(item: TItem)) => ReactElement | false | null | undefined;
+  renderItemLabel?: (item: TItem) => ReactElement | null;
+  renderItemRow?: (
+    item: TItem,
+    onChange: (item: TItem) => void
+  ) => ReactElement | false | null | undefined;
   onToggleItem: (item: TItem) => TItem;
   pageSize?: number;
   totalItems: number;
@@ -85,7 +88,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   // If you have an imperative API (e.g. getDirtyItems), define it:
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
-      return []; // TODO: return any "dirty" items
+      return Object.values(dirtyItems);
     },
   }));
 
@@ -103,7 +106,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 value={
                   typeof isSelected === "function"
                     ? isSelected(item)
-                    : !!item[isSelected]
+                    : item[isSelected]
                 }
                 name={`item_${item[idKey]}_checkbox`}
                 onChange={() => {
@@ -119,7 +122,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                   <span>{item[labelKey]}</span>
                 )}
               </Checkbox>
-              {renderItemRow && renderItemRow(item)}
+              {renderItemRow &&
+                renderItemRow(item, (changedItem) => {
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [changedItem[idKey]]: changedItem,
+                  });
+                })}
             </li>
           );
         })}

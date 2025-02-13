@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 
 import { useQuery, useQueryClient } from "react-query";
 import { omit } from "lodash";
@@ -112,6 +112,7 @@ const InstallSoftwareModal = ({
     (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
   );
 
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 20;
   const DEFAULT_SORT_COLUMN = "name";
@@ -138,7 +139,13 @@ const InstallSoftwareModal = ({
         }
       )
       .then((policiesResponse) => {
-        return policiesResponse.policies || [];
+        return (policiesResponse.policies || []).map((policy) => ({
+          name: policy.name,
+          id: policy.id,
+          installSoftwareEnabled: !!policy.install_software,
+          swIdToInstall: policy.install_software?.software_title_id,
+          platform: policy.platform,
+        }));
       });
   }, []);
 
@@ -182,7 +189,9 @@ const InstallSoftwareModal = ({
   );
 
   const onUpdateInstallSoftware = useCallback(() => {
-    onSubmit(formData);
+    if (paginatedListRef.current) {
+      onSubmit(paginatedListRef.current.getDirtyItems());
+    }
   }, [formData, onSubmit]);
 
   const onChangeEnableInstallSoftware = useCallback(
@@ -205,25 +214,13 @@ const InstallSoftwareModal = ({
   );
 
   const onSelectPolicySoftware = (
-    item: IPolicyStats,
-    { name, value }: ISwDropdownField
+    item: IFormPolicy,
+    { value }: ISwDropdownField
   ) => {
-    const [policyName, softwareId] = [name, value];
     return {
       ...item,
-      install_software: {
-        software_title_id: value,
-        name: 
-      },
+      swIdToInstall: value,
     };
-    setFormData(
-      formData.map((policy) => {
-        if (policy.name === policyName) {
-          return { ...policy, swIdToInstall: softwareId };
-        }
-        return policy;
-      })
-    );
   };
 
   // Filters and transforms software titles into dropdown options
@@ -351,14 +348,14 @@ const InstallSoftwareModal = ({
         <div className="form-field">
           <div className="form-field__label">Policies:</div>
           <div>
-            <PaginatedList<IPolicyStats>
+            <PaginatedList<IFormPolicy>
+              ref={paginatedListRef}
               fetchPage={fetchPage}
-              isSelected="install_software"
+              isSelected="installSoftwareEnabled"
               onToggleItem={(item) => {
-                if (item.install_software) {
-                  delete item.install_software;
-                } else {
-                  item.install_software = { name: "", software_title_id: 0 };
+                item.installSoftwareEnabled = !item.installSoftwareEnabled;
+                if (!item.installSoftwareEnabled) {
+                  delete item.swIdToInstall;
                 }
                 return item;
               }}
@@ -366,25 +363,28 @@ const InstallSoftwareModal = ({
                 const formPolicy = {
                   name: item.name,
                   id: item.id,
-                  installSoftwareEnabled: !!item.install_software,
-                  swIdToInstall: item.install_software?.software_title_id,
+                  installSoftwareEnabled: !!item.swIdToInstall,
+                  swIdToInstall: item.swIdToInstall,
                   platform: item.platform,
                 };
-                return (
-                  item.install_software && (
-                    <Dropdown
-                      options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
-                      value={formPolicy.swIdToInstall}
-                      onChange={({ name, value }: ISwDropdownField) =>
-                        onChange(onSelectPolicySoftware(item, { name, value }))
-                      }
-                      placeholder="Select software"
-                      className={`${baseClass}__software-dropdown`}
-                      name={formPolicy.name}
-                      parseTarget
-                    />
-                  )
-                );
+                return item.installSoftwareEnabled ? (
+                  <Dropdown
+                    options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
+                    value={formPolicy.swIdToInstall}
+                    onChange={({ value }: ISwDropdownField) =>
+                      onChange(
+                        onSelectPolicySoftware(item, {
+                          name: formPolicy.name,
+                          value,
+                        })
+                      )
+                    }
+                    placeholder="Select software"
+                    className={`${baseClass}__software-dropdown`}
+                    name={formPolicy.name}
+                    parseTarget
+                  />
+                ) : null;
               }}
               totalItems={100}
             />
