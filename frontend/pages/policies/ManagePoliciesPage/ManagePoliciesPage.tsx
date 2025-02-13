@@ -1007,29 +1007,24 @@ const ManagePolicyPage = ({
     );
     if (!hasPoliciesToAutomateOrDelete) {
       let tipContent;
-      if (isPremiumTier) {
-        if (currentTeamId === APP_CONTEXT_ALL_TEAMS_ID) {
-          tipContent = (
-            <p>
-              To manage automations, first add a policy.
-              <br />
-              Select a different team to manage team-specific automations.
-            </p>
-          );
-        } else {
-          tipContent = (
-            <p>
-              To manage automations add a policy to this team.
-              <br />
-              For inherited policies select &ldquo;All teams&rdquo;.
-            </p>
-          );
-        }
+      if (isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
+        tipContent = (
+          <p className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy to this team.
+            <br />
+            For inherited policies select &ldquo;All teams&rdquo;.
+          </p>
+        );
       } else {
-        tipContent = <p>To manage automations, first add a policy.</p>;
+        tipContent = (
+          <p className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy.
+          </p>
+        );
       }
+
       automationsDropdown = (
-        <TooltipWrapper underline={false} tipContent={tipContent}>
+        <TooltipWrapper underline={false} tipContent={tipContent} showArrow>
           {automationsDropdown}
         </TooltipWrapper>
       );
