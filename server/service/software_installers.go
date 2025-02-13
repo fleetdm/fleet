@@ -563,7 +563,7 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, selfService bool, policyID *uint) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 

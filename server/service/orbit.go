@@ -294,8 +294,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// load the pending script executions for that host
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	// load the (active, ready to execute) pending script executions for that host
+	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}
@@ -310,7 +310,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
 		host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
-	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	// load the (active, ready to execute) pending software install executions for that host
+	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
 	}
@@ -1146,6 +1147,7 @@ type orbitGetSoftwareInstallRequest struct {
 // interface implementation required by the OrbitClient
 func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
+	r.OrbotNodeKey = nodeKey // legacy typo -- keep for backwards compatability with fleet server < 4.63.0
 }
 
 // interface implementation required by the OrbitClient
