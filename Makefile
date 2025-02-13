@@ -143,6 +143,7 @@ lint: lint-go lint-js
 dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
+
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
 # PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
