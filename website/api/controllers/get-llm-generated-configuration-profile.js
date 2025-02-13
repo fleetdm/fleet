@@ -85,7 +85,7 @@ module.exports = {
     let promptStringByProfileType = {
       'csp': 'CSP profile that enforces OS settings on Windows devices using only settings documented on https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
       'mobileconfig': 'XML .mobileconfig profile that enforces OS settings on Apple devices using only documented settings from https://developer.apple.com/documentation/devicemanagement',
-      'ddm': 'JSON Apple JSON DDM JSON in JSON MDM command JSON in JSON format that JSON is JSON and enforces JSON OS settings on Apple devices using only JSON and documented settings from https://developer.apple.com/documentation/devicemanagement using JSON. DDM commands should be in JSON.',
+      'ddm': 'Apple DDM MDM profile in JSON format that enforces OS settings on Apple devices using only documented settings from https://developer.apple.com/documentation/devicemanagement. The DDM profile should be in JSON.',
     };
 
     let configurationProfilePrompt = `Given this question from an IT admin, generate a ${promptStringByProfileType[profileType]}.
@@ -137,7 +137,7 @@ module.exports = {
     }).intercept((err)=>{
       return new Error(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
     });
-    console.log(configurationProfileGenerationResult);
+    // console.log(configurationProfileGenerationResult);
     let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
