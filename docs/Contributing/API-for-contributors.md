@@ -1393,21 +1393,8 @@ This endpoint is used to get server-sent events (SSE) messages, so that UI know 
 
 `Status: 200`
 
-```json
-{
-  "data": {
-    "time": "2025-02-13T12:47:54Z",
-    "info": "In progress"
-  },
-  "data": {
-    "time": "2025-02-13T12:47:57Z",
-    "info": "In progress"
-  }
-  "data": {
-    "time": "2025-02-13T12:47:58Z",
-    "info": "Android Enterprise successfuly connected"
-  }
-}
+```
+Android Enterprise successfully connected
 ```
 
 ## Get or apply configuration files
