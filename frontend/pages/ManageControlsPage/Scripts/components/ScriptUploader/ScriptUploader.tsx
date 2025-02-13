@@ -49,6 +49,7 @@ const ScriptPackageUploader = ({
       accept=".sh,.ps1"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      gitopsCompatible
     />
   );
 };
