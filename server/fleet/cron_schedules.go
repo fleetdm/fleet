@@ -28,6 +28,7 @@ const (
 	CronCalendar                    CronScheduleName = "calendar"
 	CronUninstallSoftwareMigration  CronScheduleName = "uninstall_software_migration"
 	CronMaintainedApps              CronScheduleName = "maintained_apps"
+	CronMDMAndroidManager           CronScheduleName = "mdm_android_manager"
 )
 
 type CronSchedulesService interface {
