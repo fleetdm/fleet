@@ -40,7 +40,48 @@ module.exports = {
 
 
   fn: async function ({profileType, naturalLanguageInstructions}) {
-    // v2
+
+    let filteredSettings;
+    if(profileType === 'csp'){
+      let cspSettingsJson = await sails.helpers.fs.readJson(require('path').resolve(sails.config.appPath, 'CSP-policy-settings.json'));
+      let prunedSettings = cspSettingsJson.map((setting)=>{
+        let newSetting = {
+          cspAreaName: setting.NodeName,
+          settingsInCSPArea: setting.Nodes.map((node)=>{
+            return node.NodeName;
+          })
+        };
+        return newSetting;
+      });
+      // console.log(prunedSettings);
+      // Filter down CSP settings.
+      let settingsFiltrationPrompt = `Given this question from an IT admin, and using the provided context (a List of Microsoft CSP Policies setting names), return the subset of settings that might be relevant for designing a CSP policy profile to enforce the requested instructions on a windows device.
+
+      Here is the question:
+      \`\`\`
+      ${naturalLanguageInstructions}
+      \`\`\`
+
+      Provided context:
+      \`\`\`
+      ${JSON.stringify(prunedSettings)}
+      \`\`\`
+
+      `;
+      // throw new Error('stopping :)');
+      filteredSettings = await sails.helpers.ai.prompt(settingsFiltrationPrompt, 'gpt-4o', true)
+      .intercept((err)=>{
+        return new Error(`When trying to get a subset of tables to use to generate a query for an Admin user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      });
+
+      filteredSettings =
+      `Provided context:
+      \`\`\`
+      ${JSON.stringify(filteredSettings)}
+      \`\`\`
+      `;
+    }
+
     let promptStringByProfileType = {
       'csp': 'CSP profile that enforces OS settings on Windows devices using only settings documented on https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
       'mobileconfig': 'XML .mobileconfig profile that enforces OS settings on Apple devices using only documented settings from https://developer.apple.com/documentation/devicemanagement',
@@ -54,8 +95,11 @@ module.exports = {
     ${naturalLanguageInstructions}
     \`\`\`
 
+
+    ${filteredSettings ? filteredSettings : ''}
+
     When generating configuration profiles, follow these rules strictly:
-    ${profileType === 'mobileconfig' ? '- Please keep in mind that the Payload-type of XML configuration profiles should be "Configuration"' ? ''}
+    ${profileType === 'ddm' ? '- DDM commands should be formatted as JSON' : ''}
     - Use only officially supported, documented settings for the specified platform.
     - For any example variables in XML profiles, insert a comment on the line immediately above explaining what the user should replace, unless the generated result is formatted as JSON, this will break the formatting.
     - Output ONLY valid JSON with no extra text, markdown, or formatting.
@@ -93,7 +137,7 @@ module.exports = {
     }).intercept((err)=>{
       return new Error(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
     });
-    // console.log(configurationProfileGenerationResult);
+    console.log(configurationProfileGenerationResult);
     let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
