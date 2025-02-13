@@ -2173,7 +2173,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 			mobileconfigForTest(p, p),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
@@ -2182,7 +2183,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
 	}
 
 	// payloads with reserved identifiers
@@ -2191,7 +2193,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 			mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// successfully apply a profile for the team
@@ -3017,13 +3020,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// identifier must be unique, it conflicts with existing declaration
 	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident", 0, nil, http.StatusConflict, "test-declaration-ident already exists")
 	// name is pulled from filename, it conflicts with existing declaration
-	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-declaration already exists")
+	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// uniqueness is checked only within team, so it's fine to have the same name and identifier in different teams
 	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident", testTeam.ID, nil, http.StatusOK, "")
 	// name is pulled from filename, it conflicts with existing macOS config profile
-	assertAppleDeclaration("apple-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-global-profile already exists")
+	assertAppleDeclaration("apple-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// name is pulled from filename, it conflicts with existing macOS config profile
-	assertAppleDeclaration("win-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "win-global-profile already exists")
+	assertAppleDeclaration("win-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// windows profile name conflicts with existing declaration
 	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, SameProfileNameUploadErrorMsg)
 	// macOS profile name conflicts with existing declaration
@@ -4079,7 +4082,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// Profile is too big
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Contents: []byte(bigString)}}},
 		http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
+	require.Contains(t, extractServerErrorText(resp.Body), "maximum configuration profile file size is 1 MB")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
@@ -4125,7 +4128,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
@@ -4136,7 +4140,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
 	}
 
 	// payloads with reserved identifiers
@@ -4147,7 +4152,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// profiles with forbidden declaration types
@@ -4400,7 +4406,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
@@ -4410,7 +4417,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
 	}
 
 	// payloads with reserved identifiers
@@ -4420,7 +4428,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, "Validation Failed")
+		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// profiles with reserved Windows location URIs

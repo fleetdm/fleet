@@ -1320,6 +1320,12 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		if isJSON {
 			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, labelsMode)
 			if err != nil {
+				errStr := err.Error()
+				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
+					return &newMDMConfigProfileResponse{
+						Err: fleet.NewInvalidArgumentError("profile name", SameProfileNameUploadErrorMsg).WithStatus(http.StatusConflict),
+					}, nil
+				}
 				return &newMDMConfigProfileResponse{Err: err}, nil
 			}
 
@@ -1976,7 +1982,7 @@ func getAppleProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
+				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("macos_settings: %s: %s", prof.Name, err.Error())))
 		}
 
 		if mdmProf.Name != prof.Name {
@@ -2070,7 +2076,7 @@ func getWindowsProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
+				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("windows_settings: %s: %s", profile.Name, err.Error())))
 		}
 
 		profs[i] = mdmProf
