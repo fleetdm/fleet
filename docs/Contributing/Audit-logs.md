@@ -1568,6 +1568,17 @@ Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
+## enabled_gitops_mode
+
+Generated when GitOps mode is enabled
+
+This activity does not contain any detail fields.
+
+## disabled_gitops_mode
+
+Generated when GitOps mode is disabled
+
+This activity does not contain any detail fields.
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
