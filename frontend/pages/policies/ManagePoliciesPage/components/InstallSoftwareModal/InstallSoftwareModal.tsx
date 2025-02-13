@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { omit } from "lodash";
 
 import { IPolicyStats } from "interfaces/policy";
@@ -13,6 +13,12 @@ import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
+import teamPoliciesAPI, {
+  ITeamPoliciesCountQueryKey,
+  ITeamPoliciesQueryKey,
+} from "services/entities/team_policies";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 // @ts-ignore
@@ -105,6 +111,36 @@ const InstallSoftwareModal = ({
   const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
     (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
   );
+
+  const queryClient = useQueryClient();
+  const DEFAULT_PAGE_SIZE = 20;
+  const DEFAULT_SORT_COLUMN = "name";
+
+  const fetchPage = useCallback((pageNumber: number) => {
+    return queryClient
+      .fetchQuery(
+        [
+          {
+            scope: "teamPolicies",
+            page: pageNumber,
+            perPage: DEFAULT_PAGE_SIZE,
+            query: "",
+            orderDirection: "asc" as const,
+            orderKey: DEFAULT_SORT_COLUMN,
+            // teamIdForApi will never actually be undefined here
+            teamId: 3,
+            // no teams does inherit
+            mergeInherited: false,
+          },
+        ],
+        ({ queryKey }) => {
+          return teamPoliciesAPI.loadAllNew(queryKey[0]);
+        }
+      )
+      .then((policiesResponse) => {
+        return policiesResponse.policies || [];
+      });
+  }, []);
 
   const {
     data: titlesAvailableForInstall,
@@ -308,11 +344,13 @@ const InstallSoftwareModal = ({
         <div className="form-field">
           <div className="form-field__label">Policies:</div>
           <div>
-            <ul className="automated-policies-section">
-              {formData.map((policyData) =>
-                renderPolicySwInstallOption(policyData)
-              )}
-            </ul>
+            <PaginatedList<IPolicyStats>
+              fetchPage={fetchPage}
+              isSelected={() => false}
+              onToggleItem={(item) => item}
+              totalItems={100}
+            />
+
             <p className="form-field__help-text">
               If compatible with the host, the selected software will be
               installed when hosts fail the policy. Host counts will reset when
