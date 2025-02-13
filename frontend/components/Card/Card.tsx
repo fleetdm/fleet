@@ -1,3 +1,5 @@
+// Base component to reusable <InfoBanner/>, <HostCountCard/>, <SectionCard/>, etc
+// and countless single use components
 import React from "react";
 import classnames from "classnames";
 
@@ -6,13 +8,13 @@ import { Link } from "react-router";
 const baseClass = "card";
 
 type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
-type CardColor = "white" | "gray" | "purple" | "yellow";
+type CardColor = "white" | "grey" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
   /** The size of the border radius. Defaults to `small`.
    *
-   * These correspond to the boarder radius in the design system. Look at
+   * These correspond to the border radius in the design system. Look at
    * `var/_global.scss` for values */
   borderRadiusSize?: BorderRadiusSize;
   /** Includes the card shadows. Defaults to `false` */
