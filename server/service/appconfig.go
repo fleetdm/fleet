@@ -187,11 +187,11 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			FleetDesktop: fleetDesktop,
 
-			WebhookSettings:  appConfig.WebhookSettings,
-			Integrations:     appConfig.Integrations,
-			MDM:              appConfig.MDM,
-			Scripts:          appConfig.Scripts,
-			ChangeManagement: appConfig.ChangeManagement,
+			WebhookSettings: appConfig.WebhookSettings,
+			Integrations:    appConfig.Integrations,
+			MDM:             appConfig.MDM,
+			Scripts:         appConfig.Scripts,
+			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -623,16 +623,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
-	gmo, rurl := newAppConfig.ChangeManagement.GitopsModeEnabled, newAppConfig.ChangeManagement.RepositoryURL
-	if gmo {
+	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
+	if gme {
 		if rurl == "" {
-			return nil, fleet.NewInvalidArgumentError("Change management: ", "Repository URL is required when GitOps mode is enabled")
+			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
 		if err := validateServerURL(rurl); err != nil {
-			return nil, fleet.NewInvalidArgumentError("Change management: ", err.Error())
+			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", err.Error())
 		}
 	}
-	appConfig.ChangeManagement = newAppConfig.ChangeManagement
+	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
 
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses

@@ -213,7 +213,7 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
-type ChangeManagement struct {
+type UIGitOpsModeConfig struct {
 	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
 	RepositoryURL     string `json:"repository_url"`
 }
@@ -557,7 +557,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	ChangeManagement ChangeManagement `json:"change_management"`
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -732,7 +732,7 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 
-	// ChangeManagement: nothing needs cloning
+	// UIGitOpsMode: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
