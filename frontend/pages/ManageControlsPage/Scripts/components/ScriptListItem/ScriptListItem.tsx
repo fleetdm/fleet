@@ -10,6 +10,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "script-list-item";
 
@@ -95,6 +96,42 @@ const ScriptListItem = ({
     onDelete(script);
   };
 
+  const actions = (
+    <>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickEdit}
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+          >
+            <Icon name="pencil" color="ui-fleet-black-75" />
+          </Button>
+        )}
+      />
+      <Button
+        className={`${baseClass}__action-button`}
+        variant="text-icon"
+        onClick={onClickDownload}
+      >
+        <Icon name="download" />
+      </Button>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickDelete}
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+          >
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </Button>
+        )}
+      />
+    </>
+  );
+
   return (
     <ListItem
       className={baseClass}
@@ -106,31 +143,7 @@ const ScriptListItem = ({
           createdAt={script.created_at}
         />
       }
-      actions={
-        <>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={onClickEdit}
-          >
-            <Icon name="pencil" color="ui-fleet-black-75" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={onClickDownload}
-          >
-            <Icon name="download" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={onClickDelete}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
-        </>
-      }
+      actions={actions}
       onClick={() => onClickScript(script)}
     />
   );
