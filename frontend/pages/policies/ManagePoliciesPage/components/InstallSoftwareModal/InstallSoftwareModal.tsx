@@ -204,20 +204,27 @@ const InstallSoftwareModal = ({
     [formData]
   );
 
-  const onSelectPolicySoftware = useCallback(
-    ({ name, value }: ISwDropdownField) => {
-      const [policyName, softwareId] = [name, value];
-      setFormData(
-        formData.map((policy) => {
-          if (policy.name === policyName) {
-            return { ...policy, swIdToInstall: softwareId };
-          }
-          return policy;
-        })
-      );
-    },
-    [formData]
-  );
+  const onSelectPolicySoftware = (
+    item: IPolicyStats,
+    { name, value }: ISwDropdownField
+  ) => {
+    const [policyName, softwareId] = [name, value];
+    return {
+      ...item,
+      install_software: {
+        software_title_id: value,
+        name: 
+      },
+    };
+    setFormData(
+      formData.map((policy) => {
+        if (policy.name === policyName) {
+          return { ...policy, swIdToInstall: softwareId };
+        }
+        return policy;
+      })
+    );
+  };
 
   // Filters and transforms software titles into dropdown options
   // to include only software compatible with the policy's platform(s)
@@ -354,6 +361,30 @@ const InstallSoftwareModal = ({
                   item.install_software = { name: "", software_title_id: 0 };
                 }
                 return item;
+              }}
+              renderItemRow={(item, onChange) => {
+                const formPolicy = {
+                  name: item.name,
+                  id: item.id,
+                  installSoftwareEnabled: !!item.install_software,
+                  swIdToInstall: item.install_software?.software_title_id,
+                  platform: item.platform,
+                };
+                return (
+                  item.install_software && (
+                    <Dropdown
+                      options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
+                      value={formPolicy.swIdToInstall}
+                      onChange={({ name, value }: ISwDropdownField) =>
+                        onChange(onSelectPolicySoftware(item, { name, value }))
+                      }
+                      placeholder="Select software"
+                      className={`${baseClass}__software-dropdown`}
+                      name={formPolicy.name}
+                      parseTarget
+                    />
+                  )
+                );
               }}
               totalItems={100}
             />

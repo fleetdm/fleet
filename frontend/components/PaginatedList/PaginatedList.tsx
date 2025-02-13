@@ -20,7 +20,8 @@ interface IPaginatedListProps<TItem> {
   idKey?: string; // defaults to `id`
   labelKey?: string;
   isSelected: string | ((item: TItem) => boolean);
-  itemFormatter?: (item: TItem) => ReactElement;
+  renderItemLabel?: (item: TItem) => ReactElement | false | null | undefined;
+  renderItemRow?: (item: TItem, onChange(item: TItem)) => ReactElement | false | null | undefined;
   onToggleItem: (item: TItem) => TItem;
   pageSize?: number;
   totalItems: number;
@@ -32,7 +33,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
-    itemFormatter,
+    renderItemLabel,
+    renderItemRow,
     onToggleItem,
     isSelected,
   }: IPaginatedListProps<TItem>,
@@ -111,12 +113,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                   });
                 }}
               >
-                {itemFormatter ? (
-                  itemFormatter(item)
+                {renderItemLabel ? (
+                  renderItemLabel(item)
                 ) : (
                   <span>{item[labelKey]}</span>
                 )}
               </Checkbox>
+              {renderItemRow && renderItemRow(item)}
             </li>
           );
         })}
