@@ -31,7 +31,6 @@ parasails.registerPage('account-overview', {
     _.extend(this, window.SAILS_LOCALS);
 
     this.isBillingEnabled = !!this.stripePublishableKey;
-
     // Determine whether there is billing info for this user.
     this.me.hasBillingCard = (
       this.me.billingCardBrand &&
