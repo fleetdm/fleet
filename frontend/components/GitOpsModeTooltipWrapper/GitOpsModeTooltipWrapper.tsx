@@ -14,7 +14,7 @@ interface IGitOpsModeTooltipWrapper {
 const baseClass = "gitops-mode-tooltip-wrapper";
 
 const GitOpsModeTooltipWrapper = ({
-  position,
+  position = "top",
   tipOffset,
   renderChildren,
 }: IGitOpsModeTooltipWrapper) => {

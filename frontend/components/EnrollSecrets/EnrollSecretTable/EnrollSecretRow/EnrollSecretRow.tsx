@@ -95,7 +95,6 @@ const EnrollSecretRow = ({
 
   const renderEditDeleteButtons = () => (
     <GitOpsModeTooltipWrapper
-      position="top"
       tipOffset={8}
       renderChildren={(disableChildren) => (
         <div className="buttons">
