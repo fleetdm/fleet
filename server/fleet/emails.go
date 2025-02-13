@@ -1,9 +1,12 @@
 package fleet
 
 import (
+	"errors"
 	"regexp"
 	"time"
 )
+
+var ErrPasswordResetNotConfigured = errors.New("Cannot send password reset. Please configure SMTP or SES")
 
 // Mailer is an email campaign
 // Types which implement the Campaign interface

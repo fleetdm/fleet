@@ -1135,7 +1135,9 @@ func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.
 	// Any error returned by the service should not be returned to the
 	// client to prevent information disclosure (it will be logged in the
 	// server logs).
-	_ = svc.RequestPasswordReset(ctx, req.Email)
+	if err := svc.RequestPasswordReset(ctx, req.Email); errors.Is(err, fleet.ErrPasswordResetNotConfigured) {
+		return forgotPasswordResponse{Err: err}, nil
+	}
 	return forgotPasswordResponse{}, nil
 }
 
@@ -1149,6 +1151,14 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 	defer func(start time.Time) {
 		time.Sleep(time.Until(start.Add(1 * time.Second)))
 	}(time.Now())
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !svc.mailService.CanSendEmail(*config.SMTPSettings) {
+		return ctxerr.Wrap(ctx, fleet.ErrPasswordResetNotConfigured)
+	}
 
 	user, err := svc.ds.UserByEmail(ctx, email)
 	if err != nil {
@@ -1169,11 +1179,6 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		Token:  token,
 	}
 	_, err = svc.ds.NewPasswordResetRequest(ctx, request)
-	if err != nil {
-		return err
-	}
-
-	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
