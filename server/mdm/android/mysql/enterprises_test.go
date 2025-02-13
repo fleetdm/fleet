@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/android"
-	"github.com/fleetdm/fleet/v4/server/android/mysql"
-	"github.com/fleetdm/fleet/v4/server/android/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql/testing_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

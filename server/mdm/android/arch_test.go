@@ -7,11 +7,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/archtest"
 )
 
-// TestAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
+// TestAllAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
 // to maintain decoupling and modularity.
-func TestAndroidPackageDependencies(t *testing.T) {
+func TestAllAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
-	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/android...").
+	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		IgnorePackages(
 			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql",
@@ -25,4 +25,13 @@ func TestAndroidPackageDependencies(t *testing.T) {
 			"github.com/fleetdm/fleet/v4/server/service...",
 			"github.com/fleetdm/fleet/v4/server/datastore...",
 		)
+}
+
+// TestAndroidPackageDependencies checks that android package is NOT dependent on ANY other Fleet packages
+// to maintain decoupling and modularity.
+func TestAndroidPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		ShouldNotDependOn("github.com/fleetdm/fleet/v4/...")
 }
