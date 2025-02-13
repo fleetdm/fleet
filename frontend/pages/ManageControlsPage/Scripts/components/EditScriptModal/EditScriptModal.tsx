@@ -106,11 +106,12 @@ const EditScriptModal = ({
       <>
         <form onSubmit={onSubmit}>
           <Editor
-            value={scriptFormData}
-            onChange={onChange}
-            isFormField
             error={formError}
+            isFormField
+            label="Script"
             onBlur={onBlur}
+            onChange={onChange}
+            value={scriptFormData}
           />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
