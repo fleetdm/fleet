@@ -946,6 +946,10 @@ None.
   "vulnerability_settings": {
     "databases_path": ""
   },
+  "gitops": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
+  },
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
@@ -1054,6 +1058,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
+| gitops        | object  | body  | See [gitops](#gitops). |
 | integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
@@ -1225,6 +1230,10 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "fleet_desktop": {
     "transparency_url": "https://fleetdm.com/better"
+  },
+  "gitops": {
+    "gitops_mode_enabled": false,
+    "repository_url": "",
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -1478,6 +1487,28 @@ _Available in Fleet Premium._
 }
 ```
 
+#### gitops
+
+_Available in Fleet Premium._
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| gitops_mode_enabled               | boolean | Whether to enable "GitOps mode", which restricts making changes via the UI that would be overridden by running `fleetctl-gitops`. (Default: `false`) |
+| repository_url                    | string  | The URL for the repository where changes are managed, for Fleet instances using GitOps. Users will be sent here when GitOps mode is enabled. |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "gitops": {
+    "gitops_mode_enabled": true,
+    "repository_url": "https://github.com/exampleorg/it-and-security"
+  }
+}
+```
+
 #### webhook_settings
 
 <!--
@@ -1590,6 +1621,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+
 
 <br/>
 
