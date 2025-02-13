@@ -1071,7 +1071,7 @@ the way that the Fleet server works.
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
-					[]func(r *mux.Router, opts []kithttp.ServerOption){android_service.GetRoutes(svc, androidSvc)})
+					[]fleet.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)})
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {

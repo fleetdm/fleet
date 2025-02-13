@@ -88,7 +88,7 @@ func MakeHandler(
 	config config.FleetConfig,
 	logger kitlog.Logger,
 	limitStore throttled.GCRAStore,
-	featureRoutes []func(r *mux.Router, opts []kithttp.ServerOption),
+	featureRoutes []fleet.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
 ) http.Handler {
 	var eopts extraHandlerOpts

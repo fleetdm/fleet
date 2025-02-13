@@ -56,7 +56,7 @@ To setup Fleet infrastructure, use one of the available commands.
 			case fleet.NoMigrationsCompleted:
 				// OK
 			case fleet.AllMigrationsCompleted:
-				fmt.Println("Main migrations already completed.")
+				fmt.Println("Migrations already completed. Nothing to do.")
 				return
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {

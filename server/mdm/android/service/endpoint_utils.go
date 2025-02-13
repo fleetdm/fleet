@@ -1,5 +1,7 @@
 package service
 
+// TODO(26218): Refactor this to remove duplication.
+
 import (
 	"bufio"
 	"compress/gzip"

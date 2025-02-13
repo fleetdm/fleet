@@ -1,5 +1,7 @@
 package mysql
 
+// TODO(26218): Refactor this to common_mysql
+
 import (
 	"database/sql"
 	"fmt"

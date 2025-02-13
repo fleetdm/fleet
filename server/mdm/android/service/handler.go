@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetRoutes(fleetSvc fleet.Service, svc android.Service) func(r *mux.Router, opts []kithttp.ServerOption) {
+func GetRoutes(fleetSvc fleet.Service, svc android.Service) fleet.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, fleetSvc, svc, opts)
 	}
