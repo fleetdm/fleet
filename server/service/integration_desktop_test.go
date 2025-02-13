@@ -254,7 +254,7 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 1,
+			burst:    forgotPasswordRateLimitMaxBurst + 1,
 			status:   http.StatusAccepted,
 		},
 		{
@@ -264,6 +264,12 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			status:   http.StatusUnauthorized,
 		},
 	}
+
+	// Mock working SMTP for password reset
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = true
+	s.ds.SaveAppConfig(context.Background(), config)
 
 	for _, tCase := range testCases {
 		b, err := json.Marshal(tCase.payload)

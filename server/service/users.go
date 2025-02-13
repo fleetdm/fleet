@@ -1157,7 +1157,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		return err
 	}
 	if !svc.mailService.CanSendEmail(*config.SMTPSettings) {
-		return ctxerr.Wrap(ctx, fleet.ErrPasswordResetNotConfigured)
+		return fleet.ErrPasswordResetNotConfigured
 	}
 
 	user, err := svc.ds.UserByEmail(ctx, email)
