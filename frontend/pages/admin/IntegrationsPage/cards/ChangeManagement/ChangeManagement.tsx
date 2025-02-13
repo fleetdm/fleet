@@ -67,10 +67,7 @@ const ChangeManagement = () => {
     {
       onSuccess: (data) => {
         const {
-          change_management: {
-            gitops_mode_enabled: gomEnabled,
-            repository_url: repoURL,
-          },
+          gitops: { gitops_mode_enabled: gomEnabled, repository_url: repoURL },
         } = data;
         setFormData({ gomEnabled, repoURL });
         setConfig(data);
@@ -98,7 +95,7 @@ const ChangeManagement = () => {
     setIsUpdating(true);
     try {
       await configAPI.update({
-        change_management: {
+        gitops: {
           gitops_mode_enabled: formData.gomEnabled,
           repository_url: formData.repoURL,
         },

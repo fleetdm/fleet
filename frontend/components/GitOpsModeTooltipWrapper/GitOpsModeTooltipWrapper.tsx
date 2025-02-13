@@ -19,8 +19,8 @@ const GitOpsModeTooltipWrapper = ({
   renderChildren,
 }: IGitOpsModeTooltipWrapper) => {
   const { config } = useContext(AppContext);
-  const gomEnabled = config?.change_management.gitops_mode_enabled;
-  const repoURL = config?.change_management.repository_url;
+  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const repoURL = config?.gitops.repository_url;
 
   if (!gomEnabled) {
     return <>{renderChildren()}</>;

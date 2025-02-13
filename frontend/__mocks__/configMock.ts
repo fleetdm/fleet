@@ -193,7 +193,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: createMockMdmConfig(),
-  change_management: {
+  gitops: {
     gitops_mode_enabled: false,
     repository_url: "",
   },
