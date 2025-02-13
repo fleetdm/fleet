@@ -493,7 +493,7 @@ The `sso_settings` section lets you define single sign-on (SSO) settings. Learn 
 
 - `enable_sso` (default: `false`)
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
-- `idp_image_url` is a link to a logo or other image that is displayed at login (default: `""`).
+- `idp_image_url` is an optional link to an image such as a logo for the identity provider. (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
