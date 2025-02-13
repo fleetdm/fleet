@@ -10,6 +10,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Pagination from "components/Pagination";
 
+const baseClass = "paginated-list";
+
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
 }
@@ -90,11 +92,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
 
   return (
     <div>
-      <ul>
+      <ul className={`${baseClass}__list`}>
         {items.map((_item) => {
           const item = dirtyItems[_item[idKey]] ?? _item;
           return (
-            <li key={item[idKey]}>
+            <li className={`${baseClass}__row`} key={item[idKey]}>
               <Checkbox
                 value={
                   typeof isSelected === "function"
@@ -108,12 +110,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                     [item[idKey]]: onToggleItem(item),
                   });
                 }}
-              />
-              {itemFormatter ? (
-                itemFormatter(item)
-              ) : (
-                <span>{item[labelKey]}</span>
-              )}
+              >
+                {itemFormatter ? (
+                  itemFormatter(item)
+                ) : (
+                  <span>{item[labelKey]}</span>
+                )}
+              </Checkbox>
             </li>
           );
         })}
