@@ -1,0 +1,133 @@
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  Ref,
+} from "react";
+import { ReactElement } from "react-markdown/lib/react-markdown";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Pagination from "components/Pagination";
+
+export interface IPaginatedListHandle<TItem> {
+  getDirtyItems: () => TItem[];
+}
+interface IPaginatedListProps<TItem> {
+  fetchPage: (pageNumber: number) => Promise<TItem[]>;
+  idKey?: string; // defaults to `id`
+  labelKey?: string;
+  isSelected: string | ((item: TItem) => boolean);
+  itemFormatter?: (item: TItem) => ReactElement;
+  onToggleItem: (item: TItem) => TItem;
+  pageSize?: number;
+  totalItems: number;
+}
+
+function PaginatedListInner<TItem extends Record<string, any>>(
+  {
+    fetchPage,
+    idKey: _idKey,
+    labelKey: _labelKey,
+    pageSize: _pageSize,
+    itemFormatter,
+    onToggleItem,
+    isSelected,
+  }: IPaginatedListProps<TItem>,
+  ref: Ref<IPaginatedListHandle<TItem>>
+) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [items, setItems] = useState<TItem[]>([]);
+  const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
+    {}
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const idKey = _idKey ?? "id";
+  const labelKey = _labelKey ?? "name";
+  const pageSize = _pageSize ?? 20;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadPage() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const result = await fetchPage(currentPage);
+        if (!isCancelled) {
+          setItems(result);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err as Error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPage, fetchPage]);
+
+  // If you have an imperative API (e.g. getDirtyItems), define it:
+  useImperativeHandle(ref, () => ({
+    getDirtyItems() {
+      return []; // TODO: return any "dirty" items
+    },
+  }));
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <div>
+      <ul>
+        {items.map((item) => (
+          <li key={item[idKey]}>
+            <Checkbox
+              value={
+                typeof isSelected === "function"
+                  ? isSelected(item)
+                  : item[isSelected]
+              }
+              name={`item_${item[idKey]}_checkbox`}
+              onChange={() => {
+                setDirtyItems({
+                  ...dirtyItems,
+                  [item[idKey]]: onToggleItem(item),
+                });
+              }}
+            />
+            {itemFormatter ? (
+              itemFormatter(item)
+            ) : (
+              <span>{item[labelKey]}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <Pagination
+        resultsOnCurrentPage={items.length}
+        currentPage={currentPage}
+        resultsPerPage={pageSize}
+        onPaginationChange={setCurrentPage}
+      />
+    </div>
+  );
+}
+
+// Wrap with forwardRef to expose the imperative handle:
+const PaginatedList = forwardRef(PaginatedListInner) as <TItem>(
+  props: IPaginatedListProps<TItem> & {
+    ref?: Ref<IPaginatedListHandle<TItem>>;
+  }
+) => JSX.Element;
+
+export default PaginatedList;
