@@ -74,11 +74,11 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
-	appConfig, err := svc.fleetDS.CommonAppConfig(ctx)
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
-	if appConfig.AndroidEnabledAndConfigured() {
+	if appConfig.MDM.AndroidEnabledAndConfigured {
 		return nil, fleet.NewInvalidArgumentError("android",
 			"Android is already enabled and configured").WithStatus(http.StatusConflict)
 	}
@@ -88,7 +88,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
 
-	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerURL(), id)
+	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerSettings.ServerURL, id)
 	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
@@ -121,11 +121,11 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return err
 	}
 
-	appConfig, err := svc.fleetDS.CommonAppConfig(ctx)
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
-	if appConfig.AndroidEnabledAndConfigured() {
+	if appConfig.MDM.AndroidEnabledAndConfigured {
 		return fleet.NewInvalidArgumentError("android",
 			"Android is already enabled and configured").WithStatus(http.StatusConflict)
 	}

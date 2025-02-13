@@ -3,6 +3,8 @@ package ctxerr
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type ErrorAgg struct {
@@ -66,17 +68,9 @@ func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
 		if len(e.Data) > 0 {
 			// Currently, only vital fleetd errors contain metadata.
 			// Note: vital errors should not contain any sensitive info
-
-			// Keeping a near-copy of FleetdError type here to avoid
-			// dependency on the server/fleet package
-			fleetdErr := struct {
-				ErrorSource         string         `json:"error_source"`
-				ErrorSourceVersion  string         `json:"error_source_version"`
-				ErrorMessage        string         `json:"error_message"`
-				ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
-				Vital               bool           `json:"vital"`
-			}{}
-			if err := json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
+			var fleetdErr fleet.FleetdError
+			var err error
+			if err = json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
 				continue
 			}
 			var export = map[string]interface{}{
@@ -85,8 +79,8 @@ func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
 				"error_message":         fleetdErr.ErrorMessage,
 				"error_additional_info": fleetdErr.ErrorAdditionalInfo,
 			}
-			meta, err := json.Marshal(export)
-			if err != nil {
+			var meta json.RawMessage
+			if meta, err = json.Marshal(export); err != nil {
 				return nil
 			}
 			return meta

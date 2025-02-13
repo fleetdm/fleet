@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -576,9 +575,6 @@ type AppConfig struct {
 	// ///////////////////////////////////////////////////////////////
 }
 
-// Compile-time interface check
-var _ common.AppConfig = &AppConfig{}
-
 // Obfuscate overrides credentials with obfuscated characters.
 func (c *AppConfig) Obfuscate() {
 	if c.SMTPSettings != nil && c.SMTPSettings.SMTPPassword != "" {
@@ -738,14 +734,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	return &clone
-}
-
-func (c *AppConfig) ServerURL() string {
-	return c.ServerSettings.ServerURL
-}
-
-func (c *AppConfig) AndroidEnabledAndConfigured() bool {
-	return c.MDM.AndroidEnabledAndConfigured
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet

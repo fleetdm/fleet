@@ -22,6 +22,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
 )
@@ -211,13 +212,7 @@ func Wrapf(ctx context.Context, cause error, format string, args ...interface{})
 
 // Cause returns the root error in err's chain.
 func Cause(err error) error {
-	for {
-		uerr := errors.Unwrap(err)
-		if uerr == nil {
-			return err
-		}
-		err = uerr
-	}
+	return fleet.Cause(err)
 }
 
 // FleetCause is similar to Cause, but returns the root-most

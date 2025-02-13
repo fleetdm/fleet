@@ -13,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/fleet/common"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -333,8 +332,6 @@ type NewMFATokenFunc func(ctx context.Context, userID uint) (string, error)
 type NewAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) (*fleet.AppConfig, error)
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
-
-type CommonAppConfigFunc func(ctx context.Context) (common.AppConfig, error)
 
 type SaveAppConfigFunc func(ctx context.Context, info *fleet.AppConfig) error
 
@@ -1696,9 +1693,6 @@ type DataStore struct {
 
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
-
-	CommonAppConfigFunc        CommonAppConfigFunc
-	CommonAppConfigFuncInvoked bool
 
 	SaveAppConfigFunc        SaveAppConfigFunc
 	SaveAppConfigFuncInvoked bool
@@ -4131,13 +4125,6 @@ func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigFunc(ctx)
-}
-
-func (s *DataStore) CommonAppConfig(ctx context.Context) (common.AppConfig, error) {
-	s.mu.Lock()
-	s.CommonAppConfigFuncInvoked = true
-	s.mu.Unlock()
-	return s.CommonAppConfigFunc(ctx)
 }
 
 func (s *DataStore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
