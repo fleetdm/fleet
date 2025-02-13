@@ -10316,7 +10316,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-"teams": {
+"team": {
     "name": "workstations",
     "id": 1,
     "user_count": 0,
