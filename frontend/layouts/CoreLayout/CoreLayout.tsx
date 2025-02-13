@@ -61,7 +61,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
 
   return (
     <div className="app-wrap">
-      <UnsupportedScreenSize />
       <nav className="site-nav-container">
         <SiteTopNav
           config={config}

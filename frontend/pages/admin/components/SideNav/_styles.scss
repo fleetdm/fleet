@@ -1,6 +1,8 @@
 .side-nav {
   &__container {
-    display: flex;
+    @media(min-width: ($break-sm - 1)){
+      display: flex;
+    }
   }
 
   &__nav-list {
