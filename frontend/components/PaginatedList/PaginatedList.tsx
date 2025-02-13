@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
+import Spinner from "components/Spinner";
 // @ts-ignore
 import Pagination from "components/Pagination";
 
@@ -85,18 +86,21 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [currentPage, fetchPage]);
 
-  // If you have an imperative API (e.g. getDirtyItems), define it:
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
       return Object.values(dirtyItems);
     },
   }));
 
-  if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
 
   return (
-    <div>
+    <div className={baseClass}>
+      {isLoading && (
+        <div className="loading-overlay">
+          <Spinner />
+        </div>
+      )}
       <ul className={`${baseClass}__list`}>
         {items.map((_item) => {
           const item = dirtyItems[_item[idKey]] ?? _item;
