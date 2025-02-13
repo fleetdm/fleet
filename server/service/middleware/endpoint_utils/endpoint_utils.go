@@ -14,11 +14,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
-	http2 "github.com/go-kit/kit/transport/http"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
+
+type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func ParseTag(tag string) (string, bool, error) {
@@ -258,7 +260,7 @@ type ErrorHandler struct {
 
 func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	// get the request path
-	path, _ := ctx.Value(http2.ContextKeyRequestPath).(string)
+	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(log.With(h.Logger, "path", path))
 
 	var ewi fleet.ErrWithInternal

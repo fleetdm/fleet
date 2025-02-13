@@ -9,8 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // EnterpriseOverrides contains the methods that can be overriden by the
@@ -1223,5 +1221,3 @@ const (
 	// MFALinkTTL is how long MFA verification links stay active
 	MFALinkTTL = time.Minute * 15
 )
-
-type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
