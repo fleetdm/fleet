@@ -37,9 +37,7 @@ interface IScriptsProps {
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const [showEditScripsModal, setShowEditScriptModal] = useState(false);
-  const [goBackToScriptDetails, setGoBackToScriptDetails] = useState(false); // Used for onCancel in delete modal
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -86,13 +84,12 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
 
   const onClickScript = (script: IScript) => {
     selectedScript.current = script;
-    setShowScriptDetailsModal(true);
+    setShowEditScriptModal(true);
   };
 
   const onCancelScriptDetails = () => {
     selectedScript.current = null;
-    setShowScriptDetailsModal(false);
-    setGoBackToScriptDetails(false);
+    setShowEditScriptModal(false);
   };
 
   const onEditScript = (script: IScript) => {
@@ -112,12 +109,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
 
   const onCancelDelete = () => {
     setShowDeleteScriptModal(false);
-
-    if (goBackToScriptDetails) {
-      setShowScriptDetailsModal(true);
-    } else {
-      selectedScript.current = null;
-    }
+    selectedScript.current = null;
   };
 
   const onDeleteScript = () => {
@@ -198,21 +190,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           scriptId={selectedScript.current?.id}
           onCancel={onCancelDelete}
           onDone={onDeleteScript}
-        />
-      )}
-      {showScriptDetailsModal && selectedScript.current && (
-        <ScriptDetailsModal
-          selectedScriptDetails={{
-            script_id: selectedScript.current?.id,
-            name: selectedScript.current?.name,
-          }}
-          onCancel={onCancelScriptDetails}
-          onDelete={() => {
-            setShowScriptDetailsModal(false);
-            setShowDeleteScriptModal(true);
-            setGoBackToScriptDetails(true);
-          }}
-          runScriptHelpText
         />
       )}
       {showEditScripsModal && selectedScript.current && (
