@@ -1310,7 +1310,8 @@ This endpoint is used to generate URL, which opens Google's wizard to create And
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn on Android MDM features.
 
-`POST /api/v1/fleet/android_enterprise/:id/connect`
+`GET /api/v1/fleet/android_enterprise/:id/connect`
+This is callback URL that will be open after user complets Google's signup flow. It will self-close and return user to settings page.
 
 #### Parameters
 
@@ -1322,11 +1323,15 @@ This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn o
 
 #### Example
 
-`POST /api/v1/fleet/android_enterprise/5/connect?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+`GET /api/v1/fleet/android_enterprise/5/connect?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
 
 ##### Default response
 
 `Status: 200`
+
+```
+<html><!-- self-closing page --></html>
+```
 
 ### Delete Android Enterprise
 
