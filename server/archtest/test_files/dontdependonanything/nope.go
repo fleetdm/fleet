@@ -1,0 +1,4 @@
+package dontdependonanything
+
+func Nothing() {
+}
