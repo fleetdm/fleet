@@ -18,8 +18,6 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
-	"github.com/fleetdm/fleet/v4/server/android"
-	android_mysql "github.com/fleetdm/fleet/v4/server/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -28,6 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/log"
@@ -504,14 +504,14 @@ func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, 
 		}
 	}
 
-	missingTable, unknownTable, equalTable := common_mysql.CompareVersions(
-		common_mysql.GetVersionsFromMigrations(knownTable),
+	missingTable, unknownTable, equalTable := compareVersions(
+		getVersionsFromMigrations(knownTable),
 		appliedTable,
 		knownUnknownTableMigrations,
 	)
 
-	missingData, unknownData, equalData := common_mysql.CompareVersions(
-		common_mysql.GetVersionsFromMigrations(knownData),
+	missingData, unknownData, equalData := compareVersions(
+		getVersionsFromMigrations(knownData),
 		appliedData,
 		knownUnknownDataMigrations,
 	)
@@ -564,6 +564,52 @@ var (
 		20171212182458: {},
 	}
 )
+
+func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
+	var result []int64
+	for _, t := range in {
+		if _, ok := knownUnknowns[t]; !ok {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// compareVersions returns any missing or extra elements in v2 with respect to v1
+// (v1 or v2 need not be ordered).
+func compareVersions(v1, v2 []int64, knownUnknowns map[int64]struct{}) (missing []int64, unknown []int64, equal bool) {
+	v1s := make(map[int64]struct{})
+	for _, m := range v1 {
+		v1s[m] = struct{}{}
+	}
+	v2s := make(map[int64]struct{})
+	for _, m := range v2 {
+		v2s[m] = struct{}{}
+	}
+	for _, m := range v1 {
+		if _, ok := v2s[m]; !ok {
+			missing = append(missing, m)
+		}
+	}
+	for _, m := range v2 {
+		if _, ok := v1s[m]; !ok {
+			unknown = append(unknown, m)
+		}
+	}
+	unknown = unknownUnknowns(unknown, knownUnknowns)
+	if len(missing) == 0 && len(unknown) == 0 {
+		return nil, nil, true
+	}
+	return missing, unknown, false
+}
+
+func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
+	versions := make([]int64, len(migrations))
+	for i := range migrations {
+		versions[i] = migrations[i].Version
+	}
+	return versions
+}
 
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (ds *Datastore) HealthCheck() error {

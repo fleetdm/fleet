@@ -89,14 +89,11 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
+	hasUsers, err := svc.ds.HasUsers(ctx)
 	if err != nil {
 		return false, err
 	}
-	if len(users) == 0 {
-		return true, nil
-	}
-	return false, nil
+	return !hasUsers, nil
 }
 
 func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateIntervalConfig, error) {

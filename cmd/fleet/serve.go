@@ -26,8 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/android"
-	android_service "github.com/fleetdm/fleet/v4/server/android/service"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -45,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -54,6 +53,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -61,12 +61,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -255,30 +253,6 @@ the way that the Fleet server works.
 				os.Exit(1)
 			}
 
-			androidDS := mysql.NewAndroidDS(ds)
-			androidMigrationStatus, err := androidDS.MigrationStatus(cmd.Context())
-			if err != nil {
-				initFatal(err, "retrieving feature migration status")
-			}
-
-			switch androidMigrationStatus.StatusCode {
-			case android.AllMigrationsCompleted:
-				// OK
-			case android.UnknownMigrations:
-				printUnknownMigrationsMessage(androidMigrationStatus.UnknownTable, nil)
-				if dev {
-					os.Exit(1)
-				}
-			case android.SomeMigrationsCompleted:
-				printMissingMigrationsWarning(androidMigrationStatus.MissingTable, nil)
-				if !config.Upgrades.AllowMissingMigrations {
-					os.Exit(1)
-				}
-			case android.NoMigrationsCompleted:
-				printDatabaseNotInitializedError()
-				os.Exit(1)
-			}
-
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
@@ -353,6 +327,7 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
+			unCachedDS := ds
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
@@ -775,7 +750,7 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				androidDS,
+				mysql.NewAndroidDS(unCachedDS),
 				ds,
 			)
 			if err != nil {
@@ -1095,7 +1070,7 @@ the way that the Fleet server works.
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
-					[]func(r *mux.Router, opts []kithttp.ServerOption){android_service.GetRoutes(svc, androidSvc)})
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)})
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
