@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -1543,6 +1541,5 @@ FROM vpp_apps`
 		return nil, ctxerr.Wrap(ctx, err, "getting all VPP apps")
 	}
 
-	slog.With("filename", "server/datastore/mysql/vpp.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: found apps ", "apps", apps)
 	return apps, nil
 }

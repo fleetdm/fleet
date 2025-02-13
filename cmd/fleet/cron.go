@@ -21,7 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -1496,34 +1496,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			apps, err := ds.GetAllVPPApps(ctx)
-			if err != nil {
-				return err
-			}
-
-			var adamIDs []string
-			appsByAdamID := make(map[string]*fleet.VPPApp)
-			for _, app := range apps {
-				adamIDs = append(adamIDs, app.AdamID)
-				appsByAdamID[app.AdamID] = app
-			}
-
-			meta, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
-			if err != nil {
-				return err
-			}
-
-			for _, adamID := range adamIDs {
-				if m, ok := meta[adamID]; ok {
-					appsByAdamID[adamID].LatestVersion = m.Version
-				}
-			}
-
-			if err := ds.InsertVPPApps(ctx, apps); err != nil {
-				return err
-			}
-
-			return nil
+			return vpp.RefreshVersions(ctx, ds)
 		}),
 	)
 
