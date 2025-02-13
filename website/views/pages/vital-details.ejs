@@ -10,28 +10,28 @@
       </div>
       <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
         <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
-          <p class="d-flex align-items-center">
-          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
-          <span class="d-none d-md-inline">Apple</span>
-          </p>
+          <h1 class="d-flex align-items-center">
+            <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+            <span class="d-none d-md-inline">Apple</span>
+          </h1>
         </div>
         <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
             <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
             <span class="d-none d-md-inline">Linux</span>
-          </p>
+          </h1>
         </div>
         <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
             <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
             <span class="d-none d-md-inline">Windows</span>
-          </p>
+          </h1>
         </div>
         <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
             <img src="/images/os-chromeos-dark-24x24@2x.png" alt="Chrome" class="d-inline">
             <span class="d-none d-md-inline">ChromeOS</span>
-          </p>
+          </h1>
         </div>
       </div>
       <div purpose="vital-details-and-sidebar" class="d-flex flex-md-row flex-column">
