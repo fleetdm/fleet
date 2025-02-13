@@ -1311,6 +1311,7 @@ This endpoint is used to generate URL, which opens Google's wizard to create And
 This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn on Android MDM features.
 
 `GET /api/v1/fleet/android_enterprise/:id/connect`
+
 This is callback URL that will be open after user complets Google's signup flow. It will self-close and return user to settings page.
 
 #### Parameters
