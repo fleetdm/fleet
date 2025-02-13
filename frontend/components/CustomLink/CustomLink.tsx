@@ -8,6 +8,9 @@ interface ICustomLinkProps {
   url: string;
   text: string;
   className?: string;
+  /** open the link in a new tab
+   * @default false
+   */
   newTab?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
@@ -17,10 +20,16 @@ interface ICustomLinkProps {
   color?: "core-fleet-blue" | "core-fleet-black" | "core-fleet-white";
   /** Restricts access via keyboard when CustomLink is part of disabled UI */
   disableKeyboardNavigation?: boolean;
-  /** Longterm: refactor 14 instances away from iconColor/color combo, which
+  /**
+   * Changes the appearance of the link.
+   *
+   * @default "default"
+   *
+   * TODO:
+   * Longterm: refactor 14 instances away from iconColor/color combo, which
    * usually are identical and repetitive, toward variants e.g. "banner-link"
    */
-  variant?: "tooltip-link" | "default";
+  variant?: "tooltip-link" | "default" | "flash-message-link";
 }
 
 const baseClass = "custom-link";
@@ -39,6 +48,7 @@ const CustomLink = ({
   const getIconColor = (): Colors => {
     switch (variant) {
       case "tooltip-link":
+      case "flash-message-link":
         return "core-fleet-white";
       default:
         return iconColor;
