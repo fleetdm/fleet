@@ -607,7 +607,6 @@ func (c *AppConfig) Copy() *AppConfig {
 		return nil
 	}
 
-	// AppConfig fields with `json:"omitempty"` struct tag won't be automatically copied during this assignment, so set them explicitly
 	clone := *c
 
 	// OrgInfo: nothing needs cloning
