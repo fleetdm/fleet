@@ -280,6 +280,13 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		}
 		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
 	}
+
+	// Disable it again because integration tests leak state like a sieve
+	config, err = s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = false
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
+
 }
 
 func (s *integrationTestSuite) TestErrorReporting() {
