@@ -36,7 +36,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
   const [items, setItems] = useState<TItem[]>([]);
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
@@ -46,6 +46,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
+
+  console.log(dirtyItems);
 
   useEffect(() => {
     let isCancelled = false;
@@ -89,29 +91,32 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   return (
     <div>
       <ul>
-        {items.map((item) => (
-          <li key={item[idKey]}>
-            <Checkbox
-              value={
-                typeof isSelected === "function"
-                  ? isSelected(item)
-                  : item[isSelected]
-              }
-              name={`item_${item[idKey]}_checkbox`}
-              onChange={() => {
-                setDirtyItems({
-                  ...dirtyItems,
-                  [item[idKey]]: onToggleItem(item),
-                });
-              }}
-            />
-            {itemFormatter ? (
-              itemFormatter(item)
-            ) : (
-              <span>{item[labelKey]}</span>
-            )}
-          </li>
-        ))}
+        {items.map((_item) => {
+          const item = dirtyItems[_item[idKey]] ?? _item;
+          return (
+            <li key={item[idKey]}>
+              <Checkbox
+                value={
+                  typeof isSelected === "function"
+                    ? isSelected(item)
+                    : !!item[isSelected]
+                }
+                name={`item_${item[idKey]}_checkbox`}
+                onChange={() => {
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [item[idKey]]: onToggleItem(item),
+                  });
+                }}
+              />
+              {itemFormatter ? (
+                itemFormatter(item)
+              ) : (
+                <span>{item[labelKey]}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
       <Pagination
         resultsOnCurrentPage={items.length}

@@ -346,8 +346,15 @@ const InstallSoftwareModal = ({
           <div>
             <PaginatedList<IPolicyStats>
               fetchPage={fetchPage}
-              isSelected={() => false}
-              onToggleItem={(item) => item}
+              isSelected="install_software"
+              onToggleItem={(item) => {
+                if (item.install_software) {
+                  delete item.install_software;
+                } else {
+                  item.install_software = { name: "", software_title_id: 0 };
+                }
+                return item;
+              }}
               totalItems={100}
             />
 
