@@ -15,6 +15,9 @@ import (
 	"google.golang.org/api/option"
 )
 
+// Proxy is a temporary placeholder as an interface to the Google API.
+// Once the real proxy is implemented on fleetdm.com, this package will be removed.
+
 var (
 	// Required env vars to use the proxy
 	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
@@ -88,4 +91,20 @@ func (p *Proxy) EnterprisesCreate(enabledNotificationTypes []string, enterpriseT
 		return "", fmt.Errorf("creating enterprise: %w", err)
 	}
 	return enterprise.Name, nil
+}
+
+func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
+	if p == nil || p.mgmt == nil {
+		return errors.New("android management service not initialized")
+	}
+
+	_, err := p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_id", enterpriseID)
+		return nil
+	case err != nil:
+		return fmt.Errorf("deleting enterprise %s: %w", enterpriseID, err)
+	}
+	return nil
 }

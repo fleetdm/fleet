@@ -179,10 +179,20 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	}
 
 	// Get enterprise
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		// No enterprise to delete
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting enterprise")
+	default:
+		err = svc.proxy.EnterpriseDelete(enterprise.EnterpriseID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting enterprise via Google API")
+		}
+	}
 
-	// Tell google to delete enterprise
-
-	err := svc.ds.DeleteEnterprises(ctx)
+	err = svc.ds.DeleteEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
 	}
