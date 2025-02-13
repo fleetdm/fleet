@@ -10317,10 +10317,10 @@ _Available in Fleet Premium_
 ```json
 {
   "team": {
-  "name": "workstations",
-  "id": 1,
-  "user_count": 0,
-  "host_count": 0,
+    "name": "workstations",
+    "id": 1,
+    "user_count": 0,
+    "host_count": 0,
     "agent_options": {
       "config": {
         "options": {
