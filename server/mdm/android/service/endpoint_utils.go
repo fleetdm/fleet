@@ -3,13 +3,10 @@ package service
 // TODO(26218): Refactor this to remove duplication.
 
 import (
-	"bufio"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -52,100 +49,10 @@ type errorer interface {
 	Error() error
 }
 
-// makeDecoder creates a decoder for the type for the struct passed on. If the
-// struct has at least 1 json tag it'll unmarshall the body. If the struct has
-// a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options). Note that these behaviors do not work for embedded structs.
-//
-// Finally, any other `url` tag will be treated as a path variable (of the form
-// /path/{name} in the route's path) from the URL path pattern, and it'll be
-// decoded and set accordingly. Variables can be optional by setting the tag as
-// follows: `url:"some-id,optional"`.
-// The "list_options" are optional by default and it'll ignore the optional
-// portion of the tag.
-//
-// If iface implements the requestDecoder interface, it returns a function that
-// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
-// own decoding.
-//
-// If iface implements the bodyDecoder interface, it calls iface.DecodeBody
-// after having decoded any non-body fields (such as url and query parameters)
-// into the struct.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
-	if iface == nil {
-		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			return nil, nil
-		}
-	}
-
-	t := reflect.TypeOf(iface)
-	if t.Kind() != reflect.Struct {
-		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
-	}
-
-	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		v := reflect.New(t)
-		nilBody := false
-		buf := bufio.NewReader(r.Body)
-		var body io.Reader = buf
-		if _, err := buf.Peek(1); err == io.EOF {
-			nilBody = true
-		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
-				gzr, err := gzip.NewReader(buf)
-				if err != nil {
-					return nil, endpoint_utils.BadRequestErr("gzip decoder error", err)
-				}
-				defer gzr.Close()
-				body = gzr
-			}
-
-			req := v.Interface()
-			err = json.UnmarshalRead(body, req)
-			if err != nil {
-				return nil, endpoint_utils.BadRequestErr("json decoder error", err)
-			}
-			v = reflect.ValueOf(req)
-		}
-
-		fields := endpoint_utils.AllFields(v)
-		for _, fp := range fields {
-			field := fp.V
-
-			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
-
-			var err error
-			if ok {
-				optional := false
-				urlTagValue, optional, err = endpoint_utils.ParseTag(urlTagValue)
-				if err != nil {
-					return nil, err
-				}
-				err = endpoint_utils.DecodeURLTagValue(r, field, urlTagValue, optional)
-				if err != nil {
-					return nil, err
-				}
-				continue
-			}
-
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
-			if jsonExpected && nilBody {
-				return nil, badRequest("Expected JSON Body")
-			}
-
-			err = endpoint_utils.DecodeQueryTagValue(r, fp)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return v.Interface(), nil
-	}
-}
-
-func badRequest(msg string) error {
-	return &fleet.BadRequestError{Message: msg}
+	return endpoint_utils.MakeDecoder(iface, func(body io.Reader, req any) error {
+		return json.UnmarshalRead(body, req)
+	}, nil, nil, nil)
 }
 
 type authEndpointer struct {

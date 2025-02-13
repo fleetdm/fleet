@@ -1,9 +1,12 @@
 package endpoint_utils
 
 import (
+	"bufio"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -284,5 +288,154 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
 	} else {
 		logger.Log("err", err)
+	}
+}
+
+// A value that implements requestDecoder takes control of decoding the request
+// as a whole - that is, it is responsible for decoding the body and any url
+// or query argument itself.
+type requestDecoder interface {
+	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
+// MakeDecoder creates a decoder for the type for the struct passed on. If the
+// struct has at least 1 json tag it'll unmarshall the body. If the struct has
+// a `url` tag with value list_options it'll gather fleet.ListOptions from the
+// URL (similarly for host_options, carve_options, user_options that derive
+// from the common list_options). Note that these behaviors do not work for embedded structs.
+//
+// Finally, any other `url` tag will be treated as a path variable (of the form
+// /path/{name} in the route's path) from the URL path pattern, and it'll be
+// decoded and set accordingly. Variables can be optional by setting the tag as
+// follows: `url:"some-id,optional"`.
+// The "list_options" are optional by default and it'll ignore the optional
+// portion of the tag.
+//
+// If iface implements the requestDecoder interface, it returns a function that
+// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
+// own decoding.
+//
+// If iface implements the bodyDecoder interface, it calls iface.DecodeBody
+// after having decoded any non-body fields (such as url and query parameters)
+// into the struct.
+func MakeDecoder(
+	iface interface{},
+	jsonUnmarshal func(body io.Reader, req any) error,
+	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
+	isBodyDecoder func(reflect.Value) bool,
+	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
+) kithttp.DecodeRequestFunc {
+	if iface == nil {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return nil, nil
+		}
+	}
+	if rd, ok := iface.(requestDecoder); ok {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return rd.DecodeRequest(ctx, r)
+		}
+	}
+
+	t := reflect.TypeOf(iface)
+	if t.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("MakeDecoder only understands structs, not %T", iface))
+	}
+
+	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		v := reflect.New(t)
+		nilBody := false
+
+		buf := bufio.NewReader(r.Body)
+		var body io.Reader = buf
+		if _, err := buf.Peek(1); err == io.EOF {
+			nilBody = true
+		} else {
+			if r.Header.Get("content-encoding") == "gzip" {
+				gzr, err := gzip.NewReader(buf)
+				if err != nil {
+					return nil, BadRequestErr("gzip decoder error", err)
+				}
+				defer gzr.Close()
+				body = gzr
+			}
+
+			if isBodyDecoder == nil || !isBodyDecoder(v) {
+				req := v.Interface()
+				err := jsonUnmarshal(body, req)
+				if err != nil {
+					return nil, BadRequestErr("json decoder error", err)
+				}
+				v = reflect.ValueOf(req)
+			}
+		}
+
+		fields := AllFields(v)
+		for _, fp := range fields {
+			field := fp.V
+
+			urlTagValue, ok := fp.Sf.Tag.Lookup("url")
+
+			var err error
+			if ok {
+				optional := false
+				urlTagValue, optional, err = ParseTag(urlTagValue)
+				if err != nil {
+					return nil, err
+				}
+				foundValue := false
+				if parseCustomTags != nil {
+					foundValue, err = parseCustomTags(urlTagValue, r, field)
+					if err != nil {
+						return nil, err
+					}
+				}
+
+				if !foundValue {
+					err := DecodeURLTagValue(r, field, urlTagValue, optional)
+					if err != nil {
+						return nil, err
+					}
+					continue
+				}
+
+			}
+
+			_, jsonExpected := fp.Sf.Tag.Lookup("json")
+			if jsonExpected && nilBody {
+				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
+			}
+
+			err = DecodeQueryTagValue(r, fp)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if isBodyDecoder != nil && isBodyDecoder(v) {
+			err := decodeBody(ctx, r, v, body)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if !license.IsPremium(ctx) {
+			for _, fp := range fields {
+				if prem, ok := fp.Sf.Tag.Lookup("premium"); ok {
+					val, err := strconv.ParseBool(prem)
+					if err != nil {
+						return nil, err
+					}
+					if val && !fp.V.IsZero() {
+						return nil, &fleet.BadRequestError{Message: fmt.Sprintf(
+							"option %s requires a premium license",
+							fp.Sf.Name,
+						)}
+					}
+					continue
+				}
+			}
+		}
+
+		return v.Interface(), nil
 	}
 }
