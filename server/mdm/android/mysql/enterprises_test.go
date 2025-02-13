@@ -26,6 +26,7 @@ func TestEnterprise(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer testing_utils.TruncateTables(t, ds)
+
 			c.fn(t, ds)
 		})
 	}
