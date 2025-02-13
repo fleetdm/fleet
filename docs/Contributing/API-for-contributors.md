@@ -1371,6 +1371,39 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 }
 ```
 
+### Get Android Enterprise server-sent event
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "data": {
+    "time": "2025-02-13T12:47:54Z",
+    "info": "In progress"
+  },
+  "data": {
+    "time": "2025-02-13T12:47:57Z",
+    "info": "In progress"
+  }
+  "data": {
+    "time": "2025-02-13T12:47:58Z",
+    "info": "Android Enterprise successfuly connected"
+  }
+}
+```
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
