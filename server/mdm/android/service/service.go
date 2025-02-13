@@ -14,13 +14,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service struct {
 	logger  kitlog.Logger
 	authz   *authz.Authorizer
-	mgmt    *androidmanagement.Service
 	ds      android.Datastore
 	fleetDS fleet.Datastore
 	proxy   *proxy.Proxy
