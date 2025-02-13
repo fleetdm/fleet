@@ -98,20 +98,6 @@ const InstallSoftwareModal = ({
   policies,
   teamId,
 }: IInstallSoftwareModal) => {
-  const [formData, setFormData] = useState<IInstallSoftwareFormData>(
-    policies.map((policy) => ({
-      name: policy.name,
-      id: policy.id,
-      installSoftwareEnabled: !!policy.install_software,
-      swIdToInstall: policy.install_software?.software_title_id,
-      platform: policy.platform,
-    }))
-  );
-
-  const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
-    (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
-  );
-
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 20;
@@ -192,26 +178,7 @@ const InstallSoftwareModal = ({
     if (paginatedListRef.current) {
       onSubmit(paginatedListRef.current.getDirtyItems());
     }
-  }, [formData, onSubmit]);
-
-  const onChangeEnableInstallSoftware = useCallback(
-    (newVal: { policyName: string; value: boolean }) => {
-      const { policyName, value } = newVal;
-      setFormData(
-        formData.map((policy) => {
-          if (policy.name === policyName) {
-            return {
-              ...policy,
-              installSoftwareEnabled: value,
-              swIdToInstall: value ? policy.swIdToInstall : undefined,
-            };
-          }
-          return policy;
-        })
-      );
-    },
-    [formData]
-  );
+  }, [onSubmit]);
 
   const onSelectPolicySoftware = (
     item: IFormPolicy,
@@ -282,47 +249,6 @@ const InstallSoftwareModal = ({
       return cache.get(key);
     };
   }, [availableSoftwareOptions, titlesAvailableForInstall]);
-
-  const renderPolicySwInstallOption = (policy: IFormPolicy) => {
-    const {
-      name: policyName,
-      id: policyId,
-      installSoftwareEnabled: enabled,
-      swIdToInstall,
-    } = policy;
-
-    return (
-      <li
-        className={`${baseClass}__policy-row policy-row`}
-        id={`policy-row--${policyId}`}
-        key={`${policyId}-${enabled}`} // Re-renders when modifying enabled for truncation check
-      >
-        <Checkbox
-          value={enabled}
-          name={policyName}
-          onChange={() => {
-            onChangeEnableInstallSoftware({
-              policyName,
-              value: !enabled,
-            });
-          }}
-        >
-          <TooltipTruncatedText value={policyName} />
-        </Checkbox>
-        {enabled && (
-          <Dropdown
-            options={memoizedAvailableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
-            value={swIdToInstall}
-            onChange={onSelectPolicySoftware}
-            placeholder="Select software"
-            className={`${baseClass}__software-dropdown`}
-            name={policyName}
-            parseTarget
-          />
-        )}
-      </li>
-    );
-  };
 
   const renderContent = () => {
     if (isTitlesAvailableForInstallError) {
@@ -408,7 +334,6 @@ const InstallSoftwareModal = ({
             onClick={onUpdateInstallSoftware}
             className="save-loading"
             isLoading={isUpdating}
-            disabled={anyPolicyEnabledWithoutSelectedSoftware}
           >
             Save
           </Button>
