@@ -25,13 +25,17 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 		return err
 	}
 
+	var appsToUpdate []*fleet.VPPApp
 	for _, adamID := range adamIDs {
 		if m, ok := meta[adamID]; ok {
-			appsByAdamID[adamID].LatestVersion = m.Version
+			if m.Version != appsByAdamID[adamID].LatestVersion {
+				appsByAdamID[adamID].LatestVersion = m.Version
+				appsToUpdate = append(appsToUpdate, appsByAdamID[adamID])
+			}
 		}
 	}
 
-	if err := ds.InsertVPPApps(ctx, apps); err != nil {
+	if err := ds.InsertVPPApps(ctx, appsToUpdate); err != nil {
 		return err
 	}
 
