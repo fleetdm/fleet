@@ -47,7 +47,7 @@ export default {
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
-  // ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
+  ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
 
