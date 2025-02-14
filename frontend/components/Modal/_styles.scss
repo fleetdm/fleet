@@ -1,7 +1,7 @@
 .modal {
   &__background {
     @include position(fixed, 0 0 0 0);
-    background-color: rgba($core-fleet-black, 0.4);
+    background-color: $core-white;
     z-index: 101;
     overflow: auto;
     display: flex;
@@ -10,6 +10,9 @@
     visibility: visible;
     opacity: 1; // Used for transitions between modals
     transition: opacity 150ms ease-out, visibility 0s; // Used for transitions between modals
+    @media (min-width: $break-sm) {
+      background-color: rgba($core-fleet-black, 0.4);
+    }
   }
 
   &__hidden {
@@ -78,15 +81,16 @@
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
+    width: 100%;
 
     &__medium {
-      width: 650px;
+      max-width: 650px;
     }
     &__large {
-      width: 800px;
+      max-width: 800px;
     }
     &__xlarge {
-      width: 850px;
+      max-width: 850px;
     }
     &__auto {
       width: auto;
