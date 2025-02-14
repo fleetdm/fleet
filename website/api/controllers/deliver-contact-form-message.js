@@ -67,7 +67,7 @@ module.exports = {
       );
     }
     if(userHasPremiumSubscription){
-      // If the user has a Fleet premium subscription, prepend the message with details about their subscription.
+      // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
       let subscriptionDetails =`
 Fleet Premium subscription details:
 - Fleet Premium subscriber since: ${new Date(thisSubscription.createdAt).toISOString().split('T')[0]}
