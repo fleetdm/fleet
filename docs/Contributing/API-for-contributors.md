@@ -1310,21 +1310,21 @@ This endpoint is used to generate URL, which opens Google's wizard to create And
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn on Android MDM features.
 
-`GET /api/v1/fleet/android_enterprise/:id/connect`
+`GET /api/v1/fleet/android_enterprise/connect/:token`
 
-This is callback URL that will be open after user complets Google's signup flow. It will self-close and return user to settings page.
+This is callback URL that will be open after user completes Google's signup flow. It will self-close and return user to settings page.
 
 #### Parameters
 
 | Name | Type   | In   | Description                          |
 | ---- | ------ | ---- | ------------------------------------ |
-| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+| token | string | path | **Required.** The signup token associated with Android Enterprise in Fleet. |
 | enterpriseToken | string | query | **Required.** The enterprise token that's returned from Google API. |
 
 
 #### Example
 
-`GET /api/v1/fleet/android_enterprise/5/connect?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+`GET /api/v1/fleet/android_enterprise/connect/6177a9cb410ff61f20015ad?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
 
 ##### Default response
 
