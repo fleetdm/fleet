@@ -1,0 +1,1 @@
+* Switched to a simpler, more reliable query for checking if an initial admin user has been added.

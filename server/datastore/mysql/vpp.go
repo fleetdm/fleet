@@ -301,7 +301,7 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		return &labels, nil
 
 	case len(inclAny) > 0:
-		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.LabelScope = fleet.LabelScopeIncludeAny
 		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
 		for _, l := range inclAny {
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
