@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type translatorRequest struct {
@@ -97,7 +98,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 		default:
 			// if no supported payload type, this is bad regardless of authorization
 			svc.authz.SkipAuthorization(ctx)
-			return nil, badRequestErr(
+			return nil, endpoint_utils.BadRequestErr(
 				fmt.Sprintf("Type %s is unknown. ", payload.Type),
 				fleet.NewErrorf(
 					fleet.ErrNoUnknownTranslate,
