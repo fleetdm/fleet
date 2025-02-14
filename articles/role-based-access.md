@@ -85,6 +85,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete APNs certificate                                                                          |          |            |            | ✅    |         |
 | View, edit, and delete Apple Business Manager (ABM) connections                                                                                               |          |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
+| Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
