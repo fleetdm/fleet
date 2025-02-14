@@ -53,7 +53,7 @@ module.exports = {
 
     let userHasPremiumSubscription = false;
     let thisSubscription;
-    if(this.req.me.id){
+    if(this.req.me){
       thisSubscription = await Subscription.findOne({user: this.req.me.id});
       if(thisSubscription) {
         userHasPremiumSubscription = true;
@@ -66,7 +66,7 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    if(!userHasPremiumSubscription){
+    if(userHasPremiumSubscription){
       // If the user has a Fleet premium subscription, prepend the message with details about their subscription.
       let subscriptionDetails =`
 Fleet Premium subscription details:
