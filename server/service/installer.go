@@ -66,7 +66,7 @@ func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseW
 	r.fileReader.Close()
 }
 
-func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(getInstallerRequest)
 
 	fileReader, fileLength, err := svc.GetInstaller(ctx, fleet.Installer{
@@ -124,7 +124,7 @@ type checkInstallerResponse struct {
 
 func (r checkInstallerResponse) Error() error { return r.Err }
 
-func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*checkInstallerRequest)
 
 	err := svc.CheckInstallerExistence(ctx, fleet.Installer{
