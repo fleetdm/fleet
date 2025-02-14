@@ -469,7 +469,7 @@ Once reproduced, QA documents the reproduction steps in the description and move
 
 QA has reproduced the issue successfully. It should now be transferred to product design if it is a released bug, or engineering if it is unreleased.
 
-If the bugs is missing reproduction steps, it's removed from the drafting board sent back to the "inbox" state.
+If the bugs is missing reproduction steps, it's removed from the drafting board and sent back to the "inbox" state.
 
 Remove the “:reproduce” label, add the following labels:
 
