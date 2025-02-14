@@ -18,7 +18,8 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TabsWrapper from "components/TabsWrapper";
+import TabsWrapper from "components/TabNav";
+import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
@@ -288,14 +289,9 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <span>
-                {errors?.length > 0 && (
-                  <span className="count">
-                    {errors.length.toLocaleString()}
-                  </span>
-                )}
+              <TabText count={errors.length} isErrorCount>
                 {NAV_TITLES.ERRORS}
-              </span>
+              </TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
