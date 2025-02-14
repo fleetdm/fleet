@@ -18,7 +18,7 @@ export const getErrorMessage = (err: unknown) => {
         Couldn&apos;t turn on Windows MDM. Please configure Fleet with a
         certificate and key pair first.{" "}
         <CustomLink
-          url={`${FLEET_GUIDES_BASE_LINK}/windows-mdm-setup`}
+          url={`${FLEET_GUIDES_BASE_LINK}/windows-mdm-setup#step-1-generate-your-certificate-and-key`}
           text="Learn more"
           newTab
           variant="flash-message-link"
