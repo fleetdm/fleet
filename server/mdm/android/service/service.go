@@ -168,7 +168,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	return nil
 }
 
-func androidDeleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) errorer {
+func androidDeleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	err := svc.DeleteEnterprise(ctx)
 	return androidResponse{Err: err}
 }
