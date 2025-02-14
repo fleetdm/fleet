@@ -953,7 +953,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
 	// authentication is done when the websocket session is established, inside
 	// the handler.
-	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
+	ne.UsePathPrefix().EP.PathHandler("GET", "/api/_version_/fleet/results/",
+		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	limiter := ratelimit.NewMiddleware(limitStore)
