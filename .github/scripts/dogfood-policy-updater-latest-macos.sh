@@ -114,7 +114,7 @@ if [ "$policy_version_number" != "$latest_macos_version" ]; then
     echo "Adding reviewers to PR #$pr_number..."
 
     # Prepare the reviewers data payload
-    reviewers_data=$(jq -n --arg r1 "harrisonravazzolo" --arg r2 "allenhouchins" '{reviewers: [$r1, $r2]}')
+    reviewers_data=$(jq -n --arg r1 "harrisonravazzolo" '{reviewers: [$r1]}')
 
     # Request reviewers for the pull request
     review_response=$(curl -s -X POST \
@@ -123,9 +123,6 @@ if [ "$policy_version_number" != "$latest_macos_version" ]; then
         -d "$reviewers_data" \
         "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls/$pr_number/requested_reviewers")
 
-    # Troubleshooting
-    echo "Reviewers API response:" 
-    echo "$review_response" | jq .
 
     if echo "$review_response" | grep -q "errors"; then
         echo "Error: Failed to add reviewers. Response: $review_response"
