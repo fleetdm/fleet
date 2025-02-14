@@ -36,6 +36,12 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("type"),
 		// perm allows setting find's '-perm' argument.
 		table.TextColumn("perm"),
+		// not_perm allows setting find's '-not -perm' argument.
+		table.TextColumn("not_perm"),
+		// mindepth allows setting find's '-mindepth' argument.
+		table.TextColumn("mindepth"),
+		// maxdepth allows setting find's '-maxdepth' argument.
+		table.TextColumn("maxdepth"),
 		// path are the found directories.
 		table.TextColumn("path"),
 	}
@@ -84,12 +90,31 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		}
 	}
 
+	notPerm := getArgumentOpEqual("not_perm")
+	if notPerm != "" {
+		if !permRegexp.Match([]byte(notPerm)) {
+			return nil, fmt.Errorf("not_perm must be of the form: %s", permRegexp)
+		}
+	}
+
+	minDepth := getArgumentOpEqual("mindepth")
+	maxDepth := getArgumentOpEqual("maxdepth")
+
 	args := []string{directory}
 	if findType != "" {
 		args = append(args, "-type", findType)
 	}
 	if perm != "" {
 		args = append(args, "-perm", perm)
+	}
+	if notPerm != "" {
+		args = append(args, "-not", "-perm", notPerm)
+	}
+	if minDepth != "" {
+		args = append(args, "-mindepth", minDepth)
+	}
+	if maxDepth != "" {
+		args = append(args, "-maxdepth", maxDepth)
 	}
 
 	cmd := exec.Command("/usr/bin/find", args...)
@@ -138,7 +163,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		rows = append(rows, map[string]string{
 			"directory": directory,
 			"perm":      perm,
+			"not_perm":  notPerm,
 			"type":      findType,
+			"mindepth":  minDepth,
+			"maxdepth":  maxDepth,
 			"path":      outDir,
 		})
 	}
