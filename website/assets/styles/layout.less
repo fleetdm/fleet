@@ -295,7 +295,8 @@ html, body {
   }
   [purpose='mobile-nav'] {
     position: fixed;
-    min-height: 100vh;
+    max-height: 100vh;
+    overflow: scroll;
     top: 0;
     left: 0;
     right: 0;
@@ -779,7 +780,7 @@ body.detected-mobile {
         padding: 19px 20px;
       }
       [purpose='mobile-nav-container'] {
-        padding: 8px 24px 0px 24px;
+        padding: 8px 24px 24px 24px;
       }
     }
   }
@@ -814,7 +815,7 @@ body.detected-mobile {
         padding: 19px 16px;
       }
       [purpose='mobile-nav-container'] {
-        padding: 8px 16px 0px 16px;
+        padding: 8px 16px 24px 16px;
       }
     }
   }
