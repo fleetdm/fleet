@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func MakeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	return endpoint_utils.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody)
 }
 
@@ -87,10 +87,10 @@ func isBodyDecoder(v reflect.Value) bool {
 	return ok
 }
 
-// Compile-time check to ensure that AuthEndpointer implements Endpointer.
-var _ endpoint_utils.Endpointer[endpoint_utils.HandlerFunc] = &AuthEndpointer{}
+// Compile-time check to ensure that authEndpointer implements Endpointer.
+var _ endpoint_utils.Endpointer[endpoint_utils.HandlerFunc] = &authEndpointer{}
 
-type AuthEndpointer struct {
+type authEndpointer struct {
 	svc               fleet.Service
 	startingAtVersion string
 	endingAtVersion   string
@@ -98,59 +98,59 @@ type AuthEndpointer struct {
 	usePathPrefix     bool
 }
 
-func (e *AuthEndpointer) CallHandlerFunc(f endpoint_utils.HandlerFunc, ctx context.Context, request interface{},
+func (e *authEndpointer) CallHandlerFunc(f endpoint_utils.HandlerFunc, ctx context.Context, request interface{},
 	svc interface{}) (fleet.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
-func (e *AuthEndpointer) Service() interface{} {
+func (e *authEndpointer) Service() interface{} {
 	return e.svc
 }
 
-func (e *AuthEndpointer) StartingAtVersion() string {
+func (e *authEndpointer) StartingAtVersion() string {
 	return e.startingAtVersion
 }
 
-func (e *AuthEndpointer) SetStartingAtVersion(v string) {
+func (e *authEndpointer) SetStartingAtVersion(v string) {
 	e.startingAtVersion = v
 }
 
-func (e *AuthEndpointer) EndingAtVersion() string {
+func (e *authEndpointer) EndingAtVersion() string {
 	return e.endingAtVersion
 }
 
-func (e *AuthEndpointer) SetEndingAtVersion(v string) {
+func (e *authEndpointer) SetEndingAtVersion(v string) {
 	e.endingAtVersion = v
 }
 
-func (e *AuthEndpointer) AlternativePaths() []string {
+func (e *authEndpointer) AlternativePaths() []string {
 	return e.alternativePaths
 }
 
-func (e *AuthEndpointer) SetAlternativePaths(v []string) {
+func (e *authEndpointer) SetAlternativePaths(v []string) {
 	e.alternativePaths = v
 }
 
-func (e *AuthEndpointer) UsePathPrefix() bool {
+func (e *authEndpointer) UsePathPrefix() bool {
 	return e.usePathPrefix
 }
 
-func (e *AuthEndpointer) SetUsePathPrefix(v bool) {
+func (e *authEndpointer) SetUsePathPrefix(v bool) {
 	e.usePathPrefix = v
 }
 
-func (e *AuthEndpointer) Copy() endpoint_utils.Endpointer[endpoint_utils.HandlerFunc] {
+func (e *authEndpointer) Copy() endpoint_utils.Endpointer[endpoint_utils.HandlerFunc] {
 	result := *e
 	return &result
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc] {
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc]{
-		EP: &AuthEndpointer{
+		EP: &authEndpointer{
 			svc: svc,
 		},
-		MakeDecoderFn: MakeDecoder,
+		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthFunc:      auth.AuthenticatedUser,
@@ -160,13 +160,13 @@ func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 	}
 }
 
-func NewNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
+func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc] {
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc]{
-		EP: &AuthEndpointer{
+		EP: &authEndpointer{
 			svc: svc,
 		},
-		MakeDecoderFn: MakeDecoder,
+		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthFunc:      auth.UnauthenticatedRequest,
@@ -192,10 +192,10 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc]{
-		EP: &AuthEndpointer{
+		EP: &authEndpointer{
 			svc: svc,
 		},
-		MakeDecoderFn: MakeDecoder,
+		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthFunc:      authFunc,
@@ -212,10 +212,10 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 		return authenticatedHost(svc, logger, next)
 	}
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc]{
-		EP: &AuthEndpointer{
+		EP: &authEndpointer{
 			svc: svc,
 		},
-		MakeDecoderFn: MakeDecoder,
+		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthFunc:      authFunc,
@@ -237,10 +237,10 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	opts = append(opts, capabilitiesContextFunc())
 
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.HandlerFunc]{
-		EP: &AuthEndpointer{
+		EP: &authEndpointer{
 			svc: svc,
 		},
-		MakeDecoderFn: MakeDecoder,
+		MakeDecoderFn: makeDecoder,
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthFunc:      authFunc,
