@@ -13,12 +13,20 @@ interface ISliderProps {
   className?: string;
   helpText?: JSX.Element | string;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 const baseClass = "fleet-slider";
 
 const Slider = (props: ISliderProps): JSX.Element => {
-  const { onChange, value, inactiveText, activeText, autoFocus } = props;
+  const {
+    onChange,
+    value,
+    inactiveText,
+    activeText,
+    autoFocus,
+    disabled,
+  } = props;
 
   const sliderRef = useRef<HTMLButtonElement>(null);
 
@@ -38,8 +46,9 @@ const Slider = (props: ISliderProps): JSX.Element => {
 
   const handleClick = (evt: React.MouseEvent) => {
     evt.preventDefault();
+    if (disabled) return;
 
-    return onChange();
+    onChange();
   };
 
   const formFieldProps = pick(props, [
@@ -48,11 +57,15 @@ const Slider = (props: ISliderProps): JSX.Element => {
     "error",
     "name",
     "className",
+    "disabled",
   ]) as IFormFieldProps;
 
+  const wrapperClassNames = classnames(`${baseClass}__wrapper`, {
+    [`${baseClass}__wrapper--disabled`]: disabled,
+  });
   return (
     <FormField {...formFieldProps} type="slider">
-      <div className={`${baseClass}__wrapper`}>
+      <div className={wrapperClassNames}>
         <button
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}

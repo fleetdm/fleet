@@ -13,7 +13,6 @@ import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
 import { AppContext } from "context/app";
-import GitOpsMode from "components/icons/GitOpsMode";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "apple-os-target-form";
