@@ -6,9 +6,10 @@ import { AppContext } from "context/app";
 import React, { useContext } from "react";
 
 interface IGitOpsModeTooltipWrapper {
+  renderChildren: (disableChildren?: boolean) => React.ReactNode;
   position?: ITooltipWrapper["position"];
   tipOffset?: ITooltipWrapper["tipOffset"];
-  renderChildren: (disableChildren?: boolean) => React.ReactNode;
+  fixedPositionStrategy?: ITooltipWrapper["fixedPositionStrategy"];
 }
 
 const baseClass = "gitops-mode-tooltip-wrapper";
@@ -17,6 +18,7 @@ const GitOpsModeTooltipWrapper = ({
   position = "top",
   tipOffset,
   renderChildren,
+  fixedPositionStrategy,
 }: IGitOpsModeTooltipWrapper) => {
   const { config } = useContext(AppContext);
   const gomEnabled = config?.gitops.gitops_mode_enabled;
@@ -48,6 +50,7 @@ const GitOpsModeTooltipWrapper = ({
       tipContent={tipContent}
       underline={false}
       showArrow
+      fixedPositionStrategy={fixedPositionStrategy}
     >
       {renderChildren(true)}
     </TooltipWrapper>
