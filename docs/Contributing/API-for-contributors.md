@@ -1287,7 +1287,7 @@ This endpoint is used to proxy SCEP requests to the configured SCEP server. It u
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-This endpoint is used to generate URL, which opens Google's wizard to create Android Enterprise.
+This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
 
 `GET /api/v1/fleet/android_enterprise/signup_url`
 
