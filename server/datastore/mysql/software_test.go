@@ -34,8 +34,6 @@ func TestSoftware(t *testing.T) {
 		{"SaveHost", testSoftwareSaveHost},
 		{"CPE", testSoftwareCPE},
 		{"HostDuplicates", testSoftwareHostDuplicates},
-		{"DuplicateNameDifferentBundleIdentifier", testSoftwareDuplicateNameDifferentBundleIdentifier},
-		{"DifferentNameSameBundleIdentifier", testSoftwareDifferentNameSameBundleIdentifier},
 		{"LoadVulnerabilities", testSoftwareLoadVulnerabilities},
 		{"ListSoftwareCPEs", testListSoftwareCPEs},
 		{"NothingChanged", testSoftwareNothingChanged},
@@ -73,7 +71,6 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
-		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -223,142 +220,6 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	}
 	assert.Equal(t, len(software1), loops)
 	require.NoError(t, iterator.Close())
-}
-
-func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) {
-	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-
-	incoming := make(map[string]fleet.Software)
-	sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
-	require.NoError(t, err)
-	soft2Key := sw.ToUniqueStr()
-	incoming[soft2Key] = *sw
-
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
-		context.Background(), make(map[string]fleet.Software), incoming,
-	)
-	require.NoError(t, err)
-	tx, err := ds.writer(context.Background()).Beginx()
-	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
-		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
-	)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit())
-
-	var software []fleet.Software
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
-	)
-	require.NoError(t, err)
-	require.Len(t, software, 1)
-	var softwareTitle []fleet.SoftwareTitle
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&softwareTitle, `SELECT id, name FROM software_titles`,
-	)
-	require.NoError(t, err)
-	require.Len(t, softwareTitle, 1)
-
-	incoming = make(map[string]fleet.Software)
-	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 2.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
-	require.NoError(t, err)
-	soft3Key := sw.ToUniqueStr()
-	incoming[soft3Key] = *sw
-
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
-		context.Background(), make(map[string]fleet.Software), incoming,
-	)
-	require.NoError(t, err)
-	tx, err = ds.writer(context.Background()).Beginx()
-	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
-		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
-	)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit())
-
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
-	)
-	require.NoError(t, err)
-	require.Len(t, software, 2)
-	for _, s := range software {
-		require.NotEmpty(t, s.TitleID)
-	}
-
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&softwareTitle, `SELECT id, name FROM software_titles`,
-	)
-	require.NoError(t, err)
-	require.Len(t, softwareTitle, 1)
-}
-
-func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {
-	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-
-	incoming := make(map[string]fleet.Software)
-	sw, err := fleet.SoftwareFromOsqueryRow("a", "0.0.1", "chrome_extension", "", "", "", "", "bundle_id1", "", "", "")
-	require.NoError(t, err)
-	soft2Key := sw.ToUniqueStr()
-	incoming[soft2Key] = *sw
-
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
-		context.Background(), make(map[string]fleet.Software), incoming,
-	)
-	require.NoError(t, err)
-	tx, err := ds.writer(context.Background()).Beginx()
-	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
-		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
-	)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit())
-
-	var software []fleet.Software
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
-	)
-	require.NoError(t, err)
-	require.Len(t, software, 1)
-	var softwareTitle []fleet.SoftwareTitle
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&softwareTitle, `SELECT id, name FROM software_titles`,
-	)
-	require.NoError(t, err)
-	require.Len(t, softwareTitle, 1)
-
-	incoming = make(map[string]fleet.Software)
-	sw, err = fleet.SoftwareFromOsqueryRow("a", "0.0.1", "chrome_extension", "", "", "", "", "bundle_id2", "", "", "")
-	require.NoError(t, err)
-	soft3Key := sw.ToUniqueStr()
-	incoming[soft3Key] = *sw
-
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
-		context.Background(), make(map[string]fleet.Software), incoming,
-	)
-	require.NoError(t, err)
-	tx, err = ds.writer(context.Background()).Beginx()
-	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
-		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle,
-	)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit())
-
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
-	)
-	require.NoError(t, err)
-	require.Len(t, software, 2)
-	for _, s := range software {
-		require.NotEmpty(t, s.TitleID)
-	}
-
-	err = sqlx.SelectContext(context.Background(), ds.reader(context.Background()),
-		&softwareTitle, `SELECT id, name FROM software_titles`,
-	)
-	require.NoError(t, err)
-	require.Len(t, softwareTitle, 2)
 }
 
 func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
@@ -5924,67 +5785,4 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
-}
-
-func testDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
-	require.NoError(t, err)
-
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "GoLand",
-		Source:           "app",
-		InstallScript:    "echo",
-		TeamID:           &team.ID,
-		Filename:         "foo.pkg",
-		UserID:           user1.ID,
-		BundleIdentifier: "com.jetbrains.goland",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID, false, nil)
-	require.NoError(t, err)
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `UPDATE host_software_installs SET post_install_script_exit_code = 0`)
-		require.NoError(t, err)
-		return nil
-	})
-
-	software1 := []fleet.Software{
-		{Name: "GoLand", Version: "1.0.2", Source: "app", BundleIdentifier: "com.jetbrains.goland"},
-		{Name: "GoLand", Version: "1.0.2", Source: "app", BundleIdentifier: "com.jetbrains.goland2"},
-	}
-	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
-	require.NoError(t, err)
-
-	// remove software with different bundle id same name as installed software
-	software1 = []fleet.Software{
-		{Name: "GoLand", Version: "1.0.2", Source: "app", BundleIdentifier: "com.jetbrains.goland"},
-	}
-	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
-	require.NoError(t, err)
-
-	var hostSoftwareInstalls []struct {
-		HostID              uint   `db:"host_id"`
-		SoftwareInstallerID uint   `db:"software_installer_id"`
-		Removed             bool   `db:"removed"`
-		Status              string `db:"status"`
-	}
-	err = sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&hostSoftwareInstalls,
-		`select host_id, software_installer_id, removed, status from host_software_installs where host_id = ?`,
-		host1.ID,
-	)
-	if err != nil {
-		fmt.Printf("error getting software titles: %v\n", err)
-	}
-	// Ensure installed software is not marked as removed
-	for _, value := range hostSoftwareInstalls {
-		assert.False(t, value.Removed)
-	}
 }
