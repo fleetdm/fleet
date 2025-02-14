@@ -17,7 +17,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
+	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -456,4 +459,125 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+}
+
+type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
+
+// TODO: This will be the Android handler function
+type HandlerFunc2 func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
+
+type CommonEndpointer[H HandlerFunc | HandlerFunc2] struct {
+	EP            Endpointer[H]
+	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
+	EncodeFn      kithttp.EncodeResponseFunc
+}
+
+type Endpointer[H HandlerFunc | HandlerFunc2] interface {
+	HandleHTTPHandler(path string, h http.Handler, verb string)
+	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
+	Service() interface{}
+	FleetService() fleet.Service
+	AuthFunc(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
+	ServerOptions() []kithttp.ServerOption
+	StartingAtVersion() string
+	SetStartingAtVersion(v string)
+	EndingAtVersion() string
+	SetEndingAtVersion(v string)
+	AlternativePaths() []string
+	SetAlternativePaths(v []string)
+	CustomMiddleware() []endpoint.Middleware
+	SetCustomMiddleware(v []endpoint.Middleware)
+	UsePathPrefix() bool
+	SetUsePathPrefix(v bool)
+	Copy() Endpointer[H]
+}
+
+func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "POST")
+}
+
+func (e *CommonEndpointer[H]) GET(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "GET")
+}
+
+func (e *CommonEndpointer[H]) PUT(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "PUT")
+}
+
+func (e *CommonEndpointer[H]) PATCH(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "PATCH")
+}
+
+func (e *CommonEndpointer[H]) DELETE(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "DELETE")
+}
+
+func (e *CommonEndpointer[H]) HEAD(path string, f H, v interface{}) {
+	e.handleEndpoint(path, f, v, "HEAD")
+}
+
+func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, verb string) {
+	endpoint := e.makeEndpoint(f, v)
+	e.EP.HandleHTTPHandler(path, endpoint, verb)
+}
+
+func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
+	next := func(ctx context.Context, request interface{}) (interface{}, error) {
+		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
+	}
+	endp := e.EP.AuthFunc(e.EP.FleetService(), next)
+
+	// apply middleware in reverse order so that the first wraps the second
+	// wraps the third etc.
+	for i := len(e.EP.CustomMiddleware()) - 1; i >= 0; i-- {
+		mw := e.EP.CustomMiddleware()[i]
+		endp = mw(endp)
+	}
+
+	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.EP.ServerOptions())
+}
+
+func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
+	opts []kithttp.ServerOption) http.Handler {
+	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
+	// endpoint handler, any middleware that raises errors before the handler is reached will end up
+	// returning authz check missing instead of the more relevant error. Should be addressed as part
+	// of #4406.
+	e = authzcheck.NewMiddleware().AuthzCheck()(e)
+	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+}
+
+func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {
+	ae := *e
+	ae.EP = e.EP.Copy()
+	ae.EP.SetStartingAtVersion(version)
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) EndingAtVersion(version string) *CommonEndpointer[H] {
+	ae := *e
+	ae.EP = e.EP.Copy()
+	ae.EP.SetEndingAtVersion(version)
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H] {
+	ae := *e
+	ae.EP = e.EP.Copy()
+	ae.EP.SetAlternativePaths(paths)
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.EP = e.EP.Copy()
+	ae.EP.SetCustomMiddleware(mws)
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
+	ae := *e
+	ae.EP = e.EP.Copy()
+	ae.EP.SetUsePathPrefix(true)
+	return &ae
 }
