@@ -754,8 +754,8 @@ apiVersion: v1
 kind: policy
 spec:
   name: Automatic login disabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableFDEAutoLogin' AND value = 1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password. Note: This policy will not report a value if FileVault is disabled."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   tags: MDM required, compliance, hardening, built-in, critical
   platform: darwin
