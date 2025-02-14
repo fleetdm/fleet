@@ -18,6 +18,7 @@ type PackageTest struct {
 	pkgs         []string
 	includeRegex *regexp.Regexp
 	ignorePkgs   map[string]struct{}
+	ignoreXTests map[string]struct{}
 	withTests    bool
 }
 
@@ -45,6 +46,20 @@ func (pt *PackageTest) IgnorePackages(pkgs ...string) *PackageTest {
 	}
 	for _, p := range pt.expandPackages(pkgs) {
 		pt.ignorePkgs[p] = struct{}{}
+	}
+	return pt
+}
+
+func (pt *PackageTest) IgnoreXTests(pkgs ...string) *PackageTest {
+	if pt.ignoreXTests == nil {
+		pt.ignoreXTests = make(map[string]struct{}, len(pkgs))
+	}
+	cleanPkgs := make([]string, 0, len(pkgs))
+	for _, p := range pkgs {
+		cleanPkgs = append(cleanPkgs, strings.TrimSuffix(p, "_test"))
+	}
+	for _, p := range pt.expandPackages(cleanPkgs) {
+		pt.ignoreXTests[p] = struct{}{}
 	}
 	return pt
 }
@@ -147,6 +162,9 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 			}
 
 			// XTestImports are packages with _test suffix that are in the same directory as the package.
+			if _, ignore := pt.ignoreXTests[dep.name]; ignore {
+				continue
+			}
 			for _, i := range pkg.XTestImports {
 				queue.PushBack(&packageDependency{name: i, parent: dep.asXTest()})
 			}

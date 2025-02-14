@@ -1,8 +1,8 @@
 package android
 
 type SignupDetails struct {
-	Url  string `json:"url,omitempty"`
-	Name string `json:"name,omitempty"`
+	Url  string
+	Name string
 }
 
 type Enterprise struct {
@@ -17,6 +17,10 @@ func (e Enterprise) Name() string {
 
 func (e Enterprise) IsValid() bool {
 	return e.EnterpriseID != ""
+}
+
+func (e Enterprise) AuthzType() string {
+	return "android_enterprise"
 }
 
 type EnrollmentToken struct {

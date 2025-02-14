@@ -21,6 +21,7 @@ func TestEnterprise(t *testing.T) {
 	}{
 		{"CreateGetEnterprise", testCreateGetEnterprise},
 		{"UpdateEnterprise", testUpdateEnterprise},
+		{"DeleteEnterprises", testDeleteEnterprises},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -65,10 +66,65 @@ func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)
 
-	enterprises, err := ds.ListEnterprises(testCtx())
+	result, err = ds.GetEnterprise(testCtx())
 	require.NoError(t, err)
-	assert.Len(t, enterprises, 1)
-	assert.Equal(t, enterprise, enterprises[0])
+	assert.Equal(t, enterprise.ID, result.ID)
+	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
+}
+
+func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {
+	err := ds.DeleteEnterprises(testCtx())
+	require.NoError(t, err)
+	err = ds.DeleteOtherEnterprises(testCtx(), 9999)
+	require.NoError(t, err)
+
+	enterprise := createEnterprise(t, ds)
+	result, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enterprise, result)
+
+	// Create enteprise without enterprise_id
+	id, err := ds.CreateEnterprise(testCtx())
+	require.NoError(t, err)
+	assert.NotZero(t, id)
+
+	tempEnterprise := &android.Enterprise{
+		ID:           id, // start with an invalid ID
+		SignupName:   "signupUrls/C97372c91c6a85139",
+		EnterpriseID: "",
+	}
+	err = ds.UpdateEnterprise(testCtx(), tempEnterprise)
+	require.NoError(t, err)
+
+	err = ds.DeleteOtherEnterprises(testCtx(), enterprise.ID)
+	require.NoError(t, err)
+	result, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enterprise, result)
+	_, err = ds.GetEnterpriseByID(testCtx(), tempEnterprise.ID)
+	assert.True(t, fleet.IsNotFound(err))
+
+	err = ds.DeleteEnterprises(testCtx())
+	require.NoError(t, err)
+	_, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
+	assert.True(t, fleet.IsNotFound(err))
+
+}
+
+func createEnterprise(t *testing.T, ds *mysql.Datastore) *android.Enterprise {
+	enterprise := &android.Enterprise{
+		ID:           9999, // start with an invalid ID
+		SignupName:   "signupUrls/C97372c91c6a85139",
+		EnterpriseID: "LC04bp524j",
+	}
+	id, err := ds.CreateEnterprise(testCtx())
+	require.NoError(t, err)
+	assert.NotZero(t, id)
+
+	enterprise.ID = id
+	err = ds.UpdateEnterprise(testCtx(), enterprise)
+	require.NoError(t, err)
+	return enterprise
 }
 
 func testCtx() context.Context {

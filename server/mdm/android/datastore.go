@@ -7,6 +7,8 @@ import (
 type Datastore interface {
 	CreateEnterprise(ctx context.Context) (uint, error)
 	GetEnterpriseByID(ctx context.Context, ID uint) (*Enterprise, error)
+	GetEnterprise(ctx context.Context) (*Enterprise, error)
 	UpdateEnterprise(ctx context.Context, enterprise *Enterprise) error
-	ListEnterprises(ctx context.Context) ([]*Enterprise, error)
+	DeleteEnterprises(ctx context.Context) error
+	DeleteOtherEnterprises(ctx context.Context, ID uint) error
 }
