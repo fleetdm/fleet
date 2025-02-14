@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "Zoom",
+      "slug": "darwin/zoom",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.xos"
+    }
+  ]
+}
