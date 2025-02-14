@@ -1071,14 +1071,13 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
-  (name, source, browser, bundle_identifier)
+  (name, source, browser)
 VALUES
   %s
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   source = VALUES(source),
-  browser = VALUES(browser),
-  bundle_identifier = VALUES(bundle_identifier)
+  browser = VALUES(browser)
 `
 
 	const loadSoftwareTitles = `
@@ -1086,7 +1085,7 @@ SELECT
   id
 FROM
   software_titles
-WHERE (unique_identifier, source, browser) IN (%s)
+WHERE (name, source, browser) IN (%s)
 `
 
 	const unsetAllInstallersFromPolicies = `
@@ -1191,7 +1190,7 @@ COALESCE(post_install_script_content_id != ? OR
 	(post_install_script_content_id IS NULL AND ? IS NOT NULL) OR
 	(? IS NULL AND post_install_script_content_id IS NOT NULL)
 , FALSE) is_metadata_modified FROM software_installers
-WHERE global_or_team_id = ?	AND title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
+WHERE global_or_team_id = ?	AND title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 `
 
 	const insertNewOrEditedInstaller = `
@@ -1217,7 +1216,7 @@ INSERT INTO software_installers (
 	install_during_setup
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = ''),
+  (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''),
   ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
@@ -1246,7 +1245,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	-- this is guaranteed to select a single title_id, due to unique index
-	title_id IN (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = '')
+	title_id IN (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -1331,22 +1330,11 @@ WHERE
 
 		var args []any
 		for _, installer := range installers {
-			args = append(
-				args,
-				installer.Title,
-				installer.Source,
-				"",
-				func() *string {
-					if strings.TrimSpace(installer.BundleIdentifier) != "" {
-						return &installer.BundleIdentifier
-					}
-					return nil
-				}(),
-			)
+			args = append(args, installer.Title, installer.Source, "")
 		}
 
 		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", len(installers)),
+			strings.Repeat("(?,?,?),", len(installers)),
 			",",
 		)
 		if _, err := tx.ExecContext(ctx, fmt.Sprintf(upsertSoftwareTitles, values), args...); err != nil {
@@ -1354,20 +1342,6 @@ WHERE
 		}
 
 		var titleIDs []uint
-		args = []any{}
-		for _, installer := range installers {
-			args = append(
-				args,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
-				installer.Source,
-				"",
-			)
-		}
-		values = strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", len(installers)),
-			",",
-		)
-
 		if err := sqlx.SelectContext(ctx, tx, &titleIDs, fmt.Sprintf(loadSoftwareTitles, values), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "load existing titles")
 		}
@@ -1467,7 +1441,7 @@ WHERE
 				postInstallScriptID,
 				// WHERE clause
 				globalOrTeamID,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				installer.Title,
 				installer.Source,
 			}
 
@@ -1498,7 +1472,7 @@ WHERE
 				postInstallScriptID,
 				installer.Platform,
 				installer.SelfService,
-				BundleIdentifierOrName(installer.BundleIdentifier, installer.Title),
+				installer.Title,
 				installer.Source,
 				installer.UserID,
 				installer.UserID,
@@ -1521,7 +1495,7 @@ WHERE
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, BundleIdentifierOrName(installer.BundleIdentifier, installer.Title), installer.Source); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, installer.Title, installer.Source); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
