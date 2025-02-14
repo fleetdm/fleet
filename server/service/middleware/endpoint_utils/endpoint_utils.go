@@ -463,30 +463,30 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 
 type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
 
-// TODO: This will be the Android handler function
-type HandlerFunc2 func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
+type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
-type CommonEndpointer[H HandlerFunc | HandlerFunc2] struct {
-	EP            Endpointer[H]
-	MakeDecoderFn func(iface interface{}) kithttp.DecodeRequestFunc
-	EncodeFn      kithttp.EncodeResponseFunc
+type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
+	EP               Endpointer[H]
+	MakeDecoderFn    func(iface interface{}) kithttp.DecodeRequestFunc
+	EncodeFn         kithttp.EncodeResponseFunc
+	Opts             []kithttp.ServerOption
+	AuthFunc         func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
+	FleetService     fleet.Service
+	Router           *mux.Router
+	CustomMiddleware []endpoint.Middleware
+	Versions         []string
 }
 
-type Endpointer[H HandlerFunc | HandlerFunc2] interface {
-	HandleHTTPHandler(path string, h http.Handler, verb string)
+type Endpointer[H HandlerFunc | AndroidFunc] interface {
 	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
 	Service() interface{}
-	FleetService() fleet.Service
-	AuthFunc(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
-	ServerOptions() []kithttp.ServerOption
+
 	StartingAtVersion() string
 	SetStartingAtVersion(v string)
 	EndingAtVersion() string
 	SetEndingAtVersion(v string)
 	AlternativePaths() []string
 	SetAlternativePaths(v []string)
-	CustomMiddleware() []endpoint.Middleware
-	SetCustomMiddleware(v []endpoint.Middleware)
 	UsePathPrefix() bool
 	SetUsePathPrefix(v bool)
 	Copy() Endpointer[H]
@@ -518,23 +518,23 @@ func (e *CommonEndpointer[H]) HEAD(path string, f H, v interface{}) {
 
 func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, verb string) {
 	endpoint := e.makeEndpoint(f, v)
-	e.EP.HandleHTTPHandler(path, endpoint, verb)
+	e.HandleHTTPHandler(path, endpoint, verb)
 }
 
 func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
-	endp := e.EP.AuthFunc(e.EP.FleetService(), next)
+	endp := e.AuthFunc(e.FleetService, next)
 
 	// apply middleware in reverse order so that the first wraps the second
 	// wraps the third etc.
-	for i := len(e.EP.CustomMiddleware()) - 1; i >= 0; i-- {
-		mw := e.EP.CustomMiddleware()[i]
+	for i := len(e.CustomMiddleware) - 1; i >= 0; i-- {
+		mw := e.CustomMiddleware[i]
 		endp = mw(endp)
 	}
 
-	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.EP.ServerOptions())
+	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.Opts)
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -570,8 +570,7 @@ func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H]
 
 func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
-	ae.EP = e.EP.Copy()
-	ae.EP.SetCustomMiddleware(mws)
+	ae.CustomMiddleware = mws
 	return &ae
 }
 
@@ -580,4 +579,140 @@ func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae.EP = e.EP.Copy()
 	ae.EP.SetUsePathPrefix(true)
 	return &ae
+}
+
+// PathHandler registers a handler for the verb and path. The pathHandler is
+// a function that receives the actual path to which it will be mounted, and
+// returns the actual http.Handler that will handle this endpoint. This is for
+// when the handler needs to know on which path it was called.
+func (e *CommonEndpointer[H]) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
+	e.HandlePathHandler(path, pathHandler, verb)
+}
+
+func (e *CommonEndpointer[H]) HandleHTTPHandler(path string, h http.Handler, verb string) {
+	self := func(_ string) http.Handler { return h }
+	e.HandlePathHandler(path, self, verb)
+}
+
+var pathReplacer = strings.NewReplacer(
+	"/", "_",
+	"{", "_",
+	"}", "_",
+)
+
+func getNameFromPathAndVerb(verb, path, startAt string) string {
+	prefix := strings.ToLower(verb) + "_"
+	if startAt != "" {
+		prefix += pathReplacer.Replace(startAt) + "_"
+	}
+	return prefix + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
+}
+
+func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
+	versions := e.Versions
+	if e.EP.StartingAtVersion() != "" {
+		startIndex := -1
+		for i, version := range versions {
+			if version == e.EP.StartingAtVersion() {
+				startIndex = i
+				break
+			}
+		}
+		if startIndex == -1 {
+			panic("StartAtVersion is not part of the valid versions")
+		}
+		versions = versions[startIndex:]
+	}
+	if e.EP.EndingAtVersion() != "" {
+		endIndex := -1
+		for i, version := range versions {
+			if version == e.EP.EndingAtVersion() {
+				endIndex = i
+				break
+			}
+		}
+		if endIndex == -1 {
+			panic("EndAtVersion is not part of the valid versions")
+		}
+		versions = versions[:endIndex+1]
+	}
+
+	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
+	// latest
+	if e.EP.EndingAtVersion() == "" || e.EP.EndingAtVersion() == e.Versions[len(e.Versions)-1] {
+		versions = append(versions, "latest")
+	}
+
+	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+	nameAndVerb := getNameFromPathAndVerb(verb, path, e.EP.StartingAtVersion())
+	if e.EP.UsePathPrefix() {
+		e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	} else {
+		e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	}
+	for _, alias := range e.EP.AlternativePaths() {
+		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.EP.StartingAtVersion())
+		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
+		if e.EP.UsePathPrefix() {
+			e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		} else {
+			e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		}
+	}
+}
+
+func EncodeCommonResponse(
+	ctx context.Context,
+	w http.ResponseWriter,
+	response interface{},
+	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+) error {
+	// The has to happen first, if an error happens we'll redirect to an error
+	// page and the error will be logged
+	if page, ok := response.(htmlPage); ok {
+		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		WriteBrowserSecurityHeaders(w)
+		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
+			w.WriteHeader(coder.StatusCode())
+		}
+		_, err := io.WriteString(w, page.Html())
+		return err
+	}
+
+	if e, ok := response.(fleet.Errorer); ok && e.Error() != nil {
+		EncodeError(ctx, e.Error(), w)
+		return nil
+	}
+
+	if render, ok := response.(renderHijacker); ok {
+		render.HijackRender(ctx, w)
+		return nil
+	}
+
+	if e, ok := response.(statuser); ok {
+		w.WriteHeader(e.Status())
+		if e.Status() == http.StatusNoContent {
+			return nil
+		}
+	}
+
+	return jsonMarshal(w, response)
+}
+
+// statuser allows response types to implement a custom
+// http success status - default is 200 OK
+type statuser interface {
+	Status() int
+}
+
+// loads a html page
+type htmlPage interface {
+	Html() string
+	Error() error
+}
+
+// renderHijacker can be implemented by response values to take control of
+// their own rendering.
+type renderHijacker interface {
+	HijackRender(ctx context.Context, w http.ResponseWriter)
 }
