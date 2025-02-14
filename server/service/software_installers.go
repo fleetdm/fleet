@@ -164,7 +164,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	return &decoded, nil
 }
 
-func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateSoftwareInstallerRequest)
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
@@ -331,7 +331,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 
 func (r uploadSoftwareInstallerResponse) Error() error { return r.Err }
 
-func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadSoftwareInstallerRequest)
 	ff, err := req.File.Open()
 	if err != nil {
@@ -385,7 +385,7 @@ type deleteSoftwareInstallerResponse struct {
 func (r deleteSoftwareInstallerResponse) Error() error { return r.Err }
 func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoContent }
 
-func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
 	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID)
 	if err != nil {
@@ -413,7 +413,7 @@ type downloadSoftwareInstallerRequest struct {
 	Token   string `url:"token"`
 }
 
-func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
 	payload, err := svc.DownloadSoftwareInstaller(ctx, false, req.Alt, req.TitleID, req.TeamID)
@@ -424,7 +424,7 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
-func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
 	token, err := svc.GenerateSoftwareInstallerToken(ctx, req.Alt, req.TitleID, req.TeamID)
@@ -434,7 +434,7 @@ func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{},
 	return getSoftwareInstallerTokenResponse{Token: token}, nil
 }
 
-func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*downloadSoftwareInstallerRequest)
 
 	meta, err := svc.GetSoftwareInstallerTokenMetadata(ctx, req.Token, req.TitleID)
@@ -541,7 +541,7 @@ func (r installSoftwareResponse) Error() error { return r.Err }
 
 func (r installSoftwareResponse) Status() int { return http.StatusAccepted }
 
-func installSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func installSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*installSoftwareRequest)
 
 	err := svc.InstallSoftwareTitle(ctx, req.HostID, req.SoftwareTitleID)
@@ -573,7 +573,7 @@ type uninstallSoftwareRequest struct {
 	SoftwareTitleID uint `url:"software_title_id"`
 }
 
-func uninstallSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uninstallSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uninstallSoftwareRequest)
 
 	err := svc.UninstallSoftwareTitle(ctx, req.HostID, req.SoftwareTitleID)
@@ -601,7 +601,7 @@ type getSoftwareInstallResultsResponse struct {
 
 func (r getSoftwareInstallResultsResponse) Error() error { return r.Err }
 
-func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallResultsRequest)
 
 	results, err := svc.GetSoftwareInstallResults(ctx, req.InstallUUID)
@@ -638,7 +638,7 @@ type batchSetSoftwareInstallersResponse struct {
 func (r batchSetSoftwareInstallersResponse) Error() error { return r.Err }
 func (r batchSetSoftwareInstallersResponse) Status() int  { return http.StatusAccepted }
 
-func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func batchSetSoftwareInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersRequest)
 	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, req.TeamName, req.Software, req.DryRun)
 	if err != nil {
@@ -671,7 +671,7 @@ type batchSetSoftwareInstallersResultResponse struct {
 
 func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 
-func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
 	status, message, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
 	if err != nil {
@@ -712,7 +712,7 @@ type submitSelfServiceSoftwareInstallResponse struct {
 func (r submitSelfServiceSoftwareInstallResponse) Error() error { return r.Err }
 func (r submitSelfServiceSoftwareInstallResponse) Status() int  { return http.StatusAccepted }
 
-func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -774,7 +774,7 @@ type batchAssociateAppStoreAppsResponse struct {
 
 func (r batchAssociateAppStoreAppsResponse) Error() error { return r.Err }
 
-func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchAssociateAppStoreAppsRequest)
 	apps, err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun)
 	if err != nil {

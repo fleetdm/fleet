@@ -22,10 +22,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc android.Service) errorer
+type handlerFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	if e, ok := response.(errorer); ok && e.Error() != nil {
+	if e, ok := response.(fleet.Errorer); ok && e.Error() != nil {
 		endpoint_utils.EncodeError(ctx, e.Error(), w)
 		return nil
 	}
@@ -46,11 +46,6 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 // http success status - default is 200 OK
 type statuser interface {
 	Status() int
-}
-
-// errorer interface is implemented by response structs to encode business logic errors
-type errorer interface {
-	Error() error
 }
 
 // makeDecoder creates a decoder for the type for the struct passed on. If the
