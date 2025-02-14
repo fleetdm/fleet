@@ -1308,7 +1308,7 @@ This endpoint is used to generate URL, which opens Google's wizard to create And
 ### Connect Android Enterprise
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to connect(bind) Android Enterprise to Fleet and to turn on Android MDM features.
+This endpoint is used to connect (bind) Android Enterprise to Fleet and to turn on Android MDM features.
 
 `GET /api/v1/fleet/android_enterprise/connect/:token`
 
