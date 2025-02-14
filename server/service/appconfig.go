@@ -1363,9 +1363,6 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
 	}
-	if incoming.Metadata != "" && incoming.MetadataURL != "" {
-		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
-	}
 	if incoming.EntityID == "" {
 		if existing.EntityID == "" {
 			invalid.Append("entity_id", "required")

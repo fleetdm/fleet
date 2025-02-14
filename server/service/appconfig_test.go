@@ -1087,7 +1087,7 @@ func TestMDMAppleConfig(t *testing.T) {
 				MetadataURL: "not-empty",
 				IDPName:     "onelogin",
 			}}},
-			expectedError: "metadata both metadata and metadata_url are defined, only one is allowed",
+			expectedError: "invalid URI for request",
 		}, {
 			name:        "ssoIdPName",
 			licenseTier: "premium",
