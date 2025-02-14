@@ -72,10 +72,12 @@ import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import CertificatesCard from "../cards/Certificates";
+
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
@@ -800,11 +802,13 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost =
     host.platform === "ios" || host.platform === "ipados";
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
   return (
@@ -903,6 +907,9 @@ const HostDetailsPage = ({
                   onUsersTableSearchChange={onUsersTableSearchChange}
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
+              )}
+              {(isIosOrIpadosHost || isDarwinHost) && (
+                <CertificatesCard className={`${baseClass}__certs-card`} />
               )}
             </TabPanel>
             <TabPanel>
