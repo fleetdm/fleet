@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -287,8 +288,8 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(kitlog.NewNopLogger()),
@@ -407,8 +408,8 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(kitlog.NewNopLogger()),

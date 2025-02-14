@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type uploadSoftwareInstallerRequest struct {
@@ -60,7 +61,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// populate software title ID since we're overriding the decoder that would do it for us
 	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
-		return nil, badRequestErr("intFromRequest", err)
+		return nil, endpoint_utils.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
 
@@ -563,7 +564,7 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, selfService bool, policyID *uint) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 

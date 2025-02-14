@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
@@ -1439,7 +1440,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
-		var existsErr existsErrorInterface
+		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
@@ -1982,7 +1983,7 @@ func getAppleProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
+				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("macos_settings: %s: %s", prof.Name, err.Error())))
 		}
 
 		if mdmProf.Name != prof.Name {
@@ -2076,7 +2077,7 @@ func getWindowsProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
+				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("windows_settings: %s: %s", profile.Name, err.Error())))
 		}
 
 		profs[i] = mdmProf
