@@ -22,7 +22,7 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
    - Post-install script
    - Uninstall scripts
 
-If you find that a script doesn't work as expected, please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md). When scripts are fixed, after upgrading Fleet, they will automatically update them for you unless you edited the script.
+If you find that a script doesn't work as expected, please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md). When scripts are fixed, after upgrading Fleet, they are automatically updated for you unless you edited any of the scripts.
 
 ## Install the app
 
