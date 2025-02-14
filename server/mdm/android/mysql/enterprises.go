@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/jmoiron/sqlx"
 )
@@ -26,7 +27,7 @@ func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.E
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, notFound("Android enterprise").WithID(id)
+		return nil, common_mysql.NotFound("Android enterprise").WithID(id)
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise by id")
 	}
@@ -39,7 +40,7 @@ func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, er
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, notFound("Android enterprise")
+		return nil, common_mysql.NotFound("Android enterprise")
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting active enterprise")
 	}
@@ -59,7 +60,7 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
 		return ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}
 	if rows, _ := res.RowsAffected(); rows == 0 {
-		return notFound("Android enterprise").WithID(enterprise.ID)
+		return common_mysql.NotFound("Android enterprise").WithID(enterprise.ID)
 	}
 	return nil
 }
