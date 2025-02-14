@@ -90,7 +90,7 @@ type listHostsResponse struct {
 
 func (r listHostsResponse) Error() error { return r.Err }
 
-func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
@@ -277,7 +277,7 @@ func (r deleteHostsResponse) Error() error { return r.Err }
 // Status implements statuser interface to send out custom HTTP success codes.
 func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
-func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteHostsRequest)
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
@@ -396,7 +396,7 @@ type countHostsResponse struct {
 
 func (r countHostsResponse) Error() error { return r.Err }
 
-func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countHostsRequest)
 	count, err := svc.CountHosts(ctx, req.LabelID, req.Opts)
 	if err != nil {
@@ -461,7 +461,7 @@ type searchHostsResponse struct {
 
 func (r searchHostsResponse) Error() error { return r.Err }
 
-func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
 	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
@@ -529,7 +529,7 @@ type getHostResponse struct {
 
 func (r getHostResponse) Error() error { return r.Err }
 
-func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -634,7 +634,7 @@ type getHostSummaryResponse struct {
 
 func (r getHostSummaryResponse) Error() error { return r.Err }
 
-func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSummaryRequest)
 	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
@@ -709,7 +709,7 @@ type hostByIdentifierRequest struct {
 	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*hostByIdentifierRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -768,7 +768,7 @@ type deleteHostResponse struct {
 
 func (r deleteHostResponse) Error() error { return r.Err }
 
-func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteHostRequest)
 	err := svc.DeleteHost(ctx, req.ID)
 	if err != nil {
@@ -825,7 +825,7 @@ type addHostsToTeamResponse struct {
 
 func (r addHostsToTeamResponse) Error() error { return r.Err }
 
-func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamRequest)
 	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
@@ -944,7 +944,7 @@ type addHostsToTeamByFilterResponse struct {
 
 func (r addHostsToTeamByFilterResponse) Error() error { return r.Err }
 
-func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters)
 	if err != nil {
@@ -1022,7 +1022,7 @@ func (r refetchHostResponse) Error() error {
 	return r.Err
 }
 
-func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*refetchHostRequest)
 	err := svc.RefetchHost(ctx, req.ID)
 	if err != nil {
@@ -1337,7 +1337,7 @@ type getHostQueryReportResponse struct {
 
 func (r getHostQueryReportResponse) Error() error { return r.Err }
 
-func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostQueryReportRequest)
 
 	// Need to return hostname in response even if there are no report results
@@ -1457,7 +1457,7 @@ type listHostDeviceMappingResponse struct {
 
 func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
-func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
 	if err != nil {
@@ -1503,7 +1503,7 @@ type putHostDeviceMappingResponse struct {
 
 func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
-func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
 	if err != nil {
@@ -1552,7 +1552,7 @@ type getHostMDMResponse struct {
 
 func (r getHostMDMResponse) Error() error { return r.Err }
 
-func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMRequest)
 	mdm, err := svc.MDMData(ctx, req.ID)
 	if err != nil {
@@ -1573,7 +1573,7 @@ type getHostMDMSummaryRequest struct {
 
 func (r getHostMDMSummaryResponse) Error() error { return r.Err }
 
-func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMSummaryRequest)
 	resp := getHostMDMSummaryResponse{}
 	var err error
@@ -1600,7 +1600,7 @@ type getMacadminsDataResponse struct {
 
 func (r getMacadminsDataResponse) Error() error { return r.Err }
 
-func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMacadminsDataRequest)
 	data, err := svc.MacadminsData(ctx, req.ID)
 	if err != nil {
@@ -1677,7 +1677,7 @@ type getAggregatedMacadminsDataResponse struct {
 
 func (r getAggregatedMacadminsDataResponse) Error() error { return r.Err }
 
-func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAggregatedMacadminsDataRequest)
 	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
 	if err != nil {
@@ -1891,7 +1891,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*hostsReportRequest)
 
 	// for now, only csv format is allowed
@@ -1974,7 +1974,7 @@ type osVersionsResponse struct {
 
 func (r osVersionsResponse) Error() error { return r.Err }
 
-func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*osVersionsRequest)
 
 	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
@@ -2104,7 +2104,7 @@ type getOSVersionResponse struct {
 
 func (r getOSVersionResponse) Error() error { return r.Err }
 
-func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOSVersionRequest)
 
 	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
@@ -2206,7 +2206,7 @@ type getHostEncryptionKeyResponse struct {
 
 func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
-func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
 	key, err := svc.HostEncryptionKey(ctx, req.ID)
 	if err != nil {
@@ -2332,7 +2332,7 @@ type getHostHealthResponse struct {
 
 func (r getHostHealthResponse) Error() error { return r.Err }
 
-func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostHealthRequest)
 	hh, err := svc.GetHostHealth(ctx, req.ID)
 	if err != nil {
@@ -2464,7 +2464,7 @@ type addLabelsToHostResponse struct {
 
 func (r addLabelsToHostResponse) Error() error { return r.Err }
 
-func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addLabelsToHostRequest)
 	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
 		return addLabelsToHostResponse{Err: err}, nil
@@ -2509,7 +2509,7 @@ type removeLabelsFromHostResponse struct {
 
 func (r removeLabelsFromHostResponse) Error() error { return r.Err }
 
-func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*removeLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
 		return removeLabelsFromHostResponse{Err: err}, nil
@@ -2641,7 +2641,7 @@ type getHostSoftwareResponse struct {
 
 func (r getHostSoftwareResponse) Error() error { return r.Err }
 
-func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {

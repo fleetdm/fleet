@@ -61,7 +61,7 @@ type androidEnterpriseSignupResponse struct {
 	androidResponse
 }
 
-func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) errorer {
+func androidEnterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	result, err := svc.EnterpriseSignup(ctx)
 	if err != nil {
 		return newErrResponse(err)
@@ -110,7 +110,7 @@ type androidEnterpriseSignupCallbackRequest struct {
 	EnterpriseToken string `query:"enterpriseToken"`
 }
 
-func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) errorer {
+func androidEnterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*androidEnterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
 	return androidResponse{Err: err}
@@ -214,7 +214,7 @@ type androidEnrollmentTokenResponse struct {
 	androidResponse
 }
 
-func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) errorer {
+func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	token, err := svc.CreateEnrollmentToken(ctx)
 	if err != nil {
 		return androidResponse{Err: err}
