@@ -8,6 +8,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 import SelectSoftwareTable from "../SelectSoftwareTable";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "select-software-modal";
 
@@ -92,13 +93,19 @@ const SelectSoftwareModal = ({
           onChangeSelectAll={onChangeSelectAll}
         />
         <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={onSaveSelectedSoftware}
-            isLoading={isSaving}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(dC) => (
+              <Button
+                disabled={dC}
+                variant="brand"
+                onClick={onSaveSelectedSoftware}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>
