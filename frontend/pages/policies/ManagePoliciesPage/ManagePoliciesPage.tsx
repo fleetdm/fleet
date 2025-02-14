@@ -21,7 +21,12 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
@@ -47,6 +52,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -759,8 +765,7 @@ const ManagePolicyPage = ({
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
-  const showAutomationsDropdown =
-    canManageAutomations && hasPoliciesToAutomateOrDelete;
+  const showAutomationsDropdown = canManageAutomations;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -980,6 +985,52 @@ const ManagePolicyPage = ({
     return options;
   };
 
+  let automationsDropdown = null;
+  if (showAutomationsDropdown) {
+    automationsDropdown = (
+      <div className={`${baseClass}__manage-automations-wrapper`}>
+        <DropdownWrapper
+          isDisabled={!hasPoliciesToAutomateOrDelete}
+          className={`${baseClass}__manage-automations-dropdown`}
+          name="policy-automations"
+          onChange={onSelectAutomationOption}
+          placeholder="Manage automations"
+          options={
+            hasPoliciesToAutomateOrDelete
+              ? getAutomationsDropdownOptions(!!automationsConfig)
+              : []
+          }
+          variant="button"
+          nowrapMenu
+        />
+      </div>
+    );
+    if (!hasPoliciesToAutomateOrDelete) {
+      let tipContent;
+      if (isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
+        tipContent = (
+          <p className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy to this team.
+            <br />
+            For inherited policies select &ldquo;All teams&rdquo;.
+          </p>
+        );
+      } else {
+        tipContent = (
+          <p className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy.
+          </p>
+        );
+      }
+
+      automationsDropdown = (
+        <TooltipWrapper underline={false} tipContent={tipContent} showArrow>
+          {automationsDropdown}
+        </TooltipWrapper>
+      );
+    }
+  }
+
   if (!isRouteOk) {
     return <Spinner />;
   }
@@ -1021,19 +1072,7 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {showAutomationsDropdown && (
-                <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <DropdownWrapper
-                    className={`${baseClass}__manage-automations-dropdown`}
-                    name="policy-automations"
-                    onChange={onSelectAutomationOption}
-                    placeholder="Manage automations"
-                    options={getAutomationsDropdownOptions(!!automationsConfig)}
-                    variant="button"
-                    nowrapMenu
-                  />
-                </div>
-              )}
+              {automationsDropdown}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button

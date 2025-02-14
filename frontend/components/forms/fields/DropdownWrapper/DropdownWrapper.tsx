@@ -337,6 +337,7 @@ const DropdownWrapper = ({
         fontWeight: "bold",
         lineHeight: "normal",
         paddingLeft: 0,
+        opacity: isDisabled ? 0.5 : 1,
         marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
       };
 
@@ -358,6 +359,7 @@ const DropdownWrapper = ({
       svg: {
         transition: "transform 0.25s ease",
       },
+      opacity: isDisabled ? 0.5 : 1,
     }),
     menu: (provided) => ({
       ...provided,
