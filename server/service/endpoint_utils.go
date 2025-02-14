@@ -97,8 +97,8 @@ func isBodyDecoder(v reflect.Value) bool {
 	return ok
 }
 
-type CommonEndpointer[T Endpointer[H], H HandlerFunc | HandlerFunc2] struct {
-	EP T
+type CommonEndpointer[H HandlerFunc | HandlerFunc2] struct {
+	EP Endpointer[H]
 }
 
 type Endpointer[H HandlerFunc | HandlerFunc2] interface {
@@ -118,6 +118,7 @@ type Endpointer[H HandlerFunc | HandlerFunc2] interface {
 	SetCustomMiddleware(v []endpoint.Middleware)
 	UsePathPrefix() bool
 	SetUsePathPrefix(v bool)
+	Copy() Endpointer[H]
 }
 
 // Compile-time check to ensure that AuthEndpointer implements Endpointer.
@@ -196,9 +197,14 @@ func (e *AuthEndpointer) SetUsePathPrefix(v bool) {
 	e.usePathPrefix = v
 }
 
+func (e *AuthEndpointer) Copy() Endpointer[HandlerFunc] {
+	result := *e
+	return &result
+}
+
 func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *CommonEndpointer[*AuthEndpointer, HandlerFunc] {
-	return &CommonEndpointer[*AuthEndpointer, HandlerFunc]{
+	versions ...string) *CommonEndpointer[HandlerFunc] {
+	return &CommonEndpointer[HandlerFunc]{
 		EP: &AuthEndpointer{
 			svc:      svc,
 			opts:     opts,
@@ -210,8 +216,8 @@ func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 }
 
 func NewNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *CommonEndpointer[*AuthEndpointer, HandlerFunc] {
-	return &CommonEndpointer[*AuthEndpointer, HandlerFunc]{
+	versions ...string) *CommonEndpointer[HandlerFunc] {
+	return &CommonEndpointer[HandlerFunc]{
 		EP: &AuthEndpointer{
 			svc:      svc,
 			opts:     opts,
@@ -236,27 +242,27 @@ func getNameFromPathAndVerb(verb, path, startAt string) string {
 	return prefix + pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func (e *CommonEndpointer[T, H]) POST(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "POST")
 }
 
-func (e *CommonEndpointer[T, H]) GET(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) GET(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
-func (e *CommonEndpointer[T, H]) PUT(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) PUT(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "PUT")
 }
 
-func (e *CommonEndpointer[T, H]) PATCH(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) PATCH(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
 
-func (e *CommonEndpointer[T, H]) DELETE(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) DELETE(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *CommonEndpointer[T, H]) HEAD(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) HEAD(path string, f H, v interface{}) {
 	e.handleEndpoint(path, f, v, "HEAD")
 }
 
@@ -326,12 +332,12 @@ func (e *AuthEndpointer) handleHTTPHandler(path string, h http.Handler, verb str
 	e.handlePathHandler(path, self, verb)
 }
 
-func (e *CommonEndpointer[T, H]) handleEndpoint(path string, f H, v interface{}, verb string) {
+func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, verb string) {
 	endpoint := e.makeEndpoint(f, v)
 	e.EP.handleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *CommonEndpointer[T, H]) makeEndpoint(f H, v interface{}) http.Handler {
+func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return e.EP.callHandlerFunc(f, ctx, request, e.EP.Service())
 	}
@@ -357,32 +363,37 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
 }
 
-func (e *CommonEndpointer[T, H]) StartingAtVersion(version string) *CommonEndpointer[T, H] {
+func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {
 	ae := *e
+	ae.EP = e.EP.Copy()
 	ae.EP.SetStartingAtVersion(version)
 	return &ae
 }
 
-func (e *CommonEndpointer[T, H]) EndingAtVersion(version string) *CommonEndpointer[T, H] {
+func (e *CommonEndpointer[H]) EndingAtVersion(version string) *CommonEndpointer[H] {
 	ae := *e
+	ae.EP = e.EP.Copy()
 	ae.EP.SetEndingAtVersion(version)
 	return &ae
 }
 
-func (e *CommonEndpointer[T, H]) WithAltPaths(paths ...string) *CommonEndpointer[T, H] {
+func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H] {
 	ae := *e
+	ae.EP = e.EP.Copy()
 	ae.EP.SetAlternativePaths(paths)
 	return &ae
 }
 
-func (e *CommonEndpointer[T, H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[T, H] {
+func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
+	ae.EP = e.EP.Copy()
 	ae.EP.SetCustomMiddleware(mws)
 	return &ae
 }
 
-func (e *CommonEndpointer[T, H]) UsePathPrefix() *CommonEndpointer[T, H] {
+func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae := *e
+	ae.EP = e.EP.Copy()
 	ae.EP.SetUsePathPrefix(true)
 	return &ae
 }
@@ -392,7 +403,7 @@ func badRequest(msg string) error {
 }
 
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *CommonEndpointer[*AuthEndpointer, HandlerFunc] {
+	versions ...string) *CommonEndpointer[HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedDevice(svc, logger, next)
 	}
@@ -402,7 +413,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	// Add the capabilities reported by the device to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &CommonEndpointer[*AuthEndpointer, HandlerFunc]{
+	return &CommonEndpointer[HandlerFunc]{
 		EP: &AuthEndpointer{
 			svc:      svc,
 			opts:     opts,
@@ -415,11 +426,11 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 }
 
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *CommonEndpointer[*AuthEndpointer, HandlerFunc] {
+	versions ...string) *CommonEndpointer[HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedHost(svc, logger, next)
 	}
-	return &CommonEndpointer[*AuthEndpointer, HandlerFunc]{
+	return &CommonEndpointer[HandlerFunc]{
 		EP: &AuthEndpointer{
 			svc:      svc,
 			opts:     opts,
@@ -431,7 +442,7 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 }
 
 func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *CommonEndpointer[*AuthEndpointer, HandlerFunc] {
+	versions ...string) *CommonEndpointer[HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedOrbitHost(svc, logger, next)
 	}
@@ -441,7 +452,7 @@ func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts 
 	// Add the capabilities reported by Orbit to the request context
 	opts = append(opts, capabilitiesContextFunc())
 
-	return &CommonEndpointer[*AuthEndpointer, HandlerFunc]{
+	return &CommonEndpointer[HandlerFunc]{
 		EP: &AuthEndpointer{
 			svc:      svc,
 			opts:     opts,
