@@ -475,21 +475,16 @@ type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 	Router           *mux.Router
 	CustomMiddleware []endpoint.Middleware
 	Versions         []string
+
+	startingAtVersion string
+	endingAtVersion   string
+	alternativePaths  []string
+	usePathPrefix     bool
 }
 
 type Endpointer[H HandlerFunc | AndroidFunc] interface {
 	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
 	Service() interface{}
-
-	StartingAtVersion() string
-	SetStartingAtVersion(v string)
-	EndingAtVersion() string
-	SetEndingAtVersion(v string)
-	AlternativePaths() []string
-	SetAlternativePaths(v []string)
-	UsePathPrefix() bool
-	SetUsePathPrefix(v bool)
-	Copy() Endpointer[H]
 }
 
 func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {
@@ -549,22 +544,19 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 
 func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {
 	ae := *e
-	ae.EP = e.EP.Copy()
-	ae.EP.SetStartingAtVersion(version)
+	ae.startingAtVersion = version
 	return &ae
 }
 
 func (e *CommonEndpointer[H]) EndingAtVersion(version string) *CommonEndpointer[H] {
 	ae := *e
-	ae.EP = e.EP.Copy()
-	ae.EP.SetEndingAtVersion(version)
+	ae.endingAtVersion = version
 	return &ae
 }
 
 func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H] {
 	ae := *e
-	ae.EP = e.EP.Copy()
-	ae.EP.SetAlternativePaths(paths)
+	ae.alternativePaths = paths
 	return &ae
 }
 
@@ -576,8 +568,7 @@ func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *
 
 func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae := *e
-	ae.EP = e.EP.Copy()
-	ae.EP.SetUsePathPrefix(true)
+	ae.usePathPrefix = true
 	return &ae
 }
 
@@ -610,10 +601,10 @@ func getNameFromPathAndVerb(verb, path, startAt string) string {
 
 func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
 	versions := e.Versions
-	if e.EP.StartingAtVersion() != "" {
+	if e.startingAtVersion != "" {
 		startIndex := -1
 		for i, version := range versions {
-			if version == e.EP.StartingAtVersion() {
+			if version == e.startingAtVersion {
 				startIndex = i
 				break
 			}
@@ -623,10 +614,10 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		}
 		versions = versions[startIndex:]
 	}
-	if e.EP.EndingAtVersion() != "" {
+	if e.endingAtVersion != "" {
 		endIndex := -1
 		for i, version := range versions {
-			if version == e.EP.EndingAtVersion() {
+			if version == e.endingAtVersion {
 				endIndex = i
 				break
 			}
@@ -639,21 +630,21 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 
 	// if a version doesn't have a deprecation version, or the ending version is the latest one, then it's part of the
 	// latest
-	if e.EP.EndingAtVersion() == "" || e.EP.EndingAtVersion() == e.Versions[len(e.Versions)-1] {
+	if e.endingAtVersion == "" || e.endingAtVersion == e.Versions[len(e.Versions)-1] {
 		versions = append(versions, "latest")
 	}
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-	nameAndVerb := getNameFromPathAndVerb(verb, path, e.EP.StartingAtVersion())
-	if e.EP.UsePathPrefix() {
+	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
+	if e.usePathPrefix {
 		e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	} else {
 		e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 	}
-	for _, alias := range e.EP.AlternativePaths() {
-		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.EP.StartingAtVersion())
+	for _, alias := range e.alternativePaths {
+		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		if e.EP.UsePathPrefix() {
+		if e.usePathPrefix {
 			e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
 		} else {
 			e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)

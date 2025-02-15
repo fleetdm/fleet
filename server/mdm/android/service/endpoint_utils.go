@@ -29,63 +29,26 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}, nil, nil, nil)
 }
 
-// Compile-time check to ensure that authEndpointer implements Endpointer.
-var _ endpoint_utils.Endpointer[endpoint_utils.AndroidFunc] = &authEndpointer{}
+// Compile-time check to ensure that endpointer implements Endpointer.
+var _ endpoint_utils.Endpointer[endpoint_utils.AndroidFunc] = &endpointer{}
 
-type authEndpointer struct {
+type endpointer struct {
 	svc android.Service
 }
 
-func (e *authEndpointer) CallHandlerFunc(f endpoint_utils.AndroidFunc, ctx context.Context, request interface{},
+func (e *endpointer) CallHandlerFunc(f endpoint_utils.AndroidFunc, ctx context.Context, request interface{},
 	svc interface{}) (fleet.Errorer, error) {
 	return f(ctx, request, svc.(android.Service)), nil
 }
 
-func (e *authEndpointer) Service() interface{} {
+func (e *endpointer) Service() interface{} {
 	return e.svc
-}
-
-func (e *authEndpointer) StartingAtVersion() string {
-	return ""
-}
-
-func (e *authEndpointer) SetStartingAtVersion(_ string) {
-	panic("not implemented")
-}
-
-func (e *authEndpointer) EndingAtVersion() string {
-	return ""
-}
-
-func (e *authEndpointer) SetEndingAtVersion(_ string) {
-	panic("not implemented")
-}
-
-func (e *authEndpointer) AlternativePaths() []string {
-	return nil
-}
-
-func (e *authEndpointer) SetAlternativePaths(_ []string) {
-	panic("not implemented")
-}
-
-func (e *authEndpointer) UsePathPrefix() bool {
-	return false
-}
-
-func (e *authEndpointer) SetUsePathPrefix(_ bool) {
-	panic("not implemented")
-}
-
-func (e *authEndpointer) Copy() endpoint_utils.Endpointer[endpoint_utils.AndroidFunc] {
-	result := *e
-	return &result
 }
 
 func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *endpoint_utils.CommonEndpointer[endpoint_utils.AndroidFunc] {
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.AndroidFunc]{
-		EP: &authEndpointer{
+		EP: &endpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
@@ -101,7 +64,7 @@ func newUserAuthenticatedEndpointer(fleetSvc fleet.Service, svc android.Service,
 func newNoAuthEndpointer(fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string) *endpoint_utils.CommonEndpointer[endpoint_utils.AndroidFunc] {
 	return &endpoint_utils.CommonEndpointer[endpoint_utils.AndroidFunc]{
-		EP: &authEndpointer{
+		EP: &endpointer{
 			svc: svc,
 		},
 		MakeDecoderFn: makeDecoder,
