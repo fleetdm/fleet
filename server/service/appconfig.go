@@ -625,11 +625,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
 	if gme {
+		if !license.IsPremium() {
+			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
+		}
 		if rurl == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
-		}
-		if err := validateServerURL(rurl); err != nil {
-			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", err.Error())
 		}
 	}
 	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
