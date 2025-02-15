@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	ctu "github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
@@ -25,7 +26,7 @@ func TestEnterprise(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer testing_utils.TruncateTables(t, ds)
+			defer ctu.TruncateTables(t, ds.Writer(testCtx()), ds.Logger(), nil)
 
 			c.fn(t, ds)
 		})

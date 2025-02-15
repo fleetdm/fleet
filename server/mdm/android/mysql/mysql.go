@@ -44,6 +44,10 @@ func (ds *Datastore) Writer(_ context.Context) *sqlx.DB {
 	return ds.primary
 }
 
+func (ds *Datastore) Logger() log.Logger {
+	return ds.logger
+}
+
 func (ds *Datastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
 	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
 }

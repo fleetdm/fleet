@@ -28,6 +28,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -84,11 +85,11 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 		setupDummyReplica(t, testName, ds, opts)
 	}
 	if opts.RealReplica {
-		replicaOpts := &dbOptions{
-			minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			maxAttempts:         1,
-			logger:              log.NewNopLogger(),
-			sqlMode:             "ANSI",
+		replicaOpts := &common_mysql.DBOptions{
+			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+			MaxAttempts:         1,
+			Logger:              log.NewNopLogger(),
+			SqlMode:             "ANSI",
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -249,7 +250,7 @@ var (
 	databasesToReplicate string
 )
 
-func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
+func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *common_mysql.DBOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
 	const replicaPassword = "rotacilper"
@@ -346,7 +347,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		Address:  testing_utils.TestReplicaAddress,
 	}
 	require.NoError(t, checkConfig(&replicaConfig))
-	replica, err := newDB(&replicaConfig, options)
+	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
 	ds.readReplicaConfig = &replicaConfig

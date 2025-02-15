@@ -5,110 +5,34 @@ package testing_utils
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testUsername              = "root"
-	testPassword              = "toor"
-	testAddress               = "localhost:3307"
-	testReplicaDatabaseSuffix = "_replica"
-)
-
 func connectMySQL(t testing.TB, testName string) *mysql.Datastore {
 	cfg := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
 		Database: testName,
-		Address:  testAddress,
+		Address:  testing_utils.TestAddress,
 	}
 
-	dbWriter, err := newDB(&cfg)
+	dbWriter, err := common_mysql.NewDB(&cfg, &common_mysql.DBOptions{}, "")
 	require.NoError(t, err)
 	ds := mysql.New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter)
 	return ds.(*mysql.Datastore)
-}
-
-func newDB(conf *config.MysqlConfig) (*sqlx.DB, error) {
-	driverName := "mysql"
-
-	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
-
-	var dbError error
-	maxConnectionAttempts := 10
-	for attempt := 0; attempt < maxConnectionAttempts; attempt++ {
-		dbError = db.Ping()
-		if dbError == nil {
-			// we're connected!
-			break
-		}
-		interval := time.Duration(attempt) * time.Second
-		fmt.Printf("could not connect to db: %v, sleeping %v\n", dbError, interval)
-		time.Sleep(interval)
-	}
-
-	if dbError != nil {
-		return nil, dbError
-	}
-	return db, nil
-}
-
-// generateMysqlConnectionString returns a MySQL connection string using the
-// provided configuration.
-func generateMysqlConnectionString(conf config.MysqlConfig) string {
-	params := url.Values{
-		// using collation implicitly sets the charset too
-		// and it's the recommended way to do it per the
-		// driver documentation:
-		// https://github.com/go-sql-driver/mysql#charset
-		"collation":            []string{"utf8mb4_unicode_ci"},
-		"parseTime":            []string{"true"},
-		"loc":                  []string{"UTC"},
-		"time_zone":            []string{"'-00:00'"},
-		"clientFoundRows":      []string{"true"},
-		"allowNativePasswords": []string{"true"},
-		"group_concat_max_len": []string{"4194304"},
-		"multiStatements":      []string{"true"},
-	}
-	if conf.TLSConfig != "" {
-		params.Set("tls", conf.TLSConfig)
-	}
-	if conf.SQLMode != "" {
-		params.Set("sql_mode", conf.SQLMode)
-	}
-
-	dsn := fmt.Sprintf(
-		"%s:%s@%s(%s)/%s?%s",
-		conf.Username,
-		conf.Password,
-		conf.Protocol,
-		conf.Address,
-		conf.Database,
-		params.Encode(),
-	)
-
-	return dsn
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -127,7 +51,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	// that option is set.
 	dbs := []string{testName}
 	if opts.DummyReplica {
-		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
+		dbs = append(dbs, testName+testing_utils.TestReplicaDatabaseSuffix)
 	}
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
@@ -136,11 +60,11 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			dbName, dbName, dbName, schema,
 		)
 
-		cmd := exec.Command(
+		cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file
 			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
+			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
 		out, err := cmd.CombinedOutput()
@@ -157,11 +81,11 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			testName, testName, testName, schema,
 		)
 
-		cmd := exec.Command(
+		cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file
 			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
+			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
 		out, err := cmd.CombinedOutput()
@@ -246,63 +170,4 @@ func ExecAdhocSQL(tb testing.TB, ds *mysql.Datastore, fn func(q sqlx.ExtContext)
 	tb.Helper()
 	err := fn(ds.Writer(context.Background()))
 	require.NoError(tb, err)
-}
-
-// TruncateTables truncates the specified tables, in order, using ds.writer.
-// Note that the order is typically not important because FK checks are
-// disabled while truncating. If no table is provided, all tables (except
-// those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
-	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
-	// by inspecting mysql tables.
-	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
-		return
-	}
-
-	// those tables are seeded with the schema.sql and as such must not
-	// be truncated - a more precise approach must be used for those, e.g.
-	// delete where id > max before test, or something like that.
-	nonEmptyTables := map[string]bool{
-		// put tables here that should not be truncated
-	}
-	ctx := context.Background()
-
-	require.NoError(t, ds.WithRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var skipSeeded bool
-
-		if len(tables) == 0 {
-			skipSeeded = true
-			sql := `
-      SELECT
-        table_name
-      FROM
-        information_schema.tables
-      WHERE
-        table_schema = database() AND
-        table_type = 'BASE TABLE'
-    `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
-				return err
-			}
-		}
-
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
-			return err
-		}
-		for _, tbl := range tables {
-			if nonEmptyTables[tbl] {
-				if skipSeeded {
-					continue
-				}
-				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
-			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
-			return err
-		}
-		return nil
-	}))
 }

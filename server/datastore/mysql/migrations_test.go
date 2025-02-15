@@ -64,7 +64,7 @@ func TestMigrations(t *testing.T) {
 	require.NoError(t, ds.MigrateTables(context.Background()))
 
 	// Dump schema to dumpfile
-	cmd := exec.Command(
+	cmd := exec.Command( // nolint:gosec // Waive G204 since this is a test file
 		"docker", "compose", "exec", "-T", "mysql_test",
 		// Command run inside container
 		"mysqldump", "-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword, "TestMigrations", "--compact", "--skip-comments",
