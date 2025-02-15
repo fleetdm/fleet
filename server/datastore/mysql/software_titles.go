@@ -146,22 +146,6 @@ func (ds *Datastore) ListSoftwareTitles(
 	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
-		// promote the package name and version to the proper destination fields
-		if title.PackageName != nil {
-			var version string
-			if title.PackageVersion != nil {
-				version = *title.PackageVersion
-			}
-
-			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:               *title.PackageName,
-				Version:            version,
-				SelfService:        title.PackageSelfService,
-				PackageURL:         title.PackageURL,
-				InstallDuringSetup: title.PackageInstallDuringSetup,
-			}
-		}
-
 		// promote the VPP app id and version to the proper destination fields
 		if title.VPPAppAdamID != nil {
 			var version string
@@ -179,6 +163,25 @@ func (ds *Datastore) ListSoftwareTitles(
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
+	}
+
+	softwareInstallers, err := ds.GetSoftwareInstallerByTitleIDs(ctx, titleIDs, opt)
+	softwareInstallersByTitleID := make(map[uint][]fleet.SoftwareInstaller)
+	for _, si := range softwareInstallers {
+		softwareInstallersByTitleID[*si.TitleID] = append(softwareInstallersByTitleID[*si.TitleID], si)
+	}
+
+	for _, title := range softwareList {
+		softwareInstallers := softwareInstallersByTitleID[title.ID]
+		if len(softwareInstallers) > 0 {
+			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+				Name:               softwareInstallers[0].Name,
+				Version:            softwareInstallers[0].Version,
+				SelfService:        &softwareInstallers[0].SelfService,
+				PackageURL:         &softwareInstallers[0].URL,
+				InstallDuringSetup: softwareInstallers[0].InstallDuringSetup,
+			}
+		}
 	}
 
 	// Grab the automatic install policies, if any exist
@@ -281,13 +284,8 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
+	SUM(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	si.self_service as package_self_service,
-	si.filename as package_name,
-	si.version as package_version,
-	si.url AS package_url,
-	si.install_during_setup as package_install_during_setup,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
@@ -304,7 +302,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

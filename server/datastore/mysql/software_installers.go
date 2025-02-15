@@ -2294,3 +2294,59 @@ WHERE
 
 	return res, nil
 }
+
+func (ds *Datastore) GetSoftwareInstallerByTitleIDs(ctx context.Context, titleIDs []uint, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareInstaller, error) {
+	var args []any
+
+	if len(titleIDs) == 0 {
+		return nil, ctxerr.Wrap(ctx, errors.New("titleIDs cannot be empty"), "software installer by title IDs")
+	}
+
+	titlePlaceHolders := strings.TrimSuffix(strings.Repeat("?,", len(titleIDs)), ",")
+	titleIDsCondition := fmt.Sprintf("software_installers.title_id IN (%s)", titlePlaceHolders)
+	for _, titleID := range titleIDs {
+		args = append(args, titleID)
+	}
+
+	teamCond := "TRUE"
+	if opt.TeamID != nil {
+		teamCond = "software_installers.global_or_team_id = ?"
+		args = append(args, *opt.TeamID)
+	}
+
+	platformWhere := "TRUE"
+	if opt.Platform != "" {
+		platforms := strings.Split(strings.ReplaceAll(opt.Platform, "macos", "darwin"), ",")
+		platformPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(platforms)), ",")
+
+		platformWhere = fmt.Sprintf(` AND (si.platform IN (%s))`, platformPlaceholders)
+		for _, platform := range platforms { // for software installers
+			args = append(args, platform)
+		}
+	}
+
+	// default to "a software installer or VPP app exists", and see next condition.
+	selfServiceWhere := "TRUE"
+	if opt.SelfServiceOnly {
+		selfServiceWhere += `(si.self_service = 1)`
+	}
+
+	query := fmt.Sprintf(
+		`SELECT
+			software_installers.self_service,
+			software_installers.filename,
+			software_installers.version,
+			software_installers.url,
+			software_installers.install_during_setup,
+			software_installers.title_id
+		FROM software_installers
+		WHERE %s AND %s AND %s AND %s
+	`, titleIDsCondition, teamCond, platformWhere, selfServiceWhere)
+
+	var softwareInstallers []fleet.SoftwareInstaller
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstallers, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "software installer by title IDs")
+	}
+
+	return softwareInstallers, nil
+}

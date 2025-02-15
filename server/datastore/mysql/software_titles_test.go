@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"ListSoftwareTitlesUniqueSoftware", testListSoftwareTitlesUniqueSoftware},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesNotFleetMaintained", testListSoftwareTitlesNotFleetMaintained},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
@@ -1194,6 +1196,105 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "ipados_apps"},
 		{name: "vpp2", source: "apps"},
 	}, names)
+}
+
+func testListSoftwareTitlesUniqueSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	existingSoftware := []fleet.Software{
+		{Name: "santa.app", Version: "2024.9", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.10", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.12", Source: "pkg_packages", BundleIdentifier: "com.santa"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, existingSoftware)
+	require.NoError(t, err)
+
+	// same bundle identifier, different name
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.google.santa",
+		Title:            "santa.app",
+		Version:          "2024.9",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.google.santa",
+		Title:            "santa",
+		Version:          "2024.10",
+		Extension:        "pkg",
+		StorageID:        "storage1",
+		Filename:         "santa345",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team2.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// same name, different bundle identifier
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.santa",
+		Title:            "santa",
+		Version:          "2024.12",
+		Extension:        "pkg",
+		StorageID:        "storage2",
+		Filename:         "santa678",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team3.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var sw []fleet.Software
+	err = ds.writer(ctx).SelectContext(ctx, &sw, `SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	for _, software := range sw {
+		require.NotNil(t, software.TitleID)
+	}
+
+	// Simulate vulnerabilities cron
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	titles, counts, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: nil,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, counts)
+	assert.Len(t, titles, 2)
+
+	assert.Len(t, titles[0].Versions, 1)
+	assert.Len(t, titles[1].Versions, 2)
 }
 
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {

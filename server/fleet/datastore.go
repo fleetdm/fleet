@@ -1733,6 +1733,9 @@ type Datastore interface {
 	// given software installer, based on label membership.
 	GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
+	// GetSoftwareInstallerByTitleIDs returns the software installer for the given title IDs.
+	GetSoftwareInstallerByTitleIDs(ctx context.Context, titleIDs []uint, opt SoftwareTitleListOptions) ([]SoftwareInstaller, error)
+
 	// ClearSoftwareInstallerAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
 	// software installer for all the given hosts.
 	ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error

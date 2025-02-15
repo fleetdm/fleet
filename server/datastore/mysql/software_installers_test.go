@@ -42,6 +42,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
+		{"SoftwareTitleToMatchingSoftware", testSoftwareTitleToMatchingSoftware},
 	}
 
 	for _, c := range cases {
@@ -2336,4 +2337,96 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+}
+
+func testSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	existingSoftware := []fleet.Software{
+		{Name: "santa.app", Version: "2024.9", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.10", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.12", Source: "pkg_packages", BundleIdentifier: "com.santa"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, existingSoftware)
+	require.NoError(t, err)
+
+	var sw []fleet.Software
+	err = ds.writer(ctx).SelectContext(ctx, &sw, `SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	for _, software := range sw {
+		require.NotNil(t, software.TitleID)
+	}
+
+	var swt []fleet.SoftwareTitle
+	err = ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, bundle_identifier, source, browser FROM software_titles ORDER BY name, source, browser`)
+	require.NoError(t, err)
+	require.Len(t, swt, 2)
+
+	// same bundle identifier, different name
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.google.santa",
+		Title:            "santa.app",
+		Version:          "2024.9",
+		Extension:        "pkg",
+		StorageID:        "storage0",
+		Filename:         "santa123",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.google.santa",
+		Title:            "santa",
+		Version:          "2024.10",
+		Extension:        "pkg",
+		StorageID:        "storage1",
+		Filename:         "santa345",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team2.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// same name, different bundle identifier
+	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "com.santa",
+		Title:            "santa",
+		Version:          "2024.12",
+		Extension:        "pkg",
+		StorageID:        "storage2",
+		Filename:         "santa678",
+		Source:           "pkg_packages",
+		UserID:           user.ID,
+		TeamID:           &team3.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	err = ds.writer(ctx).SelectContext(ctx, &sw, `SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	for _, software := range sw {
+		require.NotNil(t, software.TitleID)
+	}
+
+	err = ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, bundle_identifier, source, browser FROM software_titles ORDER BY name, source, browser`)
+	require.NoError(t, err)
+	require.Len(t, swt, 2)
 }

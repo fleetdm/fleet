@@ -1095,6 +1095,8 @@ type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, inst
 
 type GetExcludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
+type GetSoftwareInstallerByTitleIDsFunc func(ctx context.Context, titleIDs []uint, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareInstaller, error)
+
 type ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
@@ -2834,6 +2836,9 @@ type DataStore struct {
 
 	GetExcludedHostIDMapForSoftwareInstallerFunc        GetExcludedHostIDMapForSoftwareInstallerFunc
 	GetExcludedHostIDMapForSoftwareInstallerFuncInvoked bool
+
+	GetSoftwareInstallerByTitleIDsFunc        GetSoftwareInstallerByTitleIDsFunc
+	GetSoftwareInstallerByTitleIDsFuncInvoked bool
 
 	ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc        ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc
 	ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFuncInvoked bool
@@ -6787,6 +6792,13 @@ func (s *DataStore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context
 	s.GetExcludedHostIDMapForSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetExcludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
+}
+
+func (s *DataStore) GetSoftwareInstallerByTitleIDs(ctx context.Context, titleIDs []uint, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetSoftwareInstallerByTitleIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareInstallerByTitleIDsFunc(ctx, titleIDs, opt)
 }
 
 func (s *DataStore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {

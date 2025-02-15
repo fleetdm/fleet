@@ -94,7 +94,9 @@ type SoftwareInstallerURL struct {
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID         *uint `json:"team_id" db:"team_id"`
+	GlobalOrTeamID *uint `db:"global_or_team_id"`
+	UserId         uint  `json:"user_id" db:"user_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
@@ -145,6 +147,9 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// InstallDuringSetup is a boolean that indicates if the package
+	// will be installed during the macos setup experience.
+	InstallDuringSetup *bool `json:"-" db:"install_during_setup"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.

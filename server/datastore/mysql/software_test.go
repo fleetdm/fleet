@@ -46,6 +46,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareValidateTitleId", testUpdateHostSoftwareValidateTitleId},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
@@ -1976,6 +1977,46 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
 }
 
+func testUpdateHostSoftwareValidateTitleId(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	now := time.Now()
+
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+
+	hostSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, hostSoftware)
+	require.NoError(t, err)
+
+	var sw []fleet.Software
+	err = ds.writer(ctx).SelectContext(ctx, &sw, `SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	for _, software := range sw {
+		require.NotNil(t, software.TitleID)
+	}
+
+	// install new software, set the lastOpenedAt for something current and keep the same length
+	// this should fall into the "nothingChanged" case and not update the title_id
+	hostSoftware = []fleet.Software{
+		{Name: "santa.app", Version: "2024.9", Source: "apps", BundleIdentifier: "com.google.santa", LastOpenedAt: &now},
+		{Name: "santa", Version: "2024.10", Source: "apps", BundleIdentifier: "com.google.santa", LastOpenedAt: &now},
+		{Name: "santa", Version: "2024.12", Source: "pkg_packages", BundleIdentifier: "com.santa", LastOpenedAt: &now},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, hostSoftware)
+	require.NoError(t, err)
+
+	err = ds.writer(ctx).SelectContext(ctx, &sw, `SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	for _, software := range sw {
+		require.NotNil(t, software.TitleID)
+	}
+}
+
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -3041,25 +3082,35 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
+	bundleIdentifierOrName := func(bundleIdentifier *string, name string) string {
+		if bundleIdentifier != nil && *bundleIdentifier != "" {
+			return *bundleIdentifier
+		}
+		return name
+	}
+
 	expectedSoftware := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "baz", Version: "0.0.1", Source: "deb_packages"},
+		{Name: "santa.app", Version: "2024.9", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.10", Source: "apps", BundleIdentifier: "com.google.santa"},
+		{Name: "santa", Version: "2024.12", Source: "pkg_packages", BundleIdentifier: "com.santa"},
 	}
 	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
 	for _, s := range expectedSoftware {
-		expectedTitlesByNSB[s.Name+s.Source+s.Browser] = fleet.SoftwareTitle{
+		expectedTitlesByNSB[bundleIdentifierOrName(&s.BundleIdentifier, s.Name)+s.Source+s.Browser] = fleet.SoftwareTitle{
 			Name:    s.Name,
 			Source:  s.Source,
 			Browser: s.Browser,
 		}
 	}
 
-	software1 := []fleet.Software{expectedSoftware[0], expectedSoftware[2]}
-	software2 := []fleet.Software{expectedSoftware[1], expectedSoftware[2], expectedSoftware[3]}
-	software3 := []fleet.Software{expectedSoftware[4]}
+	software1 := []fleet.Software{expectedSoftware[0], expectedSoftware[2], expectedSoftware[5]}
+	software2 := []fleet.Software{expectedSoftware[1], expectedSoftware[2], expectedSoftware[6], expectedSoftware[3]}
+	software3 := []fleet.Software{expectedSoftware[4], expectedSoftware[7]}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
 	require.NoError(t, err)
@@ -3081,7 +3132,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser, bundle_identifier FROM software_titles ORDER BY name, source, browser`)
 		if err != nil {
 			return nil, err
 		}
@@ -3103,10 +3154,14 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			require.True(t, ok)
 
 			assert.NotNil(t, r.TitleID)
-			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			swt, ok := expectedTitlesByNSB[bundleIdentifierOrName(&r.BundleIdentifier, r.Name)+r.Source+r.Browser]
 			require.True(t, ok)
 			assert.Equal(t, swt.ID, *r.TitleID)
-			assert.Equal(t, swt.Name, r.Name)
+			if r.BundleIdentifier != "" {
+				assert.Equal(t, r.BundleIdentifier, *swt.BundleIdentifier)
+			} else {
+				assert.Equal(t, swt.Name, r.Name)
+			}
 			assert.Equal(t, swt.Source, r.Source)
 			assert.Equal(t, swt.Browser, r.Browser)
 		}
@@ -3117,7 +3172,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			if len(expectMissing) > 0 {
 				require.NotContains(t, expectMissing, r.Name)
 			}
-			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			e, ok := expectedTitlesByNSB[bundleIdentifierOrName(r.BundleIdentifier, r.Name)+r.Source+r.Browser]
 			require.True(t, ok)
 			require.Equal(t, e.ID, r.ID)
 			require.Equal(t, e.Name, r.Name)
@@ -3129,8 +3184,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	swTitles, err := getTitles()
 	require.NoError(t, err)
 	for _, swt := range swTitles {
-		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
-			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
+		if _, ok := expectedTitlesByNSB[bundleIdentifierOrName(swt.BundleIdentifier, swt.Name)+swt.Source+swt.Browser]; ok {
+			expectedTitlesByNSB[bundleIdentifierOrName(swt.BundleIdentifier, swt.Name)+swt.Source+swt.Browser] = swt
 		}
 	}
 
@@ -3140,7 +3195,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	swt, err := getTitles()
 	require.NoError(t, err)
-	require.Len(t, swt, 4)
+	require.Len(t, swt, 6)
 
 	require.Equal(t, swt[0].Name, "bar")
 	require.Equal(t, swt[0].Source, "deb_packages")
@@ -3162,30 +3217,42 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.Equal(t, swt[3].Browser, "chrome")
 	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
 
+	require.Equal(t, swt[4].Name, "santa")
+	require.Equal(t, swt[4].Source, "pkg_packages")
+	require.Equal(t, swt[4].Browser, "")
+	require.Equal(t, *swt[4].BundleIdentifier, "com.santa")
+	expectedTitlesByNSB[*swt[4].BundleIdentifier+swt[4].Source+swt[4].Browser] = swt[4]
+
+	require.Equal(t, swt[5].Name, "santa.app")
+	require.Equal(t, swt[5].Source, "apps")
+	require.Equal(t, swt[5].Browser, "")
+	require.Equal(t, *swt[5].BundleIdentifier, "com.google.santa")
+	expectedTitlesByNSB[*swt[5].BundleIdentifier+swt[5].Source+swt[5].Browser] = swt[5]
+
 	// Double check software and titles
 	assertSoftware(t, expectedSoftware)
 
 	// remove the bar software title from host 2
-	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:3])
 	require.NoError(t, err)
 	// SyncHostsSoftware will remove the above software item from the software table
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
+	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4], expectedSoftware[5], expectedSoftware[6], expectedSoftware[7]})
 
 	// bar is no longer associated with any host so the title should be deleted
 	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
 	gotTitles, err := getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 3)
+	require.Len(t, gotTitles, 5)
 	assertTitles(t, gotTitles, []string{"bar"})
 
 	// add bar to host 3
-	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4]})
+	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4], expectedSoftware[7]})
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 4)
+	require.Len(t, gotTitles, 6)
 
 	// bar was added back to software titles with a new ID
 	require.Equal(t, "bar", gotTitles[0].Name)
@@ -3201,7 +3268,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, err)
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 4)
+	require.Len(t, gotTitles, 6)
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
 
@@ -3213,7 +3280,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// new source of foo results in a new software title entry
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 5)
+	require.Len(t, gotTitles, 7)
 	require.Equal(t, "foo", gotTitles[4].Name)
 	require.Equal(t, "rpm_packages", gotTitles[4].Source)
 	require.Equal(t, "", gotTitles[4].Browser)
@@ -3226,11 +3293,16 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
 	// key (com.example.app1-0) will conflict.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
+		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (10, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
 		require.NoError(t, err)
 		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1')`)
 		require.NoError(t, err)
 		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+		gotSoftware, err := getSoftware()
+		require.NoError(t, err)
+		for _, sw := range gotSoftware {
+			require.NotNil(t, sw.TitleID)
+		}
 		return nil
 	})
 }
