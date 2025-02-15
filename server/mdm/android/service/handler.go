@@ -25,10 +25,8 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ue.GET("/api/_version_/fleet/android_enterprise/{id:[0-9]+}/enrollment_token", androidEnrollmentTokenEndpoint,
 		androidEnrollmentTokenRequest{})
 
-	// unauthenticated endpoints - most of those are either login-related,
-	// invite-related or host-enrolling. So they typically do some kind of
-	// one-time authentication by verifying that a valid secret token is provided
-	// with the request.
+	// unauthenticated endpoints
+	// They typically do one-time authentication by verifying that a valid secret token is provided with the request.
 	ne := newNoAuthEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
 	// Android management
