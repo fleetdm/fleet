@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,61 +12,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	// The has to happen first, if an error happens we'll redirect to an error
-	// page and the error will be logged
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
-			w.WriteHeader(coder.StatusCode())
-		}
-		_, err := io.WriteString(w, page.html())
-		return err
-	}
+	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal)
+}
 
-	if e, ok := response.(fleet.Errorer); ok && e.Error() != nil {
-		endpoint_utils.EncodeError(ctx, e.Error(), w)
-		return nil
-	}
-
-	if render, ok := response.(renderHijacker); ok {
-		render.hijackRender(ctx, w)
-		return nil
-	}
-
-	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.Status())
-		if e.Status() == http.StatusNoContent {
-			return nil
-		}
-	}
-
+func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
-}
-
-// statuser allows response types to implement a custom
-// http success status - default is 200 OK
-type statuser interface {
-	Status() int
-}
-
-// loads a html page
-type htmlPage interface {
-	html() string
-	Error() error
-}
-
-// renderHijacker can be implemented by response values to take control of
-// their own rendering.
-type renderHijacker interface {
-	hijackRender(ctx context.Context, w http.ResponseWriter)
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {

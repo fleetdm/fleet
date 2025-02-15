@@ -74,8 +74,8 @@ type SoapResponseContainer struct {
 
 func (r SoapResponseContainer) Error() error { return r.Err }
 
-// hijackRender writes the response header and the RAW HTML output
-func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+// HijackRender writes the response header and the RAW HTML output
+func (r SoapResponseContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
 		logging.WithExtras(ctx, "error with SoapResponseContainer", err)
@@ -135,8 +135,8 @@ type SyncMLResponseMsgContainer struct {
 
 func (r SyncMLResponseMsgContainer) Error() error { return r.Err }
 
-// hijackRender writes the response header and the RAW HTML output
-func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+// HijackRender writes the response header and the RAW HTML output
+func (r SyncMLResponseMsgContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
 	if err != nil {
 		logging.WithExtras(ctx, "error with SyncMLResponseMsgContainer", err)
@@ -179,8 +179,8 @@ func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.V
 
 func (req MDMWebContainer) Error() error { return req.Err }
 
-// hijackRender writes the response header and the RAW HTML output
-func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+// HijackRender writes the response header and the RAW HTML output
+func (req MDMWebContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	resData := []byte(*req.Data + "\n")
 
 	w.Header().Set("Content-Type", syncml.WebContainerContentType)
@@ -198,8 +198,8 @@ type MDMAuthContainer struct {
 
 func (r MDMAuthContainer) Error() error { return r.Err }
 
-// hijackRender writes the response header and the RAW XML output
-func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
+// HijackRender writes the response header and the RAW XML output
+func (r MDMAuthContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
 	w.WriteHeader(http.StatusOK)
