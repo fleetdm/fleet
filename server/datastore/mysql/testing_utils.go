@@ -28,6 +28,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/go-kit/log"
@@ -37,27 +38,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testUsername              = "root"
-	testPassword              = "toor"
-	testAddress               = "localhost:3307"
-	testReplicaDatabaseSuffix = "_replica"
-	testReplicaAddress        = "localhost:3310"
-)
-
 func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
 	cfg := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
 		Database: testName,
-		Address:  testAddress,
+		Address:  testing_utils.TestAddress,
 	}
 
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.DummyReplica {
 		replicaConf := cfg
-		replicaConf.Database += testReplicaDatabaseSuffix
+		replicaConf.Database += testing_utils.TestReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
 
@@ -136,7 +129,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 
 		primary := ds.primary
 		replica := ds.replica.(*sqlx.DB)
-		replicaDB := testName + testReplicaDatabaseSuffix
+		replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
 		// drop all foreign keys in the replica, as that causes issues even with
@@ -268,7 +261,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
-				"-u"+testUsername, "-p"+testPassword,
+				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
 			).CombinedOutput(); err != nil {
@@ -328,7 +321,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
-		"-u"+testUsername, "-p"+testPassword,
+		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(
 			`
@@ -347,10 +340,10 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	// Connect to the replica
 	replicaConfig := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
 		Database: testName,
-		Address:  testReplicaAddress,
+		Address:  testing_utils.TestReplicaAddress,
 	}
 	require.NoError(t, checkConfig(&replicaConfig))
 	replica, err := newDB(&replicaConfig, options)
@@ -375,7 +368,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	// that option is set.
 	dbs := []string{testName}
 	if opts.DummyReplica {
-		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
+		dbs = append(dbs, testName+testing_utils.TestReplicaDatabaseSuffix)
 	}
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
@@ -388,7 +381,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
+			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
 		out, err := cmd.CombinedOutput()
@@ -409,7 +402,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
+			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
 		out, err := cmd.CombinedOutput()
@@ -541,17 +534,7 @@ func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, e
 	return encrypt(data, ds.serverPrivateKey)
 }
 
-// TruncateTables truncates the specified tables, in order, using ds.writer.
-// Note that the order is typically not important because FK checks are
-// disabled while truncating. If no table is provided, all tables (except
-// those that are seeded by the SQL schema file) are truncated.
 func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
-	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
-	// by inspecting mysql tables.
-	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
-		return
-	}
-
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
@@ -563,46 +546,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"mdm_operation_types":              true,
 		"mdm_apple_declaration_categories": true,
 	}
-	ctx := context.Background()
-
-	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var skipSeeded bool
-
-		if len(tables) == 0 {
-			skipSeeded = true
-			sql := `
-      SELECT
-        table_name
-      FROM
-        information_schema.tables
-      WHERE
-        table_schema = database() AND
-        table_type = 'BASE TABLE'
-    `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
-				return err
-			}
-		}
-
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
-			return err
-		}
-		for _, tbl := range tables {
-			if nonEmptyTables[tbl] {
-				if skipSeeded {
-					continue
-				}
-				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
-			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
-			return err
-		}
-		return nil
-	}))
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient

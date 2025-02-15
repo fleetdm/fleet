@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,7 @@ func TestMigrations(t *testing.T) {
 	cmd := exec.Command(
 		"docker", "compose", "exec", "-T", "mysql_test",
 		// Command run inside container
-		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
+		"mysqldump", "-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword, "TestMigrations", "--compact", "--skip-comments",
 	)
 
 	output, err := cmd.CombinedOutput()
@@ -76,9 +77,9 @@ func TestMigrations(t *testing.T) {
 func createMySQLDSForMigrationTests(t *testing.T, dbName string) *Datastore {
 	// Create a datastore client in order to run migrations as usual
 	config := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Address:  testAddress,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
+		Address:  testing_utils.TestAddress,
 		Database: dbName,
 	}
 	ds, err := newDSWithConfig(t, dbName, config)
