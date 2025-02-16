@@ -25,7 +25,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error)
+type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
 
 // A value that implements requestDecoder takes control of decoding the request
 // as a whole - that is, it is responsible for decoding the body and any url

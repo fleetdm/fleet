@@ -42,7 +42,7 @@ type calendarWebhookResponse struct {
 
 func (r calendarWebhookResponse) Error() error { return r.Err }
 
-func calendarWebhookEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func calendarWebhookEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*calendarWebhookRequest)
 	err := svc.CalendarWebhook(ctx, req.eventUUID, req.googleChannelID, req.googleResourceState)
 	if err != nil {

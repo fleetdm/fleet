@@ -88,7 +88,7 @@ type enrollAgentResponse struct {
 
 func (r enrollAgentResponse) Error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -322,7 +322,7 @@ func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.Config)
 }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
@@ -552,7 +552,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -856,7 +856,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -2195,7 +2195,7 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) Error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error
@@ -2806,7 +2806,7 @@ func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter
 	_, _ = w.Write([]byte(r.Content))
 }
 
-func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	r := request.(*getYaraRequest)
 	rule, err := svc.YaraRuleByName(ctx, r.Name)
 	if err != nil {
