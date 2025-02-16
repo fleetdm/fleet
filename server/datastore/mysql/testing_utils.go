@@ -39,18 +39,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	cfg := config.MysqlConfig{
-		Username: testing_utils.TestUsername,
-		Password: testing_utils.TestPassword,
-		Database: testName,
-		Address:  testing_utils.TestAddress,
-	}
+func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	cfg := testing_utils.MysqlTestConfig(testName)
 
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.DummyReplica {
-		replicaConf := cfg
+		replicaConf := *cfg
 		replicaConf.Database += testing_utils.TestReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
@@ -78,7 +73,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -97,7 +92,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
-func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testing_utils.DatastoreTestOptions) {
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
@@ -356,94 +351,21 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
+func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
-	base := path.Dir(filename)
-	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	// execute the schema for the test db, and once more for the replica db if
-	// that option is set.
-	dbs := []string{testName}
-	if opts.DummyReplica {
-		dbs = append(dbs, testName+testing_utils.TestReplicaDatabaseSuffix)
-	}
-	for _, dbName := range dbs {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			dbName, dbName, dbName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-	if opts.RealReplica {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			testName, testName, testName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_replica_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-
+	schemaPath := path.Join(path.Dir(filename), "schema.sql")
+	testing_utils.LoadSchema(t, testName, opts, schemaPath)
 	return connectMySQL(t, testName, opts)
 }
 
-// DatastoreTestOptions configures how the test datastore is created
-// by CreateMySQLDSWithOptions.
-type DatastoreTestOptions struct {
-	// DummyReplica indicates that a read replica test database should be created.
-	DummyReplica bool
-
-	// RunReplication is the function to call to execute the replication of all
-	// missing changes from the primary to the replica. The function is created
-	// and set automatically by CreateMySQLDSWithOptions. The test is in full
-	// control of when the replication is executed. Only applies to DummyReplica.
-	// Note that not all changes to data show up in the information_schema
-	// update_time timestamp, so to work around that limitation, explicit table
-	// names can be provided to force their replication.
-	RunReplication func(forceTables ...string)
-
-	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
-	RealReplica bool
-}
-
-func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
+func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
 	if opts == nil {
 		// so it is never nil in internal helper functions
-		opts = new(DatastoreTestOptions)
+		opts = new(testing_utils.DatastoreTestOptions)
 	}
 
 	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
@@ -476,9 +398,9 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
-func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithReplica(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	if opts == nil {
-		opts = new(DatastoreTestOptions)
+		opts = new(testing_utils.DatastoreTestOptions)
 	}
 	opts.RealReplica = true
 	const numberOfAttempts = 10
@@ -501,7 +423,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
-func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithOptions(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	return createMySQLDSWithOptions(t, opts)
 }
 
@@ -514,7 +436,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
+	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }

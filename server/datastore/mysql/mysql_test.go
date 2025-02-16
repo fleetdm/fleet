@@ -44,7 +44,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{DummyReplica: true}
+		opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))

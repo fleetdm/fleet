@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -71,4 +74,89 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger log.Logger, nonEmptyTables
 		}
 		return nil
 	}, logger))
+}
+
+// DatastoreTestOptions configures how the test datastore is created
+// by CreateMySQLDSWithOptions.
+type DatastoreTestOptions struct {
+	// DummyReplica indicates that a read replica test database should be created.
+	DummyReplica bool
+
+	// RunReplication is the function to call to execute the replication of all
+	// missing changes from the primary to the replica. The function is created
+	// and set automatically by CreateMySQLDSWithOptions. The test is in full
+	// control of when the replication is executed. Only applies to DummyReplica.
+	// Note that not all changes to data show up in the information_schema
+	// update_time timestamp, so to work around that limitation, explicit table
+	// names can be provided to force their replication.
+	RunReplication func(forceTables ...string)
+
+	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
+	RealReplica bool
+}
+
+func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPath string) {
+	schema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	// execute the schema for the test db, and once more for the replica db if
+	// that option is set.
+	dbs := []string{testName}
+	if opts.DummyReplica {
+		dbs = append(dbs, testName+TestReplicaDatabaseSuffix)
+	}
+	for _, dbName := range dbs {
+		// Load schema from dumpfile
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			dbName, dbName, dbName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_test",
+			// Command run inside container
+			"mysql",
+			"-u"+TestUsername, "-p"+TestPassword,
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Error(err)
+			t.Error(string(out))
+			t.FailNow()
+		}
+	}
+	if opts.RealReplica {
+		// Load schema from dumpfile
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			testName, testName, testName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_replica_test",
+			// Command run inside container
+			"mysql",
+			"-u"+TestUsername, "-p"+TestPassword,
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Error(err)
+			t.Error(string(out))
+			t.FailNow()
+		}
+	}
+}
+
+func MysqlTestConfig(testName string) *config.MysqlConfig {
+	return &config.MysqlConfig{
+		Username: TestUsername,
+		Password: TestPassword,
+		Database: testName,
+		Address:  TestAddress,
+	}
 }
