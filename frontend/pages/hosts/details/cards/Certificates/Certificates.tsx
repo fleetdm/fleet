@@ -2,6 +2,8 @@ import React from "react";
 
 import Card from "components/Card";
 
+import CertificatesTable from "./CertificatesTable";
+
 const baseClass = "certificates-card";
 
 interface ICertificatesProps {}
@@ -15,6 +17,7 @@ const CertificatesCard = ({}: ICertificatesProps) => {
       paddingSize="xxlarge"
     >
       <h2>Certificates</h2>
+      <CertificatesTable />
     </Card>
   );
 };
