@@ -5,12 +5,16 @@ import { createMockHostCertificate } from "__mocks__/certificatesMock";
 import Card from "components/Card";
 
 import CertificatesTable from "./CertificatesTable";
+import { IHostCertificate } from "interfaces/certificates";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 const baseClass = "certificates-card";
 
-interface ICertificatesProps {}
+interface ICertificatesProps {
+  data: IGetHostCertificatesResponse;
+}
 
-const CertificatesCard = ({}: ICertificatesProps) => {
+const CertificatesCard = ({ data }: ICertificatesProps) => {
   return (
     <Card
       className={baseClass}
@@ -19,7 +23,7 @@ const CertificatesCard = ({}: ICertificatesProps) => {
       paddingSize="xxlarge"
     >
       <h2>Certificates</h2>
-      <CertificatesTable data={[createMockHostCertificate()]} />
+      <CertificatesTable data={data.certificates} />
     </Card>
   );
 };

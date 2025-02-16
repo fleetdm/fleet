@@ -24,7 +24,10 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 import { IHostCertificate } from "interfaces/certificates";
-import { createMockGetHostCertificatesResponse } from "__mocks__/certificatesMock";
+import {
+  createMockGetHostCertificatesResponse,
+  createMockHostCertificate,
+} from "__mocks__/certificatesMock";
 
 export interface ISortOption {
   key: string;
@@ -605,7 +608,15 @@ export default {
 
     // return sendRequest("GET", HOST_CERTIFICATES(hostId));
     return new Promise((resolve) => {
-      resolve(createMockGetHostCertificatesResponse());
+      resolve(
+        createMockGetHostCertificatesResponse({
+          certificates: [
+            createMockHostCertificate({
+              common_name: "Test 2",
+            }),
+          ],
+        })
+      );
     });
   },
 };

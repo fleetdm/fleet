@@ -40,6 +40,7 @@ import {
   HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
 import { isIPadOrIPhone } from "interfaces/platform";
@@ -446,6 +447,19 @@ const HostDetailsPage = ({
     {
       keepPreviousData: true,
       staleTime: 2000,
+    }
+  );
+
+  const {
+    data: hostCertificates,
+    isLoading: isLoadingHostCertificates,
+    isError: isErrorHostCertificates,
+  } = useQuery(
+    ["hostCertificates", host_id],
+    () => hostAPI.getHostCertificates(hostIdFromURL),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!hostIdFromURL,
     }
   );
 
@@ -908,7 +922,10 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
-              {(isIosOrIpadosHost || isDarwinHost) && <CertificatesCard />}
+              {(isIosOrIpadosHost || isDarwinHost) &&
+                hostCertificates?.certificates.length && (
+                  <CertificatesCard data={hostCertificates} />
+                )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
