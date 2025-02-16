@@ -13,7 +13,9 @@ parasails.registerPage('query-library', {
     //…
   },
   mounted: async function () {
-    //…
+    if(bowser.windows){
+      this.selectedPlatform = 'windows';
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

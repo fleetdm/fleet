@@ -79,7 +79,7 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			if err := json.Unmarshal(b, &responseDest); err != nil {
 				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
 			}
-			if e, ok := responseDest.(errorer); ok {
+			if e, ok := responseDest.(fleet.Errorer); ok {
 				if e.Error() != nil {
 					return fmt.Errorf("%s %s error: %w", verb, path, e.Error())
 				}

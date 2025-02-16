@@ -98,7 +98,7 @@ type getMDMAppleCommandResultsResponse struct {
 
 func (r getMDMAppleCommandResultsResponse) Error() error { return r.Err }
 
-func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleCommandResultsRequest)
 	results, err := svc.GetMDMAppleCommandResults(ctx, req.CommandUUID)
 	if err != nil {
@@ -200,7 +200,7 @@ type listMDMAppleCommandsResponse struct {
 
 func (r listMDMAppleCommandsResponse) Error() error { return r.Err }
 
-func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMAppleCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMAppleCommandsRequest)
 	results, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
@@ -338,7 +338,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 
 func (r newMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
-func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*newMDMAppleConfigProfileRequest)
 
 	ff, err := req.Profile.Open()
@@ -646,7 +646,7 @@ type listMDMAppleConfigProfilesResponse struct {
 
 func (r listMDMAppleConfigProfilesResponse) Error() error { return r.Err }
 
-func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMAppleConfigProfilesRequest)
 
 	cps, err := svc.ListMDMAppleConfigProfiles(ctx, req.TeamID)
@@ -713,7 +713,7 @@ func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w ht
 	r.fileReader.Close()
 }
 
-func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleConfigProfileRequest)
 
 	cp, err := svc.GetMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID)
@@ -792,7 +792,7 @@ type deleteMDMAppleConfigProfileResponse struct {
 
 func (r deleteMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
-func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMAppleConfigProfileRequest)
 
 	if err := svc.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, req.ProfileID); err != nil {
@@ -990,7 +990,7 @@ type getMDMAppleFileVaultSummaryResponse struct {
 
 func (r getMDMAppleFileVaultSummaryResponse) Error() error { return r.Err }
 
-func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleFileVaultSummaryRequest)
 
 	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
@@ -1027,7 +1027,7 @@ type getMDMAppleProfilesSummaryResponse struct {
 
 func (r getMDMAppleProfilesSummaryResponse) Error() error { return r.Err }
 
-func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleProfilesSummaryRequest)
 	res := getMDMAppleProfilesSummaryResponse{}
 
@@ -1089,7 +1089,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 func (r uploadAppleInstallerResponse) Error() error { return r.Err }
 
 // Deprecated: Not in Use
-func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
 	if err != nil {
@@ -1177,7 +1177,7 @@ type getAppleInstallerDetailsResponse struct {
 
 func (r getAppleInstallerDetailsResponse) Error() error { return r.Err }
 
-func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAppleInstallerDetailsRequest)
 	installer, err := svc.GetMDMAppleInstallerByID(ctx, req.ID)
 	if err != nil {
@@ -1210,7 +1210,7 @@ type deleteAppleInstallerDetailsResponse struct {
 
 func (r deleteAppleInstallerDetailsResponse) Error() error { return r.Err }
 
-func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteAppleInstallerDetailsRequest)
 	if err := svc.DeleteMDMAppleInstaller(ctx, req.ID); err != nil {
 		return deleteAppleInstallerDetailsResponse{Err: err}, nil
@@ -1238,7 +1238,7 @@ type listMDMAppleDevicesResponse struct {
 
 func (r listMDMAppleDevicesResponse) Error() error { return r.Err }
 
-func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	devices, err := svc.ListMDMAppleDevices(ctx)
 	if err != nil {
 		return listMDMAppleDevicesResponse{Err: err}, nil
@@ -1264,7 +1264,7 @@ type newMDMAppleDEPKeyPairResponse struct {
 
 func (r newMDMAppleDEPKeyPairResponse) Error() error { return r.Err }
 
-func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	keyPair, err := svc.NewMDMAppleDEPKeyPair(ctx)
 	if err != nil {
 		return newMDMAppleDEPKeyPairResponse{
@@ -1309,7 +1309,7 @@ func (r enqueueMDMAppleCommandResponse) Error() error { return r.Err }
 // Deprecated: enqueueMDMAppleCommandEndpoint is now deprecated, replaced by
 // the platform-agnostic runMDMCommandEndpoint. It is still supported
 // indefinitely for backwards compatibility.
-func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
 	result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs)
 	if err != nil {
@@ -1419,7 +1419,7 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 	}
 }
 
-func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
 	sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
@@ -1617,7 +1617,7 @@ type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
 
 func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Error() error { return r.Err }
 
-func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
 	err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, req.HostID)
 	if err != nil {
@@ -1737,7 +1737,7 @@ func (r mdmAppleGetInstallerResponse) hijackRender(ctx context.Context, w http.R
 	}
 }
 
-func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleGetInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerByToken(ctx, req.Token)
 	if err != nil {
@@ -1766,7 +1766,7 @@ type mdmAppleHeadInstallerRequest struct {
 	Token string `query:"token"`
 }
 
-func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleHeadInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerDetailsByToken(ctx, req.Token)
 	if err != nil {
@@ -1799,7 +1799,7 @@ type listMDMAppleInstallersResponse struct {
 
 func (r listMDMAppleInstallersResponse) Error() error { return r.Err }
 
-func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	installers, err := svc.ListMDMAppleInstallers(ctx)
 	if err != nil {
 		return listMDMAppleInstallersResponse{
@@ -1847,7 +1847,7 @@ func (r deviceLockResponse) Error() error { return r.Err }
 
 func (r deviceLockResponse) Status() int { return http.StatusNoContent }
 
-func deviceLockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deviceLockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deviceLockRequest)
 	err := svc.MDMAppleDeviceLock(ctx, req.HostID)
 	if err != nil {
@@ -1880,7 +1880,7 @@ func (r deviceWipeResponse) Error() error { return r.Err }
 
 func (r deviceWipeResponse) Status() int { return http.StatusNoContent }
 
-func deviceWipeEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deviceWipeEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deviceWipeRequest)
 	err := svc.MDMAppleEraseDevice(ctx, req.HostID)
 	if err != nil {
@@ -1913,7 +1913,7 @@ type getHostProfilesResponse struct {
 
 func (r getHostProfilesResponse) Error() error { return r.Err }
 
-func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostProfilesRequest)
 	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
 	if err != nil {
@@ -1953,7 +1953,7 @@ func (r batchSetMDMAppleProfilesResponse) Error() error { return r.Err }
 
 func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoContent }
 
-func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetMDMAppleProfilesRequest)
 	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
 		return batchSetMDMAppleProfilesResponse{Err: err}, nil
@@ -2106,7 +2106,7 @@ func (r preassignMDMAppleProfileResponse) Error() error { return r.Err }
 
 func (r preassignMDMAppleProfileResponse) Status() int { return http.StatusNoContent }
 
-func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*preassignMDMAppleProfileRequest)
 	if err := svc.MDMApplePreassignProfile(ctx, req.MDMApplePreassignProfilePayload); err != nil {
 		return preassignMDMAppleProfileResponse{Err: err}, nil
@@ -2138,7 +2138,7 @@ func (r matchMDMApplePreassignmentResponse) Error() error { return r.Err }
 
 func (r matchMDMApplePreassignmentResponse) Status() int { return http.StatusNoContent }
 
-func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*matchMDMApplePreassignmentRequest)
 	if err := svc.MDMAppleMatchPreassignment(ctx, req.ExternalHostIdentifier); err != nil {
 		return matchMDMApplePreassignmentResponse{Err: err}, nil
@@ -2173,7 +2173,7 @@ func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoConte
 // This endpoint is required because the UI must allow maintainers (in addition
 // to admins) to update some MDM Apple settings, while the update config/update
 // team endpoints only allow write access to admins.
-func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateMDMAppleSettingsRequest)
 	if err := svc.UpdateMDMDiskEncryption(ctx, req.MDMAppleSettingsPayload.TeamID, req.MDMAppleSettingsPayload.EnableDiskEncryption); err != nil {
 		return updateMDMAppleSettingsResponse{Err: err}, nil
@@ -2283,7 +2283,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 func (r uploadBootstrapPackageResponse) Error() error { return r.Err }
 
-func uploadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadBootstrapPackageRequest)
 	ff, err := req.Package.Open()
 	if err != nil {
@@ -2336,7 +2336,7 @@ func (r downloadBootstrapPackageResponse) hijackRender(ctx context.Context, w ht
 	}
 }
 
-func downloadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func downloadBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*downloadBootstrapPackageRequest)
 	pkg, err := svc.GetMDMAppleBootstrapPackageBytes(ctx, req.Token)
 	if err != nil {
@@ -2378,7 +2378,7 @@ type bootstrapPackageMetadataResponse struct {
 
 func (r bootstrapPackageMetadataResponse) Error() error { return r.Err }
 
-func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*bootstrapPackageMetadataRequest)
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	switch {
@@ -2413,7 +2413,7 @@ type deleteBootstrapPackageResponse struct {
 
 func (r deleteBootstrapPackageResponse) Error() error { return r.Err }
 
-func deleteBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteBootstrapPackageEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteBootstrapPackageRequest)
 	if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &req.TeamID); err != nil {
 		return deleteBootstrapPackageResponse{Err: err}, nil
@@ -2444,7 +2444,7 @@ type getMDMAppleBootstrapPackageSummaryResponse struct {
 
 func (r getMDMAppleBootstrapPackageSummaryResponse) Error() error { return r.Err }
 
-func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleBootstrapPackageSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleBootstrapPackageSummaryRequest)
 	summary, err := svc.GetMDMAppleBootstrapPackageSummary(ctx, req.TeamID)
 	if err != nil {
@@ -2478,7 +2478,7 @@ type createMDMAppleSetupAssistantResponse struct {
 
 func (r createMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 
-func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createMDMAppleSetupAssistantRequest)
 	asst, err := svc.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
 		TeamID:  req.TeamID,
@@ -2514,7 +2514,7 @@ type getMDMAppleSetupAssistantResponse struct {
 
 func (r getMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 
-func getMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMAppleSetupAssistantRequest)
 	asst, err := svc.GetMDMAppleSetupAssistant(ctx, req.TeamID)
 	if err != nil {
@@ -2546,7 +2546,7 @@ type deleteMDMAppleSetupAssistantResponse struct {
 func (r deleteMDMAppleSetupAssistantResponse) Error() error { return r.Err }
 func (r deleteMDMAppleSetupAssistantResponse) Status() int  { return http.StatusNoContent }
 
-func deleteMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteMDMAppleSetupAssistantEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMAppleSetupAssistantRequest)
 	if err := svc.DeleteMDMAppleSetupAssistant(ctx, req.TeamID); err != nil {
 		return deleteMDMAppleSetupAssistantResponse{Err: err}, nil
@@ -2581,7 +2581,7 @@ func (r updateMDMAppleSetupResponse) Status() int { return http.StatusNoContent 
 // This endpoint is required because the UI must allow maintainers (in addition
 // to admins) to update some MDM Apple settings, while the update config/update
 // team endpoints only allow write access to admins.
-func updateMDMAppleSetupEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateMDMAppleSetupEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateMDMAppleSetupRequest)
 	if err := svc.UpdateMDMAppleSetup(ctx, req.MDMAppleSetupPayload); err != nil {
 		return updateMDMAppleSetupResponse{Err: err}, nil
@@ -2610,7 +2610,7 @@ type initiateMDMAppleSSOResponse struct {
 
 func (r initiateMDMAppleSSOResponse) Error() error { return r.Err }
 
-func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx)
 	if err != nil {
 		return initiateMDMAppleSSOResponse{Err: err}, nil
@@ -2669,7 +2669,7 @@ func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.Re
 // message.
 func (r callbackMDMAppleSSOResponse) Error() error { return nil }
 
-func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	auth := request.(fleet.Auth)
 	redirectURL := svc.InitiateMDMAppleSSOCallback(ctx, auth)
 	return callbackMDMAppleSSOResponse{redirectURL: redirectURL}, nil
@@ -2689,7 +2689,7 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 
 type getManualEnrollmentProfileRequest struct{}
 
-func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
 	if err != nil {
 		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
@@ -4404,7 +4404,7 @@ type generateABMKeyPairResponse struct {
 
 func (r generateABMKeyPairResponse) Error() error { return r.Err }
 
-func generateABMKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func generateABMKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	keyPair, err := svc.GenerateABMKeyPair(ctx)
 	if err != nil {
 		return generateABMKeyPairResponse{
@@ -4506,7 +4506,7 @@ type uploadABMTokenResponse struct {
 
 func (r uploadABMTokenResponse) Error() error { return r.Err }
 
-func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadABMTokenRequest)
 	ff, err := req.Token.Open()
 	if err != nil {
@@ -4547,7 +4547,7 @@ type deleteABMTokenResponse struct {
 func (r deleteABMTokenResponse) Error() error { return r.Err }
 func (r deleteABMTokenResponse) Status() int  { return http.StatusNoContent }
 
-func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteABMTokenRequest)
 	if err := svc.DeleteABMToken(ctx, req.TokenID); err != nil {
 		return deleteABMTokenResponse{Err: err}, nil
@@ -4575,7 +4575,7 @@ type listABMTokensResponse struct {
 
 func (r listABMTokensResponse) Error() error { return r.Err }
 
-func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listABMTokensEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	tokens, err := svc.ListABMTokens(ctx)
 	if err != nil {
 		return &listABMTokensResponse{Err: err}, nil
@@ -4607,7 +4607,7 @@ type countABMTokensResponse struct {
 
 func (r countABMTokensResponse) Error() error { return r.Err }
 
-func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+func countABMTokensEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	tokenCount, err := svc.CountABMTokens(ctx)
 	if err != nil {
 		return &countABMTokensResponse{Err: err}, nil
@@ -4643,7 +4643,7 @@ type updateABMTokenTeamsResponse struct {
 
 func (r updateABMTokenTeamsResponse) Error() error { return r.Err }
 
-func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
 
 	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID)
@@ -4706,7 +4706,7 @@ type renewABMTokenResponse struct {
 
 func (r renewABMTokenResponse) Error() error { return r.Err }
 
-func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func renewABMTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*renewABMTokenRequest)
 	ff, err := req.Token.Open()
 	if err != nil {
@@ -4738,7 +4738,7 @@ type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
 
-func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
 	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
 	if err != nil {
@@ -4842,7 +4842,7 @@ func (r mdmAppleOTAResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
 	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.DeviceInfo)
 	if err != nil {

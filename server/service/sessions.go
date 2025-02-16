@@ -38,7 +38,7 @@ type getInfoAboutSessionResponse struct {
 
 func (r getInfoAboutSessionResponse) Error() error { return r.Err }
 
-func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
@@ -85,7 +85,7 @@ type deleteSessionResponse struct {
 
 func (r deleteSessionResponse) Error() error { return r.Err }
 
-func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
@@ -140,7 +140,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 
 func (r loginMfaResponse) Error() error { return r.Err }
 
-func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*loginRequest)
 	req.Email = strings.ToLower(req.Email)
 
@@ -258,7 +258,7 @@ type sessionCreateRequest struct {
 	Token string `json:"token,omitempty"`
 }
 
-func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*sessionCreateRequest)
 	session, user, err := svc.CompleteMFA(ctx, req.Token)
 	if err != nil {
@@ -315,7 +315,7 @@ type logoutResponse struct {
 
 func (r logoutResponse) Error() error { return r.Err }
 
-func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
 		return logoutResponse{Err: err}, nil
@@ -367,7 +367,7 @@ type initiateSSOResponse struct {
 
 func (r initiateSSOResponse) Error() error { return r.Err }
 
-func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateSSORequest)
 	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
@@ -468,7 +468,7 @@ func (r callbackSSOResponse) Error() error { return r.Err }
 func (r callbackSSOResponse) html() string { return r.content }
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		authResponse := request.(fleet.Auth)
 		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
@@ -639,7 +639,7 @@ type ssoSettingsResponse struct {
 
 func (r ssoSettingsResponse) Error() error { return r.Err }
 
-func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	settings, err := svc.SSOSettings(ctx)
 	if err != nil {
 		return ssoSettingsResponse{Err: err}, nil
