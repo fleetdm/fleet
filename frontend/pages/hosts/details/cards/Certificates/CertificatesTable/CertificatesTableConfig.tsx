@@ -1,13 +1,15 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
+import { Column } from "react-table";
 
 import { IHostCertificate } from "interfaces/certificates";
+import { monthDayYearFormat } from "utilities/date_format";
+import { hasExpired, willExpireWithinXDays } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import StatusIndicator from "components/StatusIndicator";
-import { monthDayYearFormat } from "utilities/date_format";
+import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 
 type IHostCertificatesTableConfig = Column<IHostCertificate>;
 
@@ -29,14 +31,25 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         />
       ),
       Cell: (cellProps) => {
-        return <StatusIndicator value={monthDayYearFormat(cellProps.value)} />;
+        let status: IIndicatorValue = "success";
+        if (hasExpired(cellProps.value)) {
+          status = "error";
+        } else if (willExpireWithinXDays(cellProps.value, 30)) {
+          status = "warning";
+        }
+        return (
+          <StatusIndicator
+            value={monthDayYearFormat(cellProps.value)}
+            indicator={status}
+          />
+        );
       },
     },
     {
       Header: "",
       id: "view-all-hosts",
       disableSortBy: true,
-      Cell: (cellProps) => {
+      Cell: () => {
         return (
           <ViewAllHostsLink
             className="view-cert-details"

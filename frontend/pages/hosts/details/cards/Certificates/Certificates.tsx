@@ -1,5 +1,7 @@
 import React from "react";
 
+import { createMockHostCertificate } from "__mocks__/certificatesMock";
+
 import Card from "components/Card";
 
 import CertificatesTable from "./CertificatesTable";
@@ -17,7 +19,7 @@ const CertificatesCard = ({}: ICertificatesProps) => {
       paddingSize="xxlarge"
     >
       <h2>Certificates</h2>
-      <CertificatesTable />
+      <CertificatesTable data={[createMockHostCertificate()]} />
     </Card>
   );
 };

@@ -1,8 +1,6 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { Row } from "react-table";
 
-import createMockHost from "__mocks__/hostMock";
-import { createMockHostCertificate } from "__mocks__/certificatesMock";
 import { IHostCertificate } from "interfaces/certificates";
 
 import TableContainer from "components/TableContainer";
@@ -11,9 +9,11 @@ import generateTableConfig from "./CertificatesTableConfig";
 
 const baseClass = "certificates-table";
 
-interface ICertificatesTableProps {}
+interface ICertificatesTableProps {
+  data: IHostCertificate[];
+}
 
-const CertificatesTable = ({}: ICertificatesTableProps) => {
+const CertificatesTable = ({ data }: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
 
   const onClickTableRow = (row: Row<IHostCertificate>) => {
@@ -24,8 +24,8 @@ const CertificatesTable = ({}: ICertificatesTableProps) => {
     <TableContainer<Row<IHostCertificate>>
       className={baseClass}
       columnConfigs={tableConfig}
-      data={[createMockHostCertificate()]}
-      emptyComponent={() => <>empty</>}
+      data={data}
+      emptyComponent={() => null}
       isAllPagesSelected={false}
       showMarkAllPages={false}
       isLoading={false}
