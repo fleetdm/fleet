@@ -1110,7 +1110,7 @@ func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 	//
 	// Note that connection string sets CLIENT_FOUND_ROWS (see
-	// GenerateMysqlConnectionString in this package), so it does return 1 when
+	// generateMysqlConnectionString in this package), so it does return 1 when
 	// an existing row is set to its current values, but with a last inserted id
 	// of 0.
 	//

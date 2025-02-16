@@ -182,7 +182,8 @@ func ProcessOptions(t testing.TB, opts *DatastoreTestOptions) (string, *Datastor
 		}
 	}
 
-	pc, _, _, ok := runtime.Caller(2)
+	const numberOfStackFramesFromTest = 3
+	pc, _, _, ok := runtime.Caller(numberOfStackFramesFromTest)
 	details := runtime.FuncForPC(pc)
 	if !ok || details == nil {
 		t.FailNow()

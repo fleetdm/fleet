@@ -15,39 +15,67 @@ import (
 	"github.com/ngrok/sqlmw"
 )
 
-func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create transaction")
-	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			if err := tx.Rollback(); err != nil {
-				logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-			}
-			panic(p)
-		}
-	}()
-
-	if err := fn(tx); err != nil {
-		rbErr := tx.Rollback()
-		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
-		}
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "commit transaction")
-	}
-
-	return nil
+type DBOptions struct {
+	// MaxAttempts configures the number of retries to connect to the DB
+	MaxAttempts         int
+	Logger              log.Logger
+	ReplicaConfig       *config.MysqlConfig
+	Interceptor         sqlmw.Interceptor
+	TracingConfig       *config.LoggingConfig
+	MinLastOpenedAtDiff time.Duration
+	SqlMode             string
+	PrivateKey          string
 }
 
-// GenerateMysqlConnectionString returns a MySQL connection string using the
+func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
+	driverName := "mysql"
+	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
+		if opts.TracingConfig.TracingType == "opentelemetry" {
+			driverName = otelDriverName
+		} else {
+			driverName = "apm/mysql"
+		}
+	}
+	if opts.Interceptor != nil {
+		driverName = "mysql-mw"
+		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.Interceptor))
+	}
+	if opts.SqlMode != "" {
+		conf.SQLMode = opts.SqlMode
+	}
+
+	dsn := generateMysqlConnectionString(*conf)
+	db, err := sqlx.Open(driverName, dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxIdleConns(conf.MaxIdleConns)
+	db.SetMaxOpenConns(conf.MaxOpenConns)
+	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
+
+	var dbError error
+	for attempt := 0; attempt < opts.MaxAttempts; attempt++ {
+		dbError = db.Ping()
+		if dbError == nil {
+			// we're connected!
+			break
+		}
+		interval := time.Duration(attempt) * time.Second
+		opts.Logger.Log("mysql", fmt.Sprintf(
+			"could not connect to db: %v, sleeping %v", dbError, interval))
+		time.Sleep(interval)
+	}
+
+	if dbError != nil {
+		return nil, dbError
+	}
+	return db, nil
+}
+
+// generateMysqlConnectionString returns a MySQL connection string using the
 // provided configuration.
-func GenerateMysqlConnectionString(conf config.MysqlConfig) string {
+func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	params := url.Values{
 		// using collation implicitly sets the charset too
 		// and it's the recommended way to do it per the
@@ -82,60 +110,32 @@ func GenerateMysqlConnectionString(conf config.MysqlConfig) string {
 	return dsn
 }
 
-type DBOptions struct {
-	// MaxAttempts configures the number of retries to connect to the DB
-	MaxAttempts         int
-	Logger              log.Logger
-	ReplicaConfig       *config.MysqlConfig
-	Interceptor         sqlmw.Interceptor
-	TracingConfig       *config.LoggingConfig
-	MinLastOpenedAtDiff time.Duration
-	SqlMode             string
-	PrivateKey          string
-}
-
-func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
-	driverName := "mysql"
-	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
-		if opts.TracingConfig.TracingType == "opentelemetry" {
-			driverName = otelDriverName
-		} else {
-			driverName = "apm/mysql"
-		}
-	}
-	if opts.Interceptor != nil {
-		driverName = "mysql-mw"
-		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.Interceptor))
-	}
-	if opts.SqlMode != "" {
-		conf.SQLMode = opts.SqlMode
-	}
-
-	dsn := GenerateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
+func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
 
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
-
-	var dbError error
-	for attempt := 0; attempt < opts.MaxAttempts; attempt++ {
-		dbError = db.Ping()
-		if dbError == nil {
-			// we're connected!
-			break
+	defer func() {
+		if p := recover(); p != nil {
+			if err := tx.Rollback(); err != nil {
+				logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+			}
+			panic(p)
 		}
-		interval := time.Duration(attempt) * time.Second
-		opts.Logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, interval))
-		time.Sleep(interval)
+	}()
+
+	if err := fn(tx); err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil && rbErr != sql.ErrTxDone {
+			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
+		}
+		return err
 	}
 
-	if dbError != nil {
-		return nil, dbError
+	if err := tx.Commit(); err != nil {
+		return ctxerr.Wrap(ctx, err, "commit transaction")
 	}
-	return db, nil
+
+	return nil
 }

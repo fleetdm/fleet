@@ -24,7 +24,7 @@ func TestEnterprise(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer ctu.TruncateTables(t, ds.Writer(testCtx()), ds.Logger(), nil)
+			defer ctu.TruncateTables(t, ds.primary, ds.logger, nil)
 
 			c.fn(t, ds)
 		})
