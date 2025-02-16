@@ -924,7 +924,10 @@ const HostDetailsPage = ({
               )}
               {(isIosOrIpadosHost || isDarwinHost) &&
                 hostCertificates?.certificates.length && (
-                  <CertificatesCard data={hostCertificates} />
+                  <CertificatesCard
+                    data={hostCertificates}
+                    hostPlatform={host.platform}
+                  />
                 )}
             </TabPanel>
             <TabPanel>

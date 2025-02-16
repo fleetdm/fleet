@@ -1,12 +1,10 @@
 import React from "react";
 
-import { createMockHostCertificate } from "__mocks__/certificatesMock";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import Card from "components/Card";
 
 import CertificatesTable from "./CertificatesTable";
-import { IHostCertificate } from "interfaces/certificates";
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 const baseClass = "certificates-card";
 

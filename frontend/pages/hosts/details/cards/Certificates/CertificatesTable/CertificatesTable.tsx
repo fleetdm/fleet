@@ -2,8 +2,10 @@ import React from "react";
 import { Row } from "react-table";
 
 import { IHostCertificate } from "interfaces/certificates";
+import { HostPlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
+import CustomLink from "components/CustomLink";
 
 import generateTableConfig from "./CertificatesTableConfig";
 
@@ -11,14 +13,28 @@ const baseClass = "certificates-table";
 
 interface ICertificatesTableProps {
   data: IHostCertificate[];
+  hostPlatform: HostPlatform;
 }
 
-const CertificatesTable = ({ data }: ICertificatesTableProps) => {
+const CertificatesTable = ({ data, hostPlatform }: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
 
   const onClickTableRow = (row: Row<IHostCertificate>) => {
     console.log(row.original);
   };
+
+  const helpText =
+    hostPlatform === "darwin" ? (
+      <p>
+        Showing certificates in the system keychain. To get all certificates,
+        you can query the certificates table.{" "}
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/certificates-query"
+          newTab
+        />
+      </p>
+    ) : null;
 
   return (
     <TableContainer<Row<IHostCertificate>>
@@ -30,6 +46,7 @@ const CertificatesTable = ({ data }: ICertificatesTableProps) => {
       showMarkAllPages={false}
       isLoading={false}
       onClickRow={onClickTableRow}
+      renderTableHelpText={() => helpText}
     />
   );
 };
