@@ -1,18 +1,22 @@
 import React from "react";
-import classnames from "classnames";
 
 import Card from "components/Card";
 
-const baseClass = "certificates";
+const baseClass = "certificates-card";
 
-interface ICertificatesProps {
-  className?: string;
-}
+interface ICertificatesProps {}
 
-const Certificates = ({ className }: ICertificatesProps) => {
-  const classNames = classnames(baseClass, className);
-
-  return <Card className={classNames}>Certs</Card>;
+const CertificatesCard = ({}: ICertificatesProps) => {
+  return (
+    <Card
+      className={baseClass}
+      borderRadiusSize="xxlarge"
+      includeShadow
+      paddingSize="xxlarge"
+    >
+      <h2>Certificates</h2>
+    </Card>
+  );
 };
 
-export default Certificates;
+export default CertificatesCard;

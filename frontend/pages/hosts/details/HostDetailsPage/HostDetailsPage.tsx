@@ -908,9 +908,7 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
-              {(isIosOrIpadosHost || isDarwinHost) && (
-                <CertificatesCard className={`${baseClass}__certs-card`} />
-              )}
+              {(isIosOrIpadosHost || isDarwinHost) && <CertificatesCard />}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
