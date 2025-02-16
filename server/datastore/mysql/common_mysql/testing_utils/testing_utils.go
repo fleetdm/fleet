@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -159,4 +160,42 @@ func MysqlTestConfig(testName string) *config.MysqlConfig {
 		Database: testName,
 		Address:  TestAddress,
 	}
+}
+
+func ProcessOptions(t testing.TB, opts *DatastoreTestOptions) (string, *DatastoreTestOptions) {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+
+	if opts == nil {
+		// so it is never nil in internal helper functions
+		opts = new(DatastoreTestOptions)
+	}
+
+	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
+		tt.Parallel()
+	}
+
+	if opts.RealReplica {
+		if _, ok := os.LookupEnv("MYSQL_REPLICA_TEST"); !ok {
+			t.Skip("MySQL replica tests are disabled. Set env var MYSQL_REPLICA_TEST=1 to enable.")
+		}
+	}
+
+	pc, _, _, ok := runtime.Caller(2)
+	details := runtime.FuncForPC(pc)
+	if !ok || details == nil {
+		t.FailNow()
+	}
+
+	cleanTestName := strings.ReplaceAll(
+		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
+	)
+	cleanTestName = strings.ReplaceAll(cleanTestName, ".", "_")
+	if len(cleanTestName) > 60 {
+		// the later parts are more unique than the start, with the package names,
+		// so trim from the start.
+		cleanTestName = cleanTestName[len(cleanTestName)-60:]
+	}
+	return cleanTestName, opts
 }
