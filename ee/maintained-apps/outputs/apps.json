@@ -1,10 +1,84 @@
 {
   "apps": [
     {
-      "name": "Zoom",
-      "slug": "darwin/zoom",
-      "platform": "darwin",
-      "unique_identifier": "us.zoom.xos"
+      "name": "1Password",
+      "slug": "darwin/1password",
+      "platform": "darwin"
+    },
+    {
+      "name": "Adobe Acrobat Reader",
+      "slug": "darwin/adobe-acrobat-reader",
+      "platform": "darwin"
+    },
+    {
+      "name": "Box Drive",
+      "slug": "darwin/box-drive",
+      "platform": "darwin"
+    },
+    {
+      "name": "Brave",
+      "slug": "darwin/brave-browser",
+      "platform": "darwin"
+    },
+    {
+      "name": "Cloudflare WARP",
+      "slug": "darwin/cloudflare-warp",
+      "platform": "darwin"
+    },
+    { "name": "Docker Desktop", "slug": "darwin/docker", "platform": "darwin" },
+    { "name": "Figma", "slug": "darwin/figma", "platform": "darwin" },
+    {
+      "name": "Mozilla Firefox",
+      "slug": "darwin/firefox",
+      "platform": "darwin"
+    },
+    {
+      "name": "Google Chrome",
+      "slug": "darwin/google-chrome",
+      "platform": "darwin"
+    },
+    {
+      "name": "Microsoft Edge",
+      "slug": "darwin/microsoft-edge",
+      "platform": "darwin"
+    },
+    {
+      "name": "Microsoft Excel",
+      "slug": "darwin/microsoft-excel",
+      "platform": "darwin"
+    },
+    {
+      "name": "Microsoft Teams",
+      "slug": "darwin/microsoft-teams",
+      "platform": "darwin"
+    },
+    {
+      "name": "Microsoft Word",
+      "slug": "darwin/microsoft-word",
+      "platform": "darwin"
+    },
+    { "name": "Notion", "slug": "darwin/notion", "platform": "darwin" },
+    { "name": "Postman", "slug": "darwin/postman", "platform": "darwin" },
+    { "name": "Slack", "slug": "darwin/slack", "platform": "darwin" },
+    {
+      "name": "TeamViewer",
+      "slug": "darwin/teamviewer",
+      "platform": "darwin"
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "darwin/visual-studio-code",
+      "platform": "darwin"
+    },
+    {
+      "name": "WhatsApp",
+      "slug": "darwin/whatsapp",
+      "platform": "darwin"
+    },
+    {
+      "name": "Zoom for IT Admins",
+      "slug": "darwin/zoom-for-it-admins",
+      "platform": "darwin"
     }
   ]
 }
