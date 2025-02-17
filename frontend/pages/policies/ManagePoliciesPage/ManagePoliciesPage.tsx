@@ -1083,7 +1083,6 @@ const ManagePolicyPage = ({
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />

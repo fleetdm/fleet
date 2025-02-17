@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 
-import { useQuery, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import { omit } from "lodash";
 
 import { IPolicyStats } from "interfaces/policy";
@@ -13,11 +13,7 @@ import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
-import teamPoliciesAPI, {
-  ITeamPoliciesCountQueryKey,
-  ITeamPoliciesQueryKey,
-} from "services/entities/team_policies";
-import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import { IPaginatedListHandle } from "components/PaginatedList";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -26,8 +22,6 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import {
@@ -35,6 +29,8 @@ import {
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
+
+import PoliciesPaginatedList from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -67,7 +63,6 @@ interface IInstallSoftwareModal {
   onExit: () => void;
   onSubmit: (formData: IInstallSoftwareFormData) => void;
   isUpdating: boolean;
-  policies: IPolicyStats[];
   teamId: number;
 }
 
@@ -95,46 +90,9 @@ const InstallSoftwareModal = ({
   onExit,
   onSubmit,
   isUpdating,
-  policies,
   teamId,
 }: IInstallSoftwareModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
-  const queryClient = useQueryClient();
-  const DEFAULT_PAGE_SIZE = 20;
-  const DEFAULT_SORT_COLUMN = "name";
-
-  const fetchPage = useCallback((pageNumber: number) => {
-    return queryClient
-      .fetchQuery(
-        [
-          {
-            scope: "teamPolicies",
-            page: pageNumber,
-            perPage: DEFAULT_PAGE_SIZE,
-            query: "",
-            orderDirection: "asc" as const,
-            orderKey: DEFAULT_SORT_COLUMN,
-            // teamIdForApi will never actually be undefined here
-            teamId: 3,
-            // no teams does inherit
-            mergeInherited: false,
-          },
-        ],
-        ({ queryKey }) => {
-          return teamPoliciesAPI.loadAllNew(queryKey[0]);
-        }
-      )
-      .then((policiesResponse) => {
-        return (policiesResponse.policies || []).map((policy) => ({
-          name: policy.name,
-          id: policy.id,
-          installSoftwareEnabled: !!policy.install_software,
-          swIdToInstall: policy.install_software?.software_title_id,
-          platform: policy.platform,
-        }));
-      });
-  }, []);
-
   const {
     data: titlesAvailableForInstall,
     isLoading: isTitlesAvailableForInstallLoading,
@@ -274,9 +232,8 @@ const InstallSoftwareModal = ({
         <div className="form-field">
           <div className="form-field__label">Policies:</div>
           <div>
-            <PaginatedList<IFormPolicy>
+            <PoliciesPaginatedList
               ref={paginatedListRef}
-              fetchPage={fetchPage}
               isSelected="installSoftwareEnabled"
               onToggleItem={(item) => {
                 item.installSoftwareEnabled = !item.installSoftwareEnabled;
@@ -312,34 +269,24 @@ const InstallSoftwareModal = ({
                   />
                 ) : null;
               }}
-              totalItems={100}
+              footer={
+                <p className="form-field__help-text">
+                  If compatible with the host, the selected software will be
+                  installed when hosts fail the policy. Host counts will reset
+                  when new software is selected.{" "}
+                  <CustomLink
+                    url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
+                    text="Learn more"
+                    newTab
+                  />
+                </p>
+              }
+              isUpdating={isUpdating}
+              onSubmit={onUpdateInstallSoftware}
+              onCancel={onExit}
+              teamId={teamId}
             />
-
-            <p className="form-field__help-text">
-              If compatible with the host, the selected software will be
-              installed when hosts fail the policy. Host counts will reset when
-              new software is selected.{" "}
-              <CustomLink
-                url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
-                text="Learn more"
-                newTab
-              />
-            </p>
           </div>
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onUpdateInstallSoftware}
-            className="save-loading"
-            isLoading={isUpdating}
-          >
-            Save
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
         </div>
       </div>
     );
