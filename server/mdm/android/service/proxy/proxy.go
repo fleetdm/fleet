@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -21,7 +24,6 @@ import (
 var (
 	// Required env vars to use the proxy
 	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
-	androidPubSubTopic        = os.Getenv("FLEET_DEV_ANDROID_PUBSUB_TOPIC")
 	androidProjectID          string
 )
 
@@ -31,7 +33,7 @@ type Proxy struct {
 }
 
 func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
-	if androidServiceCredentials == "" || androidPubSubTopic == "" {
+	if androidServiceCredentials == "" {
 		return nil
 	}
 
@@ -72,13 +74,20 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 	}, nil
 }
 
-func (p *Proxy) EnterprisesCreate(enabledNotificationTypes []string, enterpriseToken string, signupUrlName string) (string, error) {
+func (p *Proxy) EnterprisesCreate(ctx context.Context, enabledNotificationTypes []string, enterpriseToken string,
+	signupUrlName string, pushURL string) (string, string, error) {
 	if p == nil || p.mgmt == nil {
-		return "", errors.New("android management service not initialized")
+		return "", "", errors.New("android management service not initialized")
 	}
+
+	topicName, err := p.createPubSubTopic(ctx, pushURL)
+	if err != nil {
+		return "", "", fmt.Errorf("creating PubSub topic: %w", err)
+	}
+
 	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
 		EnabledNotificationTypes: enabledNotificationTypes,
-		PubsubTopic:              androidPubSubTopic,
+		PubsubTopic:              topicName,
 	}).
 		ProjectId(androidProjectID).
 		EnterpriseToken(enterpriseToken).
@@ -86,11 +95,55 @@ func (p *Proxy) EnterprisesCreate(enabledNotificationTypes []string, enterpriseT
 		Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		return "", fmt.Errorf("android enterprise %s was already created", signupUrlName)
+		return "", "", fmt.Errorf("android enterprise %s was already created", signupUrlName)
 	case err != nil:
-		return "", fmt.Errorf("creating enterprise: %w", err)
+		return "", "", fmt.Errorf("creating enterprise: %w", err)
 	}
-	return enterprise.Name, nil
+	return enterprise.Name, topicName, nil
+}
+
+func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
+	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID)
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub client: %w", err)
+	}
+	defer pubSubClient.Close()
+	pubSubTopic := "a" + uuid.NewString() // PubSub topic names must start with a letter
+	topicConfig := pubsub.TopicConfig{
+		// Message retention is free for 1 day, so we default to that
+		// https://cloud.google.com/pubsub/pricing
+		RetentionDuration: 24 * time.Hour,
+	}
+	topic, err := pubSubClient.CreateTopicWithConfig(ctx, pubSubTopic, &topicConfig)
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub topic: %w", err)
+	}
+
+	sub, err := pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
+		Topic:       topic,
+		AckDeadline: 60 * time.Second,
+		PushConfig: pubsub.PushConfig{
+			Endpoint: pushURL,
+			// TODO(26219): Add authentication
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub subscription: %w", err)
+	}
+
+	policy, err := sub.IAM().Policy(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting PubSub subscription policy: %w", err)
+	}
+	policy.Add("serviceAccount:android-cloud-policy@system.gserviceaccount.com", "roles/pubsub.publisher")
+	if err := sub.IAM().SetPolicy(ctx, policy); err != nil {
+		return "", fmt.Errorf("setting PubSub subscription policy: %w", err)
+	}
+
+	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
+	// TODO(fleetdm.com): Cleanup the PubSub topics not associated with enterprises (e.g. if the enterprise creation fails)
+
+	return topic.String(), nil
 }
 
 func (p *Proxy) EnterpriseDelete(enterpriseID string) error {

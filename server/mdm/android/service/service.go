@@ -139,10 +139,12 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
 
-	name, err := svc.proxy.EnterprisesCreate(
+	name, topicName, err := svc.proxy.EnterprisesCreate(
+		ctx,
 		[]string{"ENROLLMENT", "STATUS_REPORT", "COMMAND", "USAGE_LOGS"},
 		enterpriseToken,
 		enterprise.SignupName,
+		appConfig.ServerSettings.ServerURL+pubSubPushEndpoint,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")
@@ -150,6 +152,11 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 
 	enterpriseID := strings.TrimPrefix(name, "enterprises/")
 	enterprise.EnterpriseID = enterpriseID
+	// TODO: Save topic ID in DB
+	_, err = topicIDFromName(topicName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing topic name")
+	}
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
@@ -166,6 +173,14 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	}
 
 	return nil
+}
+
+func topicIDFromName(name string) (string, error) {
+	lastSlash := strings.LastIndex(name, "/")
+	if lastSlash == -1 || lastSlash == len(name)-1 {
+		return "", fmt.Errorf("topic name %s is not a fully-qualified name", name)
+	}
+	return name[lastSlash+1:], nil
 }
 
 func androidDeleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {

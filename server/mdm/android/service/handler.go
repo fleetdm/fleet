@@ -14,6 +14,8 @@ func GetRoutes(fleetSvc fleet.Service, svc android.Service) endpoint_utils.Handl
 	}
 }
 
+const pubSubPushEndpoint = "/api/v1/fleet/android_enterprise/push"
+
 func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
 
 	// user-authenticated endpoints
