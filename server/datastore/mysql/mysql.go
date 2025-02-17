@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -35,7 +34,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
@@ -209,41 +207,15 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (er
 
 // withTx provides a common way to commit/rollback a txFn
 func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create transaction")
-	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			if err := tx.Rollback(); err != nil {
-				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-			}
-			panic(p)
-		}
-	}()
-
-	if err := fn(tx); err != nil {
-		rbErr := tx.Rollback()
-		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
-		}
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "commit transaction")
-	}
-
-	return nil
+	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
-	options := &dbOptions{
-		minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-		maxAttempts:         defaultMaxAttempts,
-		logger:              log.NewNopLogger(),
+	options := &common_mysql.DBOptions{
+		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+		MaxAttempts:         defaultMaxAttempts,
+		Logger:              log.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {
@@ -257,19 +229,19 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	if err := checkConfig(&config); err != nil {
 		return nil, err
 	}
-	if options.replicaConfig != nil {
-		if err := checkConfig(options.replicaConfig); err != nil {
+	if options.ReplicaConfig != nil {
+		if err := checkConfig(options.ReplicaConfig); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
-	dbWriter, err := newDB(&config, options)
+	dbWriter, err := NewDB(&config, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.replicaConfig != nil {
-		dbReader, err = newDB(options.replicaConfig, options)
+	if options.ReplicaConfig != nil {
+		dbReader, err = NewDB(options.ReplicaConfig, options)
 		if err != nil {
 			return nil, err
 		}
@@ -278,14 +250,14 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	ds := &Datastore{
 		primary:             dbWriter,
 		replica:             dbReader,
-		logger:              options.logger,
+		logger:              options.Logger,
 		clock:               c,
 		config:              config,
-		readReplicaConfig:   options.replicaConfig,
+		readReplicaConfig:   options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
-		serverPrivateKey:    options.privateKey,
+		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
+		serverPrivateKey:    options.PrivateKey,
 	}
 
 	go ds.writeChanLoop()
@@ -364,50 +336,8 @@ func init() {
 	}
 }
 
-func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
-	driverName := "mysql"
-	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
-		if opts.tracingConfig.TracingType == "opentelemetry" {
-			driverName = otelTracedDriverName
-		} else {
-			driverName = "apm/mysql"
-		}
-	}
-	if opts.interceptor != nil {
-		driverName = "mysql-mw"
-		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
-	}
-	if opts.sqlMode != "" {
-		conf.SQLMode = opts.sqlMode
-	}
-
-	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
-
-	var dbError error
-	for attempt := 0; attempt < opts.maxAttempts; attempt++ {
-		dbError = db.Ping()
-		if dbError == nil {
-			// we're connected!
-			break
-		}
-		interval := time.Duration(attempt) * time.Second
-		opts.logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, interval))
-		time.Sleep(interval)
-	}
-
-	if dbError != nil {
-		return nil, dbError
-	}
-	return db, nil
+func NewDB(conf *config.MysqlConfig, opts *common_mysql.DBOptions) (*sqlx.DB, error) {
+	return common_mysql.NewDB(conf, opts, otelTracedDriverName)
 }
 
 func checkConfig(conf *config.MysqlConfig) error {
@@ -1034,43 +964,6 @@ func registerTLS(conf config.MysqlConfig) error {
 		return fmt.Errorf("register mysql tls config: %w", err)
 	}
 	return nil
-}
-
-// generateMysqlConnectionString returns a MySQL connection string using the
-// provided configuration.
-func generateMysqlConnectionString(conf config.MysqlConfig) string {
-	params := url.Values{
-		// using collation implicitly sets the charset too
-		// and it's the recommended way to do it per the
-		// driver documentation:
-		// https://github.com/go-sql-driver/mysql#charset
-		"collation":            []string{"utf8mb4_unicode_ci"},
-		"parseTime":            []string{"true"},
-		"loc":                  []string{"UTC"},
-		"time_zone":            []string{"'-00:00'"},
-		"clientFoundRows":      []string{"true"},
-		"allowNativePasswords": []string{"true"},
-		"group_concat_max_len": []string{"4194304"},
-		"multiStatements":      []string{"true"},
-	}
-	if conf.TLSConfig != "" {
-		params.Set("tls", conf.TLSConfig)
-	}
-	if conf.SQLMode != "" {
-		params.Set("sql_mode", conf.SQLMode)
-	}
-
-	dsn := fmt.Sprintf(
-		"%s:%s@%s(%s)/%s?%s",
-		conf.Username,
-		conf.Password,
-		conf.Protocol,
-		conf.Address,
-		conf.Database,
-		params.Encode(),
-	)
-
-	return dsn
 }
 
 // isForeignKeyError checks if the provided error is a MySQL child foreign key

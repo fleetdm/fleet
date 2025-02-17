@@ -21,6 +21,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
@@ -43,7 +44,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{DummyReplica: true}
+		opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
@@ -704,7 +705,7 @@ func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 func TestNewReadsPasswordFromDisk(t *testing.T) {
 	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
 	require.NoError(t, err)
-	_, err = passwordFile.WriteString(testPassword)
+	_, err = passwordFile.WriteString(testing_utils.TestPassword)
 	require.NoError(t, err)
 	passwordPath := passwordFile.Name()
 	require.NoError(t, passwordFile.Close())
@@ -713,10 +714,10 @@ func TestNewReadsPasswordFromDisk(t *testing.T) {
 
 	// Create a datastore client in order to run migrations as usual
 	mysqlConfig := config.MysqlConfig{
-		Username:     testUsername,
+		Username:     testing_utils.TestUsername,
 		Password:     "",
 		PasswordPath: passwordPath,
-		Address:      testAddress,
+		Address:      testing_utils.TestAddress,
 		Database:     dbName,
 	}
 	ds, err := newDSWithConfig(t, dbName, mysqlConfig)
@@ -728,7 +729,8 @@ func TestNewReadsPasswordFromDisk(t *testing.T) {
 func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*Datastore, error) {
 	db, err := sql.Open(
 		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testing_utils.TestUsername, testing_utils.TestPassword,
+			testing_utils.TestAddress),
 	)
 	require.NoError(t, err)
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
@@ -782,9 +784,9 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	cert, key := generateTestCert(t)
 
 	mysqlConfig := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Address:  testAddress,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
+		Address:  testing_utils.TestAddress,
 		Database: dbName,
 		TLSCA:    ca,
 		TLSCert:  cert,

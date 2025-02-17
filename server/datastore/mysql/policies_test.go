@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -2151,7 +2152,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	}, false, false,
 	)
 	require.Error(t, err)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.True(t, errors.As(err, &nfe))
 
 	payload := fleet.PolicyPayload{
@@ -4832,7 +4833,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.Error(t, err)
-	var notFoundErr *notFoundError
+	var notFoundErr *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
 	// Set "Team policy 1" to a VPP app on team2.

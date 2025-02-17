@@ -16,8 +16,8 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		WithTests().
 		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
 		IgnorePackages(
-			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql",
-			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // TODO(#26218): remove this dependency on Jira and Zendesk
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
+			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // dependency on Jira and Zendesk
 			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
