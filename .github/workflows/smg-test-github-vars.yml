@@ -1,6 +1,9 @@
 name: Test vars
 on:
   push:
+    branches:
+      - sgress454/test-dogfood-github-idp-xml
+  workflow_dispatch: # manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs.
 concurrency:
