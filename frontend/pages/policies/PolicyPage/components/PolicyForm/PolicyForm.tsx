@@ -592,7 +592,7 @@ const PolicyForm = ({
             focus={!isEditMode}
           />
           {renderPlatformCompatibility()}
-          {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {isEditMode && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
@@ -621,7 +621,7 @@ const PolicyForm = ({
                   id="save-policy-button"
                   backgroundColor={COLORS["tooltip-bg"]}
                 >
-                  Select the platform(s) this
+                  Select the platforms this
                   <br />
                   policy will be checked on
                   <br />
@@ -660,7 +660,7 @@ const PolicyForm = ({
                 <>Live queries are disabled in organization settings</>
               ) : (
                 <>
-                  Select the platform(s) this <br />
+                  Select the platforms this <br />
                   policy will be checked on <br />
                   to save or run the policy.
                 </>

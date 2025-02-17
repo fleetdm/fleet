@@ -216,6 +216,10 @@
     }
   }
   [purpose='platform-filters'] {
+    &.detected-windows {
+      flex-direction: row-reverse;
+    }
+    flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 32px;
     padding-top: 8px;
@@ -230,7 +234,7 @@
         height: 20px;
         margin-right: 10px;
       }
-      p {
+      h1 {
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -243,7 +247,7 @@
       &.selected {
         border-bottom: 2px solid var(--text-text-brand, #192147);
         padding: 16px 40px 22px 40px;
-        p {
+        h1 {
           font-weight: 700;
         }
       }

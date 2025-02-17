@@ -1025,9 +1025,11 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			continue
 		}
 
+		a.stats.IncrementScriptExecs()
 		script, err := orbitClient.GetHostScript(execID)
 		if err != nil {
 			log.Println("get host script:", err)
+			a.stats.IncrementScriptExecErrs()
 			return
 		}
 
@@ -1047,6 +1049,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			ExitCode:    exitCode,
 		}); err != nil {
 			log.Println("save host script result:", err)
+			a.stats.IncrementScriptExecErrs()
 			return
 		}
 		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
@@ -1064,11 +1067,14 @@ func (a *agent) installSoftware(installerIDs []string, orbitClient *service.Orbi
 }
 
 func (a *agent) installSoftwareItem(installerID string, orbitClient *service.OrbitClient) {
+	a.stats.IncrementSoftwareInstalls()
+
 	payload := &fleet.HostSoftwareInstallResultPayload{}
 	payload.InstallUUID = installerID
 	installer, err := orbitClient.GetInstallerDetails(installerID)
 	if err != nil {
 		log.Println("get installer details:", err)
+		a.stats.IncrementSoftwareInstallErrs()
 		return
 	}
 	failed := false
@@ -1093,6 +1099,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 		// Download the file if needed to get its metadata
 		meta, cacheMiss, err = installerMetadataCache.Get(installer, orbitClient)
 		if err != nil {
+			a.stats.IncrementSoftwareInstallErrs()
 			return
 		}
 
@@ -1102,6 +1109,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 			err = orbitClient.DownloadAndDiscardSoftwareInstaller(installer.InstallerID)
 			if err != nil {
 				log.Println("download and discard software installer:", err)
+				a.stats.IncrementSoftwareInstallErrs()
 				return
 			}
 		}
@@ -1174,6 +1182,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 	err = orbitClient.SaveInstallerResult(payload)
 	if err != nil {
 		log.Println("save installer result:", err)
+		a.stats.IncrementSoftwareInstallErrs()
 		return
 	}
 }

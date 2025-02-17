@@ -425,7 +425,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
 	})
 
@@ -446,7 +446,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts failed")
 		require.Contains(t, logBuf.String(), io.ErrUnexpectedEOF.Error())
 	})
@@ -475,7 +475,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // only called once because of mutex
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
 	})
 
@@ -539,11 +539,11 @@ func TestRunScripts(t *testing.T) {
 
 		// validate the Scripts Enabled flags that were passed to the runScriptsFn
 		require.Equal(t, []bool{false, true, false}, scriptsEnabledCalls)
-		require.Contains(t, logBuf.String(), "received request to run scripts [a]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a]")
 		require.Contains(t, logBuf.String(), "running scripts [a] succeeded")
-		require.Contains(t, logBuf.String(), "received request to run scripts [b]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [b]")
 		require.Contains(t, logBuf.String(), "running scripts [b] succeeded")
-		require.Contains(t, logBuf.String(), "received request to run scripts [c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [c]")
 		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
 	})
 }
