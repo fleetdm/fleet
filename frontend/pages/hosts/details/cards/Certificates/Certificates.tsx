@@ -1,5 +1,7 @@
 import React from "react";
 
+import { IHostCertificate } from "interfaces/certificates";
+import { HostPlatform } from "interfaces/platform";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import Card from "components/Card";
@@ -10,9 +12,15 @@ const baseClass = "certificates-card";
 
 interface ICertificatesProps {
   data: IGetHostCertificatesResponse;
+  hostPlatform: HostPlatform;
+  onSelectCertificate: (certificate: IHostCertificate) => void;
 }
 
-const CertificatesCard = ({ data }: ICertificatesProps) => {
+const CertificatesCard = ({
+  data,
+  hostPlatform,
+  onSelectCertificate,
+}: ICertificatesProps) => {
   return (
     <Card
       className={baseClass}
@@ -21,7 +29,11 @@ const CertificatesCard = ({ data }: ICertificatesProps) => {
       paddingSize="xxlarge"
     >
       <h2>Certificates</h2>
-      <CertificatesTable data={data.certificates} />
+      <CertificatesTable
+        data={data.certificates}
+        hostPlatform={hostPlatform}
+        onSelectCertificate={onSelectCertificate}
+      />
     </Card>
   );
 };

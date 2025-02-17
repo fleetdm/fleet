@@ -14,13 +14,18 @@ const baseClass = "certificates-table";
 interface ICertificatesTableProps {
   data: IHostCertificate[];
   hostPlatform: HostPlatform;
+  onSelectCertificate: (certificate: IHostCertificate) => void;
 }
 
-const CertificatesTable = ({ data, hostPlatform }: ICertificatesTableProps) => {
+const CertificatesTable = ({
+  data,
+  hostPlatform,
+  onSelectCertificate,
+}: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
 
   const onClickTableRow = (row: Row<IHostCertificate>) => {
-    console.log(row.original);
+    onSelectCertificate(row.original);
   };
 
   const helpText =

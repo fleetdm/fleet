@@ -32,6 +32,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IHostUpcomingActivity } from "interfaces/activity";
+import { IHostCertificate } from "interfaces/certificates";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -97,6 +98,8 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import { createMockHostCertificate } from "__mocks__/certificatesMock";
 
 const baseClass = "host-details";
 
@@ -166,6 +169,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -203,6 +207,10 @@ const HostDetailsPage = ({
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -721,6 +729,10 @@ const HostDetailsPage = ({
     setSelectedCancelActivity(activity);
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -927,6 +939,7 @@ const HostDetailsPage = ({
                   <CertificatesCard
                     data={hostCertificates}
                     hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
                   />
                 )}
             </TabPanel>
@@ -1112,6 +1125,13 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancel={() => setSelectedCancelActivity(null)}
+          />
+        )}
+
+        {true && (
+          <CertificateDetailsModal
+            certificate={createMockHostCertificate()}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </>
