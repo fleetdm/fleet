@@ -444,6 +444,17 @@ func main() {
 		}()
 	}
 
+	go func() {
+		const checkInterval = 1 * time.Hour
+		extensionsTicker := time.NewTicker(checkInterval)
+		for {
+			if err := installExtensions(); err != nil {
+				log.Error().Err(err).Msg("installExtensions")
+			}
+			<-extensionsTicker.C
+		}
+	}()
+
 	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
 	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {

@@ -1,0 +1,1 @@
+* Added "Fleet desktop" support for Fedora and Debian by automatically installing the appindicator Gnome extension (to allow displaying the Fleet icon on the system tray).

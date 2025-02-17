@@ -1,6 +1,3 @@
-//go:build windows
-// +build windows
-
 package main
 
 import (
@@ -73,5 +70,9 @@ func blockWaitForStopEvent(channelId string) error {
 		return fmt.Errorf("event wait was interrupted for unknown reasons: %d", s)
 	}
 
+	return nil
+}
+
+func installExtensions() error {
 	return nil
 }
