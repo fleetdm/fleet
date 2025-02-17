@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -105,6 +106,20 @@ func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal i
 	}
 
 	return user, nil
+}
+
+// HasUsers returns whether Fleet has any users registered
+func (ds *Datastore) HasUsers(ctx context.Context) (bool, error) {
+	var id uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, `SELECT id FROM users LIMIT 1`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "has users check")
+	}
+
+	return id > 0, nil
 }
 
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
