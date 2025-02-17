@@ -94,8 +94,10 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
 	}
 
-	err = svc.ds.UpdateEnterprise(ctx, &android.Enterprise{
-		ID:         id,
+	err = svc.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID: id,
+		},
 		SignupName: signupDetails.Name,
 	})
 	if err != nil {
@@ -152,11 +154,11 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 
 	enterpriseID := strings.TrimPrefix(name, "enterprises/")
 	enterprise.EnterpriseID = enterpriseID
-	// TODO: Save topic ID in DB
-	_, err = topicIDFromName(topicName)
+	topicID, err := topicIDFromName(topicName)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing topic name")
 	}
+	enterprise.TopicID = topicID
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")

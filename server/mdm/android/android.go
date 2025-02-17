@@ -7,7 +7,6 @@ type SignupDetails struct {
 
 type Enterprise struct {
 	ID           uint   `db:"id"`
-	SignupName   string `db:"signup_name"`
 	EnterpriseID string `db:"enterprise_id"`
 }
 
@@ -21,6 +20,13 @@ func (e Enterprise) IsValid() bool {
 
 func (e Enterprise) AuthzType() string {
 	return "android_enterprise"
+}
+
+type EnterpriseDetails struct {
+	Enterprise
+	SignupName  string `db:"signup_name"`
+	TopicID     string `db:"topic_id"`
+	SignupToken string `db:"signup_token"`
 }
 
 type EnrollmentToken struct {
