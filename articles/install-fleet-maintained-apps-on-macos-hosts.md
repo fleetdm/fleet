@@ -22,7 +22,7 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
    - Post-install script
    - Uninstall scripts
 
-These scripts are auto-generated based on the app's Homebrew Cask formula, but you can modify them. Modifying these scripts allows you to tailor the app installation process to your organization's needs, such as automating additional setup tasks or custom configurations post-installation.
+If you find that a script doesn't work as expected, please file a [bug](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md). When scripts are fixed, after upgrading Fleet, they are automatically updated for you unless you edited any of the scripts.
 
 ## Install the app
 

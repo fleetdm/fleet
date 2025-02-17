@@ -6,26 +6,26 @@
           <h2>Tables</h2>
           <p>Fleet uses osquery tables to query operating system, hardware, and software data. Each table provides specific data for analysis and filtering.</p>
         </div>
-        <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
-          <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
+        <div purpose="platform-filters" class="d-flex justify-content-center"  >
+          <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']+' '+[bowser.windows ? 'order-3' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
             <p class="d-flex align-items-center">
             <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
             <span class="d-none d-md-inline">Apple</span>
             </p>
           </div>
-          <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+          <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']+' '+[bowser.windows ? 'order-2' : '']"  class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
             <p class="d-flex align-items-center">
               <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
               <span class="d-none d-md-inline">Linux</span>
             </p>
           </div>
-          <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']+' '+[bowser.windows ? 'order-1' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
             <p class="d-flex align-items-center">
               <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
               <span class="d-none d-md-inline">Windows</span>
             </p>
           </div>
-          <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
+          <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']+' '+[bowser.windows ? 'order-4' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
             <p class="d-flex align-items-center">
               <img src="/images/os-chromeos-dark-24x24@2x.png" alt="Chrome" class="d-inline">
               <span class="d-none d-md-inline">ChromeOS</span>

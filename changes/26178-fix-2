@@ -1,0 +1,2 @@
+- Fixed an issue with increased resource usage during vulnerabilities processing by adding a
+  database index.

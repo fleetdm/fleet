@@ -311,17 +311,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const renderEnrollMdmModal = () => {
-    return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-    ) : (
-      <ManualEnrollMdmModal
-        onCancel={toggleEnrollMdmModal}
-        token={deviceAuthToken}
-      />
-    );
-  };
-
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
     // modal opens in loading state
@@ -474,7 +463,19 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showEnrollMdmModal &&
+              (host.dep_assigned_to_fleet ? (
+                <AutoEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                />
+              ) : (
+                <ManualEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                  token={deviceAuthToken}
+                />
+              ))}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (

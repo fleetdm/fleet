@@ -169,8 +169,9 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI  = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI   = "/Vendor/MSFT/Policy/Config/Update"
+	FleetUserScopedTargetLocURI = "./User/Vendor"
 )
 
 // Supported MS-MDE2 enrollment versions

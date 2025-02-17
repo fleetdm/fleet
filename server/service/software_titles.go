@@ -30,7 +30,7 @@ type listSoftwareTitlesResponse struct {
 
 func (r listSoftwareTitlesResponse) Error() error { return r.Err }
 
-func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareTitlesRequest)
 	titles, count, meta, err := svc.ListSoftwareTitles(ctx, req.SoftwareTitleListOptions)
 	if err != nil {
@@ -126,7 +126,7 @@ type getSoftwareTitleResponse struct {
 
 func (r getSoftwareTitleResponse) Error() error { return r.Err }
 
-func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareTitleRequest)
 
 	software, err := svc.SoftwareTitleByID(ctx, req.ID, req.TeamID)

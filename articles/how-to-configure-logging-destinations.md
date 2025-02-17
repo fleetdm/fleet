@@ -78,13 +78,7 @@ Sumo Logic supports data ingestion via HTTP, making it a reliable choice for log
 
 #### For Splunk
 
-Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. Here’s how to integrate it with Firehose:
-
-
-
-1. **Set up Firehose**: Use the AWS guide to configure your Firehose delivery stream for Splunk as a destination. The process involves specifying the Splunk endpoint and authentication details. Detailed instructions are available in the [AWS Firehose documentation](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html?icmpid=docs_console_unmapped#create-destination-splunk).
-2. **Configure Splunk**: Follow the [Splunk documentation](https://docs.splunk.com/Documentation/AddOns/released/Firehose/RequestFirehose) to ensure Splunk is set to receive data from Firehose. This step involves setting up the necessary inputs and configuring Splunk to handle incoming data.
-3. **Firehose to Splunk configuration**: Finalize the setup by configuring Firehose to send data to Splunk, following the guidelines in the [Splunk documentation](https://docs.splunk.com/Documentation/AddOns/released/Firehose/ConfigureFirehose).
+Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. Learn how to connect Fleet to Splunk [here](https://fleetdm.com/guides/log-destinations#splunk).
 
 
 ### Conclusion

@@ -30,7 +30,7 @@ type listTeamsResponse struct {
 
 func (r listTeamsResponse) Error() error { return r.Err }
 
-func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listTeamsRequest)
 	teams, err := svc.ListTeams(ctx, req.ListOptions)
 	if err != nil {
@@ -67,7 +67,7 @@ type getTeamResponse struct {
 
 func (r getTeamResponse) Error() error { return r.Err }
 
-func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamRequest)
 	team, err := svc.GetTeam(ctx, req.ID)
 	if err != nil {
@@ -99,7 +99,7 @@ type teamResponse struct {
 
 func (r teamResponse) Error() error { return r.Err }
 
-func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createTeamRequest)
 
 	team, err := svc.NewTeam(ctx, req.TeamPayload)
@@ -126,7 +126,7 @@ type modifyTeamRequest struct {
 	fleet.TeamPayload
 }
 
-func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
@@ -157,7 +157,7 @@ type deleteTeamResponse struct {
 
 func (r deleteTeamResponse) Error() error { return r.Err }
 
-func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteTeamRequest)
 	err := svc.DeleteTeam(ctx, req.ID)
 	if err != nil {
@@ -224,7 +224,7 @@ type applyTeamSpecsResponse struct {
 
 func (r applyTeamSpecsResponse) Error() error { return r.Err }
 
-func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyTeamSpecsRequest)
 	if !req.DryRun {
 		req.DryRunAssumptions = nil
@@ -274,7 +274,7 @@ type modifyTeamAgentOptionsRequest struct {
 	json.RawMessage
 }
 
-func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamAgentOptionsRequest)
 	team, err := svc.ModifyTeamAgentOptions(ctx, req.ID, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
@@ -303,7 +303,7 @@ type listTeamUsersRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
-func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listTeamUsersRequest)
 	users, err := svc.ListTeamUsers(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
@@ -337,7 +337,7 @@ type modifyTeamUsersRequest struct {
 	Users []fleet.TeamUser `json:"users"`
 }
 
-func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamUsersRequest)
 	team, err := svc.AddTeamUsers(ctx, req.TeamID, req.Users)
 	if err != nil {
@@ -354,7 +354,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	return nil, fleet.ErrMissingLicense
 }
 
-func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamUsersRequest)
 	team, err := svc.DeleteTeamUsers(ctx, req.TeamID, req.Users)
 	if err != nil {
@@ -386,7 +386,7 @@ type teamEnrollSecretsResponse struct {
 
 func (r teamEnrollSecretsResponse) Error() error { return r.Err }
 
-func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func teamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamEnrollSecretsRequest)
 	secrets, err := svc.TeamEnrollSecrets(ctx, req.TeamID)
 	if err != nil {
@@ -413,7 +413,7 @@ type modifyTeamEnrollSecretsRequest struct {
 	Secrets []fleet.EnrollSecret `json:"secrets"`
 }
 
-func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamEnrollSecretsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamEnrollSecretsRequest)
 	secrets, err := svc.ModifyTeamEnrollSecrets(ctx, req.TeamID, req.Secrets)
 	if err != nil {

@@ -613,7 +613,7 @@ const (
 	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
 	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Please try again."
+	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
 	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
@@ -642,4 +642,9 @@ func (e ConflictError) Error() string {
 // StatusCode implements the kithttp.StatusCoder interface.
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
+}
+
+// Errorer interface is implemented by response structs to encode business logic errors
+type Errorer interface {
+	Error() error
 }

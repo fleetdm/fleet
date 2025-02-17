@@ -1,5 +1,7 @@
 # How to use CloudFront signed URLs with Fleet
 
+*Available in Fleet Premium.*
+
 Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0) allows you to use CloudFront signed URLs for downloading MDM bootstrap packages and software installation packages to your hosts. This speeds up onboarding for organizations that onboard new employees at different headquarters across the world. 
 
 CloudFront signed URLs grant access to a specific CloudFront distribution resource and are valid for a specified duration. 

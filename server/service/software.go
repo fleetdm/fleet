@@ -33,7 +33,7 @@ type listSoftwareResponse struct {
 func (r listSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -65,7 +65,7 @@ type listSoftwareVersionsResponse struct {
 
 func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
-func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
 	// always include pagination for new software versions endpoint (not included by default in
@@ -145,7 +145,7 @@ type getSoftwareResponse struct {
 
 func (r getSoftwareResponse) Error() error { return r.Err }
 
-func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
@@ -219,7 +219,7 @@ func (r countSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {

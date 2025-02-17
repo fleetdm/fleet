@@ -29,7 +29,7 @@ type secretVariablesResponse struct {
 
 func (r secretVariablesResponse) Error() error { return r.Err }
 
-func secretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func secretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*secretVariablesRequest)
 	err := svc.CreateSecretVariables(ctx, req.SecretVariables, req.DryRun)
 	return secretVariablesResponse{Err: err}, nil

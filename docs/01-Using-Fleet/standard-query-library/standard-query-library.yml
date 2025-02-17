@@ -778,6 +778,8 @@ spec:
           <string>CE506065-7C0E-434E-8B8C-12E164116C94</string>
           <key>PayloadVersion</key>
           <integer>1</integer>
+          <key>DisableFDEAutoLogin</key>
+          <true/>
           <key>com.apple.login.mcx.DisableAutoLoginClient</key>
           <true/>
         </dict>

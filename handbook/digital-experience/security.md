@@ -362,7 +362,7 @@ Because they are the only type of Two-Factor Authentication (2FA) that protects 
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
-section](https://fleetdm.com/handbook/digital-experience/security#google-workspace-security-authentication) for more
+section](https://fleetdm.com/handbook/digital-experience/security#2-step-verification) for more
 information on the security of different types of 2FA.
 
 

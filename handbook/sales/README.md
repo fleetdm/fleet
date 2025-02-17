@@ -63,6 +63,16 @@ Every week, the sales manager will review the necessary opportunities with inter
 If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
 
 
+### Send a subscription quote
+
+Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
+1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
+2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
+3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote
+4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
+5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
+
+
 ### Send an order form
 
 In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 

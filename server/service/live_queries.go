@@ -72,7 +72,7 @@ type runLiveQueryOnHostResponse struct {
 
 func (r runLiveQueryOnHostResponse) Error() error { return nil }
 
-func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
 
 	// Only allow a host to be specified once in HostIDs
@@ -102,7 +102,7 @@ func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet
 	return res, nil
 }
 
-func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryRequest)
 
 	// Only allow a query to be specified once
@@ -125,7 +125,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return res, nil
 }
 
-func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
 	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
@@ -136,7 +136,7 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 	return runLiveQueryOnHost(svc, ctx, host, req.Query)
 }
 
-func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostByIDRequest)
 
 	host, err := svc.HostLiteByID(ctx, req.HostID)
@@ -147,7 +147,7 @@ func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, sv
 	return runLiveQueryOnHost(svc, ctx, host, req.Query)
 }
 
-func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (errorer, error) {
+func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (fleet.Errorer, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))

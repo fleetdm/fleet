@@ -17,7 +17,7 @@ type applyUserRoleSpecsResponse struct {
 
 func (r applyUserRoleSpecsResponse) Error() error { return r.Err }
 
-func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyUserRoleSpecsRequest)
 	err := svc.ApplyUserRolesSpecs(ctx, *req.Spec)
 	if err != nil {

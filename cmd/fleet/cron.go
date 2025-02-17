@@ -102,13 +102,29 @@ func cronVulnerabilities(
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
 
-		start := time.Now()
-		level.Info(logger).Log("msg", "updating vulnerability host counts")
-		if err := ds.UpdateVulnerabilityHostCounts(ctx, config.MaxConcurrency); err != nil {
-			return fmt.Errorf("updating vulnerability host counts: %w", err)
+		if err := updateVulnHostCounts(ctx, ds, logger, config.MaxConcurrency); err != nil {
+			return err
 		}
-		level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
+
 	}
+
+	return nil
+}
+
+func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, maxConcurrency int) error {
+	// Prevent invalid values for max concurrency
+	if maxConcurrency <= 0 {
+		level.Info(logger).Log("msg", "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
+		maxConcurrency = 1
+	}
+
+	start := time.Now()
+	level.Info(logger).Log("msg", "updating vulnerability host counts")
+
+	if err := ds.UpdateVulnerabilityHostCounts(ctx, maxConcurrency); err != nil {
+		return fmt.Errorf("updating vulnerability host counts: %w", err)
+	}
+	level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
 
 	return nil
 }

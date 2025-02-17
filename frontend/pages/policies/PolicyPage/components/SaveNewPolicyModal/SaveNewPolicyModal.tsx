@@ -281,7 +281,7 @@ const SaveNewPolicyModal = ({
                 id={`${baseClass}__button--modal-save-tooltip`}
                 backgroundColor={COLORS["tooltip-bg"]}
               >
-                Select the platform(s) this
+                Select the platforms this
                 <br />
                 policy will be checked on
                 <br />

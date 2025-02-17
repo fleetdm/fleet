@@ -152,11 +152,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		http.StatusAccepted)
 
 	// Get the InstallerUUID
-	var installUUID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &installUUID,
-			"SELECT execution_id FROM host_software_installs WHERE host_id = ?", hostInTeam.ID)
-	})
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 	// Fetch installer details
 	var orbitSoftwareResp orbitGetSoftwareInstallResponse
@@ -209,4 +205,13 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		"&Key-Pair-Id="+s3Config.SoftwareInstallersCloudFrontURLSigningPublicKeyID)
 	require.Equal(t, filename, orbitSoftwareResp.SoftwareInstallerURL.Filename)
 
+}
+
+func getLatestSoftwareInstallExecID(t *testing.T, ds *mysql.Datastore, hostID uint) string {
+	var installUUID string
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &installUUID,
+			"SELECT execution_id FROM host_software_installs WHERE host_id = ? ORDER BY id desc", hostID)
+	})
+	return installUUID
 }
