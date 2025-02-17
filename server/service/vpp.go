@@ -9,6 +9,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -26,7 +27,7 @@ type getAppStoreAppsResponse struct {
 
 func (r getAppStoreAppsResponse) Error() error { return r.Err }
 
-func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAppStoreAppsRequest)
 	apps, err := svc.GetAppStoreApps(ctx, &req.TeamID)
 	if err != nil {
@@ -63,7 +64,7 @@ type addAppStoreAppResponse struct {
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
-func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
 	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:         fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
@@ -105,7 +106,7 @@ type updateAppStoreAppResponse struct {
 
 func (r updateAppStoreAppResponse) Error() error { return r.Err }
 
-func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
 	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny)
@@ -166,7 +167,7 @@ func (r uploadVPPTokenResponse) Error() error {
 	return r.Err
 }
 
-func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
@@ -219,7 +220,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 
 	decoded.File = r.MultipartForm.File["token"][0]
 
-	id, err := uintFromRequest(r, "id")
+	id, err := endpoint_utils.UintFromRequest(r, "id")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
 	}
@@ -240,7 +241,7 @@ func (r patchVPPTokenRenewResponse) Error() error {
 	return r.Err
 }
 
-func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*patchVPPTokenRenewRequest)
 	file, err := req.File.Open()
 	if err != nil {
@@ -280,7 +281,7 @@ type patchVPPTokensTeamsResponse struct {
 
 func (r patchVPPTokensTeamsResponse) Error() error { return r.Err }
 
-func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*patchVPPTokensTeamsRequest)
 
 	tok, err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs)
@@ -311,7 +312,7 @@ type getVPPTokensResponse struct {
 
 func (r getVPPTokensResponse) Error() error { return r.Err }
 
-func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	tokens, err := svc.GetVPPTokens(ctx)
 	if err != nil {
 		return getVPPTokensResponse{Err: err}, nil
@@ -348,7 +349,7 @@ func (r deleteVPPTokenResponse) Error() error { return r.Err }
 
 func (r deleteVPPTokenResponse) Status() int { return http.StatusNoContent }
 
-func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteVPPTokenRequest)
 
 	err := svc.DeleteVPPToken(ctx, req.ID)

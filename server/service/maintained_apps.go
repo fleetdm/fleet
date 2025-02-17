@@ -28,7 +28,7 @@ type addFleetMaintainedAppResponse struct {
 
 func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
 
-func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
 	ctx, cancel := context.WithTimeout(ctx, maintainedapps.InstallerTimeout)
 	defer cancel()
@@ -74,7 +74,7 @@ type editFleetMaintainedAppRequest struct {
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
 }
 
-func editFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func editFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	// TODO: implement this
 
 	return nil, errors.New("not implemented")
@@ -95,7 +95,7 @@ type listFleetMaintainedAppsResponse struct {
 
 func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 
-func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
 	req.IncludeMetadata = true
@@ -143,7 +143,7 @@ type getFleetMaintainedAppResponse struct {
 
 func (r getFleetMaintainedAppResponse) Error() error { return r.Err }
 
-func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getFleetMaintainedAppRequest)
 
 	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID)
