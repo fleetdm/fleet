@@ -69,6 +69,7 @@ jobs:
 
     - name: Install Go
       uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      # The Go build cache is enabled by default.
       with:
         go-version-file: 'go.mod'
 
@@ -82,7 +83,6 @@ jobs:
         sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
         sudo update-ca-certificates
 
-    # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
       run: make deps-go
 
