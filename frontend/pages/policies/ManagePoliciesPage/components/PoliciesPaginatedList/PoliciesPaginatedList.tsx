@@ -9,17 +9,13 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { useQueryClient } from "react-query";
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicy } from "interfaces/policy";
 import teamPoliciesAPI from "services/entities/team_policies";
 import Button from "components/buttons/Button";
 
-export interface IFormPolicy {
-  name: string;
-  id: number;
+export interface IFormPolicy extends IPolicy {
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
-  platform: CommaSeparatedPlatformString;
-  calendar_events_enabled: boolean;
 }
 
 interface IPoliciesPaginatedListProps {

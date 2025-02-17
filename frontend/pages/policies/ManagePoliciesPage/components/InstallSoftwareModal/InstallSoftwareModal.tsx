@@ -3,11 +3,7 @@ import React, { useCallback, useMemo, useRef } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
-import {
-  CommaSeparatedPlatformString,
-  Platform,
-  PLATFORM_DISPLAY_NAMES,
-} from "interfaces/platform";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,

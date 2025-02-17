@@ -647,19 +647,10 @@ const ManagePolicyPage = ({
       }
 
       // update changed policies calendar events enabled
-      const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-        return (
-          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
-        );
-      });
-
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            calendar_events_enabled: changedPolicy.isChecked,
+            calendar_events_enabled: changedPolicy.calendar_events_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -1080,7 +1071,7 @@ const ManagePolicyPage = ({
             configured={isCalEventsConfigured}
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
-            policies={policiesAvailableToAutomate}
+            teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
           />
         )}

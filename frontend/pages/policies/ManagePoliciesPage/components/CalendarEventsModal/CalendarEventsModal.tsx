@@ -1,6 +1,6 @@
-import React, { useCallback, useState, useEffect, useContext } from "react";
+import React, { useCallback, useState, useRef, useContext } from "react";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyFormData, IPolicyStats } from "interfaces/policy";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
@@ -15,20 +15,19 @@ import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
+import { IPaginatedListHandle } from "components/PaginatedList";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-events-modal";
 
-interface IFormPolicy {
-  name: string;
-  id: number;
-  isChecked: boolean;
-}
 export interface ICalendarEventsFormData {
   enabled: boolean;
   url: string;
-  policies: IFormPolicy[];
+  changedPolicies: IFormPolicy[];
 }
 
 interface ICalendarEventsModal {
@@ -38,7 +37,7 @@ interface ICalendarEventsModal {
   configured: boolean;
   enabled: boolean;
   url: string;
-  policies: IPolicyStats[];
+  teamId: number;
 }
 
 // allows any policy name to be the name of a form field, one of the checkboxes
@@ -51,8 +50,9 @@ const CalendarEventsModal = ({
   configured,
   enabled,
   url,
-  policies,
+  teamId,
 }: ICalendarEventsModal) => {
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
 
   const isAdmin = isGlobalAdmin || isTeamAdmin;
@@ -60,12 +60,9 @@ const CalendarEventsModal = ({
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
     url,
-    policies: policies.map((policy) => ({
-      name: policy.name,
-      id: policy.id,
-      isChecked: policy.calendar_events_enabled || false,
-    })),
+    changedPolicies: [],
   });
+
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
@@ -74,27 +71,15 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
   const [selectedPolicyToPreview, setSelectedPolicyToPreview] = useState<
-    IPolicyStats | undefined
+    IFormPolicy | undefined
   >();
-
-  // Eliminate race condition after updating policies
-  useEffect(() => {
-    setFormData({
-      ...formData,
-      policies: policies.map((policy) => ({
-        name: policy.name,
-        id: policy.id,
-        isChecked: policy.calendar_events_enabled || false,
-      })),
-    });
-  }, [policies]);
 
   // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
     const { url: newUrl } = newFormData;
     if (
-      formData.enabled &&
+      newFormData.enabled &&
       !validURL({ url: newUrl || "", protocols: ["http", "https"] })
     ) {
       const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
@@ -133,28 +118,14 @@ const CalendarEventsModal = ({
     setFormData(newFormData);
   };
 
-  const onPolicyEnabledChange = useCallback(
-    (newVal: { name: FormNames; value: boolean }) => {
-      const { name, value } = newVal;
-      const newFormPolicies = formData.policies.map((formPolicy) => {
-        if (formPolicy.name === name) {
-          return { ...formPolicy, isChecked: value };
-        }
-        return formPolicy;
-      });
-      const newFormData = { ...formData, policies: newFormPolicies };
-      setFormData(newFormData);
-    },
-    [formData]
-  );
-
   const onUpdateCalendarEvents = () => {
     const errors = validateForm(formData);
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-    } else {
-      onSubmit(formData);
+    } else if (paginatedListRef.current) {
+      const changedPolicies = paginatedListRef.current.getDirtyItems();
+      onSubmit({ ...formData, changedPolicies });
     }
   };
 
@@ -183,58 +154,6 @@ const CalendarEventsModal = ({
           }}
         />
       </>
-    );
-  };
-
-  const renderPolicies = () => {
-    return (
-      <div className="form-field">
-        <div className="form-field__label">Policies:</div>
-        <div>
-          <ul className="automated-policies-section">
-            {formData.policies.map((policy) => {
-              const { isChecked, name, id } = policy;
-              return (
-                <li className="policy-row" id={`policy-row--${id}`} key={id}>
-                  <Checkbox
-                    value={isChecked}
-                    name={name}
-                    // can't use parseTarget as value needs to be set to !currentValue
-                    onChange={() => {
-                      onPolicyEnabledChange({ name, value: !isChecked });
-                    }}
-                    disabled={!formData.enabled}
-                  >
-                    <TooltipTruncatedText value={name} />
-                  </Checkbox>
-                  <Button
-                    variant="text-icon"
-                    onClick={() => {
-                      setSelectedPolicyToPreview(
-                        policies.find((p) => p.id === id)
-                      );
-                      togglePreviewCalendarEvent();
-                    }}
-                    className="policy-row__preview-button"
-                  >
-                    <Icon name="eye" /> Preview
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="form-field__help-text">
-            A calendar event will be created for end users if one of their hosts
-            fail any of these policies.{" "}
-            <CustomLink
-              url="https://www.fleetdm.com/learn-more-about/calendar-events"
-              text="Learn more"
-              newTab
-              disableKeyboardNavigation={!formData.enabled}
-            />
-          </p>
-        </div>
-      </div>
     );
   };
 
@@ -353,34 +272,49 @@ const CalendarEventsModal = ({
             {showExamplePayload && renderExamplePayload()}
           </>
         )}
-        {renderPolicies()}
-      </div>
-      <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onUpdateCalendarEvents}
-          className="save-loading"
-          isLoading={isUpdating}
-          disabled={Object.keys(formErrors).length > 0}
-        >
-          Save
-        </Button>
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
+        <div>
+          <PoliciesPaginatedList
+            ref={paginatedListRef}
+            isSelected="calendar_events_enabled"
+            onToggleItem={(item) => {
+              item.calendar_events_enabled = !item.calendar_events_enabled;
+              return item;
+            }}
+            renderItemRow={(item, onChange) => {
+              return (
+                <Button
+                  variant="text-icon"
+                  onClick={() => {
+                    setSelectedPolicyToPreview(item);
+                    togglePreviewCalendarEvent();
+                  }}
+                  className="policy-row__preview-button"
+                >
+                  <Icon name="eye" /> Preview
+                </Button>
+              );
+            }}
+            footer={
+              <p className="form-field__help-text">
+                A calendar event will be created for end users if one of their
+                hosts fail any of these policies.{" "}
+                <CustomLink
+                  url="https://www.fleetdm.com/learn-more-about/calendar-events"
+                  text="Learn more"
+                  newTab
+                  disableKeyboardNavigation={!formData.enabled}
+                />
+              </p>
+            }
+            isUpdating={isUpdating}
+            onSubmit={onUpdateCalendarEvents}
+            onCancel={onExit}
+            teamId={teamId}
+          />
+        </div>
       </div>
     </div>
   );
-
-  if (showPreviewCalendarEvent) {
-    return (
-      <CalendarEventPreviewModal
-        onCancel={togglePreviewCalendarEvent}
-        policy={selectedPolicyToPreview}
-      />
-    );
-  }
 
   return (
     <Modal
@@ -397,6 +331,12 @@ const CalendarEventsModal = ({
       width="large"
     >
       {configured ? renderConfiguredModal() : renderPlaceholderModal()}
+      {showPreviewCalendarEvent && (
+        <CalendarEventPreviewModal
+          onCancel={togglePreviewCalendarEvent}
+          policy={selectedPolicyToPreview}
+        />
+      )}
     </Modal>
   );
 };
