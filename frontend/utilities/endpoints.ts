@@ -40,6 +40,9 @@ export default {
   DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
   },
+  DEVICE_CERTIFICATES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/certificates`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,

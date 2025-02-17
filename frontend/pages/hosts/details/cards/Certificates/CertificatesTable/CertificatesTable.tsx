@@ -2,7 +2,6 @@ import React from "react";
 import { Row } from "react-table";
 
 import { IHostCertificate } from "interfaces/certificates";
-import { HostPlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
@@ -13,13 +12,13 @@ const baseClass = "certificates-table";
 
 interface ICertificatesTableProps {
   data: IHostCertificate[];
-  hostPlatform: HostPlatform;
+  showHelpText: boolean;
   onSelectCertificate: (certificate: IHostCertificate) => void;
 }
 
 const CertificatesTable = ({
   data,
-  hostPlatform,
+  showHelpText,
   onSelectCertificate,
 }: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
@@ -28,18 +27,17 @@ const CertificatesTable = ({
     onSelectCertificate(row.original);
   };
 
-  const helpText =
-    hostPlatform === "darwin" ? (
-      <p>
-        Showing certificates in the system keychain. To get all certificates,
-        you can query the certificates table.{" "}
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/certificates-query"
-          newTab
-        />
-      </p>
-    ) : null;
+  const helpText = showHelpText ? (
+    <p>
+      Showing certificates in the system keychain. To get all certificates, you
+      can query the certificates table.{" "}
+      <CustomLink
+        text="Learn more"
+        url="https://fleetdm.com/learn-more-about/certificates-query"
+        newTab
+      />
+    </p>
+  ) : null;
 
   return (
     <TableContainer<Row<IHostCertificate>>

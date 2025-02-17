@@ -99,7 +99,6 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import { createMockHostCertificate } from "__mocks__/certificatesMock";
 
 const baseClass = "host-details";
 
@@ -1127,10 +1126,9 @@ const HostDetailsPage = ({
             onCancel={() => setSelectedCancelActivity(null)}
           />
         )}
-
         {selectedCertificate && (
           <CertificateDetailsModal
-            certificate={createMockHostCertificate()}
+            certificate={selectedCertificate}
             onExit={() => setSelectedCertificate(null)}
           />
         )}
