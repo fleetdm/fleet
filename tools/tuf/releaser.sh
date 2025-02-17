@@ -268,14 +268,14 @@ print_reminder () {
         if [[ $COMPONENT == "fleetd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --orbit-channel=edge --desktop-channel=edge' on Linux amd64, Linux arm64, Windows, and macOS."
         elif [[ $COMPONENT == "osqueryd" ]]; then
-            prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge' on Linux amd64, Linux arm64, Windows, and macOS."
+            prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge --update-interval=1m' on Linux amd64, Linux arm64, Windows, and macOS."
         fi
     elif [[ $ACTION == "promote-edge-to-stable" ]]; then
         prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m' on Linux amd64, Linux arm64, Windows, and macOS."
     elif [[ $ACTION == "update-timestamp" ]]; then
         :
     elif [[ $ACTION == "release-to-production" ]]; then
-        prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
+        prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
     else
         echo "Unsupported action: $ACTION"
         exit 1
@@ -292,22 +292,22 @@ print_reminder
 
 if [[ $ACTION == "release-to-edge" ]]; then
     trap clean_up EXIT
-    fleetctl_version_check
     setup
+    fleetctl_version_check
     pull_from_staging
     release_to_edge
     push_to_staging
 elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     trap clean_up EXIT
-    fleetctl_version_check
     setup
+    fleetctl_version_check
     pull_from_staging
     promote_edge_to_stable
     push_to_staging
 elif [[ $ACTION == "update-timestamp" ]]; then
     trap clean_up EXIT
-    fleetctl_version_check
     setup
+    fleetctl_version_check
     pull_from_staging
     update_timestamp
     push_to_staging
