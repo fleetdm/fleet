@@ -407,6 +407,7 @@ spec:
         r.metric ASC,
       inet_aton(ia.address) IS NOT NULL DESC
     LIMIT 1;
+  bash: iface=$(netstat -rn | awk '$1=="default"{print $NF; exit}'); mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); ip=$(ifconfig "$iface" | awk '/inet / {split($2,a,"."); if(a[1]=="10" || (a[1]=="172" && a[2]>=16 && a[2]<=31) || (a[1]=="192" && a[2]=="168")) print $2}' | head -n1); [ -z "$ip" ] && ip=$(ifconfig "$iface" | awk '/inet6 / {print $2}' | grep -Ei '^f[cd][0-9a-f]{2}:' | head -n1); echo "$ip $mac"
   purpose: Informational
   tags: built-in
 ---
@@ -510,7 +511,6 @@ spec:
     } else {
         Write-Output "No matching interface found."
     }
-  bash: iface=$(netstat -rn | awk '$1=="default"{print $NF; exit}'); mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); ip=$(ifconfig "$iface" | awk '/inet / {split($2,a,"."); if(a[1]=="10" || (a[1]=="172" && a[2]>=16 && a[2]<=31) || (a[1]=="192" && a[2]=="168")) print $2}' | head -n1); [ -z "$ip" ] && ip=$(ifconfig "$iface" | awk '/inet6 / {print $2}' | grep -Ei '^f[cd][0-9a-f]{2}:' | head -n1); echo "$ip $mac"
   purpose: Informational
   tags: built-in
 ---
@@ -521,7 +521,6 @@ spec:
   platform: darwin, linux, windows
   description: Retreives configuration information the osquery version and configuration manager running on a device.
   query: SELECT * FROM orbit_info
-  bash: echo "Hostname,UUID,OSProductName,OSProductVersion,OSBuildVersion,HardwareModel"; echo "$(scutil --get ComputerName),$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F '\"' '/IOPlatformUUID/{print $(NF-1)}'),$(sw_vers -productName),$(sw_vers -productVersion),$(sw_vers -buildVersion),$(sysctl -n hw.model)"
   purpose: Informational
   tags: built-in
 ---
@@ -568,7 +567,7 @@ spec:
       FROM
         os_version os,
         kernel_info k
-  bash: printf "os.name\tos.major\tos.minor\tos.patch\tos.extra\tos.build\tos.arch\tos.platform\tversion\tkernel_version\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$(sw_vers -productName)" "$(sw_vers -productVersion | cut -d. -f1)" "$(sw_vers -productVersion | cut -d. -f2)" "$(sw_vers -productVersion | cut -d. -f3)" "" "$(sw_vers -buildVersion)" "$(uname -m)" "$(uname -s)" "$(sw_vers -productVersion)" "$(uname -r)"
+  bash: product_name=$(sw_vers -productName); product_version=$(sw_vers -productVersion); build_version=$(sw_vers -buildVersion); IFS='.' read -r major minor patch <<< "$product_version"; arch=$(uname -m); platform=$(uname -s); kernel_version=$(uname -r); extra=""; printf "name\tmajor\tminor\tpatch\tbuild\tarch\tplatform\tversion\tkernel_version\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$product_name" "$major" "$minor" "${patch:-}" "$build_version" "$arch" "$platform" "$product_version" "$kernel_version"
   purpose: Informational
   tags: built-in
 ---
@@ -725,7 +724,6 @@ spec:
 
 
     $result | Format-Table -AutoSize
-  bash: for flag in distributed_interval config_tls_refresh config_refresh logger_tls_period; do printf "%s\t%s\n" "$flag" "$(ps aux | grep '[o]squeryd' | sed -En "s/.*--${flag}=([^[:space:]]+).*/\1/p")"; done
   purpose: Informational
   tags: built-in
 ---
@@ -745,7 +743,6 @@ spec:
         config_hash = "N/A"
     }
     $result | Format-Table -AutoSize | Out-String | Write-Output
-  bash: "echo \"pid: $$, version: $(osqueryd --version 2>&1 | awk '{print \\$3}'), uuid: $(ioreg -rd1 -c IOPlatformExpertDevice | awk -F' = ' '/IOPlatformUUID/ {gsub(/\\\"/, \\\"\\\", \\$2); print \\$2; exit}')\""
   purpose: Informational
   tags: built-in
 ---
@@ -759,7 +756,6 @@ spec:
     SELECT *,
             (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
           FROM osquery_schedule
-  bash: delim=$(sqlite3 /var/osquery/osquery.db "SELECT value FROM osquery_flags WHERE name = 'pack_delimiter'") && sqlite3 /var/osquery/osquery.db "SELECT *, '$delim' AS delimiter FROM osquery_schedule"
   purpose: Informational
   tags: built-in
 ---
@@ -1074,8 +1070,6 @@ spec:
       '' AS arch,
       path AS installed_path
     FROM python_packages
-  bash: echo "$(dscl . -list /Users UniqueID | awk '$2 >= 500 {print $1}' | grep -vE '^(sync|_|.*\$)') $(pkgutil --pkgs | xargs -I{} sh -c 'pkgutil --pkg-info={} | awk -v pkg={} "/^version:/ {print pkg, $2}"') $(find /Users -type d -name "node_modules" -prune -o -type f -name "package.json" -exec sh -c 'jq -r ".name + \" \" + .version" {} 2>/dev/null' \;) $(find /Users -type d -name "Library/Application Support/Google/Chrome/Default/Extensions" -prune -o -type f -name "manifest.json" -exec sh -c 'jq -r ".name + \" \" + .version + \" chrome_extensions \" + .key" {} 2>/dev/null' \;) $(find /Users -type d -name "Library/Application Support/Mozilla/Extensions" -prune -o -type f -name "install.rdf" -exec grep -E "<em:name>|<em:version>" {} 2>/dev/null | sed -n 'N;s/\n/ /p' | sed 's/<[^>]*>//g' | awk '{print $1, $2, "firefox_addons"}') $(pip list --format=freeze | awk -F'==' '{print $1, $2, "python_packages"}')"
-
   purpose: Informational
   tags: built-in
 ---
@@ -1536,7 +1530,7 @@ spec:
         seconds = $seconds
         pretty  = $pretty
     } | Format-Table -AutoSize
-  bash: t=$(cut -d' ' -f1 /proc/uptime); t=${t%%.*}; echo "days=$((t/86400)) hours=$(((t%86400)/3600)) minutes=$(((t%3600)/60)) total_secs=$t"
+  bash: uptime
   purpose: Informational
   tags: built-in
 ---
