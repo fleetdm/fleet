@@ -103,7 +103,7 @@ func (p *Proxy) EnterprisesCreate(ctx context.Context, enabledNotificationTypes 
 }
 
 func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
-	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID)
+	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub client: %w", err)
 	}
@@ -118,8 +118,17 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub topic: %w", err)
 	}
+	policy, err := topic.IAM().Policy(ctx) // Ensure the topic exists before creating the subscription
+	if err != nil {
+		return "", fmt.Errorf("getting PubSub topic policy: %w", err)
+	}
+	policy.Add("serviceAccount:android-cloud-policy@system.gserviceaccount.com", "roles/pubsub.publisher")
+	if err := topic.IAM().SetPolicy(ctx, policy); err != nil {
+		return "", fmt.Errorf("setting PubSub subscription policy: %w", err)
+	}
+	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
 
-	sub, err := pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
+	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
 		Topic:       topic,
 		AckDeadline: 60 * time.Second,
 		PushConfig: pubsub.PushConfig{
@@ -131,19 +140,21 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 		return "", fmt.Errorf("creating PubSub subscription: %w", err)
 	}
 
-	policy, err := sub.IAM().Policy(ctx)
-	if err != nil {
-		return "", fmt.Errorf("getting PubSub subscription policy: %w", err)
-	}
-	policy.Add("serviceAccount:android-cloud-policy@system.gserviceaccount.com", "roles/pubsub.publisher")
-	if err := sub.IAM().SetPolicy(ctx, policy); err != nil {
-		return "", fmt.Errorf("setting PubSub subscription policy: %w", err)
-	}
-
-	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
 	// TODO(fleetdm.com): Cleanup the PubSub topics not associated with enterprises (e.g. if the enterprise creation fails)
 
 	return topic.String(), nil
+}
+
+func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
+	fullPolicyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, policyName)
+	_, err := p.mgmt.Enterprises.Policies.Patch(fullPolicyName, policy).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android policy not modified", "enterprise_id", enterpriseID, "policy_name", policyName)
+	case err != nil:
+		return fmt.Errorf("patching policy %s: %w", fullPolicyName, err)
+	}
+	return nil
 }
 
 func (p *Proxy) EnterpriseDelete(enterpriseID string) error {

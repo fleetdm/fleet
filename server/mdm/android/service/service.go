@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 type Service struct {
@@ -162,6 +163,28 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
+	}
+
+	const policyName = "default"
+	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, policyName, &androidmanagement.Policy{
+		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
+			ApplicationReportsEnabled:    true,
+			DeviceSettingsEnabled:        true,
+			SoftwareInfoEnabled:          true,
+			MemoryInfoEnabled:            true,
+			NetworkInfoEnabled:           true,
+			DisplayInfoEnabled:           true,
+			PowerManagementEventsEnabled: true,
+			HardwareStatusEnabled:        true,
+			SystemPropertiesEnabled:      true,
+			ApplicationReportingSettings: &androidmanagement.ApplicationReportingSettings{
+				IncludeRemovedApps: true,
+			},
+			CommonCriteriaModeEnabled: true,
+		},
+	})
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "patching %s policy", policyName)
 	}
 
 	err = svc.ds.DeleteOtherEnterprises(ctx, id)
