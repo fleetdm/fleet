@@ -22,5 +22,11 @@
       padding-top: 0;
       border-top: none;
     }
+
+    dl {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-xsmall;
+    }
   }
 }

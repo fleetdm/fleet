@@ -1128,7 +1128,7 @@ const HostDetailsPage = ({
           />
         )}
 
-        {true && (
+        {selectedCertificate && (
           <CertificateDetailsModal
             certificate={createMockHostCertificate()}
             onExit={() => setSelectedCertificate(null)}

@@ -27,18 +27,22 @@ const CertificateDetailsModal = ({
               <DataSet
                 title="Country or region"
                 value={certificate.subject.country}
+                orientation="horizontal"
               />
               <DataSet
                 title="Organization"
                 value={certificate.subject.organization}
+                orientation="horizontal"
               />
               <DataSet
                 title="Organizational unit"
                 value={certificate.subject.organizational_unit}
+                orientation="horizontal"
               />
               <DataSet
                 title="Common name"
                 value={certificate.subject.common_name}
+                orientation="horizontal"
               />
             </dl>
           </div>
@@ -48,18 +52,22 @@ const CertificateDetailsModal = ({
               <DataSet
                 title="Country or region"
                 value={certificate.issuer.country}
+                orientation="horizontal"
               />
               <DataSet
                 title="Organization"
                 value={certificate.issuer.organization}
+                orientation="horizontal"
               />
               <DataSet
                 title="Organizational unit"
                 value={certificate.issuer.organizational_unit}
+                orientation="horizontal"
               />
               <DataSet
                 title="Common name"
                 value={certificate.issuer.common_name}
+                orientation="horizontal"
               />
             </dl>
           </div>
@@ -69,28 +77,48 @@ const CertificateDetailsModal = ({
               <DataSet
                 title="Not valid before"
                 value={certificate.not_valid_before}
+                orientation="horizontal"
               />
               <DataSet
                 title="Not valid after"
                 value={certificate.not_valid_after}
+                orientation="horizontal"
               />
             </dl>
           </div>
           <div className={`${baseClass}__section`}>
             <h3>Key info</h3>
             <dl>
-              <DataSet title="Algorithm" value={certificate.key_algorithm} />
-              <DataSet title="Key size" value={certificate.key_strength} />
-              <DataSet title="Key usage" value={certificate.key_usage} />
-              <DataSet title="Serial number" value={certificate.serial} />
+              <DataSet
+                title="Algorithm"
+                value={certificate.key_algorithm}
+                orientation="horizontal"
+              />
+              <DataSet
+                title="Key size"
+                value={certificate.key_strength}
+                orientation="horizontal"
+              />
+              <DataSet
+                title="Key usage"
+                value={certificate.key_usage}
+                orientation="horizontal"
+              />
+              <DataSet
+                title="Serial number"
+                value={certificate.serial}
+                orientation="horizontal"
+              />
             </dl>
           </div>
+
           <div className={`${baseClass}__section`}>
             <h3>Basic constraints</h3>
             <dl>
               <DataSet
                 title="Certificate authority"
                 value={certificate.certificate_authority ? "Yes" : "No"}
+                orientation="horizontal"
               />
             </dl>
           </div>
@@ -100,6 +128,7 @@ const CertificateDetailsModal = ({
               <DataSet
                 title="Algorithm"
                 value={certificate.signing_algorithm}
+                orientation="horizontal"
               />
             </dl>
           </div>
