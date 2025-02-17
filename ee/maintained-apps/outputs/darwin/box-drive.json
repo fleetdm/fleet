@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "2.43.205",
+      "installer_url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.43.205.pkg",
+      "unique_identifier": "com.box.desktop",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop';"
+      }
+    }
+  ]
+}

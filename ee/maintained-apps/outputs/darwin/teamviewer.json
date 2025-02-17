@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "15.62.4",
+      "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.62.4/TeamViewer.pkg",
+      "unique_identifier": "com.teamviewer.TeamViewer",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
+      }
+    }
+  ]
+}

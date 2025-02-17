@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "135.0",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/135.0/mac/en-US/Firefox%20135.0.dmg",
+      "unique_identifier": "org.mozilla.firefox",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';"
+      }
+    }
+  ]
+}

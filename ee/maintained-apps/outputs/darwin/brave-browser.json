@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "1.75.178.0",
+      "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/175.178/Brave-Browser-arm64.dmg",
+      "unique_identifier": "com.brave.Browser",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';"
+      }
+    }
+  ]
+}

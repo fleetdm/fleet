@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "6.3.10.49367",
+      "installer_url": "https://cdn.zoom.us/prod/6.3.10.49367/ZoomInstallerIT.pkg",
+      "unique_identifier": "us.zoom.xos",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';"
+      }
+    }
+  ]
+}

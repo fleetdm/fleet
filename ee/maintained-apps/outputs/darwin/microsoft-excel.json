@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "16.94.25020927",
+      "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.94.25020927_Installer.pkg",
+      "unique_identifier": "com.microsoft.Excel",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';"
+      }
+    }
+  ]
+}

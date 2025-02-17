@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "133.0.3065.69,1f23240b-ab7b-4f22-9b0f-dd3fc2639c09",
+      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1f23240b-ab7b-4f22-9b0f-dd3fc2639c09/MicrosoftEdge-133.0.3065.69.pkg",
+      "unique_identifier": "com.microsoft.edgemac",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
+      }
+    }
+  ]
+}

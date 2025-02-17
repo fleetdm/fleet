@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "8.10.60",
+      "installer_url": "https://downloads.1password.com/mac/1Password-8.10.60-aarch64.zip",
+      "unique_identifier": "com.adobe.Reader",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';"
+      }
+    }
+  ]
+}

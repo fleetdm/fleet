@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "125.0.8",
+      "installer_url": "https://desktop.figma.com/mac-arm/Figma-125.0.8.zip",
+      "unique_identifier": "com.figma.Desktop",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';"
+      }
+    }
+  ]
+}

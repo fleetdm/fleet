@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "2.25.1.83",
+      "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.1.83&extension=zip&configuration=Release&branch=relbranch",
+      "unique_identifier": "net.whatsapp.WhatsApp",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
+      }
+    }
+  ]
+}

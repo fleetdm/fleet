@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "4.5.0",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-4.5.0-arm64.dmg",
+      "unique_identifier": "notion.id",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
+      }
+    }
+  ]
+}

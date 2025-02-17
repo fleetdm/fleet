@@ -1,1 +1,12 @@
-{}
+{
+  "versions": [
+    {
+      "version": "25016.1904.3401.2239",
+      "installer_url": "https://statics.teams.cdn.office.net/production-osx/25016.1904.3401.2239/MicrosoftTeams.pkg",
+      "unique_identifier": "com.microsoft.teams2",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';"
+      }
+    }
+  ]
+}
