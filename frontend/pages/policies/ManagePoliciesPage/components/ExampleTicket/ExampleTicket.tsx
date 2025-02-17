@@ -37,7 +37,7 @@ const ExampleTicket = ({
     );
 
   return (
-    <Card className={baseClass} color="gray">
+    <Card className={baseClass} color="grey">
       {screenshot}
     </Card>
   );

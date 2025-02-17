@@ -8,7 +8,7 @@ const baseClass = "setup-assistant-preview";
 
 const SetupAssistantPreview = () => {
   return (
-    <Card color="gray" paddingSize="xxlarge" className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
         After the end user continues past the <b>Remote Management</b> screen,
