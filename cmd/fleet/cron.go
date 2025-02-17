@@ -1504,7 +1504,7 @@ func newRefreshVPPAppVersionsSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
-		defaultInterval = 24 * time.Hour
+		defaultInterval = 1 * time.Hour
 	)
 
 	logger = kitlog.With(logger, "cron", name)
