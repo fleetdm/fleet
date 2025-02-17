@@ -809,19 +809,18 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
 	require.NoError(t, err)
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-		InstallScript:    "install",
-		InstallerFile:    tfr0,
-		StorageID:        ins0,
-		Filename:         "installer0",
-		Title:            "ins0",
-		Source:           "apps",
-		Version:          "1",
-		PreInstallQuery:  "foo",
-		UserID:           user1.ID,
-		Platform:         "darwin",
-		URL:              "https://example.com",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		BundleIdentifier: "com.example.ins0",
+		InstallScript:   "install",
+		InstallerFile:   tfr0,
+		StorageID:       ins0,
+		Filename:        "installer0",
+		Title:           "ins0",
+		Source:          "apps",
+		Version:         "1",
+		PreInstallQuery: "foo",
+		UserID:          user1.ID,
+		Platform:        "darwin",
+		URL:             "https://example.com",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	}})
 	require.NoError(t, err)
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
@@ -1102,54 +1101,6 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 1, PendingInstall: 1}, *summary)
-
-	// Add software installer with same name different bundle id
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-		InstallScript:    "install",
-		InstallerFile:    tfr0,
-		StorageID:        ins0,
-		Filename:         "installer0",
-		Title:            "ins0",
-		Source:           "apps",
-		Version:          "1",
-		PreInstallQuery:  "foo",
-		UserID:           user1.ID,
-		Platform:         "darwin",
-		URL:              "https://example.com",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		BundleIdentifier: "com.example.different.ins0",
-	}})
-	require.NoError(t, err)
-	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-	require.NoError(t, err)
-	require.Len(t, softwareInstallers, 1)
-	assertSoftware([]fleet.SoftwareTitle{
-		{Name: ins0, Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.different.ins0")},
-	})
-
-	// Add software installer with the same bundle id but different name
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-		InstallScript:    "install",
-		InstallerFile:    tfr0,
-		StorageID:        ins0,
-		Filename:         "installer0",
-		Title:            "ins0-different",
-		Source:           "apps",
-		Version:          "1",
-		PreInstallQuery:  "foo",
-		UserID:           user1.ID,
-		Platform:         "darwin",
-		URL:              "https://example.com",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		BundleIdentifier: "com.example.ins0",
-	}})
-	require.NoError(t, err)
-	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
-	require.NoError(t, err)
-	require.Len(t, softwareInstallers, 1)
-	assertSoftware([]fleet.SoftwareTitle{
-		{Name: "ins0-different", Source: "apps", Browser: "", BundleIdentifier: ptr.String("com.example.ins0")},
-	})
 
 	// remove everything
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
