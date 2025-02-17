@@ -589,7 +589,6 @@ const UserForm = ({
         id="password-authentication"
         // allow the user to change auth back to password if they only changed the form to SSO in
         // the current session, that is, in the db, the user is still password authenticated
-        disabled={!(smtpConfigured || sesConfigured) && !initiallyPasswordAuth}
         checked={!formData.sso_enabled}
         value="false"
         name="authentication-type"
