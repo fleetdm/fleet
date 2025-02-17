@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
