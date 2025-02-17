@@ -810,6 +810,18 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_gitops_mode
+
+Generated when a user enables GitOps mode.
+
+This activity does not contain any detail fields.
+
+## disabled_gitops_mode
+
+Generated when a user disables GitOps mode.
+
+This activity does not contain any detail fields.
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).

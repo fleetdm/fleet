@@ -107,6 +107,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
+	ActivityTypeEnabledGitOpsMode{},
+	ActivityTypeDisabledGitOpsMode{},
+
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
 
@@ -1150,6 +1153,26 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledGitOpsMode struct{}
+
+func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
+	return "enabled_gitops_mode"
+}
+
+func (a ActivityTypeEnabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledGitOpsMode struct{}
+
+func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
+	return "disabled_gitops_mode"
+}
+
+func (a ActivityTypeDisabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables GitOps mode.`, `This activity does not contain any detail fields.`, ``
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
