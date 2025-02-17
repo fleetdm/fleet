@@ -37,10 +37,10 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={classNames}
     >
-      <p className="card__header">Labels</p>
+      <h2>Labels</h2>
       {labels.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.

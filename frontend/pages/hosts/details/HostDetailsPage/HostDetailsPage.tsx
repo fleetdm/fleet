@@ -32,6 +32,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IHostUpcomingActivity } from "interfaces/activity";
+import { IHostCertificate } from "interfaces/certificates";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -40,6 +41,7 @@ import {
   HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
 import { isIPadOrIPhone } from "interfaces/platform";
@@ -72,10 +74,12 @@ import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import CertificatesCard from "../cards/Certificates";
+
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
@@ -94,6 +98,7 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 
 const baseClass = "host-details";
 
@@ -163,6 +168,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -200,6 +206,10 @@ const HostDetailsPage = ({
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -444,6 +454,19 @@ const HostDetailsPage = ({
     {
       keepPreviousData: true,
       staleTime: 2000,
+    }
+  );
+
+  const {
+    data: hostCertificates,
+    isLoading: isLoadingHostCertificates,
+    isError: isErrorHostCertificates,
+  } = useQuery(
+    ["hostCertificates", host_id],
+    () => hostAPI.getHostCertificates(hostIdFromURL),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!hostIdFromURL,
     }
   );
 
@@ -705,6 +728,10 @@ const HostDetailsPage = ({
     setSelectedCancelActivity(activity);
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -800,11 +827,13 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost =
     host.platform === "ios" || host.platform === "ipados";
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
   return (
@@ -904,6 +933,14 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
+              {(isIosOrIpadosHost || isDarwinHost) &&
+                hostCertificates?.certificates.length && (
+                  <CertificatesCard
+                    data={hostCertificates}
+                    hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
+                  />
+                )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
@@ -1087,6 +1124,12 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancel={() => setSelectedCancelActivity(null)}
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </>

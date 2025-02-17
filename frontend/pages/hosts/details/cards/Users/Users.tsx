@@ -63,11 +63,11 @@ const Users = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       <>
-        <p className="card__header">Users</p>
+        <h2 className="card__header">Users</h2>
         {users?.length ? (
           <TableContainer
             columnConfigs={tableHeaders}

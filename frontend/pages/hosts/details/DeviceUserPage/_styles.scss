@@ -27,6 +27,12 @@
     transform: scale(0.5);
   }
 
+  &__details-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: $pad-large;
+  }
+
   &__error {
     display: flex;
     flex-direction: column;

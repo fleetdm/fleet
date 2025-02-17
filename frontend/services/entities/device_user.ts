@@ -1,8 +1,11 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IDeviceSoftware } from "interfaces/software";
+import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+import { createMockGetHostCertificatesResponse } from "__mocks__/certificatesMock";
+
 import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -25,6 +28,14 @@ export interface IGetDeviceSoftwareResponse {
 interface IGetDeviceDetailsRequest {
   token: string;
   exclude_software?: boolean;
+}
+
+export interface IGetDeviceCertificatesResponse {
+  certificates: IHostCertificate[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export default {
@@ -73,5 +84,17 @@ export default {
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
     return sendRequest("POST", path);
+  },
+
+  getDeviceCertificates: (
+    deviceToken: string
+  ): Promise<IGetDeviceCertificatesResponse> => {
+    const { DEVICE_CERTIFICATES } = endpoints;
+    const path = DEVICE_CERTIFICATES(deviceToken);
+
+    // return sendRequest("GET", path);
+    return new Promise((resolve) => {
+      resolve(createMockGetHostCertificatesResponse());
+    });
   },
 };

@@ -17,6 +17,7 @@ import {
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
+import { IHostCertificate } from "interfaces/certificates";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -30,6 +31,7 @@ import FlashMessage from "components/FlashMessage";
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
   HOST_SUMMARY_DATA,
@@ -55,6 +57,8 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 
 const baseClass = "device-user";
 
@@ -117,6 +121,10 @@ const DeviceUserPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -142,6 +150,19 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
+    }
+  );
+
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+  } = useQuery(
+    ["hostCertificates", deviceAuthToken],
+    () => deviceUserAPI.getDeviceCertificates(deviceAuthToken),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!deviceUserAPI,
     }
   );
 
@@ -327,6 +348,10 @@ const DeviceUserPage = ({
     }
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -351,6 +376,10 @@ const DeviceUserPage = ({
     // or team config (as applicable)
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
+
+    const isDarwinHost = host?.platform === "darwin";
+    const isIosOrIpadosHost =
+      host?.platform === "ios" || host?.platform === "ipados";
 
     return (
       <div className="core-wrapper">
@@ -412,12 +441,21 @@ const DeviceUserPage = ({
                     </Tab>
                   )}
                 </TabList>
-                <TabPanel>
+                <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {(isIosOrIpadosHost || isDarwinHost) &&
+                    deviceCertificates?.certificates.length && (
+                      <CertificatesCard
+                        isMyDevicePage
+                        data={deviceCertificates}
+                        hostPlatform={host.platform}
+                        onSelectCertificate={onSelectCertificate}
+                      />
+                    )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
@@ -516,6 +554,12 @@ const DeviceUserPage = ({
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
             hideInstallDetails
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </div>
