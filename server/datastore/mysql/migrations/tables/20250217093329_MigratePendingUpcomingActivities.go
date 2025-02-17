@@ -25,7 +25,9 @@ func Up_20250217093329(tx *sql.Tx) error {
 	if err := migrateVPPInstalls(tx); err != nil {
 		return err
 	}
-
+	if err := migrateScriptExecs(tx); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -242,6 +244,86 @@ WHERE
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending vpp app installs secondary table: %w", err)
+	}
+	return nil
+}
+
+func migrateScriptExecs(tx *sql.Tx) error {
+	// we don't want to migrate software uninstall scripts (those are already
+	// covered by the software uninstalls), but we don't have anything special to
+	// do as we will automatically ignore them with the left join on
+	// upcoming_activities (and the fact that software uninstalls are processed
+	// before scripts), because the uninstall scripts have the same execution id
+	// as the corresponding software uninstall.
+	_, err := tx.Exec(`
+INSERT INTO upcoming_activities
+	(
+		host_id, 
+		priority, 
+		user_id, 
+		fleet_initiated, 
+		activity_type, 
+		execution_id, 
+		payload,
+		activated_at
+	)
+SELECT
+	hsr.host_id,
+	0,
+	hsr.user_id,
+	hsr.policy_id IS NOT NULL, -- true if fleet-initiated
+	'script',
+	hsr.execution_id,
+	JSON_OBJECT(
+		'sync_request', hsr.sync_request,
+		'is_internal', hsr.is_internal,
+		'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = hsr.user_id)
+	),
+	hsr.created_at
+FROM
+	host_script_results hsr
+	LEFT OUTER JOIN upcoming_activities ua
+		ON hsr.execution_id = ua.execution_id
+WHERE
+	ua.id IS NULL AND -- ensure no duplicates in case the migration needs to re-run after failure
+	hsr.exit_code IS NULL AND -- script is pending execution
+	hsr.host_deleted_at IS NULL
+`)
+	if err != nil {
+		return fmt.Errorf("failed to insert pending script executions: %w", err)
+	}
+
+	_, err = tx.Exec(`
+INSERT INTO script_upcoming_activities
+	(
+		upcoming_activity_id, 
+		script_id, 
+		script_content_id, 
+		policy_id, 
+		setup_experience_script_id,
+		created_at
+	)
+SELECT
+	ua.id,
+	hsr.script_id,
+	hsr.script_content_id,
+	hsr.policy_id,
+	hsr.setup_experience_script_id,
+	hsr.created_at
+FROM
+	upcoming_activities ua
+	INNER JOIN host_script_results hsr
+		ON hsr.execution_id = ua.execution_id
+	LEFT OUTER JOIN script_upcoming_activities sua
+		ON sua.upcoming_activity_id = ua.id
+WHERE
+	ua.activity_type = 'script' AND
+	hsr.exit_code IS NULL AND
+	hsr.host_deleted_at IS NULL AND
+	sia.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+`)
+	if err != nil {
+		return fmt.Errorf("failed to insert pending script executions secondary table: %w", err)
 	}
 	return nil
 }
