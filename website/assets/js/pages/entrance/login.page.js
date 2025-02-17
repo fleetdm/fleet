@@ -44,6 +44,12 @@ parasails.registerPage('login', {
       this.pageToRedirectToAfterLogin = '/new-license#login';
       window.location.hash = '';
     }
+    // If we're redirecting this user to the contact form after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
+    if(window.location.hash && window.location.hash === '#contact'){
+      this.registerSlug = '/register';
+      this.pageToRedirectToAfterLogin = '/contact?sendMessage';
+      window.location.hash = '';
+    }
   },
   mounted: async function() {
     //…

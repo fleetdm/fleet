@@ -36,6 +36,7 @@ func TestVPP(t *testing.T) {
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
 		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
 		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
+		{"TestGetAllVPPApps", testGetAllVPPApps},
 	}
 
 	for _, c := range cases {
@@ -1888,4 +1889,36 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
 	}
+}
+
+func testGetAllVPPApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org"+t.Name(), "Location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+
+	// this method doesn't pull the VPPAppTeamID
+	app1.AppTeamID = 0
+	app2.AppTeamID = 0
+	app3.AppTeamID = 0
+
+	apps, err := ds.GetAllVPPApps(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, apps, []*fleet.VPPApp{app1, app2, app3})
 }
