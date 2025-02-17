@@ -23,7 +23,7 @@ team_settings: # Only teams/team-name.yml
 
 Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
-### Environment variables
+#### Environment variables
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your YAML files. Use `$ENV_VARIABLE` format, for example:
 
