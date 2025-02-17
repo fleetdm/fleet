@@ -5,6 +5,7 @@ import { IHostCertificate } from "interfaces/certificates";
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+import { monthDayYearFormat } from "utilities/date_format";
 
 const baseClass = "certificate-details-modal";
 
@@ -76,12 +77,12 @@ const CertificateDetailsModal = ({
             <dl>
               <DataSet
                 title="Not valid before"
-                value={certificate.not_valid_before}
+                value={monthDayYearFormat(certificate.not_valid_before)}
                 orientation="horizontal"
               />
               <DataSet
                 title="Not valid after"
-                value={certificate.not_valid_after}
+                value={monthDayYearFormat(certificate.not_valid_after)}
                 orientation="horizontal"
               />
             </dl>
