@@ -23,6 +23,19 @@ team_settings: # Only teams/team-name.yml
 
 Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
+### Environment variables
+
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your YAML files. Use `$ENV_VARIABLE` format, for example:
+
+```yaml
+agent_options:
+  config:
+    options:
+      distributed_interval: $DISTRIBUTED_INTERVAL_SETTING
+```
+
+> Note that while using variables with multi-line values is also supported, it can be challenging to do correctly.  Specifically, the value must be formatted such that when the variable is expanded, the indentation of each line is valid for its location in the YAML.  If set incorrectly, you may receive errors like `failed to unmarshal file error converting YAML to JSON` when running your GitOps command.
+
 ## policies
 
 Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.
@@ -299,8 +312,6 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
 
 Use `labels_include_all` to target hosts that have all labels in the array, `labels_include_any` to target hosts that have any label in the array, or `labels_exclude_any` to target hosts that don't have any of the labels in the array. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
-
-> Note that while using variables with multi-line values is supported, it can be challenging to incorporate nested YAML settings into a variable.  Specifically, the value must be formatted such that when the variable is expanded, the indentation of each line is valid for its location in the YAML.  If set incorrectly, you may receive errors like `failed to unmarshal file error converting YAML to JSON` when running your GitOps command.
 
 ### macos_setup
 
