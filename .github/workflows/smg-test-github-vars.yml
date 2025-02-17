@@ -21,6 +21,8 @@ env:
 
 permissions:
   contents: read
+  id-token: write # for aws-actions/configure-aws-credentials
+
 
 jobs:
   send_vars:
