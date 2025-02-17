@@ -9569,6 +9569,7 @@ Returns information about the specified Fleet-maintained app.
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+    "software_added": false
   }
 }
 ```
