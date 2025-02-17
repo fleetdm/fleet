@@ -258,12 +258,12 @@ func migrateScriptExecs(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 INSERT INTO upcoming_activities
 	(
-		host_id, 
-		priority, 
-		user_id, 
-		fleet_initiated, 
-		activity_type, 
-		execution_id, 
+		host_id,
+		priority,
+		user_id,
+		fleet_initiated,
+		activity_type,
+		execution_id,
 		payload,
 		activated_at
 	)
@@ -296,10 +296,10 @@ WHERE
 	_, err = tx.Exec(`
 INSERT INTO script_upcoming_activities
 	(
-		upcoming_activity_id, 
-		script_id, 
-		script_content_id, 
-		policy_id, 
+		upcoming_activity_id,
+		script_id,
+		script_content_id,
+		policy_id,
 		setup_experience_script_id,
 		created_at
 	)
@@ -320,7 +320,7 @@ WHERE
 	ua.activity_type = 'script' AND
 	hsr.exit_code IS NULL AND
 	hsr.host_deleted_at IS NULL AND
-	sia.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+	sua.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending script executions secondary table: %w", err)

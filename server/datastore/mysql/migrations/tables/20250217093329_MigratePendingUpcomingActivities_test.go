@@ -2,19 +2,9 @@ package tables
 
 import "testing"
 
-func TestUp_20250217093329(t *testing.T) {
+func TestUp_20250217093329_None(t *testing.T) {
 	db := applyUpToPrev(t)
-
-	//
-	// Insert data to test the migration
-	//
-	// ...
-
 	// Apply current migration.
 	applyNext(t, db)
-
-	//
-	// Check data, insert new entries, e.g. to verify migration is safe.
-	//
-	// ...
+	assertRowCount(t, db, "upcoming_activities", 0)
 }
