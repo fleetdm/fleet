@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';"
       },
       "install_script_ref": "19ac6a43-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac6e5f-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac6e5f-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "63a283bf5a022a221478df5630fb3e2b160bc20f3a7c13f09f350241cbf2b16e"
     }
   ],
   "refs": {

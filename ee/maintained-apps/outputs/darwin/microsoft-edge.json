@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
       },
       "install_script_ref": "19ac4c3d-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac4dd7-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac4dd7-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "5ea3058eb400e8d92d7861ce303a9b58f30d28c64b05945d5e5f0513e6dc8b6b"
     }
   ],
   "refs": {

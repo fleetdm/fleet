@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';"
       },
       "install_script_ref": "19ac18bc-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac19d9-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac19d9-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "29fe402d5a64d86565ae4ad69f19158b3c4d710c2ccfc6e1feb0d21239a2149e"
     }
   ],
   "refs": {

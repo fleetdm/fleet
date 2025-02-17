@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';"
       },
       "install_script_ref": "19ac9d72-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac9e40-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac9e40-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "567ba4fae5545586a0bff02eea263d59873fcf488368a9a9ccf3d4c22dfa8ebc"
     }
   ],
   "refs": {

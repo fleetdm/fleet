@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
       },
       "install_script_ref": "19ac975b-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac985e-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac985e-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "9a631df3413128b64485e837fdeef683f152a73c643eb1d611f5ccacd58dbf16"
     }
   ],
   "refs": {

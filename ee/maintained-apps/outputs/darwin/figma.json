@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';"
       },
       "install_script_ref": "19ac251c-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac26a9-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac26a9-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "eb765f11a1526e3f98d12d8eff1c1f587058291418fd5f2e1e6d5f25e941d9bc"
     }
   ],
   "refs": {

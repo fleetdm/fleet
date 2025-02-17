@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
       "install_script_ref": "19ac79e9-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac7ba1-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac7ba1-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "0dfd1598e04501104c8e304477a248c61956fc95d94d436f21f4704b0d4e4a90"
     }
   ],
   "refs": {

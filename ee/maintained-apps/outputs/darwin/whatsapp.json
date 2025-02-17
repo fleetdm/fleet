@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
       },
       "install_script_ref": "19acafbf-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19acb0c6-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19acb0c6-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "1844b54471bd62f8182760b03e3fe65751a5825bedf65441fd97fed24453124d"
     }
   ],
   "refs": {

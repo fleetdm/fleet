@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';"
       },
       "install_script_ref": "19ac51c7-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac532e-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac532e-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "7ba1fd596243a955975a111242877cc5c5a08fb184fe40db9ed7a5aad6923d27"
     }
   ],
   "refs": {

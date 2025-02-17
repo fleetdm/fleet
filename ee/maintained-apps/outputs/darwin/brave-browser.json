@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';"
       },
       "install_script_ref": "19abe0bf-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19abe347-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19abe347-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "87fbadfa852feea93caca5b3f6b8061257d9210c66ecee97408e4d3eb38dec5d"
     }
   ],
   "refs": {

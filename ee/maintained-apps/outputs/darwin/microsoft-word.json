@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Word';"
       },
       "install_script_ref": "19ac7579-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac7675-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac7675-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "77864ce4f0033ef33d3c9bfdd901522cebf85b1c834d991923e8a287bf302cb9"
     }
   ],
   "refs": {

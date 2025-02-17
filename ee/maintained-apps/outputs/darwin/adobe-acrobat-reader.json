@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';"
       },
       "install_script_ref": "19abc536-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19abc828-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19abc828-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "37fa04f8e633085a36f598ea94cb1da0245b2fc9eca898f7198880026dad5bd1"
     }
   ],
   "refs": {

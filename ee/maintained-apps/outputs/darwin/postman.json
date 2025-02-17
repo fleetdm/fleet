@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac';"
       },
       "install_script_ref": "19ac8c6f-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac8ee9-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac8ee9-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "d890a56a301b4678be5bfe9ecdc0ba00f4205695aee16f21fea8166cdbd9681e"
     }
   ],
   "refs": {

@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cloudflare.1dot1dot1dot1.macos';"
       },
       "install_script_ref": "19ac0ea2-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac110b-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac110b-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "1cc6d8a35452216165000266e13a03ac893dfc6b13302ea226fea6357c907a6d"
     }
   ],
   "refs": {

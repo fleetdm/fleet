@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';"
       },
       "install_script_ref": "19ac3c87-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac3e07-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac3e07-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "e55e24e6b2a4980f4b9091900835977b282f599dcdd5e38b753d95bad8a11da9"
     }
   ],
   "refs": {

@@ -8,7 +8,8 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';"
       },
       "install_script_ref": "19ac9218-ed65-11ef-8c2d-0242ac12000a",
-      "uninstall_script_ref": "19ac9342-ed65-11ef-8c2d-0242ac12000a"
+      "uninstall_script_ref": "19ac9342-ed65-11ef-8c2d-0242ac12000a",
+      "sha256": "93e8406c6b515815889c63f99e26d1de485aaf820471a107c8f41da4a219d1db"
     }
   ],
   "refs": {
