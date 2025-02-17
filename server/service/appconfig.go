@@ -232,7 +232,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 type modifyAppConfigRequest struct {
 	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
 	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	GitOps bool `json:"-" query:"gitops,optional"`  // if true, perform gitops specific behavior
 	json.RawMessage
 }
 
@@ -241,7 +240,6 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
 		DryRun: req.DryRun,
-		GitOps: req.GitOps,
 	})
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
@@ -709,10 +707,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
 	}
 
-	// We reset the abm tokens team to the default team differently depending on
-	// if the requst comes from gitops or is an empty array.
-	if applyOpts.GitOps ||
-		(newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0) {
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
 		for _, tok := range toks {
 			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
 				tok.MacOSDefaultTeamID = nil
