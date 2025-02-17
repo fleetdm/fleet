@@ -1,9 +1,8 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
-import { IPolicyStats } from "interfaces/policy";
 import {
   CommaSeparatedPlatformString,
   Platform,
@@ -23,14 +22,15 @@ import Modal from "components/Modal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import Button from "components/buttons/Button";
 import {
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
 
-import PoliciesPaginatedList from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -43,13 +43,6 @@ const formatSoftwarePlatform = (source: InstallableSoftwareSource) => {
 interface ISwDropdownField {
   name: string;
   value: number;
-}
-interface IFormPolicy {
-  name: string;
-  id: number;
-  installSoftwareEnabled: boolean;
-  swIdToInstall?: number;
-  platform: CommaSeparatedPlatformString;
 }
 
 export type IInstallSoftwareFormData = IFormPolicy[];
@@ -230,7 +223,6 @@ const InstallSoftwareModal = ({
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
-          <div className="form-field__label">Policies:</div>
           <div>
             <PoliciesPaginatedList
               ref={paginatedListRef}
@@ -244,11 +236,8 @@ const InstallSoftwareModal = ({
               }}
               renderItemRow={(item, onChange) => {
                 const formPolicy = {
-                  name: item.name,
-                  id: item.id,
+                  ...item,
                   installSoftwareEnabled: !!item.swIdToInstall,
-                  swIdToInstall: item.swIdToInstall,
-                  platform: item.platform,
                 };
                 return item.installSoftwareEnabled ? (
                   <Dropdown

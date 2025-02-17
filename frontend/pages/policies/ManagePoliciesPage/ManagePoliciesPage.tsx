@@ -538,35 +538,11 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.install_software !== undefined &&
-          formPolicy.installSoftwareEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.install_software === undefined &&
-          formPolicy.installSoftwareEnabled === true;
-
-        const updatedSwId =
-          prevPolicyState?.install_software?.software_title_id !== undefined &&
-          formPolicy.swIdToInstall !==
-            prevPolicyState?.install_software?.software_title_id;
-
-        return turnedOff || turnedOn || updatedSwId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
       const responses: Promise<
         ReturnType<typeof teamPoliciesAPI.update>
       >[] = [];
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             // "software_title_id": null will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).

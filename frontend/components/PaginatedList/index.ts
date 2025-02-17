@@ -1,1 +1,2 @@
-export { default, IPaginatedListHandle } from "./PaginatedList";
+export { default } from "./PaginatedList";
+export type { IPaginatedListHandle } from "./PaginatedList";

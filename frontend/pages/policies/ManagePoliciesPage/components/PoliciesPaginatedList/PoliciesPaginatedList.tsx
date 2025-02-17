@@ -19,6 +19,7 @@ export interface IFormPolicy {
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
   platform: CommaSeparatedPlatformString;
+  calendar_events_enabled: boolean;
 }
 
 interface IPoliciesPaginatedListProps {
