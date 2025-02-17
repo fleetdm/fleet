@@ -64,8 +64,9 @@ FROM
 	LEFT OUTER JOIN upcoming_activities ua
 		ON hsi.execution_id = ua.execution_id
 WHERE
-	ua.id IS NULL AND -- ensure no duplicates in case the migration needs to re-run after failure
-	hsi.status = 'pending_install'
+	ua.id IS NULL AND
+	hsi.status = 'pending_install' AND
+	hsi.host_deleted_at IS NULL
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending software installs: %w", err)
@@ -95,7 +96,8 @@ FROM
 WHERE
 	ua.activity_type = 'software_install' AND
 	hsi.status = 'pending_install' AND
-	sia.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+	hsi.host_deleted_at IS NULL AND
+	sia.upcoming_activity_id IS NULL
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending software installs secondary table: %w", err)
@@ -135,8 +137,9 @@ FROM
 	LEFT OUTER JOIN upcoming_activities ua
 		ON hsi.execution_id = ua.execution_id
 WHERE
-	ua.id IS NULL AND -- ensure no duplicates in case the migration needs to re-run after failure
-	hsi.status = 'pending_uninstall'
+	ua.id IS NULL AND
+	hsi.status = 'pending_uninstall' AND
+	hsi.host_deleted_at IS NULL 
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending software uninstalls: %w", err)
@@ -164,7 +167,8 @@ FROM
 WHERE
 	ua.activity_type = 'software_uninstall' AND
 	hsi.status = 'pending_uninstall' AND
-	sia.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+	hsi.host_deleted_at IS NULL AND
+	sia.upcoming_activity_id IS NULL
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending software uninstalls secondary table: %w", err)
@@ -205,7 +209,7 @@ FROM
 	LEFT OUTER JOIN upcoming_activities ua
 		ON hvi.command_uuid = ua.execution_id
 WHERE
-	ua.id IS NULL AND -- ensure no duplicates in case the migration needs to re-run after failure
+	ua.id IS NULL AND
 	nvq.status IS NULL AND
 	hvi.removed = 0
 `)
@@ -240,7 +244,7 @@ WHERE
 	ua.activity_type = 'vpp_app_install' AND
 	hvi.removed = 0 AND
 	nvq.status IS NULL AND
-	vaua.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+	vaua.upcoming_activity_id IS NULL
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending vpp app installs secondary table: %w", err)
@@ -285,7 +289,7 @@ FROM
 	LEFT OUTER JOIN upcoming_activities ua
 		ON hsr.execution_id = ua.execution_id
 WHERE
-	ua.id IS NULL AND -- ensure no duplicates in case the migration needs to re-run after failure
+	ua.id IS NULL AND
 	hsr.exit_code IS NULL AND -- script is pending execution
 	hsr.host_deleted_at IS NULL
 `)
@@ -320,7 +324,7 @@ WHERE
 	ua.activity_type = 'script' AND
 	hsr.exit_code IS NULL AND
 	hsr.host_deleted_at IS NULL AND
-	sua.upcoming_activity_id IS NULL -- ensure no duplicates in case the migration needs to re-run after failure
+	sua.upcoming_activity_id IS NULL
 `)
 	if err != nil {
 		return fmt.Errorf("failed to insert pending script executions secondary table: %w", err)
