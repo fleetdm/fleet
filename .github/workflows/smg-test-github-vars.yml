@@ -50,5 +50,5 @@ jobs:
           echo $DOGFOOD_MDM_SSO_METADATA_URL >> ./secrets.txt
 
       - name: Upload
-        run: aws s3 cp s3://fleet-test-1/secrets.txt ./secrets.txt
+        run: aws s3 cp ./secrets.txt s3://fleet-test-1/secrets.txt 
 
