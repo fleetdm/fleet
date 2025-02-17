@@ -9511,20 +9511,24 @@ List available Fleet-maintained apps.
       "id": 1,
       "name": "1Password",
       "version": "8.10.40",
-      "platform": "darwin"
+      "platform": "darwin",
+      "software_added": true
     },
     {
       "id": 2,
-      "name": "Adobe Acrobat Reader",
-      "version": "24.002.21005",
-      "platform": "darwin"
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "windows",
+      "software_added": true
     },
     {
       "id": 3,
       "name": "Box Drive",
       "version": "2.39.179",
-      "platform": "darwin"
+      "platform": "darwin",
+      "software_added": false
     },
+    ...
   ],
   "meta": {
     "has_next_results": false,
