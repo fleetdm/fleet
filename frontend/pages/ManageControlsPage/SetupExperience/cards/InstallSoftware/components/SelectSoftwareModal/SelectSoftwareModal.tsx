@@ -6,9 +6,9 @@ import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SelectSoftwareTable from "../SelectSoftwareTable";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "select-software-modal";
 
