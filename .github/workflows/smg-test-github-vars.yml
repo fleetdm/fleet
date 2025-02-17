@@ -25,12 +25,6 @@ permissions:
 jobs:
   send_vars:
     runs-on: ubuntu-latest
-    secrets:
-      DOGFOOD_END_USER_SSO_METADATA:
-        required: true
-      DOGFOOD_MDM_SSO_METADATA_URL:
-        required: true
-
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
