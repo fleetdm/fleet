@@ -300,6 +300,8 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 
 Use `labels_include_all` to target hosts that have all labels in the array, `labels_include_any` to target hosts that have any label in the array, or `labels_exclude_any` to target hosts that don't have any of the labels in the array. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
+> Note that while using variables with multi-line values is supported, it can be challenging to incorporate nested YAML settings into a variable.  Specifically, the value must be formatted such that when the variable is expanded, the indentation of each line is valid for its location in the YAML.  If set incorrectly, you may receive errors like `failed to unmarshal file error converting YAML to JSON` when running your GitOps command.
+
 ### macos_setup
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
