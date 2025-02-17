@@ -2603,7 +2603,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "platform": "windows",
       "hosts_count": 12044
     }
-
   ]
 }
 ```
@@ -5643,6 +5642,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
 | team_id | string | form | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+| manual_agent_install | boolean | form | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
