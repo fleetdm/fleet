@@ -43,7 +43,6 @@ spec:
             name='askForPasswordDelay' AND 
             value > 5
         );  
-  bash: ( ([ "$(defaults read "/Library/Managed Preferences/com.apple.screensaver" askForPassword 2>/dev/null)" = "1" ] || [ "$(defaults read "/Library/Managed Preferences/com.apple.screensaver" askForPassword 2>/dev/null)" = "true" ]) && [ "$(defaults read "/Library/Managed Preferences/com.apple.screensaver" askForPasswordDelay 2>/dev/null)" -le 5 ] 2>/dev/null && echo 1 ) || echo 0
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium,
   contributors: sharon-fdm,ddribeiro
@@ -107,7 +106,6 @@ spec:
             name='AutomaticCheckEnabled' AND 
             (value != 1 AND value != 'true')
         );  
-  bash: value=$(defaults read "/Library/Managed Preferences/com.apple.SoftwareUpdate" AutomaticCheckEnabled 2>/dev/null); [[ "$value" == "1" || "$value" == "true" ]] && echo 1 || echo 0
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium
   contributors: sharon-fdm,ddribeiro
@@ -1144,7 +1142,6 @@ kind: policy
 spec:
   name: Screen lock enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
-  bash: defaults read /Library/Preferences/com.apple.screensaver askForPassword 2>/dev/null | grep -q "^1$" && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
   tags: MDM required, compliance, hardening, built-in
@@ -1211,9 +1208,6 @@ kind: policy
 spec:
   name: Password requires 10 or more characters (macOS)
   query: SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);
-  bash: result=$(pwpolicy getglobalpolicy 2>/dev/null | awk -F'{' '{print $1}' |
-    awk -F'minLength=' '{print $2}' | cut -c1-2); if [ "${result:-0}" -ge 10 ]
-    2>/dev/null; then echo 1; else echo 0; fi
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
   resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platform: darwin
@@ -1271,7 +1265,6 @@ kind: policy
 spec:
   name: Automatic updates enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
-  bash: defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null | grep -q '^1$' && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
   tags: MDM required, compliance, CIS, CIS1.2
@@ -1379,8 +1372,6 @@ kind: policy
 spec:
   name: Automatic security and data file updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
-  bash: '[ "$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate
-    CriticalUpdateInstall 2>/dev/null)" = "1" ] && echo 1 || echo 0'
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
   tags: MDM required, compliance, CIS, CIS1.5
@@ -1426,8 +1417,6 @@ kind: policy
 spec:
   name: Automatic installation of operating system updates is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
-  bash: '[ "$(defaults read /Library/Managed Preferences/com.apple.SoftwareUpdate
-    AutomaticallyInstallMacOSUpdates 2>/dev/null)" = "1" ] && echo 1 || echo 0'
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
   tags: MDM required, compliance, CIS, CIS1.6
@@ -1520,12 +1509,6 @@ kind: policy
 spec:
   name: Lock screen after inactivity of 20 minutes or less (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
-  bash: a=$(defaults read "/Library/Managed Preferences/com.apple.screensaver"
-    askForPasswordDelay 2>/dev/null); b=$(defaults read "/Library/Managed
-    Preferences/com.apple.screensaver" idleTime 2>/dev/null); c=$(defaults read
-    "/Library/Managed Preferences/com.apple.screensaver" askForPassword
-    2>/dev/null); [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ "$a" -le 60 ]
-    && [ "$b" -le 1140 ] && [ "$c" -eq 1 ] && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
   tags: MDM required, compliance, CIS, CIS2.3.1, CIS5.8
@@ -1622,9 +1605,6 @@ kind: policy
 spec:
   name: Content caching is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
-  bash: '[ "$(defaults read /Library/Managed\
-    Preferences/com.apple.applicationaccess allowContentCaching 2>/dev/null)" =
-    "0" ] && echo 1 || echo 0'
   description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
   tags: MDM required, compliance, CIS, CIS2.4.10
@@ -1670,8 +1650,6 @@ kind: policy
 spec:
   name: Ad tracking is limited (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
-  bash: "[ \"$(defaults read '/Library/Managed Preferences/com.apple.AdLib'
-    forceLimitAdTracking 2>/dev/null)\" = \"1\" ] && echo 1 || echo 0"
   description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
   tags: MDM required, compliance, CIS, CIS2.5.6
@@ -1717,9 +1695,6 @@ kind: policy
 spec:
   name: iCloud Desktop and Document sync is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
-  bash: /usr/bin/defaults read "/Library/Managed
-    Preferences/com.apple.icloud.managed" DisableCloudSync 2>/dev/null | grep -q
-    '^1$' && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
   tags: MDM required, compliance, CIS, CIS2.6.1.4
@@ -1765,8 +1740,6 @@ kind: policy
 spec:
   name: Firewall logging is enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
-  bash: defaults read "/Library/Managed Preferences/com.apple.security.firewall"
-    EnableLogging 2>/dev/null | grep -q '^1$' && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
   tags: MDM required, compliance, CIS, CIS3.6
@@ -1814,8 +1787,6 @@ kind: policy
 spec:
   name: Guest account disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
-  bash: defaults read com.apple.AppleFileServer guestAccess 2>/dev/null | grep -q
-    '^0$' && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
   tags: MDM required, compliance, CIS, CIS6.1.3
@@ -1861,8 +1832,6 @@ kind: policy
 spec:
   name: Guest access to shared folders is disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
-  bash: defaults read com.apple.AppleFileServer guestAccess 2>/dev/null | grep -q
-    '^0$' && echo 1 || echo 0
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
   tags: MDM required, compliance, CIS, CIS6.1.4
