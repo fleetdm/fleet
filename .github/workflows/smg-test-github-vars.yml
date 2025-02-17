@@ -42,12 +42,12 @@ jobs:
 
       - name: Set up secret file
         env:
+          DOGFOOD_SSO_METADATA: ${{ secrets.DOGFOOD_SSO_METADATA }}
           DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
-          DOGFOOD_MDM_SSO_METADATA_URL: ${{ secrets.DOGFOOD_MDM_SSO_METADATA_URL }}
         run: |
-          echo $DOGFOOD_END_USER_SSO_METADATA >> ./secrets.txt
+          echo "$DOGFOOD_SSO_METADATA" >> ./secrets.txt
           echo "" >> ./secrets.txt
-          echo $DOGFOOD_MDM_SSO_METADATA_URL >> ./secrets.txt
+          echo "$DOGFOOD_END_USER_SSO_METADATA" >> ./secrets.txt
 
       - name: Upload
         run: aws s3 cp ./secrets.txt s3://fleet-test-1/secrets.txt 
