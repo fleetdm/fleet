@@ -45,10 +45,10 @@
             <div purpose="query-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
-                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>
-                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'selected' : '']" v-if="query.platform.includes('windows')"/>
-                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>
-                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>
+                <h1><img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>Apple</h1>
+                <h1><img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'selected' : '']" v-if="query.platform.includes('windows')"/>Windows</h1>
+                <h1><img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>Linux</h1>
+                <h1><img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>ChromeOS</h1>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">
