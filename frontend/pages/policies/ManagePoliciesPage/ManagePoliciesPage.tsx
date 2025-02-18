@@ -544,6 +544,7 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
+
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -570,30 +571,39 @@ const ManagePolicyPage = ({
         return;
       }
 
-      const responses: Promise<
-        ReturnType<typeof teamPoliciesAPI.update>
-      >[] = [];
+      const promises = changedPolicies.map((changedPolicy) =>
+        teamPoliciesAPI.update(changedPolicy.id, {
+          software_title_id: changedPolicy.swIdToInstall || null,
+          team_id: teamIdForApi,
+        })
+      );
 
-      changedPolicies.forEach((changedPolicy) => {
-        responses.push(
-          teamPoliciesAPI
-            .update(changedPolicy.id, {
-              software_title_id: changedPolicy.swIdToInstall || null,
-              team_id: teamIdForApi,
-            })
-            .catch((error) => {
-              throw new Error(
-                `Failed to update policy ${changedPolicy.id}: ${error.message}`
-              );
-            })
+      // Allows for all API calls to settle even if there is an error on one
+      const results = await Promise.allSettled(promises);
+
+      const successfulUpdates = results.filter(
+        (result) => result.status === "fulfilled"
+      );
+      const failedUpdates = results.filter(
+        (result) => result.status === "rejected"
+      );
+
+      // Renders API error reason for each error in a single message
+      if (failedUpdates.length > 0) {
+        const errorMessages = failedUpdates.map(
+          (result) =>
+            `Failed to update policy: ${
+              (result as PromiseRejectedResult).reason.data.errors[0].reason
+            }`
         );
-      });
-
-      await Promise.all(responses);
+        renderFlash("error", errorMessages.join(". "));
+      } else if (successfulUpdates.length > 0) {
+        // Only render success message if there are no failures
+        renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+      }
 
       await wait(100); // prevent race
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
