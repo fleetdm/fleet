@@ -81,7 +81,7 @@
   }
   [purpose='pricing-card-body'] {
     padding: 24px 32px;
-    flex: 1 0 0;
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -92,7 +92,6 @@
       height: 149px;
       width: 100%;
       border-radius: 12px 12px 0px 0px;
-      // background-size: 100% auto;
       background-size: auto 100%;
       background-position: bottom;
       background-repeat: no-repeat;
@@ -591,7 +590,8 @@
       [purpose='pricing-tier-image'] {
         height: 240px;
         min-height: 100%;
-        width: 337px;
+        max-width: 337px;
+        width: 100%;
         border-radius: 12px 0px 0px 12px;
         background-position: center;
         background-repeat: no-repeat;
@@ -643,17 +643,15 @@
       [purpose='pricing-tier-image'] {
         height: auto;
         min-height: 100%;
-        // width: 100%;
-        width: 257px;
+        width: 100%;
+        max-width: 257px;
         border-radius: 12px 0px 0px 12px;
-        // background-size: 100% auto;
         background-position: center;
         background-repeat: no-repeat;
       }
     }
     [purpose='pricing-card-body'] {
       padding: 24px 32px;
-      flex: 1 0 0;
     }
     [purpose='features-table'] {
       .truncated {
@@ -739,21 +737,19 @@
         height: 233px;
         min-height: 100%;
         width: 100%;
+        max-width: unset;
         border-radius: 12px 12px 0px 0px;
         background-position: center;
         background-repeat: no-repeat;
       }
     }
     [purpose='free-tier-card'] {
-      // padding: 24px;
       justify-content: center;
     }
     [purpose='premium-tier-card'] {
-      // padding: 24px;
       justify-content: center;
     }
     [purpose='custom-tier-card'] {
-      // padding: 24px;
       justify-content: center;
     }
     [purpose='pricing-categories-table'] {
