@@ -9511,8 +9511,7 @@ List available Fleet-maintained apps.
       "id": 1,
       "name": "1Password",
       "version": "8.10.40",
-      "platform": "darwin",
-      "software_added": false
+      "platform": "darwin"
     },
     {
       "id": 2,
