@@ -1,7 +1,7 @@
 # Fleet 4.64.0 | Custom targets for software, Bash scripts, fleetctl for Linux ARM
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/eCWz8o2nqnQ?si=VdxZbsHu8jDK-Hxn" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.64.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.64.0) or continue reading to get the highlights.
