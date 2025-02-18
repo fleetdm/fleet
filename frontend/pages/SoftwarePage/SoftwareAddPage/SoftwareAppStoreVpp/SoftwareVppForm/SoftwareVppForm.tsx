@@ -28,6 +28,7 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
+import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 
 const baseClass = "software-vpp-form";
 
@@ -98,6 +99,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
 
 export interface ISoftwareVppFormData {
   selfService: boolean;
+  automaticInstall: boolean;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
@@ -133,6 +135,7 @@ const SoftwareVppForm = ({
     softwareVppForEdit
       ? {
           selfService: softwareVppForEdit.self_service || false,
+          automaticInstall: softwareVppForEdit.automatic_install || false,
           targetType: getTargetType(softwareVppForEdit),
           customTarget: getCustomTarget(softwareVppForEdit),
           labelTargets: generateSelectedLabels(softwareVppForEdit),
@@ -140,6 +143,7 @@ const SoftwareVppForm = ({
       : {
           selectedApp: null,
           selfService: false,
+          automaticInstall: false,
           targetType: "All hosts",
           customTarget: "labelsIncludeAny",
           labelTargets: {},
@@ -192,55 +196,6 @@ const SoftwareVppForm = ({
 
   const isSubmitDisabled = !formValidation.isValid;
 
-  const renderSelfServiceContent = (platform: string) => {
-    const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
-    const isAutomaticInstallDisabled =
-      platform === "ios" || platform === "ipados";
-
-    return (
-      <div className={"form-field"}>
-        <div className="form-field__label">Options</div>
-        {isSelfServiceDisabled && (
-          <p>
-            Currently, self-service and automatic installation are not available
-            for iOS and iPadOS. Manually install on the Host details page for
-            each host.
-          </p>
-        )}
-        <Checkbox
-          value={formData.selfService}
-          onChange={(newVal: boolean) =>
-            setFormData({ ...formData, selfService: newVal })
-          }
-          className={`${baseClass}__self-service-checkbox`}
-          tooltipContent={
-            <>
-              End users can install from <b>Fleet Desktop</b> {">"}{" "}
-              <b>Self-service</b>.
-            </>
-          }
-          disabled={isSelfServiceDisabled}
-        >
-          Self-service
-        </Checkbox>
-        <Checkbox
-          value={formData.selfService} // TODO: change
-          onChange={
-            (newVal: boolean) =>
-              setFormData({ ...formData, selfService: newVal }) // TODO: change
-          }
-          className={`${baseClass}__automatic-install-checkbox`}
-          tooltipContent={
-            <>Automatically install only on hosts missing this software.</>
-          }
-          disabled={isAutomaticInstallDisabled}
-        >
-          Automatic install
-        </Checkbox>
-      </div>
-    );
-  };
-
   const renderContent = () => {
     if (softwareVppForEdit) {
       return (
@@ -251,6 +206,13 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
+            <Card>
+              <SoftwareOptionsSelector
+                platform={softwareVppForEdit.platform}
+                formData={formData}
+                setFormData={setFormData}
+              />
+            </Card>
             <Card>
               <TargetLabelSelector
                 selectedTargetType={formData.targetType}
@@ -267,8 +229,6 @@ const SoftwareVppForm = ({
                 }
               />
             </Card>
-            {/* TODO: Make into reusable component */}
-            {renderSelfServiceContent(softwareVppForEdit.platform)}
           </div>
         </div>
       );
@@ -289,12 +249,16 @@ const SoftwareVppForm = ({
           </div>
           <div className={`${baseClass}__form-frame`}>
             <Card paddingSize="medium" borderRadiusSize="medium">
-              {renderSelfServiceContent(
-                ("selectedApp" in formData &&
-                  formData.selectedApp &&
-                  formData.selectedApp.platform) ||
+              <SoftwareOptionsSelector
+                platform={
+                  ("selectedApp" in formData &&
+                    formData.selectedApp &&
+                    formData.selectedApp.platform) ||
                   ""
-              )}
+                }
+                formData={formData}
+                setFormData={setFormData}
+              />
             </Card>
             <Card paddingSize="medium" borderRadiusSize="medium">
               <TargetLabelSelector

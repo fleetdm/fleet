@@ -26,4 +26,8 @@
     margin-top: $pad-xlarge;
     gap: $pad-medium;
   }
+
+  .software-vpp-form__form-frame {
+    flex-direction: column;
+  }
 }

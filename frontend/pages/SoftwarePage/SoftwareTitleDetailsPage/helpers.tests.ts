@@ -57,6 +57,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         app_store_app: {
           app_store_id: 1,
           name: "Test App",
+          uploaded_at: "2020-01-01T00:00:00.000Z",
           latest_version: "1.0.1",
           platform: "darwin",
           self_service: false,

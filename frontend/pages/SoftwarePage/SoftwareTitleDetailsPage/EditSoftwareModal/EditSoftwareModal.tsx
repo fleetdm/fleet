@@ -82,6 +82,7 @@ const EditSoftwareModal = ({
     setPendingVppUpdates,
   ] = useState<ISoftwareVppFormData>({
     selfService: false,
+    automaticInstall: false,
     targetType: "",
     customTarget: "",
     labelTargets: {},
@@ -239,6 +240,7 @@ const EditSoftwareModal = ({
   const onClickSaveVpp = async (formData: ISoftwareVppFormData) => {
     const currentData = {
       selfService: software.self_service || false,
+      automaticInstall: software.automatic_install || false,
       targetType: getTargetType(software),
       customTarget: getCustomTarget(software),
       labelTargets: generateSelectedLabels(software),

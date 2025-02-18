@@ -98,6 +98,7 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
+  uploaded_at: string;
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];
@@ -108,6 +109,7 @@ export interface IAppStoreApp {
   };
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  automatic_install?: boolean;
   last_install?: {
     install_uuid: string;
     command_uuid: string;
