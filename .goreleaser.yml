@@ -99,13 +99,13 @@ archives:
   - id: fleetctl
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}_{{.Arch}}
     wrap_in_directory: true
 
   - id: fleetctl-zip
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}_{{.Arch}}
     format: zip
     wrap_in_directory: true
 

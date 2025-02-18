@@ -13,8 +13,8 @@ These are set via [variables](https://github.com/fleetdm/fleet/blob/main/infrast
 # When first applying.  Assuming tag exists
 terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small
 
-# When adding loadtest containers. 
-terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
+# When adding loadtest containers.
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10
 ```
 
 ### Deploying your code to the loadtesting environment
@@ -64,7 +64,7 @@ export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_DEV_M
 ```
 
 - The above is needed because the newline characters in the certificate/key/token files.
-- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
+- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument.
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY=1` to skip verification of Apple certificates for OTA enrollments.
@@ -85,6 +85,8 @@ With the variable `loadtest_containers` you can specify how many containers of 5
 `terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING":"host_last_seen=true","FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL":"host_last_seen=10s"}'`
 
 ### Monitoring the infrastructure
+
+This [document](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0) covers the load test key metrics to capture or keep an eye on. Results are collected in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?gid=0#gid=0) for release-specific load tests.
 
 There are a few main places of interest to monitor the load and resource usage:
 
@@ -181,3 +183,22 @@ provider "docker" {
 }
 [...]
 ```
+
+If you are getting the following error when running `terraform apply`:
+
+```sh
+│ Error: Error building docker image: 1: The command '/bin/sh -c git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .' returned a non-zero code: 1
+│
+│   with docker_registry_image.loadtest,
+│   on ecr.tf line 46, in resource "docker_registry_image" "loadtest":
+│   46: resource "docker_registry_image" "loadtest" {
+```
+
+1. Check your Docker virtual machine settings. Open Docker Desktop, then open the settings (`cmd-,`
+   or the gear in the top right of the screen). Scroll down to the "Virtual Machine Options"
+   section.
+
+2. If you currently have the "Apple virtualization framework" setting selected, select the "Docker
+   VMM" option instead. Click "Apply & restart" in the bottom right.
+
+Once Docker has restarted, re-run `terraform apply` and you should be good to go!

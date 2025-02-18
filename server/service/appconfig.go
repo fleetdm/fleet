@@ -702,7 +702,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Reset teams for ABM tokens that exist in Fleet but aren't present in the config being passed
 	tokensInCfg := make(map[string]struct{})
 	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
 		tokensInCfg[t.OrganizationName] = struct{}{}
@@ -712,13 +711,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
 	}
-	for _, tok := range toks {
-		if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
-			tok.MacOSDefaultTeamID = nil
-			tok.IOSDefaultTeamID = nil
-			tok.IPadOSDefaultTeamID = nil
-			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
+		for _, tok := range toks {
+			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+				tok.MacOSDefaultTeamID = nil
+				tok.IOSDefaultTeamID = nil
+				tok.IPadOSDefaultTeamID = nil
+				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+				}
 			}
 		}
 	}
@@ -1229,7 +1231,7 @@ func (svc *Service) validateABMAssignments(
 		return []*fleet.ABMToken{tok}, nil
 	}
 
-	if mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
+	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
 			return nil, nil
