@@ -20,8 +20,6 @@ export interface IInfoBannerProps {
   cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
-  /** The link path users can be direct to when clicking the card */
-  path?: string;
   icon?: IconNames;
 }
 
@@ -33,7 +31,6 @@ const InfoBanner = ({
   pageLevel,
   cta,
   closable,
-  path,
   icon,
 }: IInfoBannerProps) => {
   const wrapperClasses = classNames(
@@ -78,7 +75,6 @@ const InfoBanner = ({
       className={wrapperClasses}
       color={color}
       borderRadiusSize={borderRadius}
-      path={path}
     >
       {content}
     </Card>
