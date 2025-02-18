@@ -12,6 +12,8 @@ import { IPolicy } from "interfaces/policy";
 import teamPoliciesAPI from "services/entities/team_policies";
 import Button from "components/buttons/Button";
 
+// Extend the IPolicy interface with some virtual properties that make it easier
+// to track item state. These are set by the various Manage Automations modals.
 export interface IFormPolicy extends IPolicy {
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
@@ -21,7 +23,6 @@ export interface IFormPolicy extends IPolicy {
 
 interface IPoliciesPaginatedListProps {
   isSelected: string | ((item: IFormPolicy) => boolean);
-  renderItemLabel?: (item: IFormPolicy) => ReactElement | null;
   renderItemRow?: (
     item: IFormPolicy,
     onChange: (item: IFormPolicy) => void
@@ -49,9 +50,10 @@ function PoliciesPaginatedList(
   }: IPoliciesPaginatedListProps,
   ref: Ref<IPaginatedListHandle<IFormPolicy>>
 ) {
+  // Create a ref to use with the PaginatedList, so we can access its dirty items.
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
-  // Expose our own handle to the parent
+  // Allow parents access to the `getDirtyItems` of the underlying PaginatedList.
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
       if (paginatedListRef.current) {
@@ -61,6 +63,7 @@ function PoliciesPaginatedList(
     },
   }));
 
+  // When "save" is clicked, call the parent's `onSubmit` with the set of changed items.
   const onClickSave = () => {
     let changedItems: IFormPolicy[] = [];
     if (paginatedListRef.current) {
@@ -69,6 +72,7 @@ function PoliciesPaginatedList(
     onSubmit(changedItems);
   };
 
+  // Fetch a single page of policies.
   const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
@@ -84,9 +88,7 @@ function PoliciesPaginatedList(
             query: "",
             orderDirection: "asc" as const,
             orderKey: DEFAULT_SORT_COLUMN,
-            // teamIdForApi will never actually be undefined here
             teamId,
-            // no teams does inherit
             mergeInherited: false,
           },
         ],
@@ -95,6 +97,7 @@ function PoliciesPaginatedList(
         }
       )
       .then((policiesResponse) => {
+        // Marshall the response into IFormPolicy objects.
         return (policiesResponse.policies || []).map((policy) => ({
           ...policy,
           installSoftwareEnabled: !!policy.install_software,
@@ -117,7 +120,7 @@ function PoliciesPaginatedList(
             onToggleItem={onToggleItem}
             renderItemRow={renderItemRow}
             totalItems={100}
-            pageSize={10}
+            pageSize={DEFAULT_PAGE_SIZE}
           />
 
           {footer}
