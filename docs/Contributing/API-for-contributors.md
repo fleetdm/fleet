@@ -1358,13 +1358,13 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 
 #### Parameters
 
-| Name | Type   | In   | Description                          |
-| ---- | ------ | ---- | ------------------------------------ |
-| id | integer | path | **Required.** The ID of Android Enterprise in Fleet. |
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| enroll_secret | string | query | **Required.** The enroll secret of a team in Fleet. |
 
 #### Example
 
-`POST /api/v1/fleet/android/enterprise/5/enrollment_token`
+`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
 
 ##### Default response
 
@@ -1396,6 +1396,14 @@ This endpoint is used to get server-sent events (SSE) messages, so that UI know 
 ```
 Android Enterprise successfully connected
 ```
+
+### Android Enterprise PubSub push endpoint
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
+
+`POST /api/v1/fleet/android_enterprise/pubsub`
 
 ## Get or apply configuration files
 
