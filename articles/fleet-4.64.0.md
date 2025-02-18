@@ -11,7 +11,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 - Custom targets for software
 - Bash scripts
-- Fleetctl for Linux ARM
+- Fleetctl for Windows and Linux ARM
 
 ### Custom targets for software
 
