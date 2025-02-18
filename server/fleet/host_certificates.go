@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -139,8 +140,39 @@ type MDMAppleErrorChainItem struct {
 //
 // See https://osquery.io/schema/5.15.0/#certificates
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
-	// TODO
-	return nil, errors.New("not implemented")
+	str = strings.TrimSpace(str)
+	str = strings.Trim(str, "/")
+
+	if !strings.Contains(str, "/") {
+		return nil, errors.New("invalid format, wrong separator")
+	}
+
+	parts := strings.Split(str, "/")
+
+	var details HostCertificateNameDetails
+	for _, part := range parts {
+		kv := strings.Split(part, "=")
+		if len(kv) != 2 {
+			return nil, errors.New("invalid distinguished name, wrong key value pair format")
+		}
+
+		if len(kv[1]) == 0 {
+			return nil, errors.New("invalid distinguished name, missing value")
+		}
+
+		switch strings.ToUpper(kv[0]) {
+		case "C":
+			details.Country = strings.Trim(kv[1], " ")
+		case "O":
+			details.Organization = strings.Trim(kv[1], " ")
+		case "OU":
+			details.OrganizationalUnit = strings.Trim(kv[1], " ")
+		case "CN":
+			details.CommonName = strings.Trim(kv[1], " ")
+		}
+	}
+
+	return &details, nil
 }
 
 func firstOrEmpty(s []string) string {
