@@ -560,7 +560,7 @@ const PolicyForm = ({
   // Editable form is used for:
   // Global admins and global maintainers
   // Team admins and team maintainers viewing any of their team's policies
-  const renderEditableQueryForm = () => {
+  const renderEditablePolicyForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
@@ -705,7 +705,7 @@ const PolicyForm = ({
   }
 
   // Render default editable form
-  return renderEditableQueryForm();
+  return renderEditablePolicyForm();
 };
 
 export default PolicyForm;
