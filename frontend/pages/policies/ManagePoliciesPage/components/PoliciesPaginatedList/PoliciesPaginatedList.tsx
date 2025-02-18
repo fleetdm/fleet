@@ -64,7 +64,7 @@ function PoliciesPaginatedList(
   }));
 
   const queryClient = useQueryClient();
-  const DEFAULT_PAGE_SIZE = 20;
+  const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
   const fetchPage = useCallback((pageNumber: number) => {
@@ -90,13 +90,11 @@ function PoliciesPaginatedList(
       )
       .then((policiesResponse) => {
         return (policiesResponse.policies || []).map((policy) => ({
-          name: policy.name,
-          id: policy.id,
+          ...policy,
           installSoftwareEnabled: !!policy.install_software,
           swIdToInstall: policy.install_software?.software_title_id,
           runScriptEnabled: !!policy.run_script,
           scriptIdToRun: policy.run_script?.id,
-          platform: policy.platform,
         })) as IFormPolicy[];
       });
   }, []);
@@ -113,6 +111,7 @@ function PoliciesPaginatedList(
             onToggleItem={onToggleItem}
             renderItemRow={renderItemRow}
             totalItems={100}
+            pageSize={10}
           />
 
           {footer}

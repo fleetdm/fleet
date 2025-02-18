@@ -273,7 +273,7 @@ const CalendarEventsModal = ({
               item.calendar_events_enabled = !item.calendar_events_enabled;
               return item;
             }}
-            renderItemRow={(item, onChange) => {
+            renderItemRow={(item) => {
               return (
                 <Button
                   variant="text-icon"
