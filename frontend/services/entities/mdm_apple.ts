@@ -1,6 +1,9 @@
+import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 
 export interface IGetVppInfoResponse {
   org_name: string;
@@ -18,9 +21,35 @@ export interface IVppApp {
   platform: ApplePlatform;
 }
 
+export interface IAddVppAppPostBody {
+  app_store_id: string;
+  team_id: number;
+  platform: ApplePlatform;
+  self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+}
+
+export interface IEditVppAppPostBody {
+  team_id: number;
+  self_service?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+}
+
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
+
+export interface IGetVppTokensResponse {
+  vpp_tokens: IMdmVppToken[];
+}
+
+export interface IUploadVppTokenReponse {
+  vpp_token: IMdmVppToken;
+}
+
+export type IRenewVppTokenResponse = IUploadVppTokenReponse;
 
 export default {
   getAppleAPNInfo: () => {
@@ -46,18 +75,6 @@ export default {
     return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
-  getVppInfo: (): Promise<IGetVppInfoResponse> => {
-    const { MDM_APPLE_VPP } = endpoints;
-    return sendRequest("GET", MDM_APPLE_VPP);
-  },
-
-  uploadVppToken: (token: File) => {
-    const { MDM_APPLE_VPP_TOKEN } = endpoints;
-    const formData = new FormData();
-    formData.append("token", token);
-    return sendRequest("POST", MDM_APPLE_VPP_TOKEN, formData);
-  },
-
   disableVpp: () => {
     const { MDM_APPLE_VPP_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
@@ -69,12 +86,88 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (teamId: number, appStoreId: string, platform: ApplePlatform) => {
+  addVppApp: (teamId: number, formData: ISoftwareVppFormData) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, {
-      app_store_id: appStoreId,
+
+    if (!formData.selectedApp) {
+      throw new Error("Selected app is required. This should not happen.");
+    }
+
+    const body: IAddVppAppPostBody = {
+      app_store_id: formData.selectedApp.app_store_id,
       team_id: teamId,
-      platform,
-    });
+      platform: formData.selectedApp?.platform,
+      self_service: formData.selfService,
+    };
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
+
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, body);
+  },
+
+  editVppApp: (
+    softwareId: number,
+    teamId: number,
+    formData: ISoftwareVppFormData
+  ) => {
+    const { EDIT_SOFTWARE_VPP } = endpoints;
+
+    const body: IEditVppAppPostBody = {
+      self_service: formData.selfService,
+      team_id: teamId,
+    };
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
+
+    return sendRequest("PATCH", EDIT_SOFTWARE_VPP(softwareId), body);
+  },
+
+  getVppTokens: (): Promise<IGetVppTokensResponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    return sendRequest("GET", MDM_VPP_TOKENS);
+  },
+
+  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+    const { MDM_VPP_TOKENS } = endpoints;
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("POST", MDM_VPP_TOKENS, formData);
+  },
+
+  renewVppToken(id: number, token: File): Promise<IRenewVppTokenResponse> {
+    const { MDM_VPP_TOKENS_RENEW } = endpoints;
+    const path = MDM_VPP_TOKENS_RENEW(id);
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("PATCH", path, formData);
+  },
+
+  deleteVppToken: (id: number): Promise<void> => {
+    const { MDM_VPP_TOKEN } = endpoints;
+    const path = MDM_VPP_TOKEN(id);
+    return sendRequest("DELETE", path);
+  },
+
+  editVppTeams: async (params: {
+    tokenId: number;
+    teamIds: number[] | null;
+  }) => {
+    const { MDM_VPP_TOKEN_TEAMS } = endpoints;
+    const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
+    return sendRequest("PATCH", path, { teams: params.teamIds });
   },
 };

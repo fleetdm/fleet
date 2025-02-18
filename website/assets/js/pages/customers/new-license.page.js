@@ -19,6 +19,10 @@ parasails.registerPage('new-license', {
       selfHostedAcknowledgment: {required: true, is: true},
     },
 
+    checkoutFormRules: {
+      selfHostedAcknowledgment: {required: true, is: true},
+    },
+
     // Syncing / loading state
     syncing: false,
 
@@ -40,7 +44,7 @@ parasails.registerPage('new-license', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     if(window.location.hash) {
-      if(typeof analytics !== 'undefined') {
+      if(window.analytics !== undefined) {
         if(window.location.hash === '#signup') {
           analytics.identify(this.me.id, {
             email: this.me.emailAddress,
@@ -93,12 +97,17 @@ parasails.registerPage('new-license', {
       this.syncing = true;
       this.goto('/customers/dashboard?order-complete');
     },
-
+    handleSubmittingCheckoutForm: async function() {
+      let redirectUrl = await Cloud.getStripeCheckoutSessionUrl.with({
+        quoteId: this.formData.quoteId
+      });
+      this.goto(redirectUrl);
+    },
     submittedQuoteForm: async function(quote) {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
-      if(quote.numberOfHosts < 700) {
+      if(quote.numberOfHosts < 300) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }

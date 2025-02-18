@@ -1,6 +1,0 @@
-# Configure OSV-Scanner
-# https://google.github.io/osv-scanner/configuration/
-
-[[IgnoredVulns]]
-id = "GO-2023-2402"
-reason = "2024/04/02 - This is not production code."

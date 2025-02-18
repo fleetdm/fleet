@@ -3,12 +3,12 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <style>
       body {
-        font-family: "Nunito Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         margin: 0;
       }
 
@@ -29,7 +29,7 @@
 
       a {
         text-decoration: none;
-        color: #6A67FE;
+        color: #6a67fe;
       }
 
       a:hover {
@@ -73,7 +73,11 @@
             cellpadding="0"
             cellspacing="0"
             bgcolor="#ffffff"
-            style="margin: 20px 20px; border: 1px solid #E2E4EA; border-radius: 8px;"
+            style="
+              margin: 20px 20px;
+              border: 1px solid #e2e4ea;
+              border-radius: 8px;
+            "
           >
             <tr>
               <td
@@ -83,17 +87,17 @@
                   padding-top: 40px;
                   padding-left: 48px;
                   font-family: 'Nunito Sans', sans-serif;
-                  border-radius: 8px 8px 0px 0px
+                  border-radius: 8px 8px 0px 0px;
                 "
               >
-              <a href="https://fleetdm.com" target="_blank">
-                <img
-                  alt="Fleet logo"
-                  src="{{.AssetURL}}/fleet-logo-blue-118x41@2x.png"
-                  style="height: 41px; width: 118px"
-                />
-              </a>
-            </td>
+                <a href="https://fleetdm.com" target="_blank">
+                  <img
+                    alt="Fleet logo"
+                    src="{{.AssetURL}}/fleet-logo-email-dark-friendly-162x92@2x.png"
+                    style="width: 162px; height: 92px"
+                  />
+                </a>
+              </td>
             </tr>
             <tr>
               <td
@@ -107,12 +111,15 @@
                 "
               >
                 <h1>Fleet SMTP setup confirmed</h1>
-                <p>This message confirms that SMTP is set up properly <a href="{{.BaseURL}}">on your Fleet instance</a>.</p>
+                <p>
+                  This message confirms that SMTP is set up properly
+                  <a href="{{.BaseURL}}">on your Fleet instance</a>.
+                </p>
+                <p style="font-size: 14px; color: #515774">
+                  Please do not reply to this automated message.
+                </p>
                 <div
-                  style="
-                    border-top: 1px solid #e2e4ea;
-                    padding-top: 32px;
-                  "
+                  style="border-top: 1px solid #e2e4ea; padding-top: 32px"
                 ></div>
                 <div style="padding-top: 32px; padding-bottom: 32px">
                   <a href="https://github.com/fleetdm/fleet" target="_blank">
@@ -122,17 +129,21 @@
                       src="{{.AssetURL}}/fleet-mark-color-40x40@2x.png"
                     />
                   </a>
-                  <a href="https://twitter.com/fleetctl" target="_blank">
+                  <a href="https://discuss.systems/@Fleet" target="_blank">
                     <img
-                      alt="Twitter logo"
-                      style="height: 20px; width: 25px; padding-right: 20px"
-                      src="{{.AssetURL}}/twitter-logo-50x40@2x.png"
+                      alt="Mastodon logo"
+                      style="height: 20px; width: 20px; padding-right: 20px"
+                      src="{{.AssetURL}}/mastodon-logo-50x40@2x.png"
                     />
                   </a>
-                  <a
-                    href="https://fleetdm.com/support"
-                    target="_blank"
-                  >
+                  <a href="https://twitter.com/fleetctl" target="_blank">
+                    <img
+                      alt="X logo"
+                      style="height: 20px; width: 20px; padding-right: 20px"
+                      src="{{.AssetURL}}/x-logo-24x24@2x.png"
+                    />
+                  </a>
+                  <a href="https://fleetdm.com/support" target="_blank">
                     <img
                       alt="Slack logo"
                       style="height: 20px; width: 20.5px; padding-right: 20px"
@@ -140,7 +151,7 @@
                     />
                   </a>
                 </div>
-                <p style="font-size: 12px; line-height: 16px; padding: 0;">
+                <p style="font-size: 12px; line-height: 16px; padding: 0">
                   © {{.CurrentYear}} Fleet Device Management Inc. <br />
                   All trademarks, service marks, and company names are the
                   property of their respective owners.

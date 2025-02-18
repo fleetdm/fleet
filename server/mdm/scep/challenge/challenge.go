@@ -2,22 +2,31 @@
 package challenge
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+
+	"github.com/smallstep/scep"
 )
 
-// Store is a dynamic challenge password cache.
-type Store interface {
-	SCEPChallenge() (string, error)
+// Validator validates challenge passwords.
+type Validator interface {
+	// HasChallenge validates pw as valid.
 	HasChallenge(pw string) (bool, error)
 }
 
-// Middleware wraps next in a CSRSigner that verifies and invalidates the challenge
-func Middleware(store Store, next scepserver.CSRSigner) scepserver.CSRSignerFunc {
-	return func(m *scep.CSRReqMessage) (*x509.Certificate, error) {
+// Store is a dynamic challenge password cache.
+type Store interface {
+	// SCEPChallenge generates a new challenge password.
+	SCEPChallenge() (string, error)
+	Validator
+}
+
+// Middleware wraps next in a CSRSigner that verifies and invalidates the challenge.
+func Middleware(store Validator, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// TODO: compare challenge only for PKCSReq?
 		valid, err := store.HasChallenge(m.ChallengePassword)
 		if err != nil {
@@ -26,6 +35,6 @@ func Middleware(store Store, next scepserver.CSRSigner) scepserver.CSRSignerFunc
 		if !valid {
 			return nil, errors.New("invalid challenge")
 		}
-		return next.SignCSR(m)
+		return next.SignCSRContext(ctx, m)
 	}
 }

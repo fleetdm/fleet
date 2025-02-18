@@ -43,7 +43,7 @@ const RenameTeamModal = ({
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    onSubmit({ name });
+    onSubmit({ name: name.trim() });
   };
 
   return (
@@ -57,6 +57,9 @@ const RenameTeamModal = ({
           autofocus
           name="name"
           onChange={onInputChange}
+          onBlur={() => {
+            setName(name.trim());
+          }}
           label="Team name"
           placeholder="Team name"
           value={name}

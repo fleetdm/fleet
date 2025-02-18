@@ -1,0 +1,132 @@
+{
+	"token": "microsoft-teams",
+	"full_token": "microsoft-teams",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Microsoft Teams"
+	],
+	"desc": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing.",
+	"homepage": "https://www.microsoft.com/en/microsoft-teams/group-chat-software/",
+	"url": "https://statics.teams.cdn.office.net/production-osx/24215.1002.3039.5089/MicrosoftTeams.pkg",
+	"url_specs": {
+		"verified": "statics.teams.cdn.office.net/production-osx/"
+	},
+	"version": "24215.1002.3039.5089",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "df7ca5415b8ab0acd9f1002d9f04e0dab5782fa4cf1768331e22d14665a2b148",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": "com.microsoft.teams.TeamsUpdaterDaemon",
+					"quit": "com.microsoft.autoupdate2",
+					"pkgutil": [
+						"com.microsoft.MSTeamsAudioDevice",
+						"com.microsoft.package.Microsoft_AutoUpdate.app",
+						"com.microsoft.teams2"
+					],
+					"delete": [
+						"/Applications/Microsoft Teams.app",
+						"/Library/Application Support/Microsoft/TeamsUpdaterDaemon",
+						"/Library/Logs/Microsoft/MSTeams",
+						"/Library/Logs/Microsoft/Teams",
+						"/Library/Preferences/com.microsoft.teams.plist"
+					]
+				}
+			]
+		},
+		{
+			"pkg": [
+				"MicrosoftTeams.pkg",
+				{
+					"choices": [
+						{
+							"choiceIdentifier": "com.microsoft.autoupdate",
+							"choiceAttribute": "selected",
+							"attributeSetting": 0
+						}
+					]
+				}
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Scripts/com.microsoft.teams2",
+						"~/Library/Application Scripts/com.microsoft.teams2.launcher",
+						"~/Library/Application Scripts/com.microsoft.teams2.notificationcenter",
+						"~/Library/Application Support/com.microsoft.teams",
+						"~/Library/Application Support/Microsoft/Teams",
+						"~/Library/Application Support/Teams",
+						"~/Library/Caches/com.microsoft.teams",
+						"~/Library/Containers/com.microsoft.teams2",
+						"~/Library/Containers/com.microsoft.teams2.launcher",
+						"~/Library/Containers/com.microsoft.teams2.notificationcenter",
+						"~/Library/Cookies/com.microsoft.teams.binarycookies",
+						"~/Library/Group Containers/*.com.microsoft.teams",
+						"~/Library/HTTPStorages/com.microsoft.teams",
+						"~/Library/HTTPStorages/com.microsoft.teams.binarycookies",
+						"~/Library/Logs/Microsoft Teams Helper (Renderer)",
+						"~/Library/Logs/Microsoft Teams",
+						"~/Library/Preferences/com.microsoft.teams.plist",
+						"~/Library/Saved Application State/com.microsoft.teams.savedState",
+						"~/Library/Saved Application State/com.microsoft.teams2.savedState",
+						"~/Library/WebKit/com.microsoft.teams"
+					],
+					"rmdir": "~/Library/Application Support/Microsoft"
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"cask": [
+			"microsoft-auto-update"
+		],
+		"macos": {
+			">=": [
+				"11"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"microsoft-office-businesspro"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/m/microsoft-teams.rb",
+	"ruby_source_checksum": {
+		"sha256": "6deae2be2e0862656eaedff01b767ebc8cb787dc2800ec38209255b2f7580e9a"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"microsoft-teams": 3791
+			},
+			"90d": {
+				"microsoft-teams": 12487
+			},
+			"365d": {
+				"microsoft-teams": 53526
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

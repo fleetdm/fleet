@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 type HostStatus string
@@ -198,8 +200,18 @@ type HostListOptions struct {
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 
+	// PopulateSoftwareVulnerabilityDetails adds description, fix version, etc. fields to software vulnerabilities
+	// (this is a Premium feature that gets forced to false on Fleet Free)
+	PopulateSoftwareVulnerabilityDetails bool
+
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
+
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all host responses returned
+	PopulateLabels bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
@@ -212,7 +224,7 @@ type HostListOptions struct {
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() &&
-		h.DeviceMapping == false &&
+		!h.DeviceMapping &&
 		len(h.AdditionalFilters) == 0 &&
 		h.StatusFilter == "" &&
 		h.TeamFilter == nil &&
@@ -225,7 +237,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableIssues == false &&
+		!h.DisableIssues &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -316,7 +328,7 @@ type Host struct {
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for Linux we set it to NULL and omit it from the JSON
+	// a *bool because for some Linux we set it to NULL and omit it from the JSON
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
@@ -338,7 +350,7 @@ type Host struct {
 	// is that the latter is a one-time request, while this one is a persistent
 	// until the timestamp expires. The initial use-case is to check for a host
 	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
-	// workflow.
+	// workflow (both Apple and Windows).
 	//
 	// In the future, if we want to use it for more than one use-case, we could
 	// add a "reason" field with well-known labels so we know what condition(s)
@@ -431,7 +443,7 @@ type MDMHostData struct {
 	rawDecryptable *int
 
 	// OSSettings contains information related to operating systems settings that are managed for
-	// MDM-enrolled hosts.
+	// MDM-enrolled hosts and/or Linux hosts with disk encryption enabled, which don't require MDM.
 	//
 	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
 	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
@@ -556,7 +568,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		case MDMOperationTypeInstall:
 			switch {
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
-				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
+				if d.rawDecryptable != nil && *d.rawDecryptable == 1 { //nolint:gocritic // ignore ifElseChain
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
 					switch *fvprof.Status {
@@ -676,6 +688,12 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
+// IsLUKSSupported returns true if the host's platform is Linux and running
+// one of the supported OS versions.
+func (h *Host) IsLUKSSupported() bool {
+	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+}
+
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
@@ -688,14 +706,14 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) b
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
 // string.
-func HostDisplayName(ComputerName string, Hostname string, HardwareModel string, HardwareSerial string) string {
+func HostDisplayName(computerName string, hostname string, hardwareModel string, hardwareSerial string) string {
 	switch {
-	case ComputerName != "":
-		return ComputerName
-	case Hostname != "":
-		return Hostname
-	case HardwareModel != "" && HardwareSerial != "":
-		return fmt.Sprintf("%s (%s)", HardwareModel, HardwareSerial)
+	case computerName != "":
+		return computerName
+	case hostname != "":
+		return hostname
+	case hardwareModel != "" && hardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", hardwareModel, hardwareSerial)
 	default:
 		return ""
 	}
@@ -784,7 +802,7 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
+	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now): //nolint:gosec // dismiss G115
 		return StatusOffline
 	default:
 		return StatusOnline
@@ -825,7 +843,8 @@ func IsLinux(hostPlatform string) bool {
 }
 
 func IsUnixLike(hostPlatform string) bool {
-	unixLikeOSs := append(HostLinuxOSs, "darwin")
+	unixLikeOSs := HostLinuxOSs
+	unixLikeOSs = append(unixLikeOSs, "darwin")
 	for _, p := range unixLikeOSs {
 		if p == hostPlatform {
 			return true
@@ -1166,6 +1185,7 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+	ClientError     string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
@@ -1178,6 +1198,9 @@ type HostSoftwareInstalledPath struct {
 	SoftwareID uint `db:"software_id"`
 	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
+	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
+	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
+	TeamIdentifier string `db:"team_identifier"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1221,4 +1244,47 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		// `nano_enrollment.active = 1` since sometimes Fleet won't get
 		// the checkout message from the host.
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+}
+
+var macOSADEMigrationOnlyLastVersion = semver.MustParse("14")
+
+// IsEligibleForManualMigration returns true if the host is manually enrolled into a 3rd party MDM
+// and is able to migrate to Fleet.
+func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) (bool, error) {
+	goodVersion, err := IsMacOSMajorVersionOK(host)
+	if err != nil {
+		return false, fmt.Errorf("checking macOS version for manual migration eligibility: %w", err)
+	}
+
+	return goodVersion &&
+		host.IsOsqueryEnrolled() &&
+		!host.IsDEPAssignedToFleet() &&
+		mdmInfo != nil &&
+		!mdmInfo.InstalledFromDep &&
+		!mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet), nil
+}
+
+func IsMacOSMajorVersionOK(host *Host) (bool, error) {
+	if host == nil {
+		return false, nil
+	}
+
+	parts := strings.Split(host.OSVersion, " ")
+
+	if len(parts) < 2 || parts[0] != "macOS" {
+		return false, nil
+	}
+
+	version, err := VersionToSemverVersion(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
+	}
+
+	if version.GreaterThan(macOSADEMigrationOnlyLastVersion) {
+		return true, nil
+	}
+
+	return false, nil
 }

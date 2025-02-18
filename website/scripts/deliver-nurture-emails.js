@@ -77,21 +77,26 @@ module.exports = {
       if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
         continue;
       } else {
-        await sails.helpers.sendTemplateEmail.with({
-          template: 'email-nurture-stage-four',
-          layout: 'layout-nurture-email',
-          templateData: {
-            firstName: user.firstName,
-            emailAddress: user.emailAddress
-          },
-          to: user.emailAddress,
-          toName: `${user.firstName} ${user.lastName}`,
-          subject: 'Deploy open-source MDM',
-          bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
-          from: sails.config.custom.contactEmailForNutureEmails,
-          fromName: sails.config.custom.contactNameForNurtureEmails,
-          ensureAck: true,
-        });
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // Note: We commented this out because it was interfering with the ability for leads to flow
+        // without making reps wait.  We can turn it back on when we have a way for Drew to disable
+        // nurture emails on a per-contact basis from Salesforce.
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // await sails.helpers.sendTemplateEmail.with({
+        //   template: 'email-nurture-stage-four',
+        //   layout: 'layout-nurture-email',
+        //   templateData: {
+        //     firstName: user.firstName,
+        //     emailAddress: user.emailAddress
+        //   },
+        //   to: user.emailAddress,
+        //   toName: `${user.firstName} ${user.lastName}`,
+        //   subject: 'Deploy open-source MDM',
+        //   bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
+        //   from: sails.config.custom.contactEmailForNutureEmails,
+        //   fromName: sails.config.custom.contactNameForNurtureEmails,
+        //   ensureAck: true,
+        // });
         emailedStageFourUserIds.push(user.id);
       }
     }

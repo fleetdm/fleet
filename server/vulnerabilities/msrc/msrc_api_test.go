@@ -50,7 +50,7 @@ func TestMSRCClient(t *testing.T) {
 			dir := t.TempDir()
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/cvrf/v2.0/document/2021-Oct" {
+				if r.URL.Path == "/cvrf/v3.0/document/2021-Oct" {
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte("some payload")) //nolint:errcheck
 				}

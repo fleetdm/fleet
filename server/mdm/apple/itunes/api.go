@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -65,7 +64,7 @@ func GetAssetMetadata(adamIDs []string, filter *AssetMetadataFilter) (map[string
 
 	metadata := make(map[string]AssetMetadata)
 	for _, a := range bodyResp.Results {
-		metadata[strconv.Itoa(int(a.TrackID))] = a
+		metadata[fmt.Sprint(a.TrackID)] = a
 	}
 
 	return metadata, nil

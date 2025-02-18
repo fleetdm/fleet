@@ -131,6 +131,7 @@ const config = {
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
+    fallback: { path: require.resolve("path-browserify") },
   },
 };
 

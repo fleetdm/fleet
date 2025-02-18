@@ -2,6 +2,7 @@ package customcve
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -193,22 +194,32 @@ func TestValidateAll(t *testing.T) {
 func TestCheckCustomVulnerabilities(t *testing.T) {
 	ds := new(mock.Store)
 	sw := []fleet.Software{
+		// Very old version should match all custom matching rules.
 		{
 			ID:      1,
 			Name:    "Microsoft 365 - en-us",
 			Version: "16.0.17531.20152",
 			Source:  "programs",
 		},
+		// This version should match June matching rules but not July and August.
 		{
 			ID:      2,
 			Name:    "Microsoft 365 - en-us",
-			Version: "16.0.17425.20176",
+			Version: "16.0.17628.20144",
 			Source:  "programs",
 		},
+		// This version should match June and July, but not August.
 		{
 			ID:      3,
 			Name:    "Microsoft 365 - en-us",
-			Version: "16.0.17628.20144",
+			Version: "16.0.17726.20161",
+			Source:  "programs",
+		},
+		// This version should have no CVEs.
+		{
+			ID:      4,
+			Name:    "Microsoft 365 - en-us",
+			Version: "16.0.17830.20167",
 			Source:  "programs",
 		},
 	}
@@ -233,8 +244,8 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ctx := context.Background()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), 1*time.Hour)
 		require.NoError(t, err)
-		require.Equal(t, 8, insertCount)
-		require.Len(t, vulns, 8)
+		require.Equal(t, 31, insertCount)
+		require.Len(t, vulns, 31)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
 		expected := []fleet.SoftwareVulnerability{
@@ -259,27 +270,155 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 				ResolvedInVersion: ptr.String("16.0.17628.20144"),
 			},
 			{
-				SoftwareID:        2,
-				CVE:               "CVE-2024-30101",
-				ResolvedInVersion: ptr.String("16.0.17628.20144"),
+				SoftwareID:        1,
+				CVE:               "CVE-2023-38545",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38020",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38021",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38172",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38170",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38173",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38171",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38189",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38169",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        1,
+				CVE:               "CVE-2024-38200",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
 			},
 			{
 				SoftwareID:        2,
-				CVE:               "CVE-2024-30102",
-				ResolvedInVersion: ptr.String("16.0.17628.20144"),
+				CVE:               "CVE-2023-38545",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
 			},
 			{
 				SoftwareID:        2,
-				CVE:               "CVE-2024-30103",
-				ResolvedInVersion: ptr.String("16.0.17628.20144"),
+				CVE:               "CVE-2024-38020",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
 			},
 			{
 				SoftwareID:        2,
-				CVE:               "CVE-2024-30104",
-				ResolvedInVersion: ptr.String("16.0.17628.20144"),
+				CVE:               "CVE-2024-38021",
+				ResolvedInVersion: ptr.String("16.0.17726.20160"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38172",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38170",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38173",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38171",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38189",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38169",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        2,
+				CVE:               "CVE-2024-38200",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38172",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38170",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38173",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38171",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38189",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38169",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
+			},
+			{
+				SoftwareID:        3,
+				CVE:               "CVE-2024-38200",
+				ResolvedInVersion: ptr.String("16.0.17830.20166"),
 			},
 		}
 
+		cmpSoftwareVulnerability := func(v []fleet.SoftwareVulnerability) func(i, j int) bool {
+			return func(i, j int) bool {
+				if v[i].SoftwareID <= v[j].SoftwareID {
+					if v[i].SoftwareID == v[j].SoftwareID {
+						return v[i].CVE < v[j].CVE
+					}
+					return true
+				}
+				return false
+			}
+		}
+		sort.Slice(expected, cmpSoftwareVulnerability(expected))
+		sort.Slice(vulns, cmpSoftwareVulnerability(vulns))
 		require.Equal(t, expected, vulns)
 	})
 
@@ -306,7 +445,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), 1*time.Hour)
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-		require.Equal(t, 8, insertCount)
+		require.Equal(t, 31, insertCount)
 		require.Len(t, vulns, 0)
 	})
 }

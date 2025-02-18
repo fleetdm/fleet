@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	kitlog "github.com/go-kit/log"
 )
@@ -28,11 +27,15 @@ func main() {
 	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
 	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
 	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
+	orgName := flag.String("org-name", "", "organization name of the token")
 
 	flag.Parse()
 
 	if *serverPrivateKey == "" {
 		log.Fatal("must provide -server-private-key")
+	}
+	if *orgName == "" {
+		log.Fatal("must provide -org-name")
 	}
 	if *profileUUID != "" && *serialNum != "" {
 		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
@@ -79,11 +82,11 @@ func main() {
 	var res any
 	switch {
 	case *profileUUID != "":
-		res, err = depClient.GetProfile(ctx, apple_mdm.DEPName, *profileUUID)
+		res, err = depClient.GetProfile(ctx, *orgName, *profileUUID)
 	case *serialNum != "":
-		res, err = depClient.GetDeviceDetails(ctx, apple_mdm.DEPName, *serialNum)
+		res, err = depClient.GetDeviceDetails(ctx, *orgName, *serialNum)
 	default:
-		res, err = depClient.AccountDetail(ctx, apple_mdm.DEPName)
+		res, err = depClient.AccountDetail(ctx, *orgName)
 	}
 	if err != nil {
 		log.Fatal(err)

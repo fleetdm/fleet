@@ -85,6 +85,10 @@
     }
     [purpose='quote'] {
       margin-bottom: 24px;
+      color: #515774;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 150%;
     }
     [purpose='quote-author-info'] {
       [purpose='job-title'] {
@@ -92,6 +96,7 @@
         line-height: 18px !important;//lesshint-disable-line importantRule,duplicateProperty
       }
       [purpose='name'] {
+        text-transform: capitalize;
         color: @core-fleet-black !important;//lesshint-disable-line importantRule,duplicateProperty
       }
       [purpose='profile-picture'] {
@@ -118,7 +123,7 @@
     margin-bottom: 8px;
     text-align: left;
     background: #FFFFFF;
-    padding: 40px;
+    padding: 24px;
     border: 1px solid @core-vibrant-blue-15;
     box-sizing: border-box;
     border-radius: 16px;

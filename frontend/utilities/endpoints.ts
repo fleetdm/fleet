@@ -9,6 +9,9 @@ export default {
   HOST_UPCOMING_ACTIVITIES: (id: number): string => {
     return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
   },
+  HOST_CANCEL_ACTIVITY: (hostId: number, uuid: string): string => {
+    return `/${API_VERSION}/fleet/hosts/${hostId}/activities/upcoming/${uuid}`;
+  },
 
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
@@ -34,6 +37,9 @@ export default {
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
+  DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -49,12 +55,15 @@ export default {
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/software/install/${softwareId}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
+  HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+  INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
 
   // labels
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
@@ -68,32 +77,50 @@ export default {
   },
 
   LOGIN: `/${API_VERSION}/fleet/login`,
+  CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
-  // MDM endpoints
+  /**
+   * MDM endpoints
+   */
+
+  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
+
+  // Apple Business Manager (ABM) endpoints
+  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
+  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
+  MDM_ABM_TOKEN_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
+  MDM_ABM_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/abm_tokens/${id}/teams`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
-  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
-  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
-  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`, // TODO: Deprecated?
+  MDM_VPP_TOKENS: `/${API_VERSION}/fleet/vpp_tokens`,
+  MDM_VPP_TOKEN: (id: number) => `/${API_VERSION}/fleet/vpp_tokens/${id}`,
+  MDM_VPP_TOKENS_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/renew`,
+  MDM_VPP_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
-  MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
-  MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
+  PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
+  DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
@@ -108,7 +135,6 @@ export default {
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
   MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
@@ -116,9 +142,17 @@ export default {
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   HOST_ENCRYPTION_KEY: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // Disk encryption endpoints
+  UPDATE_DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+
+  // Setup experiece endpoints
+  MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
+  MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
+  MDM_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
@@ -141,18 +175,25 @@ export default {
   SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  EDIT_SOFTWARE_PACKAGE: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  EDIT_SOFTWARE_VPP: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
   SOFTWARE_PACKAGE_ADD: `/${API_VERSION}/fleet/software/package`,
-  SOFTWARE_PACKAGE: (id: number) =>
-    `/${API_VERSION}/fleet/software/${id}/package`,
+  SOFTWARE_PACKAGE_TOKEN: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/package/token`,
   SOFTWARE_INSTALL_RESULTS: (uuid: string) =>
-    `/${API_VERSION}/fleet/software/install/results/${uuid}`,
+    `/${API_VERSION}/fleet/software/install/${uuid}/results`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
+  SOFTWARE_FLEET_MAINTAINED_APPS: `/${API_VERSION}/fleet/software/fleet_maintained_apps`,
+  SOFTWARE_FLEET_MAINTAINED_APP: (id: number) =>
+    `/${API_VERSION}/fleet/software/fleet_maintained_apps/${id}`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,

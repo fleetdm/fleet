@@ -32,7 +32,7 @@ type listActivitiesResponse struct {
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listActivitiesResponse) error() error { return r.Err }
+func (r listActivitiesResponse) Error() error { return r.Err }
 
 func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listActivitiesRequest)
@@ -67,6 +67,8 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
+var automationActivityAuthor = "Fleet"
+
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -84,12 +86,21 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 		var userID *uint
 		var userName *string
 		var userEmail *string
+		activityType := activity.ActivityName()
+
 		if user != nil {
-			userID = &user.ID
+			// To support creating activities with users that were deleted. This can happen
+			// for automatically installed software which uses the author of the upload as the author of
+			// the installation.
+			if user.ID != 0 {
+				userID = &user.ID
+			}
 			userName = &user.Name
 			userEmail = &user.Email
+		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+			userName = &automationActivityAuthor
 		}
-		activityType := activity.ActivityName()
+
 		go func() {
 			retryStrategy := backoff.NewExponentialBackOff()
 			retryStrategy.MaxElapsedTime = 30 * time.Minute
@@ -139,12 +150,12 @@ type listHostUpcomingActivitiesRequest struct {
 
 type listHostUpcomingActivitiesResponse struct {
 	Meta       *fleet.PaginationMetadata `json:"meta"`
-	Activities []*fleet.Activity         `json:"activities"`
+	Activities []*fleet.UpcomingActivity `json:"activities"`
 	Count      uint                      `json:"count"`
 	Err        error                     `json:"error,omitempty"`
 }
 
-func (r listHostUpcomingActivitiesResponse) error() error { return r.Err }
+func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
@@ -158,7 +169,7 @@ func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}
 
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
 // specified host.
-func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -175,8 +186,9 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 
 	// cursor-based pagination is not supported for upcoming activities
 	opt.After = ""
-	// custom ordering is not supported, always by date (oldest first)
-	opt.OrderKey = "created_at"
+	// custom ordering is not supported, always by upcoming queue order
+	// (acual order is in the query, not set via ListOptions)
+	opt.OrderKey = ""
 	opt.OrderDirection = fleet.OrderAscending
 	// no matching query support
 	opt.MatchQuery = ""

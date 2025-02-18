@@ -1,5 +1,7 @@
 # How to install osquery and enroll macOS devices into Fleet
 
+> **Archived** While still usable, this guide has not been updated recently. See the [Enroll hosts](http://fleetdm.com/guides/enroll-hosts) guide.
+
 Here, we will cover enrolling macOS devices to an existing Fleet server. If you don’t have a Fleet
 server configured already, check out [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). If you’re still getting to know Fleet and would like to skip the server setup process and try Fleet, you can [run Fleet in a preview environment](https://fleetdm.com/try-fleet/register).
 

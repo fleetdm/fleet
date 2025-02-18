@@ -13,9 +13,10 @@ interface IHostLinkProps {
   platformLabelId?: number;
   /** Shows right chevron without text */
   condensed?: boolean;
+  excludeChevron?: boolean;
   responsive?: boolean;
   customText?: string;
-  /** Table links shows on row hover only */
+  /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
   // don't actually create a link, useful when click is handled by an ancestor
   noLink?: boolean;
@@ -28,12 +29,14 @@ const ViewAllHostsLink = ({
   className,
   platformLabelId,
   condensed = false,
+  excludeChevron = false,
   responsive = false,
   customText,
   rowHover = false,
   noLink = false,
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className, {
+    [`${baseClass}__condensed`]: condensed,
     "row-hover-link": rowHover,
   });
 
@@ -49,7 +52,14 @@ const ViewAllHostsLink = ({
     <Link
       className={viewAllHostsLinkClass}
       to={noLink ? "" : path}
-      title="host-link"
+      onClick={(e) => {
+        e.stopPropagation(); // Allows for link to be clickable in a clickable row
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.stopPropagation(); // Allows for link to be keyboard accessible in a clickable row
+        }
+      }}
     >
       {!condensed && (
         <span
@@ -58,11 +68,13 @@ const ViewAllHostsLink = ({
           {customText ?? "View all hosts"}
         </span>
       )}
-      <Icon
-        name="chevron-right"
-        className={`${baseClass}__icon`}
-        color="core-fleet-blue"
-      />
+      {!excludeChevron && (
+        <Icon
+          name="chevron-right"
+          className={`${baseClass}__icon`}
+          color="core-fleet-blue"
+        />
+      )}
     </Link>
   );
 };

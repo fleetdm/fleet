@@ -179,7 +179,7 @@ func (ds *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMeta
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &metadata, stmt, carveId); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithID(uint(carveId)))
+			return nil, ctxerr.Wrap(ctx, notFound("Carve").WithID(uint(carveId))) //nolint:gosec // dismiss G115
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by ID")
 	}
@@ -280,7 +280,7 @@ func (ds *Datastore) GetBlock(ctx context.Context, metadata *fleet.CarveMetadata
 	var data []byte
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &data, stmt, metadata.ID, blockId); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("CarveBlock").WithID(uint(blockId)))
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBlock").WithID(uint(blockId))) //nolint:gosec // dismiss G115
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select data")
 	}

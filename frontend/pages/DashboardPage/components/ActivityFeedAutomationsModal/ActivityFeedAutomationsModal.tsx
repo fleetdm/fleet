@@ -155,7 +155,8 @@ const ActivityFeedAutomationsModal = ({
             name="url"
             value={formData.url}
             error={formErrors.url}
-            helpText="Fleet will send a JSON payload to this URL whenever a new audit activity is generated."
+            helpText="Fleet will send a JSON payload to this URL whenever a new activity is generated."
+            disabled={!formData.enabled}
           />
           <RevealButton
             isShowing={showExamplePayload}
@@ -166,6 +167,7 @@ const ActivityFeedAutomationsModal = ({
             onClick={() => {
               setShowExamplePayload(!showExamplePayload);
             }}
+            disabled={!formData.enabled}
           />
           {showExamplePayload && renderExamplePayload()}
         </div>

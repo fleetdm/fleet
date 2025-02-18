@@ -6,6 +6,8 @@
     display: flex;
     flex-direction: column;
     gap: $pad-xlarge;
+    width: 729px; // Fixes cut off table border
+    margin-bottom: 9px; // Fixes cut off dropdown
 
     .empty-table__container {
       max-width: none;

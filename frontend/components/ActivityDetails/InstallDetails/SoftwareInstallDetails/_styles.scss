@@ -1,7 +1,6 @@
 .software-install-details {
-  .modal__content {
-    margin-top: $pad-xlarge;
-  }
+  overflow-wrap: anywhere; // Prevent long software name overflow
+
   &__status-message {
     display: flex;
     align-items: center;

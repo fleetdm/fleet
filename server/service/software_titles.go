@@ -28,7 +28,7 @@ type listSoftwareTitlesResponse struct {
 	Err             error                           `json:"error,omitempty"`
 }
 
-func (r listSoftwareTitlesResponse) error() error { return r.Err }
+func (r listSoftwareTitlesResponse) Error() error { return r.Err }
 
 func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareTitlesRequest)
@@ -41,6 +41,13 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 	for _, sw := range titles {
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
+		}
+		// we dont want to include the InstallDuringSetup field in the response
+		// for software titles list.
+		if sw.SoftwarePackage != nil {
+			sw.SoftwarePackage.InstallDuringSetup = nil
+		} else if sw.AppStoreApp != nil {
+			sw.AppStoreApp.InstallDuringSetup = nil
 		}
 	}
 	if len(titles) == 0 {
@@ -68,14 +75,17 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, err
 	}
 
-	if opt.TeamID != nil && *opt.TeamID != 0 {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, 0, nil, fleet.ErrMissingLicense
-		}
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
+	}
+
+	if opt.TeamID != nil && *opt.TeamID != 0 && !lic.IsPremium() {
+		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
 	// always include metadata for software titles
@@ -114,7 +124,7 @@ type getSoftwareTitleResponse struct {
 	Err           error                `json:"error,omitempty"`
 }
 
-func (r getSoftwareTitleResponse) error() error { return r.Err }
+func (r getSoftwareTitleResponse) Error() error { return r.Err }
 
 func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareTitleRequest)
@@ -165,7 +175,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 
-			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}

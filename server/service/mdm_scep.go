@@ -8,10 +8,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
 	"github.com/go-kit/log"
+	"github.com/smallstep/scep"
 )
 
 var _ scepserver.Service = (*service)(nil)
@@ -20,7 +20,7 @@ type service struct {
 	// The (chainable) CSR signing function. Intended to handle all
 	// SCEP request functionality such as CSR & challenge checking, CA
 	// issuance, RA proxying, etc.
-	signer scepserver.CSRSigner
+	signer scepserver.CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
@@ -64,7 +64,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	crt, err := svc.signer.SignCSR(msg.CSRReqMessage)
+	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
 	if err == nil && crt == nil {
 		err = errors.New("no signed certificate")
 	}
@@ -83,7 +83,7 @@ func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 }
 
 // NewService creates a new scep service
-func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSigner, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
 	return &service{
 		signer:      signer,
 		debugLogger: log.NewNopLogger(),

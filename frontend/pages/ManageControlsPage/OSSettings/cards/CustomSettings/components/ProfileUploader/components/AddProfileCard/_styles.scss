@@ -1,0 +1,21 @@
+.add-profile-card {
+  &__card--content-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-medium;
+    padding: 28.5px 0;
+  }
+
+  &__profile-graphic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+
+    &--message {
+      text-align: center;
+      line-height: 20px;
+    }
+  }
+}

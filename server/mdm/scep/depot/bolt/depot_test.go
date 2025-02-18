@@ -96,7 +96,7 @@ func TestDepot_incrementSerial(t *testing.T) {
 		if err := db.incrementSerial(tt.args); (err != nil) != tt.wantErr {
 			t.Errorf("%q. Depot.incrementSerial() error = %v, wantErr %v", tt.name, err, tt.wantErr)
 		}
-		got, _ := db.Serial()
+		got, _ := db.readSerial()
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%q. Depot.Serial() = %v, want %v", tt.name, got, tt.want)
 		}

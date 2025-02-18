@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func TestCopy(t *testing.T) {
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
 	expectedMode := fs.FileMode(0644)
-	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm))
+	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
 	// Test
@@ -76,7 +77,7 @@ func TestExists(t *testing.T) {
 
 	// Setup
 	path := filepath.Join(tmp, "file")
-	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm))
+	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "dir", "nested"), os.ModePerm))
 
 	// Test
@@ -127,11 +128,11 @@ func TestExtractInstallerMetadata(t *testing.T) {
 			wantName, wantVersion, wantHash, wantBundleIdentifier := parts[0], parts[1], parts[2], parts[3]
 			wantExtension := strings.TrimPrefix(filepath.Ext(dent.Name()), ".")
 
-			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
+			tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
-			defer f.Close()
+			defer tfr.Close()
 
-			meta, err := file.ExtractInstallerMetadata(f)
+			meta, err := file.ExtractInstallerMetadata(tfr)
 			require.NoError(t, err)
 			assert.Equal(t, wantName, meta.Name)
 			assert.Equal(t, wantVersion, meta.Version)

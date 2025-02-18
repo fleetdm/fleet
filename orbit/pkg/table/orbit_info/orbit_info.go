@@ -22,6 +22,7 @@ type Extension struct {
 	dektopVersion   string
 	trw             *token.ReadWriter
 	scriptsEnabled  func() bool
+	updateURL       string
 }
 
 var _ orbit_table.Extension = (*Extension)(nil)
@@ -29,6 +30,7 @@ var _ orbit_table.Extension = (*Extension)(nil)
 func New(
 	orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
 	startTime time.Time, scriptsEnabled func() bool,
+	updateURL string,
 ) *Extension {
 	return &Extension{
 		startTime:       startTime,
@@ -39,6 +41,7 @@ func New(
 		dektopVersion:   desktopVersion,
 		trw:             trw,
 		scriptsEnabled:  scriptsEnabled,
+		updateURL:       updateURL,
 	}
 }
 
@@ -60,6 +63,7 @@ func (o Extension) Columns() []table.ColumnDefinition {
 		table.TextColumn("desktop_version"),
 		table.BigIntColumn("uptime"),
 		table.IntegerColumn("scripts_enabled"),
+		table.TextColumn("update_url"),
 	}
 }
 
@@ -104,5 +108,6 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"desktop_version":     o.dektopVersion,
 		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
 		"scripts_enabled":     strconv.FormatInt(boolToInt(o.scriptsEnabled()), 10),
+		"update_url":          o.updateURL,
 	}}, nil
 }

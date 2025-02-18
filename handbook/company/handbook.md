@@ -16,7 +16,7 @@ All done!
 To contribute a new handbook page:
 1. Determine where the new page should live in the handbook.  That is, nested under either:
   a. [the "Company" handbook](https://fleetdm.com/handbook/company), or
-  b. the handbook for a particular division (Security, Engineering, Product, Sales, Marketing, Business Operations)
+  b. the handbook for a particular division (Engineering, Product Design, Customer Support, Sales, Demand, Finance, Digital Experience)
 2. Locate the appropriate folder for the new page in [the GitHub repository under `handbook/`](https://github.com/fleetdm/fleet/tree/main/handbook).
 3. Create a new markdown file (like [one of these](https://github.com/fleetdm/fleet/tree/f90148abad96fccb6c5647a31877fa7e91b5ee57/handbook/digital-experience)).  A simple, easy way to do this is by clicking "Add file" on GitHub.com.
   a. Name your new file the kebab-cased, all lowercase version of your page title, with `.md` at the end.  (For example, a page titled "Why this way?" would have the file path: `handbook/company/why-this-way.md`.)

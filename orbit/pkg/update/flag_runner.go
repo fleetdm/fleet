@@ -164,7 +164,7 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 
 		// All Windows executables must end with `.exe`.
 		if runtime.GOOS == "windows" {
-			filename = filename + ".exe"
+			filename += ".exe"
 		}
 
 		// we don't want path traversal and the like in the filename

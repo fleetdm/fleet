@@ -141,7 +141,8 @@ func loadActiveHostIDs(pool fleet.RedisPool, zsetKey string, scanCount int) ([]h
 			return nil, fmt.Errorf("convert scan results: %w", err)
 		}
 		for i := 0; i < len(hostVals); i += 2 {
-			hosts = append(hosts, hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])})
+			hosts = append(hosts,
+				hostIDLastReported{HostID: hostVals[i], LastReported: int64(hostVals[i+1])}) //nolint:gosec // dismiss G115
 		}
 
 		if cursor == 0 {

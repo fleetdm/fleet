@@ -643,6 +643,20 @@ allow {
   action == read
 }
 
+# Global admins and maintainers can read all maintained apps.
+allow {
+  object.type == "maintained_app"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins and maintainers can read all maintained apps (no team constraint, unlike installers)
+allow {
+  object.type == "maintained_app"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  action == read
+}
+
 # Global admins and maintainers can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
@@ -677,7 +691,7 @@ allow {
 # Host software installs
 ##
 
-# Global admins and maintainers can write (install) software on hosts (not
+# Global admins and maintainers can write (install/uninstall) software on hosts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
@@ -685,7 +699,7 @@ allow {
   action == write
 }
 
-# Team admin and maintainers can write (install) software on hosts for their
+# Team admin and maintainers can write (install/uninstall) software on hosts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
@@ -733,11 +747,11 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can read and write MDM apple information.
+# Global admins can read, write, and list MDM apple information.
 allow {
   object.type == "mdm_apple"
   subject.global_role == admin
-  action == [read, write][_]
+  action == [read, write, list][_]
 }
 
 # Global admins can read and write Apple MDM enrollments.
@@ -750,7 +764,7 @@ allow {
 # Global admins and maintainers can write (execute) MDM commands.
 allow {
   object.type == "mdm_command"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -758,7 +772,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -937,7 +951,7 @@ allow {
   action == write
 }
 
-# Global admins, maintainers, observer_plus and observers can read scripts.
+# Global admins, maintainers, observer_plus and observers can read script results, including software uninstall results.
 allow {
   object.type == "host_script_result"
   subject.global_role == [admin, maintainer, observer, observer_plus][_]
@@ -953,7 +967,7 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, observer_plus and observers can read scripts for their teams.
+# Team admins, maintainers, observer_plus and observers can read script results for their teams, including software uninstall results.
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
@@ -993,4 +1007,15 @@ allow {
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == read
+}
+
+##
+# Secret variables
+##
+
+# Global admins, maintainers, and gitops can write secret variables.
+allow {
+  object.type == "secret_variable"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
 }

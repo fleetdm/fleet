@@ -7,15 +7,21 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
+
 import { pull, size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
+import { IAceEditor } from "react-ace/lib/types";
+import ReactTooltip from "react-tooltip";
+
 import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
+
 import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
@@ -30,21 +36,21 @@ import {
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
+
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+
 import { getErrorReason, IApiError } from "interfaces/errors";
 import {
   ISchedulableQuery,
   ICreateQueryRequestBody,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+
 import queryAPI from "services/entities/queries";
 
-import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -52,9 +58,13 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import Slider from "components/forms/fields/Slider";
+import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+
 import SaveQueryModal from "../SaveQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
@@ -127,6 +137,7 @@ const EditQueryForm = ({
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
+    lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType,
@@ -136,6 +147,7 @@ const EditQueryForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
@@ -172,6 +184,7 @@ const EditQueryForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [queryWasChanged, setQueryWasChanged] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -221,6 +234,7 @@ const EditQueryForm = ({
   };
 
   const onChangeQuery = (sqlString: string) => {
+    setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
   };
 
@@ -264,12 +278,12 @@ const EditQueryForm = ({
       // else if Remove OS if All is chosen
       if (valArray.indexOf("") === 0 && valArray.length > 1) {
         setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as SelectedPlatformString
+          pull(valArray, "").join(",") as CommaSeparatedPlatformString
         );
       } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
         setLastEditedQueryPlatforms("");
       } else {
-        setLastEditedQueryPlatforms(values as SelectedPlatformString);
+        setLastEditedQueryPlatforms(values as CommaSeparatedPlatformString);
       }
     },
     [setLastEditedQueryPlatforms]
@@ -316,6 +330,7 @@ const EditQueryForm = ({
           team_id: apiTeamIdForQuery,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -341,6 +356,7 @@ const EditQueryForm = ({
                 team_id: apiTeamIdForQuery,
                 observer_can_run: lastEditedQueryObserverCanRun,
                 interval: lastEditedQueryFrequency,
+                automations_enabled: lastEditedQueryAutomationsEnabled,
                 platform: lastEditedQueryPlatforms,
                 min_osquery_version: lastEditedQueryMinOsqueryVersion,
                 logging: lastEditedQueryLoggingType,
@@ -405,11 +421,14 @@ const EditQueryForm = ({
         setShowSaveQueryModal(true);
       } else {
         onUpdate({
-          name: lastEditedQueryName,
+          // name should already be trimmed at this point due to associated onBlurs, but this
+          // doesn't hurt
+          name: lastEditedQueryName.trim(),
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
+          automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: lastEditedQueryPlatforms,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
@@ -498,6 +517,9 @@ const EditQueryForm = ({
             maxLength={160}
             hasError={errors && errors.name}
             onChange={setLastEditedQueryName}
+            onBlur={() => {
+              setLastEditedQueryName(lastEditedQueryName.trim());
+            }}
             onKeyPress={onInputKeypress}
             isFocused={isEditingName}
           />
@@ -575,7 +597,7 @@ const EditQueryForm = ({
         />
       )}
       {showQueryEditor && (
-        <FleetAce
+        <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
           label="Query"
@@ -690,7 +712,7 @@ const EditQueryForm = ({
             </div>
             <div className="author">{savedQueryMode && renderAuthor()}</div>
           </div>
-          <FleetAce
+          <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"
@@ -718,6 +740,50 @@ const EditQueryForm = ({
                 label="Frequency"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
+              />
+              <Slider
+                onChange={() =>
+                  setLastEditedQueryAutomationsEnabled(
+                    !lastEditedQueryAutomationsEnabled
+                  )
+                }
+                value={lastEditedQueryAutomationsEnabled}
+                activeText={
+                  <>
+                    Automations on
+                    {lastEditedQueryFrequency === 0 && (
+                      <TooltipWrapper
+                        tipContent={
+                          <>
+                            Automations and reporting will be paused <br />
+                            for this query until a frequency is set.
+                          </>
+                        }
+                        position="right"
+                        tipOffset={9}
+                        showArrow
+                        underline={false}
+                      >
+                        <Icon name="warning" />
+                      </TooltipWrapper>
+                    )}
+                  </>
+                }
+                inactiveText="Automations off"
+                helpText={
+                  <>
+                    Historical results will
+                    {!lastEditedQueryAutomationsEnabled ? " not " : " "}be sent
+                    to your log destination:{" "}
+                    <b>
+                      <LogDestinationIndicator
+                        logDestination={config?.logging.result.plugin || ""}
+                        excludeTooltip
+                      />
+                    </b>
+                    .
+                  </>
+                }
               />
               <Checkbox
                 value={lastEditedQueryObserverCanRun}
@@ -818,7 +884,17 @@ const EditQueryForm = ({
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={() => {
-                  setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  // calling `setEditingExistingQuery` here prevents
+                  // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
+                  // this live run in performance impact. Since we DO want to count this run in those
+                  // stats if the query is the same as the saved one, only set below IF the query
+                  // has been changed.
+                  // TODO - product: should host details > action > query > <select existing query>
+                  // go to the host details page instead of the edit query page, where the user has
+                  // the choice to edit the query or run it live directly?
+                  if (queryWasChanged) {
+                    setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  }
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)

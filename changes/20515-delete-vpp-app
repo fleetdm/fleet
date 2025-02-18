@@ -1,2 +1,0 @@
-* Added support to delete a VPP app from a team in `DELETE /software/titles/:software_title_id/available_for_install`.
-* Fixed path that was incorrect for the download software installer package endpoint `GET /software/titles/:software_title_id/package`.

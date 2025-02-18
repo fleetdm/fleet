@@ -9,6 +9,7 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { pluralize } from "utilities/strings/stringUtils";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
@@ -118,13 +119,16 @@ const SoftwareSelfService = ({
               ) : (
                 <>
                   <div className={`${baseClass}__items-count`}>
-                    <b>{data.count} items</b>
+                    <b>{`${data.count} ${pluralize(data.count, "item")}`}</b>
                   </div>
                   <div className={`${baseClass}__items`}>
                     {data.software.map((s) => {
-                      // TODO: update this if/when we support self-service app store apps
-                      const uuid =
-                        s.software_package?.last_install?.install_uuid || "";
+                      let uuid =
+                        s.software_package?.last_install?.install_uuid ??
+                        s.app_store_app?.last_install?.command_uuid;
+                      if (!uuid) {
+                        uuid = "";
+                      }
                       // concatenating uuid so item updates with fresh data on refetch
                       const key = `${s.id}${uuid}`;
                       return (

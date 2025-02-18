@@ -676,7 +676,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password - Password Manager",
+				Name:             "1Password – Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -762,7 +762,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "18.9.0",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:*:*:*",
+			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -894,10 +894,19 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			software: fleet.Software{
 				Name:             "Python 3.10.6 (64-bit)",
 				Source:           "programs",
-				Version:          "3.10.6150.0",
+				Version:          "3.10.6",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6150.0:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0a1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0-alpha1",
+				Vendor:  "Python Software Foundation",
+				// should be "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*"; see #24810
+			}, cpe: "cpe:2.3:a:python:python:3.14.0-alpha1:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1314,6 +1323,33 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		// 2025-01-20: there are no entries for the jira python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "jira",
+				Source:  "python_packages",
+				Version: "3.8.0",
+			}, cpe: "",
+		},
+		{ // checks vendor/product matching based on bundle name, including EAPs
+			software: fleet.Software{
+				Name:             "GoLand EAP.app",
+				Source:           "apps",
+				Version:          "2022.3.99.123.456",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "IntelliJ IDEA.app",
@@ -1342,7 +1378,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "",
 			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:*:*:*",
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1643,7 +1679,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -1653,6 +1689,42 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "",
 			},
 			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "VirtualBox.app",
+				Source:           "apps",
+				Version:          "7.0.12",
+				BundleIdentifier: "org.virtualbox.app.VirtualBox",
+			},
+			cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "deb_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "homebrew_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "pass",
+				Source:           "homebrew_packages",
+				Version:          "1.7.4",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
 		},
 	}
 
@@ -1693,7 +1765,7 @@ func TestContainsNonASCII(t *testing.T) {
 	}{
 		{"hello", false},
 		{"hello world", false},
-		{"hello world!", false},
+		{"hello – world!", false},
 		{"😊👍", true},
 		{"hello world! 😊👍", true},
 		{"Девушка Фонарём", true},

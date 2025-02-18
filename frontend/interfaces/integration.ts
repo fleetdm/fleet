@@ -17,6 +17,13 @@ export interface IZendeskIntegration {
   enable_software_vulnerabilities?: boolean;
 }
 
+export interface IScepIntegration {
+  url: string;
+  admin_url: string;
+  username: string;
+  password: string;
+}
+
 export interface IIntegration {
   url: string;
   username?: string;
@@ -84,6 +91,7 @@ export interface IZendeskJiraIntegrations {
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
+  ndes_scep_proxy?: IScepIntegration | null;
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {

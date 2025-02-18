@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/blakesmith/ar"
+	"github.com/klauspost/compress/zstd"
 	"github.com/xi2/xz"
 )
 
@@ -33,9 +34,9 @@ func ExtractDebMetadata(r io.Reader) (*InstallerMetadata, error) {
 			return nil, fmt.Errorf("failed to advance to next file in archive: %w", err)
 		}
 
-		name := path.Clean(hdr.Name)
-		if strings.HasPrefix(name, "control.tar") {
-			ext := filepath.Ext(name)
+		filename := path.Clean(hdr.Name)
+		if strings.HasPrefix(filename, "control.tar") {
+			ext := filepath.Ext(filename)
 			if ext == ".tar" {
 				ext = ""
 			}
@@ -49,9 +50,10 @@ func ExtractDebMetadata(r io.Reader) (*InstallerMetadata, error) {
 				return nil, fmt.Errorf("failed to read all content: %w", err)
 			}
 			return &InstallerMetadata{
-				Name:    name,
-				Version: version,
-				SHASum:  h.Sum(nil),
+				Name:       name,
+				Version:    version,
+				PackageIDs: []string{name},
+				SHASum:     h.Sum(nil),
 			}, nil
 		}
 	}
@@ -100,6 +102,13 @@ func parseControl(r io.Reader, ext string) (name, version string, err error) {
 		if err != nil {
 			return "", "", fmt.Errorf("failed to create xz reader: %w", err)
 		}
+	case ".zst":
+		zr, err := zstd.NewReader(r)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create zstd reader: %w", err)
+		}
+		defer zr.Close()
+		r = zr
 	case "":
 		// uncompressed
 	default:

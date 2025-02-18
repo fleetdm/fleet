@@ -28,8 +28,8 @@ version_gt() {
 OS="$(uname -s)"
 
 case "${OS}" in
-    Linux*)     OS='linux';;
-    Darwin*)    OS='macos';;
+    Linux*)     OS='linux' OS_DISPLAY_NAME='Linux';;
+    Darwin*)    OS='macos' OS_DISPLAY_NAME='macOS';;
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac
 
@@ -41,14 +41,14 @@ mkdir -p "${FLEETCTL_INSTALL_DIR}"
 DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest_strippedVersion}/fleetctl_v${latest_strippedVersion}_${OS}.tar.gz"
 
 # Download the latest version of fleetctl and extract it.
-echo "Downloading fleetctl ${latest_strippedVersion} for ${OS}..."
+echo "Downloading fleetctl ${latest_strippedVersion} for ${OS_DISPLAY_NAME}..."
 curl -sSL "$DOWNLOAD_URL" | tar -xz -C "$FLEETCTL_INSTALL_DIR" --strip-components=1 fleetctl_v"${latest_strippedVersion}"_${OS}/
 echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
 echo
 echo "To start the local demo:"
 echo
 echo "1. Start Docker Desktop"
-echo "2. Run  ~/.fleetctl/fleetctl preview"
+echo "2. To access your Fleet Premium trial, head to fleetdm.com/try-fleet and run the command in step 2."
 
 # Verify if the binary is executable
 if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then

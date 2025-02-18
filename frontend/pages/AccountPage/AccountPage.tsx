@@ -26,6 +26,7 @@ import CustomLink from "components/CustomLink";
 
 import SecretField from "./APITokenModal/TokenSecretField/SecretField";
 import AccountSidePanel from "./AccountSidePanel";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "account-page";
 
@@ -43,7 +44,6 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const [updatedUser, setUpdatedUser] = useState<Partial<IUser>>({});
   const [showApiTokenModal, setShowApiTokenModal] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
 
   const onCancel = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -104,12 +104,12 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-
-      if (errorObject.base.includes("already exists")) {
-        renderFlash("error", "A user with this email address already exists.");
-      } else {
-        renderFlash("error", "Could not edit user. Please try again.");
-      }
+      renderFlash(
+        "error",
+        errorObject.base.includes("already exists")
+          ? "A user with this email address already exists."
+          : "Could not edit user. Please try again."
+      );
 
       setShowEmailModal(false);
       return false;
@@ -121,10 +121,8 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       await usersAPI.changePassword(formData);
       renderFlash("success", "Password changed successfully");
       setShowPasswordModal(false);
-    } catch (response) {
-      const errorObject = formatErrorResponse(response);
-      setUserErrors(errorObject);
-      return false;
+    } catch (e) {
+      renderFlash("error", getErrorMessage(e));
     }
   };
 
@@ -161,7 +159,6 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onTogglePasswordModal}
-          serverErrors={userErrors}
         />
       </Modal>
     );

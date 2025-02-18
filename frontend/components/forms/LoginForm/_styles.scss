@@ -39,4 +39,38 @@
   &__sso-legend {
     vertical-align: middle;
   }
+
+  &__actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: $pad-large;
+  }
+
+  &__login-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
+}
+
+.two-factor-check-email {
+  .stacked-white-boxes__box {
+    align-items: start;
+    gap: $pad-xlarge;
+
+    h1 {
+      font-size: $large;
+      font-weight: $bold;
+      margin: 0;
+    }
+
+    .back-link {
+      svg {
+        path {
+          fill: transparent;
+        }
+      }
+    }
+  }
 }

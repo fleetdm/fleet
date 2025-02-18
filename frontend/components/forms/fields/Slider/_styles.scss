@@ -24,7 +24,7 @@
   &__wrapper {
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 24px; // Noticeable with help text below slider
   }
 
   &__dot {
@@ -40,10 +40,16 @@
   }
 
   &__label {
+    display: flex;
+    vertical-align: middle;
+    gap: $pad-small; // For supporting icons
     font-size: $x-small;
     font-weight: $regular;
     text-align: left;
-    vertical-align: text-bottom;
     margin-left: $pad-small;
+  }
+
+  &__help-text {
+    @include help-text;
   }
 }

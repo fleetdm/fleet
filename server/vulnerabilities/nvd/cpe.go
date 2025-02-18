@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -269,18 +270,18 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 
 			sName := strings.ToLower(software.Name)
 			for _, sN := range strings.Split(item.Product, "_") {
-				hasAllTerms = hasAllTerms && strings.Index(sName, sN) != -1
+				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
 			}
 
 			sVendor := strings.ToLower(software.Vendor)
 			sBundle := strings.ToLower(software.BundleIdentifier)
 			for _, sV := range strings.Split(item.Vendor, "_") {
 				if sVendor != "" {
-					hasAllTerms = hasAllTerms && strings.Index(sVendor, sV) != -1
+					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
 				}
 
 				if sBundle != "" {
-					hasAllTerms = hasAllTerms && strings.Index(sBundle, sV) != -1
+					hasAllTerms = hasAllTerms && strings.Contains(sBundle, sV)
 				}
 			}
 
@@ -439,7 +440,7 @@ func TranslateSoftwareToCPE(
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	// Skip software from sources for which we will be using OVAL for vulnerability detection.
+	// Skip software from sources for which we will be using OVAL or goval-dictionary for vulnerability detection.
 	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
@@ -567,9 +568,14 @@ func translateSoftwareToCPEWithIterator(
 	return nil
 }
 
+var allowedNonASCII = []int32{
+	'–', // en dash
+	'—', // em dash
+}
+
 func containsNonASCII(s string) bool {
 	for _, char := range s {
-		if char > unicode.MaxASCII {
+		if char > unicode.MaxASCII && !slices.Contains(allowedNonASCII, char) {
 			return true
 		}
 	}

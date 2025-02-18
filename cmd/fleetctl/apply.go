@@ -90,7 +90,12 @@ func applyCommand() *cli.Command {
 				opts.TeamForPolicies = policiesTeamName
 			}
 			baseDir := filepath.Dir(flFilename)
-			_, err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, nil, opts)
+
+			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+			teamsScripts := make(map[string][]fleet.ScriptResponse)
+
+			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 			if err != nil {
 				return err
 			}

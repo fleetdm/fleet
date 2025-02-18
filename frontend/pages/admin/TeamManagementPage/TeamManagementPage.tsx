@@ -35,6 +35,7 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentTeam,
     setCurrentUser,
     setAvailableTeams,
+    setUserSettings,
   } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -48,9 +49,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -115,6 +117,14 @@ const TeamManagementPage = (): JSX.Element => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
               name: "A team with this name already exists",
+            });
+          } else if (createError.data.errors[0].reason.includes("All teams")) {
+            setBackendValidators({
+              name: `"All teams" is a reserved team name. Please try another name.`,
+            });
+          } else if (createError.data.errors[0].reason.includes("No team")) {
+            setBackendValidators({
+              name: `"No team" is a reserved team name. Please try another name.`,
             });
           } else {
             renderFlash("error", "Could not create team. Please try again.");
@@ -184,6 +194,16 @@ const TeamManagementPage = (): JSX.Element => {
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
                 name: "A team with this name already exists",
+              });
+            } else if (
+              updateError.data.errors[0].reason.includes("all teams")
+            ) {
+              setBackendValidators({
+                name: `"All teams" is a reserved team name.`,
+              });
+            } else if (updateError.data.errors[0].reason.includes("no team")) {
+              setBackendValidators({
+                name: `"No team" is a reserved team name. Please try another name.`,
               });
             } else {
               renderFlash(

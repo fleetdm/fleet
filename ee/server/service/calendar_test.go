@@ -15,7 +15,7 @@ type mockLock struct {
 	AddToSetFn    func(ctx context.Context, key string, value string) error
 }
 
-func (m *mockLock) AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (ok bool, err error) {
+func (m *mockLock) SetIfNotExist(ctx context.Context, key string, value string, expireMs uint64) (ok bool, err error) {
 	return m.AcquireLockFn(ctx, key, value, expireMs)
 }
 
@@ -25,6 +25,10 @@ func (m *mockLock) ReleaseLock(ctx context.Context, key string, value string) (o
 
 func (m *mockLock) Get(ctx context.Context, key string) (*string, error) {
 	return m.GetFn(ctx, key)
+}
+
+func (m *mockLock) GetAndDelete(ctx context.Context, key string) (*string, error) {
+	panic("implement me")
 }
 
 func (m *mockLock) AddToSet(ctx context.Context, key string, value string) error {

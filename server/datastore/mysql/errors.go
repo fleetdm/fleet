@@ -93,7 +93,7 @@ func (e *existsError) WithTeamID(teamID uint) error {
 }
 
 func (e *existsError) Error() string {
-	msg := fmt.Sprintf("%s", e.ResourceType)
+	msg := e.ResourceType
 	if e.Identifier != nil {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
@@ -189,6 +189,12 @@ func isMySQLAccessDenied(err error) bool {
 		return true
 	}
 	return false
+}
+
+func isMySQLUnknownStatement(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
 }
 
 // ErrPartialResult indicates that a batch operation was completed,

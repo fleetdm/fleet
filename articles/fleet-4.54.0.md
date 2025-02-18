@@ -1,6 +1,8 @@
 # Fleet 4.54.0 | Target hosts via label exclusion, arm64 support, script execution time.
 
-![Fleet 4.54.0](../website/assets/images/articles/fleet-4.54.0-1600x900@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/8i6tzXm41VM?si=5Sxv3FavghntPEXo" frameborder="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.54.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.54.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.

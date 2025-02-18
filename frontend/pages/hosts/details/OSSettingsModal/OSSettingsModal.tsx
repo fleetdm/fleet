@@ -29,8 +29,7 @@ const OSSettingsModal = ({
   onClose,
   onProfileResent,
 }: IOSSettingsModalProps) => {
-  // the caller should ensure that hostMDMData is not undefined and that platform is "windows" or
-  // "darwin", otherwise we will allow an empty modal will be rendered.
+  // the caller should ensure that hostMDMData is not undefined and that platform is supported otherwise we will allow an empty modal will be rendered.
   // https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
 
   const memoizedTableData = useMemo(
@@ -43,7 +42,7 @@ const OSSettingsModal = ({
       title="OS settings"
       onExit={onClose}
       className={baseClass}
-      width="large"
+      width="xlarge"
     >
       <>
         <OSSettingsTable

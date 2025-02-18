@@ -15,7 +15,7 @@ export interface ILicense {
   organization: string;
 }
 
-interface IEndUserAuthentication {
+export interface IEndUserAuthentication {
   entity_id: string;
   idp_name: string;
   issuer_uri: string;
@@ -41,15 +41,23 @@ export interface IAppleDeviceUpdates {
 }
 
 export interface IMdmConfig {
+  /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
+  apple_server_url: string;
   enable_disk_encryption: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
+  /**
+   * @deprecated
+   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_bm_terms_expired.
+   * https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
+   */
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  windows_migration_enabled: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
@@ -214,3 +222,7 @@ export type IAutomationsConfig = Pick<
 >;
 
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
+
+export interface IUserSettings {
+  hidden_host_columns: string[];
+}

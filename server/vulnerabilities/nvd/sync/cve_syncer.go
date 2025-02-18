@@ -628,7 +628,6 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 	var modCount int
 	for _, file := range zipReader.File {
 		cvesByYear := make(map[int][]VulnCheckCVE)
-		var stopProcessing bool
 
 		gzFile, err := file.Open()
 		if err != nil {
@@ -655,9 +654,8 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			}
 
 			// Stop processing files if the last modified date is older than the vulncheck start
-			// date in order to avoid processing unnecessary files.
+			// date in order to avoid processing unnecessary CVEs.
 			if lastMod.Before(vulnCheckStartDate) {
-				stopProcessing = true
 				continue
 			}
 
@@ -675,10 +673,6 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			if err := s.updateVulnCheckYearFile(year, cvesInYear, &modCount, &addCount); err != nil {
 				return err
 			}
-		}
-
-		if stopProcessing {
-			break
 		}
 
 		gReader.Close()
@@ -780,13 +774,32 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 
 	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
 	for _, description := range cve.Descriptions {
-		// Keep only english descriptions to match the legacy.
-		if description.Lang != "en" {
+		// Keep only English descriptions to match the legacy format.
+		var lang string
+		switch description.Lang {
+		case "en":
+			lang = description.Lang
+		case "en-US": // This occurred starting with Microsoft CVE-2024-38200.
+			lang = "en"
+		// non-English descriptions with known language tags are ignored.
+		case "es": // This occurred in a number of 2004 CVEs
+			continue
+		// non-English descriptions with unknown language tags are ignored and warned.
+		default:
+			level.Warn(logger).Log("msg", "Unknown CVE description language tag", "lang", description.Lang)
 			continue
 		}
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
-			Lang:  description.Lang,
+			Lang:  lang,
 			Value: description.Value,
+		})
+	}
+
+	if len(descriptions) == 0 {
+		// Populate a blank description to prevent Fleet cron job from crashing: https://github.com/fleetdm/fleet/issues/21239
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  "en",
+			Value: "",
 		})
 	}
 
@@ -1112,8 +1125,6 @@ func updateWithVulnCheckConfigurations(cve *schema.NVDCVEFeedJSON10DefCVEItem, v
 		CVEDataVersion: "4.0", // All entries seem to have this version string.
 		Nodes:          nodes,
 	}
-
-	return
 }
 
 // convertAPI20TimeToLegacy converts the timestamps from API 2.0 format to the expected legacy feed time format.

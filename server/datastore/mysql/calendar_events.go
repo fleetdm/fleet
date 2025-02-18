@@ -64,7 +64,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 			return ctxerr.Wrap(ctx, err, "insert calendar event")
 		}
 
-		if insertOnDuplicateDidInsert(result) {
+		if insertOnDuplicateDidInsertOrUpdate(result) {
 			id, _ = result.LastInsertId()
 		} else {
 			stmt := `SELECT id FROM calendar_events WHERE email = ?`
@@ -83,7 +83,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				webhook_status = VALUES(webhook_status),
 				calendar_event_id = VALUES(calendar_event_id);
 		`
-		result, err = tx.ExecContext(
+		_, err = tx.ExecContext(
 			ctx,
 			hostCalendarEventsQuery,
 			hostID,
@@ -98,7 +98,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id))
+	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get created calendar event by id")
 	}

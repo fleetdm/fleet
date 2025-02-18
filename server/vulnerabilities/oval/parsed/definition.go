@@ -27,12 +27,12 @@ type Definition struct {
 // Tests results can come from two sources:
 // - OSTstResults: Test results from making assertions against the installed OS Version
 // - pkTstResults: Tests results from making assertions against the installed software packages.
-func (d Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
-	if d.Criteria == nil || (len(OSTstResults) == 0 && len(pkgTstResults) == 0) {
+func (d Definition) Eval(osTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
+	if d.Criteria == nil || (len(osTstResults) == 0 && len(pkgTstResults) == 0) {
 		return false
 	}
 
-	rEval, err := evalCriteria(d.Criteria, OSTstResults, pkgTstResults)
+	rEval, err := evalCriteria(d.Criteria, osTstResults, pkgTstResults)
 	if err != nil {
 		return false
 	}
@@ -57,7 +57,7 @@ func (d Definition) CollectTestIds() []int {
 	return results
 }
 
-func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) (bool, error) {
+func evalCriteria(c *Criteria, osTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) (bool, error) {
 	var vals []bool
 	var result bool
 
@@ -67,7 +67,7 @@ func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int]
 			vals = append(vals, len(pkgTstR) > 0)
 		}
 
-		OSTstR, OSTstOk := OSTstResults[co]
+		OSTstR, OSTstOk := osTstResults[co]
 		if OSTstOk {
 			vals = append(vals, OSTstR)
 		}
@@ -80,7 +80,7 @@ func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int]
 	result = c.Operator.Eval(vals...)
 
 	for _, ci := range c.Criterias {
-		rEval, err := evalCriteria(ci, OSTstResults, pkgTstResults)
+		rEval, err := evalCriteria(ci, osTstResults, pkgTstResults)
 		if err != nil {
 			return false, err
 		}

@@ -39,6 +39,7 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
         src={gravatar_url_dark || DEFAULT_GRAVATAR_LINK_DARK}
         onError={onError}
         onLoad={onLoad}
+        data-testid="user-avatar"
       />
     </div>
   );

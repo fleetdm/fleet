@@ -1,7 +1,7 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
@@ -11,33 +11,17 @@ import Card from "components/Card";
 import TabsWrapper from "components/TabsWrapper";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
 const baseClass = "activity-card";
 
-export interface IShowActivityDetailsData {
-  type: string;
-  details?: IActivityDetails;
-}
-
-export type ShowActivityDetailsHandler = (
-  data: IShowActivityDetailsData
-) => void;
-
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      tipContent={
-        <>
-          Upcoming activities will run as listed. Failure of one activity
-          won&apos;t cancel other activities.
-          <br />
-          <br />
-          Currently, only scripts are guaranteed to run in order.
-        </>
-      }
+      tipContent="Failure of one activity won't cancel other activities."
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
@@ -55,6 +39,7 @@ interface IActivityProps {
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
 }
 
 const Activity = ({
@@ -67,6 +52,7 @@ const Activity = ({
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onCancel,
 }: IActivityProps) => {
   return (
     <Card
@@ -100,7 +86,7 @@ const Activity = ({
           <TabPanel>
             <PastActivityFeed
               activities={activities as IHostPastActivitiesResponse | undefined}
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
@@ -112,7 +98,8 @@ const Activity = ({
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined
               }
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
+              onCancel={onCancel}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}

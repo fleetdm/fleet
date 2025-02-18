@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -8,6 +8,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
@@ -30,6 +31,52 @@ interface ISsoFormErrors {
   entity_id?: string | null;
   idp_name?: string | null;
 }
+
+const validate = (formData: ISsoFormData) => {
+  const errors: ISsoFormErrors = {};
+
+  const {
+    enableSso,
+    idpImageUrl,
+    metadata,
+    metadataUrl,
+    entityId,
+    idpName,
+  } = formData;
+
+  if (enableSso) {
+    if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
+      errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
+    }
+
+    if (!metadata) {
+      if (!metadataUrl) {
+        errors.metadata_url =
+          "Metadata URL is required (if metadata is not present)";
+        errors.metadata =
+          "Metadata is required (if metadata URL is not present)";
+      } else if (
+        !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
+      ) {
+        errors.metadata_url = `${metadataUrl} is not a valid URL`;
+      }
+    }
+
+    if (!entityId) {
+      errors.entity_id = "Entity ID must be present";
+    }
+
+    if (typeof entityId === "string" && entityId.length < 5) {
+      errors.entity_id = "Entity ID must be 5 or more characters";
+    }
+
+    if (!idpName) {
+      errors.idp_name = "Identity provider name must be present";
+    }
+  }
+
+  return errors;
+};
 
 const Sso = ({
   appConfig,
@@ -63,50 +110,34 @@ const Sso = ({
   const [formErrors, setFormErrors] = useState<ISsoFormErrors>({});
 
   const onInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validate(newFormData);
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur or submit
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
   };
 
-  const validateForm = () => {
-    const errors: ISsoFormErrors = {};
-
-    if (enableSso) {
-      if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
-        errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
-      }
-
-      if (!metadata) {
-        if (!metadataUrl) {
-          errors.metadata_url = "Metadata or Metadata URL must be present";
-          errors.metadata = "Metadata or Metadata URL must be present";
-        } else if (
-          !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
-        ) {
-          errors.metadata_url = `${metadataUrl} is not a valid URL`;
-        }
-      }
-
-      if (!entityId) {
-        errors.entity_id = "Entity ID must be present";
-      }
-
-      if (typeof entityId === "string" && entityId.length < 5) {
-        errors.entity_id = "Entity ID must be 5 or more characters";
-      }
-
-      if (!idpName) {
-        errors.idp_name = "Identity provider name must be present";
-      }
-    }
-
-    setFormErrors(errors);
+  const onInputBlur = () => {
+    setFormErrors(validate(formData));
   };
-
-  useEffect(() => {
-    validateForm();
-  }, [idpImageUrl, metadata, metadataUrl, entityId, idpName]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errs = validate(formData);
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
 
     // Formatting of API not UI
     const formDataToSubmit = {
@@ -134,6 +165,7 @@ const Sso = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
             onChange={onInputChange}
+            onBlur={onInputBlur}
             name="enableSso"
             value={enableSso}
             parseTarget
@@ -146,7 +178,7 @@ const Sso = ({
             name="idpName"
             value={idpName}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.idp_name}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
@@ -157,7 +189,7 @@ const Sso = ({
             name="entityId"
             value={entityId}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.entity_id}
             tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
           />
@@ -167,7 +199,7 @@ const Sso = ({
             name="idpImageUrl"
             value={idpImageUrl}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.idp_image_url}
             tooltip={`An optional link to an image such
             as a logo for the identity provider.`}
@@ -179,24 +211,29 @@ const Sso = ({
             name="metadata"
             value={metadata}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.metadata}
-            tooltip={`Metadata provided by the identity provider. Either
-            metadata or a metadata url must be provided.`}
+            tooltip="Metadata XML provided by the identity provider."
           />
           <InputField
             label="Metadata URL"
-            helpText="If available from the identity provider, this is the preferred means of providing metadata."
+            helpText={
+              <>
+                If both <b>Metadata URL</b> and <b>Metadata</b> are specified,{" "}
+                <b>Metadata URL</b> will be used.
+              </>
+            }
             onChange={onInputChange}
             name="metadataUrl"
             value={metadataUrl}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.metadata_url}
-            tooltip="A URL that references the identity provider metadata."
+            tooltip="Metadata URL provided by the identity provider."
           />
           <Checkbox
             onChange={onInputChange}
+            onBlur={onInputBlur}
             name="enableSsoIdpLogin"
             value={enableSsoIdpLogin}
             parseTarget
@@ -206,18 +243,22 @@ const Sso = ({
           {isPremiumTier && (
             <Checkbox
               onChange={onInputChange}
+              onBlur={onInputBlur}
               name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget
+              helpText={
+                <>
+                  <CustomLink
+                    url={`${LEARN_MORE_ABOUT_BASE_LINK}/just-in-time-provisioning`}
+                    text="Learn more"
+                    newTab
+                  />{" "}
+                  about just-in-time (JIT) user provisioning.
+                </>
+              }
             >
-              <>
-                Create user and sync permissions on login{" "}
-                <CustomLink
-                  url="https://fleetdm.com/learn-more-about/just-in-time-provisioning"
-                  text="Learn more"
-                  newTab
-                />
-              </>
+              Create user and sync permissions on login
             </Checkbox>
           )}
           <Button

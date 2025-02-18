@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 
 import Modal from "components/Modal";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import CustomLink from "components/CustomLink";
 import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
@@ -38,8 +39,10 @@ const AddIntegrationModal = ({
   );
   const [destination, setDestination] = useState("jira");
 
-  const onDestinationChange = (value: string) => {
-    setDestination(value);
+  const onDestinationChange = (
+    selectedDestination: SingleValue<CustomOptionType>
+  ) => {
+    setDestination(selectedDestination?.value || "jira");
   };
 
   useEffect(() => {
@@ -51,14 +54,14 @@ const AddIntegrationModal = ({
       <div className="form">
         {!testingConnection && (
           <>
-            <Dropdown
-              label="Ticket destination"
+            <DropdownWrapper
               name="destination"
+              label="Ticket destination"
               onChange={onDestinationChange}
               value={destination}
               options={destinationOptions}
-              classname={`${baseClass}__destination-dropdown`}
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              className={`${baseClass}__destination-dropdown`}
+              wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
             />
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="

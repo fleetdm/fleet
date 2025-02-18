@@ -65,9 +65,11 @@ func (s *escrowBuddyTestSuite) TestEscrowBuddyRotatesKey() {
 
 	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Len(t, cmdCalls, 1)
+	require.Len(t, cmdCalls, 2)
 	require.Equal(t, cmdCalls[0]["cmd"], "sh")
-	require.Equal(t, cmdCalls[0]["args"], []string{"-c", "defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool true"})
+	require.Equal(t, cmdCalls[0]["args"], []string{"-c", "/Library/Security/SecurityAgentPlugins/Escrow\\ Buddy.bundle/Contents/Resources/AuthDBSetup.sh"})
+	require.Equal(t, cmdCalls[1]["cmd"], "sh")
+	require.Equal(t, cmdCalls[1]["args"], []string{"-c", "defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool true"})
 
 	targets = runner.updater.opt.Targets
 	require.Len(t, targets, 1)
@@ -77,10 +79,12 @@ func (s *escrowBuddyTestSuite) TestEscrowBuddyRotatesKey() {
 
 	time.Sleep(3 * time.Millisecond)
 	cfg.Notifications.RotateDiskEncryptionKey = false
+	cmdCalls = []map[string]any{}
 	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Len(t, cmdCalls, 2)
-	require.Equal(t, cmdCalls[1]["cmd"], "sh")
-	require.Equal(t, cmdCalls[1]["args"], []string{"-c", "defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool false"})
+	// only one call to set the GenerateNewKey to false
+	require.Len(t, cmdCalls, 1)
+	require.Equal(t, cmdCalls[0]["cmd"], "sh")
+	require.Equal(t, cmdCalls[0]["args"], []string{"-c", "defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool false"})
 
 }

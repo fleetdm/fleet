@@ -9,6 +9,7 @@ import { NotificationContext } from "context/notification";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CustomLink from "components/CustomLink";
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
@@ -60,11 +61,11 @@ const generateFormattedTooltip = (detail: string) => {
   }
 
   keyValuePairs.forEach((pair, i) => {
-    const [key, value] = pair.split(/: */);
+    const [key, value] = pair.split(/:(.*)/).map((str) => str.trim());
     if (key && value) {
       formattedElements.push(
         <span key={key}>
-          <b>{key.trim()}:</b> {value.trim()}
+          <b>{key}:</b> {value}
           {/* dont add the trailing comma for the last element */}
           {i !== keyValuePairs.length - 1 && (
             <>
@@ -89,9 +90,30 @@ const generateErrorTooltip = (
 ) => {
   if (profile.status !== "failed") return null;
 
+  // Special case for creating UI link
+  if (profile.detail.includes("There is no IdP email for this host.")) {
+    return (
+      <>
+        There is no IdP email for this host.
+        <br />
+        Fleet couldn&apos;t populate
+        <br />
+        $FLEET_VAR_HOST_END_USER_EMAIL_IDP.
+        <br />
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/idp-email"
+          newTab
+          iconColor="core-fleet-white"
+        />
+      </>
+    );
+  }
+
   if (profile.platform !== "windows") {
     return cellValue;
   }
+
   return generateFormattedTooltip(profile.detail);
 };
 

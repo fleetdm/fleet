@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -99,9 +100,12 @@ type ServerConfig struct {
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
 	return &http.Server{
-		Addr:              s.Address,
-		Handler:           handler,
-		ReadTimeout:       25 * time.Second,
+		Addr:        s.Address,
+		Handler:     handler,
+		ReadTimeout: 25 * time.Second,
+		// WriteTimeout is set for security purposes.
+		// If we don't set it, (bugy or malignant) clients making long running
+		// requests could DDOS Fleet.
 		WriteTimeout:      40 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       5 * time.Minute,
@@ -313,16 +317,49 @@ type S3Config struct {
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
 
-	SoftwareInstallersBucket           string `yaml:"software_installers_bucket"`
-	SoftwareInstallersPrefix           string `yaml:"software_installers_prefix"`
-	SoftwareInstallersRegion           string `yaml:"software_installers_region"`
-	SoftwareInstallersEndpointURL      string `yaml:"software_installers_endpoint_url"`
-	SoftwareInstallersAccessKeyID      string `yaml:"software_installers_access_key_id"`
-	SoftwareInstallersSecretAccessKey  string `yaml:"software_installers_secret_access_key"`
-	SoftwareInstallersStsAssumeRoleArn string `yaml:"software_installers_sts_assume_role_arn"`
-	SoftwareInstallersStsExternalID    string `yaml:"software_installers_sts_external_id"`
-	SoftwareInstallersDisableSSL       bool   `yaml:"software_installers_disable_ssl"`
-	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
+	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
+	SoftwareInstallersRegion                          string        `yaml:"software_installers_region"`
+	SoftwareInstallersEndpointURL                     string        `yaml:"software_installers_endpoint_url"`
+	SoftwareInstallersAccessKeyID                     string        `yaml:"software_installers_access_key_id"`
+	SoftwareInstallersSecretAccessKey                 string        `yaml:"software_installers_secret_access_key"`
+	SoftwareInstallersStsAssumeRoleArn                string        `yaml:"software_installers_sts_assume_role_arn"`
+	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
+	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
+	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
+	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
+	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
+	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+}
+
+func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
+	if s.SoftwareInstallersCloudFrontURL != "" {
+		cloudfrontURL, err := url.Parse(s.SoftwareInstallersCloudFrontURL)
+		if err != nil {
+			initFatal(err, "S3 software installers cloudfront URL")
+			return
+		}
+		if cloudfrontURL.Scheme != "https" {
+			initFatal(errors.New("cloudfront url scheme must be https"), "S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" ||
+			s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set for URL signing."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set when CloudFront distribution URL is set."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+	} else if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" || s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_cloudfront_url` must be set to use `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key`."),
+			"S3 software installers cloudfront URL")
+		return
+	}
 }
 
 func (s S3Config) BucketsAndPrefixesMatch() bool {
@@ -340,7 +377,7 @@ func (s S3Config) BucketsAndPrefixesMatch() bool {
 }
 
 func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
-	return S3ConfigInternal{
+	configInternal := S3ConfigInternal{
 		Bucket:           s.SoftwareInstallersBucket,
 		Prefix:           s.SoftwareInstallersPrefix,
 		Region:           s.SoftwareInstallersRegion,
@@ -352,6 +389,14 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 	}
+	if s.SoftwareInstallersCloudFrontSigner != nil {
+		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
+			BaseURL:            s.SoftwareInstallersCloudFrontURL,
+			SigningPublicKeyID: s.SoftwareInstallersCloudFrontURLSigningPublicKeyID,
+			Signer:             s.SoftwareInstallersCloudFrontSigner,
+		}
+	}
+	return configInternal
 }
 
 // CarvesToInternalCfg creates an internal S3 config struct from the ingested S3 config. Note: we
@@ -392,11 +437,11 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 		internal.StsExternalID = s.StsExternalID
 	}
 	internal.DisableSSL = s.CarvesDisableSSL
-	if s.CarvesDisableSSL == false {
+	if !s.CarvesDisableSSL {
 		internal.DisableSSL = s.DisableSSL
 	}
 	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
-	if s.CarvesForceS3PathStyle == false {
+	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
 
@@ -415,6 +460,13 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	CloudFrontConfig *S3CloudFrontConfig
+}
+
+type S3CloudFrontConfig struct {
+	BaseURL            string
+	SigningPublicKeyID string
+	Signer             crypto.Signer
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -466,6 +518,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -622,6 +675,7 @@ type CalendarConfig struct {
 func (c *CalendarConfig) AlwaysReloadEvent() bool {
 	return c.alwaysReloadEvent
 }
+
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
 }
@@ -714,8 +768,7 @@ func (m *MDMConfig) IsAppleBMSet() bool {
 	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
 }
 
-// AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
-// It parses and validates it if it hasn't been done yet.
+// AppleAPNs returns the parsed TLS certificate for Apple APNs.
 func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleAPNs == nil {
 		pair := x509KeyPairConfig{
@@ -735,8 +788,7 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
-// AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
-// It parses and validates it if it hasn't been done yet.
+// AppleSCEP returns the parsed TLS certificate for Apple SCEP.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleSCEP == nil {
 		pair := x509KeyPairConfig{
@@ -763,7 +815,7 @@ type ParsedAppleBM struct {
 	Token          *nanodep_client.OAuth1Tokens
 }
 
-func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+func decryptABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
 	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
 	if err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
@@ -776,14 +828,11 @@ func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPE
 	if err := json.Unmarshal(token, &jsonTok); err != nil {
 		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
 	}
-	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-		return nil, errors.New("Apple BM configuration: token is expired")
-	}
 	return &jsonTok, nil
 }
 
-// AppleBM returns the parsed, validated and decrypted server token for Apple
-// Business Manager. It also parses and validates the Apple BM certificate and
+// AppleBM returns the parsed and decrypted server token for Apple
+// Business Manager. It also parses the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
 func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 	if m.appleBMToken == nil {
@@ -801,7 +850,7 @@ func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
+		jsonTok, err := decryptABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -957,7 +1006,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
-	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_follow_redirections", true, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
@@ -1198,6 +1247,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1258,6 +1310,11 @@ func (man Manager) addConfigs() {
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
+	man.addConfigInt(
+		"vulnerabilities.max_concurrency",
+		5,
+		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
+	)
 
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
@@ -1317,19 +1374,6 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
-
-	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
-	betaMDMFlags := []string{
-		"mdm.windows_wstep_identity_cert",
-		"mdm.windows_wstep_identity_key",
-		"mdm.windows_wstep_identity_cert_bytes",
-		"mdm.windows_wstep_identity_key_bytes",
-	}
-	for _, mdmFlag := range betaMDMFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1542,6 +1586,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
@@ -1636,16 +1681,19 @@ func (man Manager) loadS3Config() S3Config {
 		DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 		ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 
-		SoftwareInstallersBucket:           man.getConfigString("s3.software_installers_bucket"),
-		SoftwareInstallersPrefix:           man.getConfigString("s3.software_installers_prefix"),
-		SoftwareInstallersRegion:           man.getConfigString("s3.software_installers_region"),
-		SoftwareInstallersEndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
-		SoftwareInstallersAccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
-		SoftwareInstallersSecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
-		SoftwareInstallersStsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
-		SoftwareInstallersStsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
-		SoftwareInstallersDisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
-		SoftwareInstallersForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersBucket:                          man.getConfigString("s3.software_installers_bucket"),
+		SoftwareInstallersPrefix:                          man.getConfigString("s3.software_installers_prefix"),
+		SoftwareInstallersRegion:                          man.getConfigString("s3.software_installers_region"),
+		SoftwareInstallersEndpointURL:                     man.getConfigString("s3.software_installers_endpoint_url"),
+		SoftwareInstallersAccessKeyID:                     man.getConfigString("s3.software_installers_access_key_id"),
+		SoftwareInstallersSecretAccessKey:                 man.getConfigString("s3.software_installers_secret_access_key"),
+		SoftwareInstallersStsAssumeRoleArn:                man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
+		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
+		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
+		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
 	}
 }
 
@@ -1658,12 +1706,12 @@ func (man Manager) IsSet(key string) bool {
 // envNameFromConfigKey converts a config key into the corresponding
 // environment variable name
 func envNameFromConfigKey(key string) string {
-	return envPrefix + "_" + strings.ToUpper(strings.Replace(key, ".", "_", -1))
+	return envPrefix + "_" + strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
 }
 
 // flagNameFromConfigKey converts a config key into the corresponding flag name
 func flagNameFromConfigKey(key string) string {
-	return strings.Replace(key, ".", "_", -1)
+	return strings.ReplaceAll(key, ".", "_")
 }
 
 // Manager manages the addition and retrieval of config values for Fleet

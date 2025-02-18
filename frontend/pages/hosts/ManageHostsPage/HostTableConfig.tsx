@@ -23,6 +23,7 @@ import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
+  tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import { COLORS } from "styles/var/colors";
 import {
@@ -69,17 +70,6 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const tooltipTextWithLineBreaks = (lines: string[]) => {
-  return lines.map((line) => {
-    return (
-      <span key={Math.random().toString().slice(2)}>
-        {line}
-        <br />
-      </span>
-    );
-  });
-};
-
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
     return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
@@ -100,7 +90,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         indeterminate: props.indeterminate,
         onChange: () => cellProps.toggleAllRowsSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     Cell: (cellProps: ISelectionCellProps) => {
       const props = cellProps.row.getToggleRowSelectedProps();
@@ -108,7 +98,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value: props.checked,
         onChange: () => cellProps.row.toggleRowSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     disableHidden: true,
   },
@@ -540,9 +530,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "uuid",
     id: "uuid",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} />
-    ),
+    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
+      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
   },
   {
     title: "Last restarted",
@@ -685,15 +674,14 @@ const generateAvailableTableHeaders = ({
   return allHostTableHeaders.reduce(
     (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
       // skip over column headers that are not shown in free observer tier
-      if (isFreeTier && isOnlyObserver) {
+      if (isFreeTier) {
         if (
-          currentColumn.id === "team_name" ||
-          currentColumn.id === "selection"
+          isOnlyObserver &&
+          ["selection", "team_name"].includes(currentColumn.id || "")
         ) {
           return columns;
+          // skip over column headers that are not shown in free admin/maintainer
         }
-        // skip over column headers that are not shown in free admin/maintainer
-      } else if (isFreeTier) {
         if (
           currentColumn.id === "team_name" ||
           currentColumn.id === "mdm.server_url" ||
@@ -701,11 +689,9 @@ const generateAvailableTableHeaders = ({
         ) {
           return columns;
         }
-      } else if (isOnlyObserver) {
+      } else if (isOnlyObserver && currentColumn.id === "selection") {
         // In premium tier, we want to check user role to enable/disable select column
-        if (currentColumn.id === "selection") {
-          return columns;
-        }
+        return columns;
       }
 
       columns.push(currentColumn);

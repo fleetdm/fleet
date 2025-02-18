@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
-	"go.mozilla.org/pkcs7"
+	"github.com/smallstep/pkcs7"
 )
 
 const (

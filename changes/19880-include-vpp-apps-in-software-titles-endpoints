@@ -1,2 +1,0 @@
-* Added the associated VPP apps to the `GET /software/titles` and `GET /software/titles/:id` endpoints.
-* Added the associated VPP apps to the `GET /hosts/:id/software` and `GET /device/:token/software` endpoints.

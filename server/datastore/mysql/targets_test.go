@@ -730,7 +730,7 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 
 			metrics, err := ds.CountHostsInTargets(context.Background(), filter, targets, time.Now())
 			require.NoError(t, err)
-			require.Len(t, tc.expectedHostIDs, int(metrics.TotalHosts))
+			require.Len(t, tc.expectedHostIDs, int(metrics.TotalHosts)) //nolint:gosec // dismiss G115
 		})
 	}
 

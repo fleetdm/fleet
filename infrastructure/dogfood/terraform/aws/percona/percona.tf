@@ -27,7 +27,7 @@ resource "aws_lb" "main" {
   internal                   = false #tfsec:ignore:aws-elb-alb-not-public
   security_groups            = [aws_security_group.lb.id, aws_security_group.backend.id]
   subnets                    = var.public_subnets
-  idle_timeout               = 120
+  idle_timeout               = 905
   drop_invalid_header_fields = true
 }
 

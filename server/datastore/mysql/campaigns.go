@@ -38,7 +38,7 @@ func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *flee
 	}
 
 	id, _ := result.LastInsertId()
-	camp.ID = uint(id)
+	camp.ID = uint(id) //nolint:gosec // dismiss G115
 	return camp, nil
 }
 
@@ -130,7 +130,7 @@ func (ds *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targ
 	}
 
 	id, _ := result.LastInsertId()
-	target.ID = uint(id)
+	target.ID = uint(id) //nolint:gosec // dismiss G115
 	return target, nil
 }
 
@@ -194,5 +194,5 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
-	return uint(exp), nil
+	return uint(exp), nil //nolint:gosec // dismiss G115
 }

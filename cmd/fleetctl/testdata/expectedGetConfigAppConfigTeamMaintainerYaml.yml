@@ -1,0 +1,99 @@
+---
+apiVersion: v1
+kind: config
+spec:
+  fleet_desktop:
+    transparency_url: https://fleetdm.com/transparency
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 0
+  features:
+    enable_host_users: true
+    enable_software_inventory: false
+  integrations:
+    google_calendar: null
+    jira: null
+    ndes_scep_proxy: null
+    zendesk: null
+  mdm:
+    apple_bm_terms_expired: false
+    apple_server_url: ""
+    apple_bm_enabled_and_configured: false
+    enabled_and_configured: false
+    apple_business_manager: null
+    volume_purchasing_program: null
+    windows_enabled_and_configured: false
+    enable_disk_encryption: false
+    windows_migration_enabled: false
+    macos_migration:
+      enable: false
+      mode: ""
+      webhook_url: ""
+    macos_updates:
+      minimum_version: null
+      deadline: null
+    ios_updates:
+      minimum_version: null
+      deadline: null
+    ipados_updates:
+      minimum_version: null
+      deadline: null
+    windows_updates:
+      deadline_days: 7
+      grace_period_days: 3
+    macos_settings:
+      custom_settings:
+    macos_setup:
+      bootstrap_package:
+      enable_end_user_authentication: false
+      enable_release_device_manually: false
+      macos_setup_assistant:
+      script:
+      software:
+    windows_settings:
+      custom_settings: null
+    end_user_authentication:
+      idp_name: ""
+      issuer_uri: ""
+      metadata: ""
+      metadata_url: ""
+      entity_id: ""
+  scripts: null
+  org_info:
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: ""
+    contact_url: https://fleetdm.com/company/contact
+  server_settings:
+    deferred_save_host: false
+    enable_analytics: false
+    live_query_disabled: false
+    query_report_cap: 0
+    query_reports_disabled: false
+    server_url: ""
+    scripts_disabled: false
+    ai_features_disabled: false
+  vulnerability_settings:
+    databases_path: /some/path
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: false
+      destination_url: ""
+    failing_policies_webhook:
+      destination_url: ""
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids: null
+    host_status_webhook:
+      days_count: 0
+      destination_url: ""
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 0s
+    vulnerabilities_webhook:
+      destination_url: ""
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0

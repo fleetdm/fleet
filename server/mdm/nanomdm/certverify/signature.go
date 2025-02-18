@@ -1,6 +1,7 @@
 package certverify
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 
@@ -25,7 +26,7 @@ func NewSignatureVerifier(rootPEM []byte) (*SignatureVerifier, error) {
 }
 
 // Verify checks only the signature of the certificate against the CA
-func (v *SignatureVerifier) Verify(cert *x509.Certificate) error {
+func (v *SignatureVerifier) Verify(_ context.Context, cert *x509.Certificate) error {
 	if cert == nil {
 		return errors.New("missing MDM certificate")
 	}

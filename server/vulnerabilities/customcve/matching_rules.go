@@ -43,6 +43,30 @@ func getCVEMatchingRules() CVEMatchingRules {
 			CVEs:              []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
 			ResolvedInVersion: "16.0.17628.20144",
 		},
+		// July 9 2024 Office 365 Vulnerabilities
+		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
+		{
+			NameLikeMatch:     "Microsoft 365",
+			SourceMatch:       "programs",
+			CVEs:              []string{"CVE-2023-38545", "CVE-2024-38020", "CVE-2024-38021"},
+			ResolvedInVersion: "16.0.17726.20160",
+		},
+		// August 13 2024 Office 365 Vulnerabilities
+		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
+		{
+			NameLikeMatch: "Microsoft 365",
+			SourceMatch:   "programs",
+			CVEs: []string{
+				"CVE-2024-38172",
+				"CVE-2024-38170",
+				"CVE-2024-38173",
+				"CVE-2024-38171",
+				"CVE-2024-38189",
+				"CVE-2024-38169",
+				"CVE-2024-38200",
+			},
+			ResolvedInVersion: "16.0.17830.20166",
+		},
 	}
 }
 

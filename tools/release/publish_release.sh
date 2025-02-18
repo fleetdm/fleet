@@ -194,11 +194,7 @@ build_changelog() {
         make changelog
 
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. Correct spelling and punctuation.\n2. Sentence casing.\n3. Past tense.\n4. Each list item is designated with an asterisk.\n5. Output in markdown format.'
-        if [[ "$minor" == "true" ]]; then
-            # Place to make a main targeted prompt
-            prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules: Organize updates into three categories: Endpoint Operations, Device Management (MDM), and Vulnerability Management, with all bug fixes and misc. improvements listed under "Bug fixes and improvements". Start each entry with a past tense verb, using hyphens for bullet points. Include specific details for new features, bug fixes, API changes, and any necessary user actions. Note changes in user interfaces, system feedback, and significant architectural updates. Highlight mandatory actions and major impacts, especially for system administrators. Order seemingly important features at the top of their respective lists.'
-        fi
+        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. All items have correct spelling and punctuation.\n2. All items use sentence casing.\n3. All items are past tense.\n4. Each list item is designated with a dash.\n5. Output in markdown format.'
 
         content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
         question="${prompt}\n\n${content}"
@@ -294,7 +290,9 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "pezhub" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
+                --assignee "pezhub"  --label "#g-mdm" --label ":release" \
+                --assignee "jmwatts" --label "#g-software" \
+                --assignee "xpkoala" --label "#g-orchestration"
             rm -f temp_qa_issue_file
         fi
     else
@@ -329,7 +327,7 @@ print_announce_info() {
 
 general_announce_info() {
     if [[ "$minor" == "true" ]]; then
-        article_url="https://fleetdm.com/releases/fleet-$target_milestone"
+        article_url="https://fleetdm.com/releases/fleet-${target_milestone//./-}"
         article_published=$(curl -is "$article_url" | head -n 1 | awk '{print $2}')
         if [[ "$article_published" != "200" ]]; then
             echo "Could't find article at '$article_url'"
@@ -337,7 +335,7 @@ general_announce_info() {
         fi
 
         # TODO Publish Linkedin post about release article here and save url
-        linkedin_post_url=""
+        linkedin_post_url="https://www.linkedin.com/feed/update/urn:li:activity:7274913563989721088"
     fi
     echo "========================================================================="
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
@@ -652,9 +650,9 @@ target_milestone="${next_ver:1}"
 # 79
 target_milestone_number=$(gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number")
 # patch-fleet-v4.48.0
-target_branch="patch-fleet-$next_ver"
+target_branch="rc-patch-fleet-$next_ver"
 if [[ "$minor" == "true" ]]; then
-    target_branch="minor-fleet-$next_ver"
+    target_branch="rc-minor-fleet-$next_ver"
 fi
 
 # fleet-v4.48.0

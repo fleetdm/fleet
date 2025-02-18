@@ -35,7 +35,7 @@ module.exports = {
       sails.log.warn('When a user tried to unsubscribe from the Fleet newsletter, a NewsletterSubscription record for the specified email address ('+ emailAddress +') could not be found.');
     }
     // All done.
-    return;
+    return this.res.redirect('/#unsubscribed');
 
   }
 

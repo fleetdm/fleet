@@ -4,32 +4,112 @@
       <div purpose="hero">
         <div purpose="page-headline">
           <h4>Device management (MDM)</h4>
-          <h1>Your easiest MDM migration</h1>
+          <h1>Manage everything in one place</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
+        <%if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>
           <div purpose="testimonial-quote">
             <div purpose="quote">
-              <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-              <p>
-                <% if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
-                <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
-                <% } else { %>We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.
-                <% } %>
-              </p>
+              <img alt="Deloitte logo" purpose="quote-logo" src="/images/social-proof-logo-deloitte-130x32@2x.png">
+              <p>“Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.”</p>
             </div>
-            <a href="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W' : ['eo-it'].includes(primaryBuyingSituation) ? 'https://www.linkedin.com/in/mrerictan/' : 'https://www.linkedin.com/in/kennybotelho/'%>" target="_blank">
+            <a href="https://www.linkedin.com/in/cmajumdar/" class="d-inline-block" target="_blank">
             <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
-              <div purpose="quote-image"><img src="/images/<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'testimonial-author-nico-waisman-48x48@2x.png' : ['eo-it'].includes(primaryBuyingSituation) ? 'testimonial-author-eric-tan-99x99@2x.png' : 'testimonial-author-kenny-botelho-48x48@2x.png'%>" alt="<%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%>"></div>
+              <div purpose="quote-image"><img src="/images/testimonial-author-chandra-majumdar-48x48@2x.png" alt="Chandra Majumdar"></div>
               <div class="d-flex flex-column">
-                <p purpose="name"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'Nico Waisman' : ['eo-it'].includes(primaryBuyingSituation) ? 'Eric Tan' : 'Kenny Botelho'%></p>
-                <p purpose="title"><%= ['eo-security','vm'].includes(primaryBuyingSituation) ? 'CISO of Lyft' : ['eo-it'].includes(primaryBuyingSituation) ? 'CIO & Chief Security Officer at Flock Safety' : 'Lead Client Platform Engineer'%></p>
+                <p purpose="name">Chandra Majumdar</p>
+                <p purpose="title">Partner - Cyber and Strategic Risk</p>
               </div>
             </div>
             </a>
           </div>
+        <%} else {%>
+          <div purpose="testimonial-quote">
+            <div purpose="quote">
+              <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+              <p>“We wanted an open-source MDM to easily use configuration-as-code, deliver the best possible experience for our employees, and make security happy.”</p>
+            </div>
+            <a href="https://www.linkedin.com/in/kennybotelho/" class="d-inline-block" target="_blank">
+            <div purpose="quote-attribution" class="d-flex flex-row align-items-center">
+              <div purpose="quote-image"><img src="/images/testimonial-author-kenny-botelho-48x48@2x.png" alt="Kenny Botelho"></div>
+              <div class="d-flex flex-column">
+                <p purpose="name">Kenny Botelho</p>
+                <p purpose="title">Lead Client Platform Engineer</p>
+              </div>
+            </div>
+            </a>
+          </div>
+
+
+        <% } %>
+
+        </div>
+        <div purpose="button-row" class="d-flex align-items-center pt-3">
+          <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
       <logo-carousel></logo-carousel>
+
+    <%/* Debunk the cross-platform myth */%>
+      <div purpose="page-section" class="pb-0">
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h2>Debunk the cross-platform myth</h2>
+            <p>Conventional wisdom holds that cross-platform MDM solutions don't hold up at scale. Few, if any, have lived up to the hype.</p>
+            <p>Instead, Fleet lets you work directly with data and events from each native operating system. So while you can still use familiar concepts like smart groups and extension attributes, you don’t get stuck “talking Windows” to Apple devices.</p>
+          </div>
+          <div purpose="feature-image" class="right">
+            <img alt="Transparency for end users" src="/images/mdm-debunk-cross-platform-myth-528x377@2x.png">
+          </div>
+        </div>
+
+        <div purpose="three-column-features" class="mx-auto">
+          <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center align-items-center align-items-sm-start">
+            <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
+              <h5>Operating systems</h5>
+              <p>Enforce OS updates with Declarative Device Management (DDM), <a href="https://github.com/macadmins/nudge" target="_blank">Nudge</a>, and Windows Update from one console.</p>
+            </div>
+
+            <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
+              <h5>Automated enrollment</h5>
+              <p>Drop-ship devices to your end users with Apple Business Manager or Autopilot and let them set up their own account. No IT help needed.</p>
+            </div>
+
+            <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
+              <h5>Config management</h5>
+              <p>Manage settings with configuration profiles for Apple and device profiles for Windows. Use a canary team to test changes before they go live.</p>
+            </div>
+            <div purpose="feature-item" class="pr-0 pr-lg-4 pl-lg-0 col-12 col-sm-6 col-lg-4">
+              <h5>App management</h5>
+              <p>Keep applications and plugins secure and up-to-date automatically. Install the software end users need or let them install it themselves via self service.</p>
+            </div>
+
+            <div purpose="feature-item" class="pl-0 pl-lg-4 col-12 col-sm-6 col-lg-4">
+              <h5>Scripts and events</h5>
+              <p>Easily manage and version control your custom script library. Execute shell and PowerShell scripts when computers drift from the baseline.</p>
+            </div>
+
+            <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4">
+              <h5>Keep up with Apple</h5>
+              <p>Fleet's team and community stay on top of the latest features and releases from all supported platform vendors—not just Apple.</p>
+            </div>
+          </div>
+
+          <div purpose="feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center mb-0 align-items-center align-items-sm-start">
+          </div>
+        </div>
+      </div>
+      <div v-if="showSwagForm">
+      <a purpose="swag-request-button" class="d-flex align-items-center justify-content-center mx-auto" @click="clickSwagRequestCTA()">
+        <div class="d-flex flex-row align-items-center">
+        <img style="height: auto; width: 47px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+          <p class="mb-0"><strong class="mr-1">Request Fleet swag. </strong>
+          </p>
+          <span>It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" /></span>
+        </div>
+      </a>
+      </div>
       <div purpose="comparison-section">
         <h2>Head-to-head with the big players</h2>
         <p>Considering a move to Fleet as a cross-platform, open-source MDM alternative? See how we compare:</p>
@@ -68,7 +148,7 @@
             <div purpose="table-row">
               <div purpose="feature-name"><p>iOS/iPadOS management</p></div>
               <div purpose="fleet-column">
-                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -117,7 +197,7 @@
                 <!-- <span purpose="table-new-badge" class="ml-2">New</span> -->
               </div>
               <div purpose="fleet-column">
-                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -128,13 +208,12 @@
             <div purpose="table-row">
               <div purpose="feature-name"><p>Automated device compliance</p></div>
               <div purpose="fleet-column">
-                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-
 
             <div purpose="table-row">
               <div purpose="feature-name"><p>REST API</p></div>
@@ -145,7 +224,7 @@
             </div>
 
             <div purpose="table-row">
-              <div purpose="feature-name"><p>MDM migration</p></div>
+              <div purpose="feature-name"><p>Config as code (GitOps)</p></div>
               <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
               <div purpose="comparison-column"></div>
             </div>
@@ -198,7 +277,7 @@
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
             <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
@@ -307,7 +386,7 @@
             <div purpose="feature-table-row">
               <div>Fleet</div>
               <div purpose="feature-status">
-                <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
+                <img style="height: 14px; width: 14px;" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
             <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
@@ -390,6 +469,28 @@
           </div>
 
           <div purpose="feature-table">
+            <div purpose="feature-name"><p>Config as code (GitOps)</p></div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+              <div>Omnissa (WS1)</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+              <div>Jamf Pro</div>
+              <div purpose="feature-status">
+
+              </div>
+            </div>
+          </div>
+
+          <div purpose="feature-table">
             <div purpose="feature-name"><p>Open source</p></div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
@@ -412,14 +513,11 @@
           </div>
         </div>
 
-        <animated-arrow-button class="mx-auto" href="/pricing">Compare all features</animated-arrow-button>
+        <animated-arrow-button class="mx-auto" href="/pricing">View all features</animated-arrow-button>
       </div>
       <%/* Shorten the feedback loop section */%>
       <div purpose="page-section">
-        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
-          <div purpose="feature-image" class="left">
-            <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/mdm-shorten-feedback-loop-528x377@2x.png">
-          </div>
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
             <h2>Shorten the feedback loop</h2>
             <p>Spend less time debugging whether changes actually happened.</p>
@@ -427,6 +525,26 @@
               <p>Use a single, open platform for Apple, Windows, and Linux.</p>
               <p>Auto-verify patches and settings on users’ devices. Avoid unnecessary tickets.</p>
               <p>Every change to a policy or security control is tracked and auditable in Fleet’s UI, or in your logs.</p>
+            </div>
+          </div>
+          <div purpose="feature-image">
+            <img alt="A laptop using Fleet to accurately display the status of MDM configurations" src="/images/mdm-shorten-feedback-loop-528x377@2x.png">
+          </div>
+        </div>
+      </div>
+      <%/* Mordern change management section */%>
+      <div purpose="page-section">
+        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+          <div purpose="feature-image" class="right">
+            <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h2>Modern change management</h2>
+            <p>Provide a transparent log of all changes and collaborate on how your devices are managed.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Democratize change with GitOps so everyone can contribute to device management and security.</p>
+              <p>Maintain reliable employee experiences with version-controlled changes and enhancements.</p>
+              <p>Use CI/CD and peer reviews to look before you leap.</p>
             </div>
           </div>
         </div>
@@ -448,52 +566,12 @@
           </div>
         </div>
       </div>
-
-      <%/* Simplify your tools section */%>
-      <div purpose="page-section">
-        <div purpose="feature-headline">
-          <h2>Tidy up your tools</h2>
-          <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
-        </div>
-
-        <div purpose="two-column-features" class="mx-auto">
-
-          <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center">
-            <div purpose="feature-column" class="ml-sm-0">
-            <img alt="Patch every OS" src="/images/device-management-icon-patch-every-os-48x48@2x.png">
-              <h5>Patch every OS</h5>
-              <p>Shorten patch timelines with custom, enforceable deadlines and grace periods for every operating system. Encourage updates with Declarative Device Management (DDM), Nudge, and Windows Update from one interface.</p>
-            </div>
-
-            <div purpose="feature-column" class="mr-sm-0 mb-0">
-            <img alt="Push profiles" src="/images/device-management-icon-verify-updates-and-settings-48x48@2x.png">
-              <h5>Push profiles</h5>
-              <p>Remote-control settings on your Macs and PCs like Wi-Fi, certificates, passwords, screen lock, etc.  Deploy baselines or customize your own to comply with your organization’s security requirements.</p>
-            </div>
-          </div>
-
-          <div purpose="feature-row" class="d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center mb-0">
-            <div purpose="feature-column" class="ml-sm-0">
-            <img alt="Manage software installs from anywhere" src="/images/device-management-icon-automatic-posture-assessment-48x48@2x.png">
-              <h5>Manage software installs from anywhere</h5>
-              <p>Get employees the software and settings they need with less drama by managing app packages, operating system versions, and patch levels for every platform, on top of open standards and data.</p>
-            </div>
-
-            <div purpose="feature-column" class="mr-sm-0 mb-0">
-            <img alt="Access the latest Apple and Windows APIs" src="/images/device-management-icon-circular-action-48x48@2x.png">
-              <h5>Access the latest Apple and Windows APIs</h5>
-              <p>Turn on the latest native macOS and Windows operating system capabilities like DDM and Autopilot, all in one place. Fleet’s team and community test against every new Apple and Microsoft release.</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
   <%/* End of page gradient */%>
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
-        <h4>Who else uses Fleet?</h4>
-        <h2 class="mb-0">Empowering <%= ['vm', 'eo-security'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT' %> teams</h2>
+        <h2 class="mb-3">What people are saying</h2>
       </div>
     </div>
 
@@ -505,9 +583,9 @@
       <div purpose="section-headline" class="text-center">
         <h4>Device management (MDM)</h4>
         <h1>Your easiest MDM migration</h1>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-row justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/register">Start now</a>
-          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/contact">Talk to an engineer</a>
+          <animated-arrow-button  href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
     </div>

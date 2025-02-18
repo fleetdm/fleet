@@ -1,0 +1,126 @@
+{
+	"token": "slack",
+	"full_token": "slack",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Slack"
+	],
+	"desc": "Slack is a team communication and collaboration software for modern workplaces",
+	"homepage": "https://slack.com/",
+	"url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.40.126/Slack-4.40.126-macOS.dmg",
+	"url_specs": {
+		"verified": "downloads.slack-edge.com/"
+	},
+	"version": "4.40.126",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "87dcde01a382e7d4a23f72f0fdd64315b52390dd2d5800df2a645d4316b3bc52",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"quit": "com.tinyspeck.slackmacgap"
+				}
+			]
+		},
+		{
+			"app": [
+				"Slack.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Scripts/com.tinyspeck.slackmacgap",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.tinyspeck.slackmacgap.sfl*",
+						"~/Library/Application Support/Slack",
+						"~/Library/Caches/com.tinyspeck.slackmacgap*",
+						"~/Library/Containers/com.tinyspeck.slackmacgap*",
+						"~/Library/Cookies/com.tinyspeck.slackmacgap.binarycookies",
+						"~/Library/Group Containers/*.com.tinyspeck.slackmacgap",
+						"~/Library/Group Containers/*.slack",
+						"~/Library/HTTPStorages/com.tinyspeck.slackmacgap*",
+						"~/Library/Logs/Slack",
+						"~/Library/Preferences/ByHost/com.tinyspeck.slackmacgap.ShipIt.*.plist",
+						"~/Library/Preferences/com.tinyspeck.slackmacgap*",
+						"~/Library/Saved Application State/com.tinyspeck.slackmacgap.savedState",
+						"~/Library/WebKit/com.tinyspeck.slackmacgap"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"slack@beta"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/s/slack.rb",
+	"ruby_source_checksum": {
+		"sha256": "55b1b37ace62e6297b1861e2ab2b21b834c35112d8d422ccf0b9634843a9aa8d"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.40.126/Slack-4.40.126-macOS.dmg",
+			"sha256": "f4246f416b84ce8a4a9abbfba6975f0fbdb90880c217544836b53c3fff5900ae"
+		},
+		"sonoma": {
+			"url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.40.126/Slack-4.40.126-macOS.dmg",
+			"sha256": "f4246f416b84ce8a4a9abbfba6975f0fbdb90880c217544836b53c3fff5900ae"
+		},
+		"ventura": {
+			"url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.40.126/Slack-4.40.126-macOS.dmg",
+			"sha256": "f4246f416b84ce8a4a9abbfba6975f0fbdb90880c217544836b53c3fff5900ae"
+		},
+		"monterey": {
+			"url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.40.126/Slack-4.40.126-macOS.dmg",
+			"sha256": "f4246f416b84ce8a4a9abbfba6975f0fbdb90880c217544836b53c3fff5900ae"
+		},
+		"big_sur": {
+			"url": "https://downloads.slack-edge.com/desktop-releases/mac/x64/4.40.126/Slack-4.40.126-macOS.dmg",
+			"sha256": "f4246f416b84ce8a4a9abbfba6975f0fbdb90880c217544836b53c3fff5900ae"
+		},
+		"catalina": {
+			"url": "https://downloads.slack-edge.com/releases/macos/4.33.90/prod/x64/Slack-4.33.90-macOS.dmg",
+			"version": "4.33.90",
+			"sha256": "7e0ba8a18a9cf95090ad80f58437d647eee5d1842ac4f15ea053c16c1629edde"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"slack": 6334
+			},
+			"90d": {
+				"slack": 18458
+			},
+			"365d": {
+				"slack": 78914
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

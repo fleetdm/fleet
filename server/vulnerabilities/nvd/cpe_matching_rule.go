@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
@@ -57,13 +58,10 @@ func (rule CPEMatchingRule) CPEMatches(cpeMeta *wfn.Attributes) bool {
 	}
 
 	if rule.IgnoreIf != nil {
-		if rule.IgnoreIf(cpeMeta) {
-			return false
-		}
-		return true
+		return !rule.IgnoreIf(cpeMeta)
 	}
 
-	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
+	ver, err := fleet.VersionToSemverVersion(wfn.StripSlashes(cpeMeta.Version))
 	if err != nil {
 		return false
 	}

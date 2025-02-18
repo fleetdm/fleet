@@ -1,19 +1,12 @@
 .software-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
       min-width: 266px;
     }
-  }
-
-  &__manage-automations {
-    padding: $pad-small $pad-medium;
   }
 
   &__header {

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
@@ -352,11 +353,21 @@ type GoogleCalendarIntegration struct {
 	ApiKey map[string]string `json:"api_key_json"`
 }
 
+// NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
+type NDESSCEPProxyIntegration struct {
+	URL      string `json:"url"`
+	AdminURL string `json:"admin_url"`
+	Username string `json:"username"`
+	Password string `json:"password"` // not stored here -- encrypted in DB
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

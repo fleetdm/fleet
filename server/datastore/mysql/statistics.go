@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -98,6 +99,14 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
 		}
+		numHostsFleetDesktopEnabled, err := numHostsFleetDesktopEnabledDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of hosts with Fleet desktop installed")
+		}
+		numQueries, err := numSavedQueriesDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of saved queries in DB")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
@@ -130,6 +139,24 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if lic != nil && lic.IsPremium() {
 			stats.Organization = lic.Organization
 		}
+		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
+		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && len(appConfig.Integrations.GoogleCalendar[0].ApiKey) > 0
+
+		stats.MaintenanceWindowsEnabled = false
+		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}}, fleet.ListOptions{})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list teams")
+		}
+		for _, team := range teams {
+			if team.Config.Integrations.GoogleCalendar != nil && team.Config.Integrations.GoogleCalendar.Enable {
+				stats.MaintenanceWindowsEnabled = true
+				break
+			}
+		}
+		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
+		stats.NumQueries = numQueries
 		return nil
 	}
 

@@ -73,8 +73,9 @@ describe("AddHostsModal", () => {
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(screen.queryByText(/Apple Business Manager/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Learn more/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Send this to your end users:/i)
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     const advancedText = screen.getByText(/--type=YOUR_TYPE/i);

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
+import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -16,6 +17,7 @@ import { IAppConfigFormProps, IFormField } from "../constants";
 const baseClass = "app-config-form";
 
 interface IAdvancedConfigFormData {
+  mdmAppleServerURL: string;
   domain: string;
   verifySSLCerts: boolean;
   enableStartTLS?: boolean;
@@ -30,8 +32,39 @@ interface IAdvancedConfigFormData {
 }
 
 interface IAdvancedConfigFormErrors {
-  host_expiry_window?: string | null;
+  mdmAppleServerURL?: string | null;
+  domain?: string | null;
+  hostExpiryWindow?: string | null;
 }
+
+const validateFormData = ({
+  mdmAppleServerURL,
+  domain,
+  hostExpiryWindow,
+  enableHostExpiry,
+}: IAdvancedConfigFormData) => {
+  const errors: Record<string, string> = {};
+
+  if (!mdmAppleServerURL) {
+    delete errors.mdmAppleServerURL;
+  } else if (!validUrl({ url: mdmAppleServerURL })) {
+    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
+  }
+
+  if (!domain) {
+    delete errors.domain;
+  } else if (!validUrl({ url: domain })) {
+    errors.domain = `${domain} is not a valid URL`;
+  }
+
+  if (
+    enableHostExpiry &&
+    (!hostExpiryWindow || parseInt(hostExpiryWindow, 10) <= 0)
+  ) {
+    errors.hostExpiryWindow = "Host expiry window must be a positive number";
+  }
+  return errors;
+};
 
 const Advanced = ({
   appConfig,
@@ -39,6 +72,7 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
+    mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
     enableStartTLS: appConfig.smtp_settings?.enable_start_tls,
@@ -60,6 +94,7 @@ const Advanced = ({
   });
 
   const {
+    mdmAppleServerURL,
     domain,
     verifySSLCerts,
     enableStartTLS,
@@ -89,26 +124,32 @@ const Advanced = ({
   );
 
   const onInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validateFormData(newFormData);
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      if (newErrs[k]) {
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
   };
 
-  useEffect(() => {
-    // validate desired form fields
-    const errors: IAdvancedConfigFormErrors = {};
-
-    if (
-      enableHostExpiry &&
-      (!hostExpiryWindow || parseInt(hostExpiryWindow, 10) <= 0)
-    ) {
-      errors.host_expiry_window =
-        "Host expiry window must be a positive number";
-    }
-
-    setFormErrors(errors);
-  }, [enableHostExpiry, hostExpiryWindow]);
+  const onInputBlur = () => {
+    setFormErrors(validateFormData(formData));
+  };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errs = validateFormData(formData);
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
 
     // Formatting of API not UI
     const formDataToSubmit = {
@@ -132,6 +173,9 @@ const Advanced = ({
         activity_expiry_enabled: deleteActivities,
         activity_expiry_window: activityExpiryWindow || undefined,
       },
+      mdm: {
+        apple_server_url: mdmAppleServerURL,
+      },
     };
 
     handleSubmit(formDataToSubmit);
@@ -145,12 +189,27 @@ const Advanced = ({
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.
           </p>
+          {appConfig.mdm.enabled_and_configured && (
+            <InputField
+              label="Apple MDM server URL"
+              onChange={onInputChange}
+              onBlur={onInputBlur}
+              name="mdmAppleServerURL"
+              value={mdmAppleServerURL}
+              parseTarget
+              error={formErrors.mdmAppleServerURL}
+              tooltip="Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
+              helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
+            />
+          )}
           <InputField
             label="Domain"
             onChange={onInputChange}
+            onBlur={onInputBlur}
             name="domain"
             value={domain}
             parseTarget
+            error={formErrors.domain}
             tooltip={
               <>
                 If you need to specify a HELO domain, <br />
@@ -231,7 +290,7 @@ const Advanced = ({
               name="hostExpiryWindow"
               value={hostExpiryWindow}
               parseTarget
-              error={formErrors.host_expiry_window}
+              error={formErrors.hostExpiryWindow}
             />
           )}
           <Checkbox
@@ -288,15 +347,18 @@ const Advanced = ({
             parseTarget
             tooltipContent={
               <>
-                Disabling scripts will block access to run scripts. Scripts{" "}
-                <br /> may still be added and removed in the UI and API. <br />
+                Disabling script execution will block access to run scripts.
+                <br />
+                Scripts may still be added and removed in the UI and API.
+                <br />
                 <em>
-                  (Default: <strong>Off</strong>)
+                  (Default: <b>Off</b>)
                 </em>
               </>
             }
+            helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
           >
-            Disable scripts
+            Disable script execution features
           </Checkbox>
           <Checkbox
             onChange={onInputChange}

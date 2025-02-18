@@ -48,6 +48,7 @@ export interface IGetOsVersionQueryKey extends IGetOsVersionOptions {
 }
 
 export interface IOSVersionResponse {
+  counts_updated_at?: string;
   os_version: IOperatingSystemVersion;
 }
 

@@ -57,6 +57,12 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 - `/api/mdm/microsoft/auth`: If you use automatic enrollment, authenticates end users during out-of-the-box Windows setup. 
   - See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
 
+### SCEP proxy
+
+If you would like to use Fleet as a SCEP proxy, the following endpoint needs to be exposed:
+
+- `/mdm/scep/proxy/*`: Allows hosts to obtain a SCEP certificate from a configured SCEP server.
+
 ## Advanced
 
 The `/api/*/fleet/*` endpoints accessed by the fleetd agent can use mTLS with the certificate provided via the `--fleet-tls-client-certificate` flag in the `fleetctl package` command.

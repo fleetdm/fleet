@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>PayloadContent</key>
+		<array>
+			<dict>
+				<key>PayloadDisplayName</key>
+				<string>Ensure Show Status Bar Is Enabled</string>
+				<key>PayloadType</key>
+				<string>com.apple.Safari</string>
+				<key>PayloadIdentifier</key>
+				<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
+				<key>PayloadUUID</key>
+				<string>708B39DB-E2B7-405C-A523-88F3DDC8DFFC</string>
+				<key>ShowOverlayStatusBar</key>
+				<true/>
+			</dict>
+		</array>
+		<key>PayloadDescription</key>
+		<string>Ensure Show Status Bar Is Enabled</string>
+		<key>PayloadDisplayName</key>
+		<string>Ensure Show Status Bar Is Enabled</string>
+		<key>PayloadIdentifier</key>
+		<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
+		<key>PayloadRemovalDisallowed</key>
+		<false/>
+		<key>PayloadScope</key>
+		<string>System</string>
+		<key>PayloadType</key>
+		<string>Configuration</string>
+		<key>PayloadUUID</key>
+		<string>00FB5D02-8044-4E6F-884C-D73E7A32A2E7</string>
+		<key>PayloadVersion</key>
+		<integer>1</integer>
+	</dict>
+</plist>

@@ -61,7 +61,7 @@ const generateTooltip = (
     return null;
   }
 
-  const condensedVulnerabilties = condenseVulnerabilities(vulnerabilities);
+  const condensedVulnerabilities = condenseVulnerabilities(vulnerabilities);
 
   return (
     <ReactTooltip
@@ -71,8 +71,10 @@ const generateTooltip = (
       data-html
     >
       <ul className={`${baseClass}__vulnerability-list`}>
-        {condensedVulnerabilties.map((vulnerability) => {
-          return <li>{vulnerability}</li>;
+        {condensedVulnerabilities.map((vulnerability) => {
+          const key =
+            typeof vulnerability === "string" ? vulnerability : uniqueId();
+          return <li key={key}>{vulnerability}</li>;
         })}
       </ul>
     </ReactTooltip>

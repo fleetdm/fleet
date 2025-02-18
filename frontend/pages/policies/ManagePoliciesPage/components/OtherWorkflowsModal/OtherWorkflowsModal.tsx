@@ -185,24 +185,23 @@ const OtherWorkflowsModal = ({
 
     const newErrors = { ...errors };
 
-    if (
-      isPolicyAutomationsEnabled &&
-      newPolicyIds.length &&
-      !isWebhookEnabled &&
-      !selectedIntegration
-    ) {
-      newErrors.integration = "Please enable at least one integration:";
-    } else {
-      delete newErrors.integration;
-    }
-
-    if (isWebhookEnabled) {
-      if (!destinationUrl) {
-        newErrors.url = "Please add a destination URL";
-      } else if (!validUrl({ url: destinationUrl })) {
-        newErrors.url = `${destinationUrl} is not a valid URL`;
+    if (isPolicyAutomationsEnabled) {
+      // Ticket workflow validation
+      if (newPolicyIds.length && !isWebhookEnabled && !selectedIntegration) {
+        newErrors.integration = "Please enable at least one integration:";
       } else {
-        delete newErrors.url;
+        delete newErrors.integration;
+      }
+
+      // Webhook workflow validation
+      if (isWebhookEnabled) {
+        if (!destinationUrl) {
+          newErrors.url = "Please add a destination URL";
+        } else if (!validUrl({ url: destinationUrl })) {
+          newErrors.url = `${destinationUrl} is not a valid URL`;
+        } else {
+          delete newErrors.url;
+        }
       }
     }
 
@@ -301,6 +300,7 @@ const OtherWorkflowsModal = ({
           helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
+          disabled={!isPolicyAutomationsEnabled}
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -309,6 +309,7 @@ const OtherWorkflowsModal = ({
           showText="Show example payload"
           caretPosition="after"
           onClick={() => setShowExamplePayload(!showExamplePayload)}
+          disabled={!isPolicyAutomationsEnabled}
         />
         {showExamplePayload && <ExamplePayload />}
       </>
@@ -378,6 +379,7 @@ const OtherWorkflowsModal = ({
           }}
           inactiveText="Disabled"
           activeText="Enabled"
+          autoFocus
         />
         <div
           className={`form ${baseClass}__policy-automations__${
@@ -392,8 +394,9 @@ const OtherWorkflowsModal = ({
               id="ticket-radio-btn"
               checked={!isWebhookEnabled}
               value="ticket"
-              name="ticket"
+              name="workflow-type"
               onChange={onChangeRadio}
+              disabled={!isPolicyAutomationsEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -401,8 +404,9 @@ const OtherWorkflowsModal = ({
               id="webhook-radio-btn"
               checked={isWebhookEnabled}
               value="webhook"
-              name="webhook"
+              name="workflow-type"
               onChange={onChangeRadio}
+              disabled={!isPolicyAutomationsEnabled}
             />
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
@@ -416,8 +420,8 @@ const OtherWorkflowsModal = ({
                       const { isChecked, name, id } = policyItem;
                       return (
                         <div
-                          className="checkbox-row"
-                          id={`checkbox-row--${id}`}
+                          className="policy-row"
+                          id={`policy-row--${id}`}
                           key={id}
                         >
                           <Checkbox
@@ -428,6 +432,7 @@ const OtherWorkflowsModal = ({
                               !isChecked &&
                                 setErrors((errs) => omit(errs, "policyItems"));
                             }}
+                            disabled={!isPolicyAutomationsEnabled}
                           >
                             <TooltipTruncatedText value={name} />
                           </Checkbox>
@@ -449,6 +454,7 @@ const OtherWorkflowsModal = ({
               url="https://www.fleetdm.com/learn-more-about/policy-automations"
               text="Learn more"
               newTab
+              disableKeyboardNavigation={!isPolicyAutomationsEnabled}
             />
           </p>
         </div>

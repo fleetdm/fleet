@@ -37,6 +37,7 @@ type MDMWindowsConfigProfile struct {
 	Name             string                      `db:"name" json:"name"`
 	SyncML           []byte                      `db:"syncml" json:"-"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
@@ -121,6 +122,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 		case xml.CharData:
 			if inLocURI {
+				if err := validateUserScopedLocURI(string(t)); err != nil {
+					return err
+				}
 				if err := validateFleetProvidedLocURI(string(t)); err != nil {
 					return err
 				}
@@ -147,6 +151,15 @@ func validateFleetProvidedLocURI(locURI string) error {
 	return nil
 }
 
+func validateUserScopedLocURI(locURI string) error {
+	sanitizedLocURI := strings.TrimSpace(locURI)
+	if strings.Contains(sanitizedLocURI, syncml.FleetUserScopedTargetLocURI) {
+		return errors.New(`The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`)
+	}
+
+	return nil
+}
+
 type MDMWindowsProfilePayload struct {
 	ProfileUUID   string             `db:"profile_uuid"`
 	ProfileName   string             `db:"profile_name"`
@@ -156,6 +169,18 @@ type MDMWindowsProfilePayload struct {
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
 	Retries       int                `db:"retries"`
+}
+
+func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return statusEqual &&
+		p.ProfileUUID == other.ProfileUUID &&
+		p.HostUUID == other.HostUUID &&
+		p.ProfileName == other.ProfileName &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.CommandUUID == other.CommandUUID &&
+		p.Retries == other.Retries
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

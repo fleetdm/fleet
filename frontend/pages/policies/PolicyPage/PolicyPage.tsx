@@ -14,7 +14,11 @@ import {
   IStoredPolicyResponse,
 } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
-import { ITeam } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeam,
+} from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
@@ -84,7 +88,7 @@ const PolicyPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
     permittedAccessByTeamRole: {
       admin: true,
       maintainer: true,
@@ -112,7 +116,11 @@ const PolicyPage = ({
       return;
     }
     if (policyTeamId !== teamIdForApi) {
-      setPolicyTeamId(teamIdForApi || 0);
+      setPolicyTeamId(
+        teamIdForApi === API_ALL_TEAMS_ID
+          ? APP_CONTEXT_ALL_TEAMS_ID
+          : teamIdForApi
+      );
     }
   }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
 
@@ -155,6 +163,8 @@ const PolicyPage = ({
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
+        const deNulledReturnedQueryTeamId = returnedQuery.team_id ?? undefined;
+
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
@@ -164,7 +174,11 @@ const PolicyPage = ({
         setLastEditedQueryPlatform(returnedQuery.platform);
         // TODO(sarah): What happens if the team id in the policy response doesn't match the
         // url param? In theory, the backend should ensure this doesn't happen.
-        setPolicyTeamId(returnedQuery.team_id || 0);
+        setPolicyTeamId(
+          deNulledReturnedQueryTeamId === API_ALL_TEAMS_ID
+            ? APP_CONTEXT_ALL_TEAMS_ID
+            : deNulledReturnedQueryTeamId
+        );
       },
       onError: (error) => handlePageError(error),
     }
@@ -197,7 +211,7 @@ const PolicyPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
-    storedPolicy?.team_id &&
+    storedPolicy?.team_id !== undefined &&
     !(storedPolicy?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
@@ -205,9 +219,10 @@ const PolicyPage = ({
     );
   }
 
+  // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
-      return formData.team_id
+      return formData.team_id !== undefined
         ? teamPoliciesAPI.create(formData)
         : globalPoliciesAPI.create(formData);
     }

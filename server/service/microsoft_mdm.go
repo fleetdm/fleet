@@ -28,6 +28,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
@@ -71,7 +72,7 @@ type SoapResponseContainer struct {
 	Err  error
 }
 
-func (r SoapResponseContainer) error() error { return r.Err }
+func (r SoapResponseContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -132,7 +133,7 @@ type SyncMLResponseMsgContainer struct {
 	Err  error
 }
 
-func (r SyncMLResponseMsgContainer) error() error { return r.Err }
+func (r SyncMLResponseMsgContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -176,7 +177,7 @@ func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.V
 	return nil
 }
 
-func (req MDMWebContainer) error() error { return req.Err }
+func (req MDMWebContainer) Error() error { return req.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -195,7 +196,7 @@ type MDMAuthContainer struct {
 	Err  error
 }
 
-func (r MDMAuthContainer) error() error { return r.Err }
+func (r MDMAuthContainer) Error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW XML output
 func (r MDMAuthContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -494,7 +495,7 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 
 		// Setting the target action
 	case *mdm_types.SoapFault:
-		if msg.OriginalMessageType == mdm_types.MDEDiscovery {
+		if msg.OriginalMessageType == mdm_types.MDEDiscovery { //nolint:gocritic // ignore ifElseChain
 			action = urlDiscovery
 		} else if msg.OriginalMessageType == mdm_types.MDEPolicy {
 			action = urlPolicy
@@ -615,12 +616,20 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
-// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// isEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
 // in Fleet's Windows MDM (if it was enabled).
-func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+func isEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
 	return host.FleetPlatform() == "windows" &&
 		host.IsOsqueryEnrolled() &&
 		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
+}
+
+// isEligibleForWindowsMDMMigration returns true if the host can be migrated to
+// Fleet's Windows MDM (if it was enabled).
+func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(mdmInfo != nil && !mdmInfo.IsServer && mdmInfo.Enrolled && mdmInfo.Name != fleet.WellKnownMDMFleet)
 }
 
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
@@ -888,7 +897,6 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // and better security authentication (done through TLS and in-message hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
-	reqCerts := request.(*SyncMLReqMsgContainer).Certs
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
 	if err := reqSyncML.IsValidMsg(); err != nil {
@@ -897,7 +905,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, reqCerts)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, request.(*SyncMLReqMsgContainer).Certs)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -976,7 +984,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
@@ -1499,8 +1507,11 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		responseCmds = append(responseCmds, ackMsg)
 	}
 
-	if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, reqMsg); err != nil {
-		return nil, fmt.Errorf("store incoming msgs: %w", err)
+	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+	if enrichedSyncML.HasCommands() {
+		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML); err != nil {
+			return nil, fmt.Errorf("store incoming msgs: %w", err)
+		}
 	}
 
 	// Iterate over the operations and process them
@@ -1534,8 +1545,14 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	for _, pendingCmd := range pendingCmds {
+		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+		if err != nil {
+			// This error should never happen since we validate the presence of needed secrets on profile upload.
+			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
 		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal(pendingCmd.RawCommand, cmd); err != nil {
+		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
 			continue
 		}
@@ -1609,11 +1626,8 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	// Combined cmd responses
-	resCmds := append(resIncomingCmds, resPendingCmds...)
-
 	// Create the response SyncML message
-	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, append(resIncomingCmds, resPendingCmds...))
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
@@ -1789,6 +1803,8 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
 	// out a good way to identify the device.
+	displayName := reqDeviceName
+	var serial string
 	if hostUUID != "" {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
@@ -1799,12 +1815,34 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		if err != nil {
 			return err
 		}
+
+		// Get the host in order to get the correct display name and serial number for the activity
+		adminTeamFilter := fleet.TeamFilter{
+			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		}
+
+		hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
+		if err != nil {
+			// Do not abort; this call was only made to get better data for the activity, so shouldn't
+			// fail the request. We fall back to `reqDeviceName` for the display name in this case.
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to get host data for windows MDM enrollment activity",
+			)
+		}
+
+		if len(hosts) == 1 {
+			// then we found the host, so use the data from there for the activity
+			displayName = hosts[0].DisplayName()
+			serial = hosts[0].HardwareSerial
+		}
+
 	}
 
 	err = svc.NewActivity(
 		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostDisplayName: reqDeviceName,
+			HostDisplayName: displayName,
 			MDMPlatform:     fleet.MDMPlatformMicrosoft,
+			HostSerial:      serial,
 		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we
@@ -1860,10 +1898,6 @@ func createSyncMLMessage(sessionID string, msgID string, deviceID string, source
 	// Sanity check on input
 	if len(sessionID) == 0 || len(msgID) == 0 || len(deviceID) == 0 || len(source) == 0 {
 		return nil, errors.New("invalid parameters")
-	}
-
-	if sessionID == "0" {
-		return nil, errors.New("invalid session ID")
 	}
 
 	if msgID == "0" {

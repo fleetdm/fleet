@@ -75,19 +75,20 @@ raw:
 		for len(cur) > 0 {
 			c, l := utf8.DecodeRuneInString(cur)
 			cur = cur[l:]
-			if c == singleChar {
+			switch {
+			case c == singleChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto single
-			} else if c == doubleChar {
+			case c == doubleChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto double
-			} else if c == escapeChar {
+			case c == escapeChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto escape
-			} else if strings.ContainsRune(splitChars, c) {
+			case strings.ContainsRune(splitChars, c):
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				return buf.String(), cur, nil
 			}

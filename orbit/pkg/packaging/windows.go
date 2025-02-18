@@ -64,14 +64,14 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.DesktopWindowsTarget
+		updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
 		// Override default channel with the provided value.
-		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
 
 	// Override default channels with the provided values.
-	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
-	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, opt.OsquerydChannel)
 
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {
@@ -297,7 +297,7 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 	return nil
 }
 
-// writeManifestXML creates the manifest.xml file used when generating the 'resource.syso' metadata
+// writeManifestXML creates the manifest.xml file used when generating the 'resource_windows.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
 func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
@@ -320,7 +320,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 	return filePath, nil
 }
 
-// createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource.syso'
+// createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource_windows.syso'
 // metadata file (see writeResourceSyso).
 func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.VersionInfo, error) {
 	vIntParts := make([]int, 0, len(vParts))
@@ -403,7 +403,7 @@ func SanitizeVersion(version string) ([]string, error) {
 	}
 	if len(vParts) == 3 && strings.Contains(vParts[2], "-") {
 		parts := strings.SplitN(vParts[2], "-", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return nil, fmt.Errorf("invalid patch and pre-release version: %s", vParts[2])
 		}
 		patch, preRelease := parts[0], parts[1]
@@ -417,7 +417,7 @@ func SanitizeVersion(version string) ([]string, error) {
 	return vParts[:4], nil
 }
 
-// writeResourceSyso creates the 'resource.syso' metadata file which contains the required Microsoft
+// writeResourceSyso creates the 'resource_windows.syso' metadata file which contains the required Microsoft
 // Windows Version Information
 func writeResourceSyso(opt Options, orbitPath string) error {
 	if err := secure.MkdirAll(orbitPath, constant.DefaultDirMode); err != nil {
@@ -443,7 +443,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 	vi.Build()
 	vi.Walk()
 
-	outPath := filepath.Join(orbitPath, "resource.syso")
+	outPath := filepath.Join(orbitPath, "resource_windows.syso")
 	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
 		return fmt.Errorf("creating syso file: %w", err)
 	}

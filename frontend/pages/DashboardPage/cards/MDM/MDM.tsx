@@ -2,11 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 
-import {
-  IMdmStatusCardData,
-  IMdmSolution,
-  IMdmSummaryMdmSolution,
-} from "interfaces/mdm";
+import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";

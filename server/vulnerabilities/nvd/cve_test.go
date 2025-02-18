@@ -222,10 +222,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:clickstudios:passwordstate:9.5.8.4:*:*:*:*:chrome:*:*": {
 			includedCVEs: []cve{
-				{ID: "CVE-2022-4610"},
-				{ID: "CVE-2022-4611"},
-				{ID: "CVE-2022-4613"},
-				{ID: "CVE-2022-4612"},
+				{ID: "CVE-2022-4610", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4611", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4613", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4612", resolvedInVersion: "9.5"},
 			},
 			continuesToUpdate: true,
 		},
@@ -279,6 +279,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
 		},
@@ -303,6 +304,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
+				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
 			},
 			continuesToUpdate: false,
 		},
@@ -336,6 +338,48 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
 			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-4030"},
+			continuesToUpdate: true,
+		},
+		// Skipping test while troubleshooting https://github.com/fleetdm/fleet/issues/24286
+		//
+		// "cpe:2.3:a:python:python:3.9.6:*:*:*:*:windows:*:*": {
+		// 	includedCVEs: []cve{
+		// 		{ID: "CVE-2024-4030", resolvedInVersion: "3.9.20"},
+		// 	},
+		// 	continuesToUpdate: true,
+		// },
+		// Tests the expandCPEAliases rule for virtualbox on macOS
+		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-21989", resolvedInVersion: "7.0.8"},
+				{ID: "CVE-2024-21141", resolvedInVersion: "7.0.20"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:mozilla:firefox:*:*:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10004"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:okta:verify:9.27.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-10327"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:jetbrains:goland:2024.3:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-37051"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:iterm2:iterm2:3.5.2:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2024-38395", resolvedInVersion: ""}},
+		},
+		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
 		},
 	}
 
@@ -690,34 +734,6 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPreprocessVersion(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected string
-	}{
-		{"2.3.0.2", "2.3.0-2"},
-		{"2.3.0+2", "2.3.0+2"},
-		{"v5.3.0.2", "v5.3.0-2"},
-		{"5.3.0-2", "5.3.0-2"},
-		{"2.3.0.2.5", "2.3.0-2.5"},
-		{"2.3.0", "2.3.0"},
-		{"2.3", "2.3"},
-		{"v2.3.0", "v2.3.0"},
-		{"notAVersion", "notAVersion"},
-		{"2.0.0+svn315-7fakesync1ubuntu0.22.04.1", "2.0.0+svn315-7fakesync1ubuntu0.22.04.1"},
-		{"1.21.1ubuntu2", "1.21.1-ubuntu2"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			output := preprocessVersion(tc.input)
-			if output != tc.expected {
-				t.Fatalf("input: %s, expected: %s, got: %s", tc.input, tc.expected, output)
 			}
 		})
 	}

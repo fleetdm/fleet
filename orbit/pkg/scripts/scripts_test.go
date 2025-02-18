@@ -305,7 +305,7 @@ func TestRunnerResults(t *testing.T) {
 			output:     output44K,
 			exitCode:   1,
 			runErr:     nil,
-			wantOutput: output44K[strings.Index(output44K, "b"):],
+			wantOutput: output44K[strings.Index(output44K, "b"):], //nolint:gocritic // ignore offBy1 since this is a test
 		},
 		{
 			desc:       "empty with error",

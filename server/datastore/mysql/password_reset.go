@@ -25,7 +25,7 @@ func (ds *Datastore) NewPasswordResetRequest(ctx context.Context, req *fleet.Pas
 	}
 
 	id, _ := response.LastInsertId()
-	req.ID = uint(id)
+	req.ID = uint(id) //nolint:gosec // dismiss G115
 	return req, nil
 }
 

@@ -135,7 +135,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 			continue
 		}
 
-		if out.Subject.CommonName != template.Subject.CommonName {
+		if out.Subject.CommonName != template.Subject.CommonName { //nolint:gocritic // ignore ifElseChain
 			t.Errorf("%s: output subject common name and template subject common name don't match", test.name)
 		} else if len(out.Subject.Organization) != len(template.Subject.Organization) {
 			t.Errorf("%s: output subject organisation and template subject organisation don't match", test.name)

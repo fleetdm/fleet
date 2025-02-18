@@ -9,7 +9,6 @@ import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
-import DownloadInstallers from "./DownloadInstallers/DownloadInstallers";
 
 const baseClass = "add-hosts-modal";
 

@@ -6,6 +6,7 @@ import mdmAppleApi from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
+import ClickableUrls from "components/ClickableUrls";
 import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {
@@ -49,13 +50,13 @@ const ApplePushCertSetup = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (
-        msg.toLowerCase().includes("email address") ||
-        msg.toLowerCase().includes("required private key")
-      ) {
+      if (msg.toLowerCase().includes("email address")) {
         renderFlash("error", msg);
+      } else if (msg.toLowerCase().includes("required private key")) {
+        // replace link with actually clickable link
+        renderFlash("error", ClickableUrls({ text: msg }));
       } else {
-        renderFlash("error", "Something’s gone wrong. Please try again.");
+        renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
     [renderFlash]
@@ -112,7 +113,7 @@ const ApplePushCertSetup = ({
           accept=".pem"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           buttonType="link"
-          diabled={isUploading}
+          disabled={isUploading}
           graphicName="file-pem"
           message="APNs certificate (.pem)"
           onFileUpload={onFileUpload}

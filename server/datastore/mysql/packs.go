@@ -272,7 +272,7 @@ func (ds *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...flee
 		}
 
 		id, _ := result.LastInsertId()
-		pack.ID = uint(id)
+		pack.ID = uint(id) //nolint:gosec // dismiss G115
 
 		if err := replacePackTargetsDB(ctx, tx, pack); err != nil {
 			return err

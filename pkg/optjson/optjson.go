@@ -169,3 +169,38 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	s.Valid = true
 	return nil
 }
+
+type Any[T any] struct {
+	Set   bool
+	Valid bool
+	Value T
+}
+
+func (s Any[T]) MarshalJSON() ([]byte, error) {
+	if !s.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(s.Value)
+}
+
+func (s *Any[T]) UnmarshalJSON(data []byte) error {
+	// If this method was called, the value was set.
+	s.Set = true
+	s.Valid = false
+
+	if bytes.Equal(data, []byte("null")) {
+		// The key was set to null, set value to zero/default value
+		var zero T
+		s.Value = zero
+		return nil
+	}
+
+	// The key isn't set to null
+	var v T
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	s.Value = v
+	s.Valid = true
+	return nil
+}

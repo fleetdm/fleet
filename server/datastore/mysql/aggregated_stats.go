@@ -49,7 +49,7 @@ const (
 )
 
 func getPercentileQuery(aggregate fleet.AggregatedStatsType, time string, percentile string) string {
-	switch aggregate {
+	switch aggregate { //nolint:gocritic // ignore singleCaseSwitch
 	case fleet.AggregatedStatsTypeScheduledQuery:
 		return fmt.Sprintf(scheduledQueryPercentileQuery, time, percentile)
 	}
@@ -140,7 +140,7 @@ func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context
 }
 
 func getTotalExecutionsQuery(aggregate fleet.AggregatedStatsType) string {
-	switch aggregate {
+	switch aggregate { //nolint:gocritic // ignore singleCaseSwitch
 	case fleet.AggregatedStatsTypeScheduledQuery:
 		return scheduledQueryTotalExecutions
 	}

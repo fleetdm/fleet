@@ -36,7 +36,6 @@ func flattenIni(in interface{}, opts ...FlattenOpts) ([]Row, error) {
 		// booleans. Everything else we leave as string
 		sectionMap := make(map[string]interface{})
 		for _, key := range section.Keys() {
-			//fmt.Println(section.Name(), key.Name(), key.Value())
 			asBool, ok := iniToBool(key.Value())
 			if ok {
 				sectionMap[key.Name()] = asBool

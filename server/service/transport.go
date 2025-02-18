@@ -27,15 +27,15 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.error().(kithttp.StatusCoder); ok {
+		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
 		_, err := io.WriteString(w, page.html())
 		return err
 	}
 
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
+	if e, ok := response.(errorer); ok && e.Error() != nil {
+		encodeError(ctx, e.Error(), w)
 		return nil
 	}
 
@@ -65,7 +65,7 @@ type statuser interface {
 // loads a html page
 type htmlPage interface {
 	html() string
-	error() error
+	Error() error
 }
 
 // renderHijacker can be implemented by response values to take control of
@@ -85,6 +85,19 @@ func uintFromRequest(r *http.Request, name string) (uint64, error) {
 		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
 	}
 	return u, nil
+}
+
+func uint32FromRequest(r *http.Request, name string) (uint32, error) {
+	vars := mux.Vars(r)
+	s, ok := vars[name]
+	if !ok {
+		return 0, errBadRoute
+	}
+	u, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
+	}
+	return uint32(u), nil
 }
 
 func intFromRequest(r *http.Request, name string) (int64, error) {
@@ -182,8 +195,8 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 	query := r.URL.Query().Get("query")
 
 	return fleet.ListOptions{
-		Page:           uint(page),
-		PerPage:        uint(perPage),
+		Page:           uint(page),    //nolint:gosec // dismiss G115
+		PerPage:        uint(perPage), //nolint:gosec // dismiss G115
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
 		MatchQuery:     strings.TrimSpace(query),
@@ -551,13 +564,18 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.LowDiskSpaceFilter = &v
 	}
 	populateSoftware := r.URL.Query().Get("populate_software")
-	if populateSoftware != "" {
+	if populateSoftware == "without_vulnerability_details" {
+		hopt.PopulateSoftware = true
+		hopt.PopulateSoftwareVulnerabilityDetails = false
+	} else if populateSoftware != "" {
 		ps, err := strconv.ParseBool(populateSoftware)
 		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid populate_software: %s", populateSoftware)))
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(`Invalid value for populate_software. Should be one of "true", "false", or "without_vulnerability_details".`))
 		}
 		hopt.PopulateSoftware = ps
+		hopt.PopulateSoftwareVulnerabilityDetails = ps
 	}
+
 	populatePolicies := r.URL.Query().Get("populate_policies")
 	if populatePolicies != "" {
 		pp, err := strconv.ParseBool(populatePolicies)
@@ -567,6 +585,28 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.PopulatePolicies = pp
+	}
+
+	populateUsers := r.URL.Query().Get("populate_users")
+	if populateUsers != "" {
+		pu, err := strconv.ParseBool(populateUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_users: %s", populateUsers)),
+			)
+		}
+		hopt.PopulateUsers = pu
+	}
+
+	populateLabels := r.URL.Query().Get("populate_labels")
+	if populateLabels != "" {
+		pl, err := strconv.ParseBool(populateLabels)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_labels: %s", populateLabels)),
+			)
+		}
+		hopt.PopulateLabels = pl
 	}
 
 	// cannot combine software_id, software_version_id, and software_title_id

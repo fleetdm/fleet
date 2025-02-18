@@ -1,10 +1,9 @@
 # NanoMDM
 
 > The contents of this directory were copied (on January 2024) from https://github.com/fleetdm/nanomdm (the `apple-mdm` branch) which was forked from https://github.com/micromdm/nanomdm.
+> They were updated in November 2024 with changes up to github.com/micromdm/nanomdm@825f2979a2dc28c6cc57bb62aff16737978bd90e
 
-[![Go](https://github.com/micromdm/nanomdm/workflows/Go/badge.svg)](https://github.com/micromdm/nanomdm/actions)
-
-NanoMDM is a minimalist [Apple MDM server](https://support.apple.com/business/enrollment-deployment) heavily inspired by MicroMDM.
+NanoMDM is a minimalist [Apple MDM server](https://developer.apple.com/documentation/devicemanagement) heavily inspired by [MicroMDM](https://github.com/micromdm/micromdm).
 
 ## Getting started & Documentation
 
@@ -56,3 +55,25 @@ NanoMDM, at its core, is a thin composable layer between HTTP handlers and a set
 - The storage layer is a set of interfaces and implementations that store & retrieve MDM enrollment and command data. These exist under the `storage` package.
 
 You can read more about the architecture in the blog post [Introducing NanoMDM](https://micromdm.io/blog/introducing-nanomdm/).
+
+## Running unit tests locally
+
+1. Start up MySQL `docker compose up`
+2. Load schema: `mysql --user=fleet -pinsecure --host=127.0.0.1 --port=3800 --protocol=TCP fleet < ./storage/mysql/schema.sql`
+3. `export NANOMDM_MYSQL_STORAGE_TEST_DSN=fleet:insecure@tcp(127.0.0.1:3800)/fleet`
+4. `go test -v -parallel 8 -race=true ./...`
+
+### Clean up MySQL after running tests
+
+```mysql
+SET FOREIGN_KEY_CHECKS = 0;
+truncate table nano_cert_auth_associations;
+truncate table nano_command_results;
+truncate table nano_commands;
+truncate table nano_devices;
+truncate table nano_enrollment_queue;
+truncate table nano_enrollments;
+truncate table nano_push_certs;
+truncate table nano_users;
+SET FOREIGN_KEY_CHECKS = 1;
+```

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 // OperatingSystem is an operating system uniquely identified according to its name and version.
@@ -43,7 +43,8 @@ func (os *OperatingSystem) RequiresNudge() (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(os.Version)
+	// strip Rapid Security Response suffix (e.g. version 13.3.7 (a)) if any
+	version, err := VersionToSemverVersion(os.Version)
 	if err != nil {
 		return false, fmt.Errorf("parsing macos version \"%s\": %w", os.Version, err)
 	}

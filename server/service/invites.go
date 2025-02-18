@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"strings"
@@ -29,7 +28,7 @@ type createInviteResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r createInviteResponse) error() error { return r.Err }
+func (r createInviteResponse) Error() error { return r.Err }
 
 func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createInviteRequest)
@@ -39,6 +38,8 @@ func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	return createInviteResponse{invite, nil}, nil
 }
+
+var SSOMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
 
 func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePayload) (*fleet.Invite, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Invite{}, fleet.ActionWrite); err != nil {
@@ -67,11 +68,10 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	}
 	inviter := v.User
 
-	random, err := server.GenerateRandomText(svc.config.App.TokenKeySize)
+	token, err := server.GenerateRandomURLSafeText(svc.config.App.TokenKeySize)
 	if err != nil {
 		return nil, err
 	}
-	token := base64.URLEncoding.EncodeToString([]byte(random))
 
 	invite := &fleet.Invite{
 		Email:      *payload.Email,
@@ -88,6 +88,13 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	}
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
+	}
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
+
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
 	}
 
 	invite, err = svc.ds.NewInvite(ctx, invite)
@@ -109,7 +116,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		smtpSettings = *config.SMTPSettings
 	}
 	inviteEmail := fleet.Email{
-		Subject:      "You are Invited to Fleet",
+		Subject:      "You have been invited to Fleet!",
 		To:           []string{invite.Email},
 		ServerURL:    config.ServerSettings.ServerURL,
 		SMTPSettings: smtpSettings,
@@ -129,6 +136,25 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 	return invite, nil
 }
 
+func (svc *Service) ValidateInvite(ctx context.Context, invite fleet.Invite) error {
+	if !invite.MFAEnabled {
+		return nil
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+	if invite.SSOEnabled {
+		return SSOMFAConflict
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // List invites
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +168,7 @@ type listInvitesResponse struct {
 	Err     error          `json:"error,omitempty"`
 }
 
-func (r listInvitesResponse) error() error { return r.Err }
+func (r listInvitesResponse) Error() error { return r.Err }
 
 func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listInvitesRequest)
@@ -179,7 +205,7 @@ type updateInviteResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r updateInviteResponse) error() error { return r.Err }
+func (r updateInviteResponse) Error() error { return r.Err }
 
 func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateInviteRequest)
@@ -231,6 +257,13 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
+	if payload.MFAEnabled != nil {
+		invite.MFAEnabled = *payload.MFAEnabled
+	}
+
+	if err = svc.ValidateInvite(ctx, *invite); err != nil {
+		return nil, err
+	}
 
 	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {
 		if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
@@ -255,7 +288,7 @@ type deleteInviteResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteInviteResponse) error() error { return r.Err }
+func (r deleteInviteResponse) Error() error { return r.Err }
 
 func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteInviteRequest)
@@ -286,7 +319,7 @@ type verifyInviteResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r verifyInviteResponse) error() error { return r.Err }
+func (r verifyInviteResponse) Error() error { return r.Err }
 
 func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*verifyInviteRequest)

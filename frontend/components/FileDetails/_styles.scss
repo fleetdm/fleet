@@ -1,0 +1,66 @@
+.file-details {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  gap: $pad-medium;
+
+  &__info {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+  }
+
+  &__name {
+    font-size: $x-small;
+    font-weight: $bold;
+    overflow-wrap: anywhere; // Prevent long file name overflow
+  }
+
+  &__platform {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__edit {
+    display: flex;
+    align-items: center; // Center the button vertically
+    margin-right: -$pad-medium; // Adjust for button padding
+  }
+
+  label {
+    display: flex;
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
+
+  &__progress-wrapper {
+    display: flex;
+    width: 184px; // using fixed width to prevent jitter when text changes: 144px + $pad-medium + 24px for text
+    justify-content: space-between;
+    align-items: center;
+    gap: $pad-small; // shouldn't be necessary, but just in case
+  }
+
+  &__progress-bar {
+    display: inline-block;
+    height: 6px;
+    width: 144px;
+    background-color: $ui-fleet-black-10;
+    border-radius: 32px;
+    overflow: hidden;
+  }
+
+  &__progress-bar--uploaded {
+    background-color: $core-vibrant-blue;
+    height: 100%;
+  }
+
+  &__progress-text {
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+  }
+}

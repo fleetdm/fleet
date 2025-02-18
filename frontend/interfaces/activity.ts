@@ -1,3 +1,4 @@
+import { ILabelSoftwareTitle } from "./label";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -33,6 +34,7 @@ export enum ActivityType {
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
   UserDeletedTeamRole = "deleted_user_team_role",
+  FleetEnrolled = "fleet_enrolled",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
@@ -45,6 +47,9 @@ export enum ActivityType {
   DeletedAppleOSProfile = "deleted_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   EditedAppleOSProfile = "edited_macos_profile",
+  AddedNdesScepProxy = "added_ndes_scep_proxy",
+  DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
+  EditedNdesScepProxy = "edited_ndes_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -65,8 +70,11 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
+  DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
@@ -78,27 +86,39 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   AddedSoftware = "added_software",
+  EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
+  EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
   InstalledAppStoreApp = "installed_app_store_app",
+  EnabledActivityAutomations = "enabled_activity_automations",
+  EditedActivityAutomations = "edited_activity_automations",
+  DisabledActivityAutomations = "disabled_activity_automations",
+  CanceledScript = "canceled_script",
+  CanceledSoftwareInstall = "canceled_software_install",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.UninstalledSoftware
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.CanceledScript
+  | ActivityType.CanceledSoftwareInstall;
 
-// This is a subset of ActivityType that are shown only for the host upcoming activities
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
@@ -109,6 +129,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 
@@ -118,6 +139,7 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
 };
 
 export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
@@ -169,4 +191,9 @@ export interface IActivityDetails {
   self_service?: boolean;
   command_uuid?: string;
   app_store_id?: number;
+  location?: string; // name of location associated with VPP token
+  webhook_url?: string;
+  software_title_id?: number;
+  labels_include_any?: ILabelSoftwareTitle[];
+  labels_exclude_any?: ILabelSoftwareTitle[];
 }

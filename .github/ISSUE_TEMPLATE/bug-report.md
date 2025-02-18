@@ -31,3 +31,4 @@ N/A
 
 <!-- ### 🛠️ To fix -->
 <!-- If this bug requires additional product design work, uncomment the heading above and add instructions to fix, Figma link, etc. here once design changes are settled. -->
+<!-- Product designer: _________________________ --> <!-- Who is the product designer to contact if folks have questions about this fix? -->

@@ -2,31 +2,37 @@ import {
   IAppStoreApp,
   ISoftwareTitleDetails,
   isSoftwarePackage,
+  aggregateInstallStatusCounts,
 } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 /**
- * Generates the data needed to render the package card.
+ * Generates the data needed to render the installer card. It differentiates between
+ * software packages and app store apps and returns the appropriate data.
+ *
+ * FIXME: This function ought to be refactored or renamed to better reflect its purpose.
+ * "PackageCard" is a bit ambiguous in this context (it refers to the card that displays
+ * package or app information, as applicable).
  */
 // eslint-disable-next-line import/prefer-default-export
-export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
+export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
   // we know at this point that softwareTitle.software_package or
   // softwareTitle.app_store_app is not null so we will do a type assertion.
-  const packageData = softwareTitle.software_package
+  const installerData = softwareTitle.software_package
     ? softwareTitle.software_package
     : (softwareTitle.app_store_app as IAppStoreApp);
 
+  const isPackage = isSoftwarePackage(installerData);
+
   return {
-    softwarePackage: isSoftwarePackage(packageData) ? packageData : undefined,
-    name: softwareTitle.name,
+    softwarePackage: installerData,
+    name: (isPackage && installerData.name) || softwareTitle.name,
     version:
-      (isSoftwarePackage(packageData)
-        ? packageData.version
-        : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
-    uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
-    status: packageData.status,
-    isSelfService: isSoftwarePackage(packageData)
-      ? packageData.self_service
-      : false,
+      (isPackage ? installerData.version : installerData.latest_version) ||
+      null,
+    uploadedAt: isPackage ? installerData.uploaded_at : "",
+    status: isPackage
+      ? aggregateInstallStatusCounts(installerData.status)
+      : installerData.status,
+    isSelfService: installerData.self_service,
   };
 };

@@ -28,6 +28,19 @@ func Up_20240730374423(tx *sql.Tx) error {
 		return fmt.Errorf("updating platform in vpp_apps: %w", err)
 	}
 
+	// Drop foreign keys first so they don't interfere with updating primary key.
+	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams DROP FOREIGN KEY vpp_apps_teams_ibfk_1`)
+	if err != nil {
+		return fmt.Errorf("updating foreign key in vpp_apps: %w", err)
+	}
+
+	// We drop this foreign key in this migration (for MySQL 8.4). It will be added back in the next migration.
+	_, err = tx.Exec(`
+		ALTER TABLE host_vpp_software_installs DROP FOREIGN KEY host_vpp_software_installs_ibfk_2`)
+	if err != nil {
+		return fmt.Errorf("drop foreign key in host_vpp_software_installs: %w", err)
+	}
+
 	_, err = tx.Exec(`ALTER TABLE vpp_apps DROP PRIMARY KEY, ADD PRIMARY KEY (adam_id, platform)`)
 	if err != nil {
 		return fmt.Errorf("updating primary key in vpp_apps: %w", err)
@@ -57,7 +70,7 @@ func Up_20240730374423(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("updating key in vpp_apps: %w", err)
 	}
-	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams DROP FOREIGN KEY vpp_apps_teams_ibfk_1, ADD FOREIGN KEY vpp_apps_teams_ibfk_1 (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE`)
+	_, err = tx.Exec(`ALTER TABLE vpp_apps_teams ADD FOREIGN KEY vpp_apps_teams_ibfk_3 (adam_id, platform) REFERENCES vpp_apps (adam_id, platform) ON DELETE CASCADE`)
 	if err != nil {
 		return fmt.Errorf("updating foreign key in vpp_apps: %w", err)
 	}

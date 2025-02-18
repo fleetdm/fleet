@@ -22,6 +22,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
 		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
+		{"TestOSVersionsByCVEFailsGracefullyWithNoOSVersionRows", testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows},
 		{"TestOSVersionsByCVE", testOSVersionsByCVE},
 		{"TestSoftwareByCVE", testSoftwareByCVE},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
@@ -407,7 +408,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 
 	//
@@ -432,7 +433,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 
 	//
@@ -456,7 +457,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.EqualValues(t, checkCounts[vuln.CVE.CVE], vuln.HostsCount, vuln.CVE)
 	}
 }
 
@@ -595,7 +596,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
@@ -610,7 +611,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostOperatingSystem(context.Background(), host2.ID, windowsOS)
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
@@ -625,7 +626,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostOperatingSystem(context.Background(), host3.ID, macOS)
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// assert no new vulns
@@ -640,7 +641,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
@@ -665,7 +666,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
@@ -683,7 +684,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// global counts should not change
@@ -720,7 +721,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// global counts should not change
@@ -759,11 +760,11 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		Platform: "darwin",
 	}
 	for i := 4; i < 9; i++ {
-		err = ds.UpdateHostOperatingSystem(context.Background(), uint(i), macOSPatched)
+		err = ds.UpdateHostOperatingSystem(context.Background(), uint(i), macOSPatched) //nolint:gosec // dismiss G115
 		require.NoError(t, err)
 	}
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// no change to team1 counts
@@ -795,7 +796,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, []fleet.Software{})
 	require.NoError(t, err)
 
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// global counts reduced
@@ -879,7 +880,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	}
 
 	// update host counts
-	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
 	// assert host counts
@@ -897,6 +898,12 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	for _, vuln := range list {
 		require.Equal(t, uint(2), vuln.HostsCount)
 	}
+}
+
+func testOSVersionsByCVEFailsGracefullyWithNoOSVersionRows(t *testing.T, ds *Datastore) {
+	osv, _, err := ds.OSVersionsByCVE(context.Background(), "CVE-2020-1238", nil)
+	require.NoError(t, err)
+	require.Nil(t, osv)
 }
 
 func testOSVersionsByCVE(t *testing.T, ds *Datastore) {

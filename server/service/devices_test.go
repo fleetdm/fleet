@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -473,5 +475,118 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			})
 		}
 
+	})
+}
+
+func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
+	t.Run("unavailable in Fleet Free", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, &fleet.Host{ID: 1})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("no-op on already pending", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return true
+		}
+
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, &fleet.Host{ID: 1})
+		require.NoError(t, err)
+		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
+	})
+
+	t.Run("validation failures", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		var reportedErrors []string
+		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			require.Equal(t, hostID, host.ID)
+			reportedErrors = append(reportedErrors, err)
+			return nil
+		}
+
+		// invalid platform
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Fleet does not yet support creating LUKS disk encryption keys on this platform.")
+		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
+
+		// valid platform, no-team, encryption not enabled
+		host.OSVersion = "Fedora 32.0.0"
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(false)}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team.")
+
+		// valid platform, team, encryption not enabled
+		host.TeamID = ptr.Uint(1)
+		teamConfig := &fleet.TeamMDM{}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, uint(1), teamID)
+			return teamConfig, nil
+		}
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team.")
+
+		// valid platform, team, host disk is not encrypted or unknown encryption state
+		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please encrypt your disk first.")
+		host.DiskEncryptionEnabled = ptr.Bool(false)
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Host's disk is not encrypted. Please encrypt your disk first.")
+
+		// No Fleet Desktop
+		host.DiskEncryptionEnabled = ptr.Bool(true)
+		orbitInfo := &fleet.HostOrbitInfo{Version: "1.35.1"}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return orbitInfo, nil
+		}
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
+
+		// Encryption key is already escrowed
+		orbitInfo.Version = fleet.MinOrbitLUKSVersion
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
+			return errors.New("encryption key is already escrowed")
+		}
+		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "encryption key is already escrowed")
+
+		require.Len(t, reportedErrors, 7)
+	})
+
+	t.Run("validation success", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}, nil
+		}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return &fleet.HostOrbitInfo{Version: "1.36.0", DesktopVersion: ptr.String("42")}, nil
+		}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		host := &fleet.Host{ID: 1, Platform: "ubuntu", DiskEncryptionEnabled: ptr.Bool(true), OrbitVersion: ptr.String(fleet.MinOrbitLUKSVersion)}
+		ds.QueueEscrowFunc = func(ctx context.Context, hostID uint) error {
+			require.Equal(t, uint(1), hostID)
+			return nil
+		}
+
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.NoError(t, err)
+		require.True(t, ds.QueueEscrowFuncInvoked)
 	})
 }

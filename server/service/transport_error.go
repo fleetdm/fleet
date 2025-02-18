@@ -16,7 +16,7 @@ import (
 
 // errorer interface is implemented by response structs to encode business logic errors
 type errorer interface {
-	error() error
+	Error() error
 }
 
 type jsonError struct {
@@ -115,7 +115,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			"error": e.Error(),
 			"uuid":  uuid,
 		}
-		if e.NodeInvalid() {
+		if e.NodeInvalid() { //nolint:gocritic // ignore ifElseChain
 			w.WriteHeader(http.StatusUnauthorized)
 			errMap["node_invalid"] = true
 		} else if e.Status() != 0 {

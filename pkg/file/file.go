@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var ErrUnsupportedType = errors.New("unsupported file type")
@@ -25,28 +26,34 @@ type InstallerMetadata struct {
 	BundleIdentifier string
 	SHASum           []byte
 	Extension        string
+	PackageIDs       []string
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(r io.Reader) (*InstallerMetadata, error) {
-	br := bufio.NewReader(r)
+func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+	br := bufio.NewReader(tfr)
 	extension, err := typeFromBytes(br)
 	if err != nil {
+		return nil, err
+	}
+	if err := tfr.Rewind(); err != nil {
 		return nil, err
 	}
 
 	var meta *InstallerMetadata
 	switch extension {
 	case "deb":
-		meta, err = ExtractDebMetadata(br)
+		meta, err = ExtractDebMetadata(tfr)
+	case "rpm":
+		meta, err = ExtractRPMMetadata(tfr)
 	case "exe":
-		meta, err = ExtractPEMetadata(br)
+		meta, err = ExtractPEMetadata(tfr)
 	case "pkg":
-		meta, err = ExtractXARMetadata(br)
+		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
-		meta, err = ExtractMSIMetadata(br)
+		meta, err = ExtractMSIMetadata(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}
@@ -58,12 +65,16 @@ func ExtractInstallerMetadata(r io.Reader) (*InstallerMetadata, error) {
 	return meta, err
 }
 
+// typeFromBytes deduces the type from the magic bytes.
+// See https://en.wikipedia.org/wiki/List_of_file_signatures.
 func typeFromBytes(br *bufio.Reader) (string, error) {
 	switch {
 	case hasPrefix(br, []byte{0x78, 0x61, 0x72, 0x21}):
 		return "pkg", nil
 	case hasPrefix(br, []byte("!<arch>\ndebian")):
 		return "deb", nil
+	case hasPrefix(br, []byte{0xed, 0xab, 0xee, 0xdb}):
+		return "rpm", nil
 	case hasPrefix(br, []byte{0xd0, 0xcf}):
 		return "msi", nil
 	case hasPrefix(br, []byte("MZ")):

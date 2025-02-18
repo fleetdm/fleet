@@ -55,9 +55,7 @@ const EndUserAuthForm = ({
           Require end users to authenticate with your identity provider (IdP)
           and agree to an end user license agreement (EULA) when they setup
           their new macOS hosts.{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT}>
-            View IdP and EULA
-          </Link>
+          <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>View IdP and EULA</Link>
         </p>
         <Button isLoading={isUpdating} onClick={onClickSave}>
           Save

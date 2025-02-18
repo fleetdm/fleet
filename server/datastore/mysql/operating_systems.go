@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -93,7 +94,7 @@ func newOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 	case err == nil:
 		return storedOS, nil
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, doRetryErr
+		return nil, common_mysql.DoRetryErr
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "get new operating system")
 	}

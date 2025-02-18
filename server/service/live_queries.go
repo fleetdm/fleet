@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -51,7 +50,7 @@ type runLiveQueryResponse struct {
 	Results []fleet.QueryCampaignResult `json:"live_query_results"`
 }
 
-func (r runLiveQueryResponse) error() error { return r.Err }
+func (r runLiveQueryResponse) Error() error { return r.Err }
 
 type runOneLiveQueryResponse struct {
 	QueryID            uint                `json:"query_id"`
@@ -61,17 +60,17 @@ type runOneLiveQueryResponse struct {
 	Err                error               `json:"error,omitempty"`
 }
 
-func (r runOneLiveQueryResponse) error() error { return r.Err }
+func (r runOneLiveQueryResponse) Error() error { return r.Err }
 
 type runLiveQueryOnHostResponse struct {
 	HostID uint                `json:"host_id"`
 	Rows   []map[string]string `json:"rows"`
 	Query  string              `json:"query"`
 	Status fleet.HostStatus    `json:"status"`
-	Error  string              `json:"error,omitempty"`
+	Err    string              `json:"error,omitempty"`
 }
 
-func (r runLiveQueryOnHostResponse) error() error { return nil }
+func (r runLiveQueryOnHostResponse) Error() error { return nil }
 
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
@@ -181,7 +180,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 
 	if len(queryResults) > 0 {
 		var err error
-		if queryResults[0].Err != nil {
+		if queryResults[0].Err != nil { //nolint:gocritic // ignore ifelseChain
 			err = queryResults[0].Err
 		} else if len(queryResults[0].Results) > 0 {
 			queryResult := queryResults[0].Results[0]
@@ -194,7 +193,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 			err = errors.New("timeout waiting for results")
 		}
 		if err != nil {
-			res.Error = err.Error()
+			res.Err = err.Error()
 		}
 	}
 	return res, nil
@@ -404,7 +403,7 @@ func (svc *Service) CompleteCampaign(ctx context.Context, campaign *fleet.Distri
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving distributed campaign after complete")
 	}
-	err = svc.liveQueryStore.StopQuery(strconv.Itoa(int(campaign.ID)))
+	err = svc.liveQueryStore.StopQuery(fmt.Sprint(campaign.ID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "stopping query after after complete")
 	}

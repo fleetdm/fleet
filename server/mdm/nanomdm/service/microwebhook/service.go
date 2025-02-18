@@ -143,3 +143,17 @@ func (w *MicroWebhook) DeclarativeManagement(r *mdm.Request, m *mdm.DeclarativeM
 	}
 	return nil, postWebhookEvent(r.Context, w.client, w.url, ev)
 }
+
+func (w *MicroWebhook) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	ev := &Event{
+		Topic:     "mdm.GetToken",
+		CreatedAt: time.Now(),
+		CheckinEvent: &CheckinEvent{
+			UDID:         m.UDID,
+			EnrollmentID: m.EnrollmentID,
+			RawPayload:   m.Raw,
+			Params:       r.Params,
+		},
+	}
+	return nil, postWebhookEvent(r.Context, w.client, w.url, ev)
+}

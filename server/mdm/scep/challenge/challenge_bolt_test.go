@@ -1,14 +1,15 @@
 package challenge
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
+	"github.com/smallstep/scep"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -69,15 +70,18 @@ func TestDynamicChallenge(t *testing.T) {
 		ChallengePassword: challengePassword,
 	}
 
-	_, err = signer.SignCSR(csrReq)
+	ctx := context.Background()
+
+	_, err = signer.SignCSRContext(ctx, csrReq)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = signer.SignCSR(csrReq)
+	_, err = signer.SignCSRContext(ctx, csrReq)
 	if err == nil {
 		t.Error("challenge should not be valid twice")
 	}
+
 }
 
 func openTempBolt(prefix string) (*bolt.DB, error) {

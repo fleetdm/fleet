@@ -4,15 +4,15 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
-import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
+import UserMenu from "../UserMenu";
 import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
@@ -20,12 +20,10 @@ interface ISiteTopNavProps {
   currentUser: IUser;
   location: {
     pathname: string;
-    search: string;
-    hash?: string;
     query: QueryParams;
   };
   onLogoutUser: () => void;
-  onNavItemClick: (path: string) => void;
+  onUserMenuItemClick: (path: string) => void;
 }
 
 // TODO(sarah): Build RegExps for other routes that need to be differentiated in order to build
@@ -54,11 +52,6 @@ const REGEX_GLOBAL_PAGES = {
   PROFILE: /\/profile/i,
 };
 
-const REGEX_EXCLUDE_NO_TEAM_PAGES = {
-  MANAGE_POLICIES: /\/policies\/manage/i,
-  MANAGE_QUERIES: /\/queries\/manage/i,
-};
-
 const testDetailPage = (path: string, re: RegExp) => {
   if (re === REGEX_DETAIL_PAGES.LABEL_EDIT) {
     // we want to match "/labels/10" but not "/hosts/manage/labels/10"
@@ -77,18 +70,12 @@ const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
 };
 
-const isExcludeNoTeamPage = (path: string) => {
-  return Object.values(REGEX_EXCLUDE_NO_TEAM_PAGES).some((re) =>
-    path.match(re)
-  );
-};
-
 const SiteTopNav = ({
   config,
   currentUser,
-  location: { pathname: currentPath, search, hash = "", query },
+  location: { pathname: currentPath, query },
   onLogoutUser,
-  onNavItemClick,
+  onUserMenuItemClick,
 }: ISiteTopNavProps): JSX.Element => {
   const {
     currentTeam,
@@ -103,16 +90,13 @@ const SiteTopNav = ({
   const isActiveGlobalPage = isGlobalPage(currentPath);
 
   const currentQueryParams = { ...query };
-  if (
-    isActiveGlobalPage ||
-    (isActiveDetailPage && !currentPath.match(REGEX_DETAIL_PAGES.POLICY_EDIT))
-  ) {
-    // detail pages (e.g., host details) and some manage pages (e.g., queries) don't have team_id
-    // query params that we can simply append to the top nav links so instead we need grab the team
-    // id from context (note that policy edit page does support team_id param so we exclude that one)
+  if (isActiveGlobalPage || isActiveDetailPage) {
+    // detail pages (e.g., host details) and some manage pages (e.g., queries) aren't guaranteed to
+    // have a team_id in the URL that we can simply append to the top nav links so instead we need grab the team
+    // id from context
     currentQueryParams.team_id =
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-        ? undefined
+        ? API_ALL_TEAMS_ID
         : currentTeam?.id;
   }
 
@@ -150,7 +134,7 @@ const SiteTopNav = ({
         : currentPath;
 
       const includeTeamId = (activePath: string) => {
-        if (currentQueryParams.team_id) {
+        if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
           return `${path}?team_id=${currentQueryParams.team_id}`;
         }
         return activePath;
@@ -172,13 +156,6 @@ const SiteTopNav = ({
           </a>
         </li>
       );
-    }
-
-    if (
-      isExcludeNoTeamPage(navItem.location.pathname) &&
-      (currentQueryParams.team_id === "0" || currentQueryParams.team_id === 0)
-    ) {
-      currentQueryParams.team_id = undefined;
     }
 
     return (
@@ -233,7 +210,7 @@ const SiteTopNav = ({
         </ul>
         <UserMenu
           onLogout={onLogoutUser}
-          onNavItemClick={onNavItemClick}
+          onUserMenuItemClick={onUserMenuItemClick}
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}

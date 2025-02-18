@@ -9,7 +9,6 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
@@ -17,7 +16,6 @@ import activitiesAPI, {
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -32,19 +30,10 @@ import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
-import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
-import {
-  IListQueriesResponse,
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+import { IHostUpcomingActivity } from "interfaces/activity";
 
-import {
-  normalizeEmptyValues,
-  wrapFleetHelper,
-  TAGGED_TEMPLATES,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
@@ -53,13 +42,13 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
-import { isIPadOrIPhone, Platform } from "interfaces/platform";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
   AppInstallDetailsModal,
   IAppInstallDetails,
@@ -68,6 +57,8 @@ import {
   SoftwareInstallDetailsModal,
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -89,11 +80,9 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import RunScriptModal from "./modals/RunScriptModal";
+import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
-import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
 import {
@@ -103,6 +92,8 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { getErrorMessage } from "./helpers";
+import CancelActivityModal from "./modals/CancelActivityModal";
 
 const baseClass = "host-details";
 
@@ -154,7 +145,6 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
   } = useContext(AppContext);
-  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -162,7 +152,7 @@ const HostDetailsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
-  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
+  const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -173,13 +163,18 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
-  const [scriptDetailsId, setScriptDetailsId] = useState("");
+  // Used in activities to show run script details modal
+  const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
   const [
     packageInstallDetails,
     setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
   ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
@@ -201,26 +196,16 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedCancelActivity,
+    setSelectedCancelActivity,
+  ] = useState<IHostUpcomingActivity | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-
-  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IListQueriesResponse,
-    Error,
-    ISchedulableQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
-  });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -479,7 +464,7 @@ const HostDetailsPage = ({
       case "ios":
         return mdmConfig?.ios_updates;
       default:
-        null;
+        return undefined;
     }
   };
 
@@ -541,11 +526,11 @@ const HostDetailsPage = ({
       setIsUpdatingHost(true);
       try {
         await hostAPI.destroy(host);
+        router.push(PATHS.MANAGE_HOSTS);
         renderFlash(
           "success",
           `Host "${host.display_name}" was successfully deleted.`
         );
-        router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
         console.log(error);
         renderFlash(
@@ -574,8 +559,7 @@ const HostDetailsPage = ({
           }, 1000);
         });
       } catch (error) {
-        console.log(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        renderFlash("error", getErrorMessage(error, host.display_name));
         setShowRefetchSpinner(false);
       }
     }
@@ -590,7 +574,7 @@ const HostDetailsPage = ({
     ({ type, details }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
-          setScriptDetailsId(details?.script_execution_id || "");
+          setScriptExecutiontId(details?.script_execution_id || "");
           break;
         case "installed_software":
           setPackageInstallDetails({
@@ -598,6 +582,13 @@ const HostDetailsPage = ({
             // FIXME: It seems like the backend is not using the correct display name when it returns
             // upcoming install activities. As a workaround, we'll prefer the display name from
             // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
             host_display_name:
               host?.display_name || details?.host_display_name || "",
           });
@@ -624,24 +615,8 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onQueryHostCustom = () => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
-  const onCancelScriptDetailsModal = useCallback(() => {
-    setScriptDetailsId("");
+  const onCancelRunScriptDetailsModal = useCallback(() => {
+    setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
     refetchPastActivities();
     refetchUpcomingActivities();
@@ -687,8 +662,8 @@ const HostDetailsPage = ({
     []
   );
 
-  const onCloseRunScriptModal = useCallback(() => {
-    setShowRunScriptModal(false);
+  const onCloseScriptModalGroup = useCallback(() => {
+    setShowScriptModalGroup(false);
     refetchPastActivities();
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
@@ -711,7 +686,7 @@ const HostDetailsPage = ({
         setShowDeleteHostModal(true);
         break;
       case "runScript":
-        setShowRunScriptModal(true);
+        setShowScriptModalGroup(true);
         break;
       case "lock":
         setShowLockHostModal(true);
@@ -726,10 +701,9 @@ const HostDetailsPage = ({
     }
   };
 
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
 
   const renderActionDropdown = () => {
     if (!host) {
@@ -837,10 +811,13 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
-          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          mdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleetMdm={host?.mdm.connected_to_fleet}
+          diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
+          diskIsEncrypted={host?.disk_encryption_enabled}
+          diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -854,8 +831,7 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMdmProfiles={host?.mdm.profiles ?? []}
-          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
+          hostSettings={host?.mdm.profiles ?? []}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
@@ -906,6 +882,7 @@ const HostDetailsPage = ({
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
                 onShowDetails={onShowActivityDetails}
+                onCancel={onCancelActivity}
               />
               {!isIosOrIpadosHost && (
                 <AgentOptionsCard
@@ -933,15 +910,15 @@ const HostDetailsPage = ({
                 id={host.id}
                 platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
+                hostScriptsEnabled={host.scripts_enabled || false}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
+                hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -988,25 +965,20 @@ const HostDetailsPage = ({
         {showSelectQueryModal && host && (
           <SelectQueryModal
             onCancel={() => setShowSelectQueryModal(false)}
-            queries={fleetQueries || []}
-            queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
-            onQueryHostCustom={onQueryHostCustom}
-            onQueryHostSaved={onQueryHostSaved}
-            hostsTeamId={host?.team_id}
+            hostId={hostIdFromURL}
+            hostTeamId={host?.team_id}
+            router={router}
+            currentTeamId={currentTeam?.id}
           />
         )}
-        {showRunScriptModal &&
-          // force run script modal to unmount when script details modal is shown;
-          // it will be remounted when script details modal is closed
-          !scriptDetailsId && (
-            <RunScriptModal
-              host={host}
-              currentUser={currentUser}
-              setScriptDetailsId={setScriptDetailsId}
-              onClose={onCloseRunScriptModal}
-            />
-          )}
+        {showScriptModalGroup && (
+          <ScriptModalGroup
+            host={host}
+            currentUser={currentUser}
+            onCloseScriptModalGroup={onCloseScriptModalGroup}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -1024,7 +996,7 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles
+            canResendProfiles={host.platform === "darwin"}
             hostId={host.id}
             platform={host.platform}
             hostMDMData={host.mdm}
@@ -1035,15 +1007,13 @@ const HostDetailsPage = ({
         {showUnenrollMdmModal && !!host && (
           <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
-        {showDiskEncryptionModal &&
-          host &&
-          isSupportedPlatform(host.platform) && (
-            <DiskEncryptionKeyModal
-              platform={host.platform}
-              hostId={host.id}
-              onCancel={() => setShowDiskEncryptionModal(false)}
-            />
-          )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            platform={host.platform}
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
+          />
+        )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -1053,16 +1023,22 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {!!scriptDetailsId && (
-          <ScriptDetailsModal
-            scriptExecutionId={scriptDetailsId}
-            onCancel={onCancelScriptDetailsModal}
+        {scriptExecutionId && (
+          <RunScriptDetailsModal
+            scriptExecutionId={scriptExecutionId}
+            onCancel={onCancelRunScriptDetailsModal}
           />
         )}
         {!!packageInstallDetails && (
           <SoftwareInstallDetailsModal
             details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            details={packageUninstallDetails}
+            onCancel={() => setPackageUninstallDetails(null)}
           />
         )}
         {!!appInstallDetails && (
@@ -1104,6 +1080,13 @@ const HostDetailsPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
+          />
+        )}
+        {selectedCancelActivity && (
+          <CancelActivityModal
+            hostId={host.id}
+            activity={selectedCancelActivity}
+            onCancel={() => setSelectedCancelActivity(null)}
           />
         )}
       </>

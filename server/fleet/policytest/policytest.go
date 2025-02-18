@@ -13,7 +13,7 @@ func RunFailing1000hosts(t *testing.T, r fleet.FailingPolicySet) {
 	hosts := make([]fleet.PolicySetHost, 1000)
 	for i := range hosts {
 		hosts[i] = fleet.PolicySetHost{
-			ID:       uint(i + 1),
+			ID:       uint(i + 1), //nolint:gosec // dismiss G115
 			Hostname: fmt.Sprintf("test.hostname.%d", i+1),
 		}
 	}

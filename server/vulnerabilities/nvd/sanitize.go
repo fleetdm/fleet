@@ -93,10 +93,10 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 	r = strings.TrimSuffix(r, ".app")
 
 	// Remove vendor, for 'apps' the vendor name is usually after the top level domain part.
-	r = strings.Replace(r, strings.ToLower(s.Vendor), "", -1)
+	r = strings.ReplaceAll(r, strings.ToLower(s.Vendor), "")
 	bundleParts := strings.Split(s.BundleIdentifier, ".")
 	if len(bundleParts) > 2 {
-		r = strings.Replace(r, strings.ToLower(bundleParts[1]), "", -1)
+		r = strings.ReplaceAll(r, strings.ToLower(bundleParts[1]), "")
 	}
 
 	if len(r) == 0 {
@@ -114,11 +114,11 @@ func sanitizeSoftwareName(s *fleet.Software) string {
 
 	for l := range langCodes {
 		ln := strings.ToLower(l)
-		r = strings.Replace(r, ln, "", -1)
+		r = strings.ReplaceAll(r, ln, "")
 	}
 
-	r = strings.Replace(r, "(", " ", -1)
-	r = strings.Replace(r, ")", " ", -1)
+	r = strings.ReplaceAll(r, "(", " ")
+	r = strings.ReplaceAll(r, ")", " ")
 	r = strings.Join(strings.Fields(r), " ")
 
 	// Remove @<version> from homebrew names
@@ -138,15 +138,15 @@ func productVariations(s *fleet.Software) []string {
 	withoutVendorParts := sn
 	for _, p := range strings.Split(s.Vendor, " ") {
 		pL := strings.ToLower(p)
-		withoutVendorParts = strings.Join(strings.Fields(strings.Replace(withoutVendorParts, pL, "", -1)), " ")
+		withoutVendorParts = strings.Join(strings.Fields(strings.ReplaceAll(withoutVendorParts, pL, "")), " ")
 	}
 	if withoutVendorParts != "" {
-		rSet[strings.Replace(withoutVendorParts, " ", "", -1)] = true
-		rSet[strings.Replace(withoutVendorParts, " ", "_", -1)] = true
+		rSet[strings.ReplaceAll(withoutVendorParts, " ", "")] = true
+		rSet[strings.ReplaceAll(withoutVendorParts, " ", "_")] = true
 	}
 
-	rSet[strings.Replace(sn, " ", "_", -1)] = true
-	rSet[strings.Replace(sn, " ", "", -1)] = true
+	rSet[strings.ReplaceAll(sn, " ", "_")] = true
+	rSet[strings.ReplaceAll(sn, " ", "")] = true
 
 	for re := range rSet {
 		r = append(r, re)
@@ -177,8 +177,8 @@ func vendorVariations(s *fleet.Software) []string {
 				rSet[strings.ToLower(v)] = true
 			}
 		}
-		rSet[strings.ToLower(strings.Replace(s.Vendor, " ", "_", -1))] = true
-		rSet[strings.ToLower(strings.Replace(s.Vendor, " ", "", -1))] = true
+		rSet[strings.ToLower(strings.ReplaceAll(s.Vendor, " ", "_"))] = true
+		rSet[strings.ToLower(strings.ReplaceAll(s.Vendor, " ", ""))] = true
 	}
 
 	for _, v := range strings.Split(s.BundleIdentifier, ".") {
@@ -222,6 +222,8 @@ func targetSW(s *fleet.Software) string {
 	switch s.Source {
 	case "apps":
 		return "macos"
+	case "homebrew_packages":
+		return "macos" // osquery homebrew_packages table is currently only for macOS (2024/08/12)
 	case "python_packages":
 		return "python"
 	case "chrome_extensions":

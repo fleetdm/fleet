@@ -40,6 +40,13 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+func (c *Client) CountABMTokens() (int, error) {
+	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	var responseBody countABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Count, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
@@ -69,6 +76,23 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 		err = c.authenticatedRequest(request, verb, path, &responseBody)
 	}
 	return responseBody.MDMAppleBootstrapPackage, err
+}
+
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
+	_, err := c.GetBootstrapPackageMetadata(teamID, true)
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting bootstrap package metadata: %w", err)
+	}
+
+	err = c.DeleteBootstrapPackage(teamID)
+	if err != nil {
+		return fmt.Errorf("deleting bootstrap package: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {
@@ -122,7 +146,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	return nil
 }
 
-func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
+func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
@@ -241,11 +265,19 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 }
 
 func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/enrollment_profile"
+	verb, path := http.MethodPost, "/api/latest/fleet/enrollment_profiles/automatic"
 	request := createMDMAppleSetupAssistantRequest{
 		TeamID:            teamID,
 		Name:              name,
 		EnrollmentProfile: json.RawMessage(data),
+	}
+	return c.authenticatedRequest(request, verb, path, nil)
+}
+
+func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
+	verb, path := http.MethodDelete, "/api/latest/fleet/enrollment_profiles/automatic"
+	request := deleteMDMAppleSetupAssistantRequest{
+		TeamID: teamID,
 	}
 	return c.authenticatedRequest(request, verb, path, nil)
 }

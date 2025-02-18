@@ -2,7 +2,7 @@
 name: 💡  Feature request
 about: Propose a new feature or enhancement in Fleet.
 title: ''
-labels: '~feature fest,:product'
+labels: ':product'
 assignees: ''
 
 ---
@@ -10,6 +10,8 @@ assignees: ''
 <!--
 Thanks for filing an issue!  Please use the prompts below to provide as much context as you can about your use case and motivations.
 -->
+
+Gong snippet: TODO <!-- Insert the link to the relevant, private Gong snippet ("Share internally" button). Remove this item if you don't have access to Fleet's Gong or there is no Gong recording available -->
 
 ## Problem
 

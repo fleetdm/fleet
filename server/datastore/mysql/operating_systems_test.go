@@ -160,7 +160,7 @@ func TestUniqueOS(t *testing.T) {
 	for i := range testHostIDs {
 		wg.Add(1)
 		go func(id int) {
-			err := ds.UpdateHostOperatingSystem(ctx, uint(id), testOS)
+			err := ds.UpdateHostOperatingSystem(ctx, uint(id), testOS) //nolint:gosec // dismiss G115
 			assert.NoError(t, err)
 			wg.Done()
 		}(i)

@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { Params } from "react-router/lib/Router";
+
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -12,8 +13,6 @@ import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { QueryParams } from "utilities/url";
 
-import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
-
 interface ICoreLayoutProps {
   children: React.ReactNode;
   router: InjectedRouter; // v3
@@ -24,15 +23,9 @@ interface ICoreLayoutProps {
     hash?: string;
     query: QueryParams;
   };
-  params: Params;
 }
 
-const CoreLayout = ({
-  children,
-  router,
-  location,
-  params: routeParams,
-}: ICoreLayoutProps) => {
+const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const { config, currentUser } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -56,30 +49,8 @@ const CoreLayout = ({
     router.push(LOGOUT);
   };
 
-  const onNavItemClick = (path: string) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (path.indexOf("http") !== -1) {
-        global.window.open(path, "_blank");
-        return false;
-      }
-
-      router.push(path);
-      return false;
-    };
-  };
-
-  const onUndoActionClick = (undoAction?: () => void) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-
-      if (undoAction) {
-        undoAction();
-      }
-
-      hideFlash();
-    };
+  const onUserMenuItemClick = (path: string) => {
+    router.push(path);
   };
 
   const fullWidthFlash = !currentUser;
@@ -90,20 +61,14 @@ const CoreLayout = ({
 
   return (
     <div className="app-wrap">
-      <div className="overlay">
-        <img src={smallScreenImage} alt="Unsupported screen size" />
-        <div className="overlay__text">
-          <h1>This screen size is not supported yet.</h1>
-          <p>Please enlarge your browser or try again on a computer.</p>
-        </div>
-      </div>
+      <UnsupportedScreenSize />
       <nav className="site-nav-container">
         <SiteTopNav
           config={config}
           currentUser={currentUser}
           location={location}
           onLogoutUser={onLogoutUser}
-          onNavItemClick={onNavItemClick}
+          onUserMenuItemClick={onUserMenuItemClick}
         />
       </nav>
       <div className="core-wrapper">
@@ -111,7 +76,7 @@ const CoreLayout = ({
           fullWidth={fullWidthFlash}
           notification={notification}
           onRemoveFlash={hideFlash}
-          onUndoActionClick={onUndoActionClick}
+          pathname={location.pathname}
         />
 
         {children}

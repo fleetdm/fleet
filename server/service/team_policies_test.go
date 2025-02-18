@@ -32,7 +32,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.TeamPolicyFunc = func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
-		return nil, nil
+		return &fleet.Policy{}, nil
 	}
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 		if id == 1 {
@@ -67,6 +67,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{}, nil
 	}
 
 	testCases := []struct {
@@ -149,7 +152,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewTeamPolicy(ctx, 1, fleet.PolicyPayload{
+			_, err := svc.NewTeamPolicy(ctx, 1, fleet.NewTeamPolicyPayload{
 				Name:  "query1",
 				Query: "select 1;",
 			})
@@ -177,6 +180,31 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
+}
+
+func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	appID := fleet.VPPAppID{AdamID: "123456", Platform: fleet.IOSPlatform}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+		return true, nil
+	}
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID: appID,
+			},
+		}, nil
+	}
+
+	_, err := svc.NewTeamPolicy(ctx, 1, fleet.NewTeamPolicyPayload{
+		Name:            "query1",
+		Query:           "select 1;",
+		SoftwareTitleID: ptr.Uint(123),
+	})
+	require.ErrorContains(t, err, "is associated to an iOS or iPadOS VPP app")
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

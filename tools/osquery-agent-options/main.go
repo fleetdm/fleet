@@ -27,7 +27,7 @@ import (
 
 var (
 	rxOption       = regexp.MustCompile(`\-\-(\w+)\s`)
-	osqueryVersion = "5.12.2"
+	osqueryVersion = "5.14.1"
 
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,
@@ -81,7 +81,7 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 	osquerydAppTarGzPath := filepath.Join(tmpDir, "osqueryd.app.tar.gz")
 	if err := download.Download(http.DefaultClient, osqueryTUFURL, osquerydAppTarGzPath); err != nil {
-		log.Fatalf("download osqueryd.app.tar.gz to %s: %s", osquerydAppTarGzPath, err)
+		log.Fatalf("download osqueryd.app.tar.gz to %s: %s", osquerydAppTarGzPath, err) //nolint:gocritic // ignore exitAfterDefer
 	}
 	if err := extractTarGz(osquerydAppTarGzPath); err != nil {
 		log.Fatalf("extract tar.gz %q: %s", osquerydAppTarGzPath, err)

@@ -2,11 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import {
-  formatDistanceToNowStrict,
-  millisecondsToHours,
-  millisecondsToMinutes,
-} from "date-fns";
+import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -91,27 +87,10 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
-  // Figure the time since the host counts were updated.
-  // First, find first policy item with host_count_updated_at.
-  const updatedAt =
-    policiesList.find((p) => !!p.host_count_updated_at)
-      ?.host_count_updated_at || "";
-  let timeSinceHostCountUpdate = "";
-  if (updatedAt) {
-    try {
-      timeSinceHostCountUpdate = formatDistanceToNowStrict(
-        new Date(updatedAt),
-        { addSuffix: true }
-      );
-    } catch (e) {
-      // Do nothing.
-    }
-  }
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -155,9 +134,10 @@ const generateTableHeaders = (
                   </ReactTooltip5>
                 </div>
               )}
-              {viewingTeamPolicies && !cellProps.row.original.team_id && (
-                <InheritedBadge tooltipContent="This policy runs on all hosts." />
-              )}
+              {viewingTeamPolicies &&
+                cellProps.row.original.team_id === null && (
+                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                )}
             </>
           }
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
@@ -169,12 +149,7 @@ const generateTableHeaders = (
       title: "Yes",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -220,12 +195,7 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing={false}
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing={false} />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -274,7 +244,7 @@ const generateTableHeaders = (
     tableHeaders.unshift({
       id: "selection",
       Header: (headerProps: any) => {
-        // When viewing team policies select all checkbox accounts for not selecting inherited policies
+        // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) => row.original.team_id !== null,
@@ -298,10 +268,10 @@ const generateTableHeaders = (
         const checkboxProps = viewingTeamPolicies
           ? teamCheckboxProps
           : regularCheckboxProps;
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = !cellProps.row.original.team_id;
+        const inheritedPolicy = cellProps.row.original.team_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,
@@ -313,7 +283,7 @@ const generateTableHeaders = (
           return <></>;
         }
 
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     });

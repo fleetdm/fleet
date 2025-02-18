@@ -69,12 +69,10 @@ module.exports = {
       'lucasmrod',
       'ksatter',
       'hollidayn',
-      'roperzh',
       'ghernandez345',
       'rfairburn',
       'zayhanlon',
       'alexmitchelliii',
-      'jostableford',
       'sampfluger88',
       'ireedy',
       'mostlikelee',
@@ -88,6 +86,10 @@ module.exports = {
       'PezHub',
       'SFriendLee',
       'ddribeiro',
+      'rebeccaui',
+      'allenhouchins',
+      'harrisonravazzolo',
+      'KendraAtFleet',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)

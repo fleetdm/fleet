@@ -101,9 +101,9 @@ func createBuiltinManualIOSAndIPadOSLabels(tx *sql.Tx) (iOSLabelID uint, iPadOSL
 		}
 		labelID, _ := res.LastInsertId()
 		if label.name == fleet.BuiltinLabelIOS {
-			iOSLabelID = uint(labelID)
+			iOSLabelID = uint(labelID) //nolint:gosec // dismiss G115
 		} else {
-			iPadOSLabelID = uint(labelID)
+			iPadOSLabelID = uint(labelID) //nolint:gosec // dismiss G115
 		}
 	}
 	return iOSLabelID, iPadOSLabelID, nil

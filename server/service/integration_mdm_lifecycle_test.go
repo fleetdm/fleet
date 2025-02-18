@@ -28,8 +28,8 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 // NOTE: the mantra for lifecycle events is:
@@ -46,6 +46,7 @@ type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
 
 func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	s.setupLifecycleSettings()
 
 	testCases := []struct {
@@ -59,7 +60,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
@@ -79,7 +80,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
@@ -104,8 +105,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				originalPushMock := s.pushProvider.PushFunc
 				defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-				s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-					res, err := mockSuccessfulPush(pushes)
+				s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+					res, err := mockSuccessfulPush(ctx, pushes)
 					require.NoError(t, err)
 					err = device.Checkout()
 					require.NoError(t, err)
@@ -227,7 +228,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 
 			t.Run("automatic enrollment", func(t *testing.T) {
 				device := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, "")
-				s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.enableABM(t.Name())
+				s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					encoder := json.NewEncoder(w)
 					switch r.URL.Path {
@@ -286,7 +288,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
@@ -331,7 +333,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
@@ -590,11 +592,10 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
 	// ensure there's a token for automatic enrollments
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
-	}))
+	s.enableABM(t.Name())
 	s.runDEPSchedule()
 
 	// add a device that's manually enrolled
@@ -754,7 +755,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 			assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
 				fleet.MDMAssetCACert,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))

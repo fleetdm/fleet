@@ -23,6 +23,18 @@ import Falcon from "./Falcon";
 import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import TeamViewer from "./TeamViewer";
+import Box from "./Box";
+import Brave from "./Brave";
+import Cloudflare from "./Cloudflare";
+import Docker from "./Docker";
+import Edge from "./Edge";
+import Figma from "./Figma";
+import Notion from "./Notion";
+import WindowsDefender from "./WindowsDefender";
+import WhatsApp from "./WhatsApp";
+import Postman from "./Postman";
+import OnePassword from "./OnePassword";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -39,17 +51,32 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
+  "mozilla firefox": Firefox,
   package: Package,
   safari: Safari,
   slack: Slack,
   "microsoft teams": Teams,
+  "microsoft visual studio code": VisualStudioCode,
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
+  "google chrome": ChromeApp,
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  whatsapp: WhatsApp,
+  notion: Notion,
+  figma: Figma,
+  "microsoft edge": Edge,
+  docker: Docker,
+  cloudflare: Cloudflare,
+  brave: Brave,
+  box: Box,
+  teamviewer: TeamViewer,
+  "windows defender": WindowsDefender,
+  postman: Postman,
+  "1password": OnePassword,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
@@ -113,8 +140,6 @@ const matchStrictNameSourceToIcon = ({
       return Zoom;
     case name === "zoom":
       return Zoom;
-    case name === "google chrome":
-      return ChromeApp;
     default:
       return null;
   }

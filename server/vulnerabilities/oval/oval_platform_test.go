@@ -27,6 +27,7 @@ func TestOvalPlatform(t *testing.T) {
 			{"ubuntu", "Ubuntu 18.4.0 LTS asdfasd", "ubuntu_1804"},
 			{"rhel", "CentOS Linux 7.9.2009", "rhel_07"},
 			{"amzn", "Amazon Linux 2.0.0", "amzn_02"},
+			{"amzn", "Amazon Linux 2023.0.0", "amzn_2023"},
 			{"rhel", "Fedora Linux 12.0.0", "rhel_06"},
 			{"rhel", "Fedora Linux 13.0.0", "rhel_06"},
 			{"rhel", "Fedora Linux 14.0.0", "rhel_06"},
@@ -71,6 +72,20 @@ func TestOvalPlatform(t *testing.T) {
 		for _, c := range cases {
 			plat := NewPlatform("ubuntu", "Ubuntu 20.4.0")
 			require.Equal(t, c.expected, plat.ToFilename(c.date, "json"))
+		}
+	})
+
+	t.Run("ToGovalDictionaryFilename", func(t *testing.T) {
+		cases := []struct {
+			version  string
+			expected string
+		}{
+			{"Amazon Linux 2.0.0", "fleet_goval_dictionary_amzn_02.sqlite3"},
+			{"Amazon Linux 2023.0.0", "fleet_goval_dictionary_amzn_2023.sqlite3"},
+		}
+		for _, c := range cases {
+			plat := NewPlatform("amzn", c.version)
+			require.Equal(t, c.expected, plat.ToGovalDictionaryFilename())
 		}
 	})
 }

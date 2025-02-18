@@ -13,7 +13,6 @@ interface IDiscardDataOptionProps {
   selectedLoggingType: QueryLoggingOption;
   discardData: boolean;
   setDiscardData: (value: boolean) => void;
-  breakHelpText?: boolean;
 }
 
 const DiscardDataOption = ({
@@ -21,7 +20,6 @@ const DiscardDataOption = ({
   selectedLoggingType,
   discardData,
   setDiscardData,
-  breakHelpText = false,
 }: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
   const disable = queryReportsDisabled && !forceEditDiscardData;
@@ -60,14 +58,7 @@ const DiscardDataOption = ({
           </Link>
         </>
       ) : (
-        <>
-          The most recent results for each host will not be available in Fleet.
-          {breakHelpText ? <br /> : " "}
-          Data will still be sent to your log destination if <b>
-            automations
-          </b>{" "}
-          are <b>on</b>.
-        </>
+        "The most recent results for each host will not be available in Fleet."
       )}
     </div>
   );

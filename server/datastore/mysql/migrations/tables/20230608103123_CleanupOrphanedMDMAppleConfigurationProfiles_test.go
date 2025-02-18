@@ -31,5 +31,5 @@ func TestUp_20230608103123(t *testing.T) {
 	var teamIDs []uint
 	err = db.Select(&teamIDs, "SELECT team_id FROM mdm_apple_configuration_profiles GROUP BY team_id")
 	require.NoError(t, err)
-	require.ElementsMatch(t, []uint{0, uint(tmID)}, teamIDs)
+	require.ElementsMatch(t, []uint{0, uint(tmID)}, teamIDs) //nolint:gosec // dismiss G115
 }

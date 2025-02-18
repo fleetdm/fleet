@@ -61,17 +61,17 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	if opt.Desktop {
 		if opt.Architecture == ArchArm64 {
-			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
 		} else {
-			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxTarget
 		}
 		// Override default channel with the provided value.
-		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
 
 	// Override default channels with the provided values.
-	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
-	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, opt.OsquerydChannel)
 
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {
@@ -169,7 +169,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/opt/orbit/bin/orbit/" + updateOpt.Targets["orbit"].Platform + "/" + opt.OrbitChannel + "/orbit",
+			Source:      "/opt/orbit/bin/orbit/" + updateOpt.Targets[constant.OrbitTUFTargetName].Platform + "/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
@@ -248,6 +248,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("removing existing file: %w", err)
+	}
+
+	if opt.NativeTooling {
+		if err := secure.MkdirAll(filepath.Dir(filename), 0o700); err != nil {
+			return "", fmt.Errorf("cannot create build dir: %w", err)
+		}
 	}
 
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)

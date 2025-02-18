@@ -36,21 +36,21 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout Code
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
       - name: Install Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
-      - name: Checkout Code
-        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
-        with:
-          fetch-depth: 0
+          go-version-file: 'go.mod'
 
       - name: Verify golang generated documentation is up-to-date
         run: |
           make generate-doc
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run `make generate-doc` and commit the changes"
+            echo "please run 'make generate-doc' and commit the changes"
+            git --no-pager diff
             exit 1
           fi
 
@@ -61,6 +61,7 @@ jobs:
           ./node_modules/sails/bin/sails.js run generate-merged-schema
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run `cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema` and commit the changes"
+            echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
             exit 1
           fi

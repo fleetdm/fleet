@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -39,7 +39,7 @@ type globalPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r globalPolicyResponse) error() error { return r.Err }
+func (r globalPolicyResponse) Error() error { return r.Err }
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalPolicyRequest)
@@ -103,7 +103,7 @@ type listGlobalPoliciesResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r listGlobalPoliciesResponse) error() error { return r.Err }
+func (r listGlobalPoliciesResponse) Error() error { return r.Err }
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listGlobalPoliciesRequest)
@@ -135,7 +135,7 @@ type getPolicyByIDResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r getPolicyByIDResponse) error() error { return r.Err }
+func (r getPolicyByIDResponse) Error() error { return r.Err }
 
 func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPolicyByIDRequest)
@@ -155,6 +155,12 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	if err != nil {
 		return nil, err
 	}
+	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
+	}
+	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
+	}
 
 	return policy, nil
 }
@@ -171,7 +177,7 @@ type countGlobalPoliciesResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countGlobalPoliciesResponse) error() error { return r.Err }
+func (r countGlobalPoliciesResponse) Error() error { return r.Err }
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
@@ -208,7 +214,7 @@ type deleteGlobalPoliciesResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
+func (r deleteGlobalPoliciesResponse) Error() error { return r.Err }
 
 func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
@@ -309,7 +315,7 @@ type modifyGlobalPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r modifyGlobalPolicyResponse) error() error { return r.Err }
+func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
@@ -337,7 +343,7 @@ type resetAutomationResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r resetAutomationResponse) error() error { return r.Err }
+func (r resetAutomationResponse) Error() error { return r.Err }
 
 func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetAutomationRequest)
@@ -468,7 +474,7 @@ type applyPolicySpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyPolicySpecsResponse) error() error { return r.Err }
+func (r applyPolicySpecsResponse) Error() error { return r.Err }
 
 func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPolicySpecsRequest)
@@ -484,7 +490,7 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
-		if policy.Team != "" {
+		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned
@@ -572,7 +578,7 @@ type autofillPoliciesResponse struct {
 	Err         error  `json:"error,omitempty"`
 }
 
-func (a autofillPoliciesResponse) error() error {
+func (a autofillPoliciesResponse) Error() error {
 	return a.Err
 }
 
@@ -583,8 +589,10 @@ func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 // Exposing external URL and timeout for testing purposes
-var getHumanInterpretationFromOsquerySqlUrl = "https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql"
-var getHumanInterpretationFromOsquerySqlTimeout = 30 * time.Second
+var (
+	getHumanInterpretationFromOsquerySqlUrl     = "https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql"
+	getHumanInterpretationFromOsquerySqlTimeout = 30 * time.Second
+)
 
 type AutofillError struct {
 	Message     string

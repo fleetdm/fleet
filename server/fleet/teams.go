@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -16,7 +17,20 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	TeamNameNoTeam   = "No team"
+	TeamNameAllTeams = "All teams"
 )
+
+const (
+	ReservedNameAllTeams = "All teams"
+	ReservedNameNoTeam   = "No team"
+)
+
+// IsReservedTeamName checks if the name provided is a reserved team name
+func IsReservedTeamName(name string) bool {
+	normalizedName := norm.NFC.String(name)
+	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam
+}
 
 type TeamPayload struct {
 	Name               *string              `json:"name"`
@@ -169,7 +183,10 @@ type TeamSpecSoftwareAsset struct {
 }
 
 type TeamSpecAppStoreApp struct {
-	AppStoreID string `json:"app_store_id"`
+	AppStoreID       string   `json:"app_store_id"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
 }
 
 type TeamMDM struct {
@@ -201,8 +218,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		return nil
 	}
 
-	var clone TeamMDM
-	clone = *t
+	clone := *t
 
 	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
 	// require cloning (all fields are basic value types, no
@@ -223,6 +239,14 @@ func (t *TeamMDM) Copy() *TeamMDM {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+	if t.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
+		for i, s := range t.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 	return &clone
 }
@@ -441,7 +465,8 @@ type TeamSpec struct {
 }
 
 type TeamSpecWebhookSettings struct {
-	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
@@ -503,5 +528,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
 		Integrations:       integrations,
+		Scripts:            t.Config.Scripts,
+		Software:           t.Config.Software,
 	}, nil
 }

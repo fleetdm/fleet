@@ -2,8 +2,9 @@ package tables
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestUp_20240131083822(t *testing.T) {
@@ -38,7 +39,7 @@ func TestUp_20240131083822(t *testing.T) {
 
 	gotIDs := make([]int64, len(wantIDs))
 	for i, pc := range policyCheck {
-		if pc.ID == policy1 {
+		if pc.ID == policy1 { //nolint:gocritic // ignore ifelseChain
 			require.Equal(t, pc.Name, "policy1")
 		} else if pc.ID == policy2 {
 			require.Equal(t, pc.Name, "policy2")

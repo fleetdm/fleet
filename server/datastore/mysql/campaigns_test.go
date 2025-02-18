@@ -243,7 +243,8 @@ func testCompletedCampaigns(t *testing.T, ds *Datastore) {
 		}
 		filter = append(filter, c1.ID)
 	}
-	for j := filter[len(filter)-1] / 2; j < uint(totalFilterSize); j++ { // some IDs are duplicated
+	for j := filter[len(filter)-1] / 2; j < uint(totalFilterSize); j++ { //nolint:gosec // dismiss G115
+		// some IDs are duplicated
 		filter = append(filter, j)
 	}
 	rand.Shuffle(len(filter), func(i, j int) { filter[i], filter[j] = filter[j], filter[i] })

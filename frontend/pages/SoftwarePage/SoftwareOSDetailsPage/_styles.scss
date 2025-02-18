@@ -4,6 +4,10 @@
   flex-direction: column;
   gap: $pad-medium;
 
+  .team-dropdown-wrapper {
+    @include normalize-team-header;
+  }
+
   h2 {
     font-size: $small;
   }

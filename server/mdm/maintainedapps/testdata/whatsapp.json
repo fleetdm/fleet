@@ -1,0 +1,84 @@
+{
+	"token": "whatsapp",
+	"full_token": "whatsapp",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"WhatsApp"
+	],
+	"desc": "WhatsApp's native desktop client for seamless messaging and calling on macOS.",
+	"homepage": "https://www.whatsapp.com/",
+	"url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.24.16.80&extension=zip&configuration=Release&branch=relbranch",
+	"url_specs": {},
+	"version": "2.24.16.80",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "33026f9cc9b1c63010df546c1ac5ff3b49ff6e742a57807a817264db82487ce9",
+	"artifacts": [
+		{
+			"app": [
+				"WhatsApp.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Scripts/net.whatsapp.WhatsApp*",
+						"~/Library/Caches/net.whatsapp.WhatsApp",
+						"~/Library/Containers/net.whatsapp.WhatsApp*",
+						"~/Library/Group Containers/group.com.facebook.family",
+						"~/Library/Group Containers/group.net.whatsapp*",
+						"~/Library/Saved Application State/net.whatsapp.WhatsApp.savedState"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"11"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"whatsapp@beta",
+			"whatsapp@legacy"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/w/whatsapp.rb",
+	"ruby_source_checksum": {
+		"sha256": "05889e4ba8c0e0fe97e653d1e4122385a6f67a2ce2ec6a1f7b19c702142c617f"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"whatsapp": 3652
+			},
+			"90d": {
+				"whatsapp": 13126
+			},
+			"365d": {
+				"whatsapp": 47436
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}
