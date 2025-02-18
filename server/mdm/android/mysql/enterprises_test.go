@@ -1,23 +1,22 @@
-package mysql_test
+package mysql
 
 import (
 	"context"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql/testing_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEnterprise(t *testing.T) {
-	ds := testing_utils.CreateMySQLDS(t)
+	ds := CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
-		fn   func(t *testing.T, ds *mysql.Datastore)
+		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"CreateGetEnterprise", testCreateGetEnterprise},
 		{"UpdateEnterprise", testUpdateEnterprise},
@@ -25,14 +24,14 @@ func TestEnterprise(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer testing_utils.TruncateTables(t, ds)
+			defer testing_utils.TruncateTables(t, ds.primary, ds.logger, nil)
 
 			c.fn(t, ds)
 		})
 	}
 }
 
-func testCreateGetEnterprise(t *testing.T, ds *mysql.Datastore) {
+func testCreateGetEnterprise(t *testing.T, ds *Datastore) {
 	_, err := ds.GetEnterpriseByID(testCtx(), 9999)
 	assert.True(t, fleet.IsNotFound(err))
 
@@ -45,7 +44,7 @@ func testCreateGetEnterprise(t *testing.T, ds *mysql.Datastore) {
 	assert.Equal(t, &android.Enterprise{ID: id}, result)
 }
 
-func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
+func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 	enterprise := &android.Enterprise{
 		ID:           9999, // start with an invalid ID
 		SignupName:   "signupUrls/C97372c91c6a85139",
@@ -72,7 +71,7 @@ func testUpdateEnterprise(t *testing.T, ds *mysql.Datastore) {
 	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
 }
 
-func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {
+func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	err := ds.DeleteEnterprises(testCtx())
 	require.NoError(t, err)
 	err = ds.DeleteOtherEnterprises(testCtx(), 9999)
@@ -111,7 +110,7 @@ func testDeleteEnterprises(t *testing.T, ds *mysql.Datastore) {
 
 }
 
-func createEnterprise(t *testing.T, ds *mysql.Datastore) *android.Enterprise {
+func createEnterprise(t *testing.T, ds *Datastore) *android.Enterprise {
 	enterprise := &android.Enterprise{
 		ID:           9999, // start with an invalid ID
 		SignupName:   "signupUrls/C97372c91c6a85139",
