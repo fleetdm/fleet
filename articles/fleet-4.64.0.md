@@ -23,7 +23,7 @@ Fleet now supports running Bash scripts (`#!/bin/bash`) on macOS and Linux. IT t
 
 Also, IT admins can now edit scripts within the Fleet UI. This eliminates the need to download, modify, and re-upload scripts, making it faster to fix typos or make small adjustments on the fly.
 
-### Fleetctl for Linux ARM
+### Fleetctl for Windows and Linux ARM
 
 Fleet users with Linux ARM workstations can now use the fleetctl command-line interface (CLI) to run scripts, queries, and more. This expands Fleet’s CLI capabilities, allowing users to manage hosts on their preferred operating system (OS). Learn more about fleetctl [here](https://fleetdm.com/guides/fleetctl).
 
