@@ -1,3 +1,25 @@
+## Orbit 1.39.1 (Feb 12, 2025)
+
+* Fixed a bug where fleetd could not install software from an old fleet server.
+
+## Orbit 1.39.0 (Feb 07, 2025)
+
+* Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.
+
+* Removed rollback to connect to Fleet's old TUF server (added in case 1.38.0 had an emergency bug).
+
+* Added bash interpreter support for script execution.
+
+* Fixed a bug where fleetd was not properly cleaning up temporary directories during software installation.
+
+* Added support to download software installers from signed CDN URLs.
+
+* Added retry logic to orbit's call to `POST /orbit/software_install/result` to account for momentary network failures causing an install to appear failed (e.g. when installing network extensions as part of an EDR).
+
+* Added support for Wayland display sessions. Thanks @pboushy for [this](https://github.com/fleetdm/fleet/issues/19043#issuecomment-2625719309) contribution to fixing this issue.
+
+* Added more client-side logging for software installs, scripts, and MDM setup experience.
+
 ## Orbit 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
 
 * Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.

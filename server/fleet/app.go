@@ -342,12 +342,23 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
+func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return s.CustomSettings
+}
+
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
+
+type WithMDMProfileSpecs interface {
+	GetMDMProfileSpecs() []MDMProfileSpec
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = MacOSSettings{}
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
@@ -428,6 +439,33 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+}
+
+func (mos *MacOSSetup) SetDefaultsIfNeeded() {
+	if mos == nil {
+		return
+	}
+	if !mos.BootstrapPackage.Valid {
+		mos.BootstrapPackage = optjson.SetString("")
+	}
+	if !mos.MacOSSetupAssistant.Valid {
+		mos.MacOSSetupAssistant = optjson.SetString("")
+	}
+	if !mos.EnableReleaseDeviceManually.Valid {
+		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.Script.Valid {
+		mos.Script = optjson.SetString("")
+	}
+	if !mos.Software.Valid {
+		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+}
+
+func NewMacOSSetupWithDefaults() *MacOSSetup {
+	mos := &MacOSSetup{}
+	mos.SetDefaultsIfNeeded()
+	return mos
 }
 
 // MacOSSetupSoftware represents a VPP app or a software package to install
@@ -1390,6 +1428,13 @@ type WindowsSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }
+
+func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = WindowsSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

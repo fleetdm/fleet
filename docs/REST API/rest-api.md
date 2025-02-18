@@ -2810,32 +2810,6 @@ Returns the information of the specified host.
         "label_membership_type": "dynamic"
       }
     ],
-    "certificates": [ // Available for macOS/iOS/iPadOS hosts
-      {
-        "id": 3,
-        "not_valid_after": "2021-08-19T02:02:17Z",
-        "not_valid_before": "2021-08-19T02:02:17Z",
-        "certificate_authority": true,
-        "common_name": "FleetDM",
-        "key_algorithm": "rsaEncryption",
-        "key_strength": 2048,
-        "key_usage": "CRL Sign, Key Cert Sign",
-        "serial": 1,
-        "signing_algorithm": "sha256WithRSAEncryption",
-        "subject": {
-          "country": "US",
-          "organization": "Fleet Device Management Inc.",
-          "organizational_unit": "Fleet Device Management Inc.",
-          "common_name": "FleetDM"
-        },
-        "issuer": {
-          "country": "US",
-          "organization": "Fleet Device Management Inc.",
-          "organizational_unit": "Fleet Device Management Inc.",
-          "common_name": "FleetDM"
-        },
-      }
-    ],
     "packs": [],
     "policies": [
       {
@@ -3279,32 +3253,6 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "platform": "",
         "label_type": "regular",
         "label_membership_type": "dynamic"
-      }
-    ],
-    "certificates": [ // Available for macOS/iOS/iPadOS hosts
-      {
-        "id": 3,
-        "not_valid_after": "2021-08-19T02:02:17Z",
-        "not_valid_before": "2021-08-19T02:02:17Z",
-        "certificate_authority": true,
-        "common_name": "FleetDM",
-        "key_algorithm": "rsaEncryption",
-        "key_strength": 2048,
-        "key_usage": "CRL Sign, Key Cert Sign",
-        "serial": 1,
-        "signing_algorithm": "sha256WithRSAEncryption",
-        "subject": {
-          "country": "US",
-          "organization": "Fleet Device Management Inc.",
-          "organizational_unit": "Fleet Device Management Inc.",
-          "common_name": "FleetDM"
-        },
-        "issuer": {
-          "country": "US",
-          "organization": "Fleet Device Management Inc.",
-          "organizational_unit": "Fleet Device Management Inc.",
-          "common_name": "FleetDM"
-        },
       }
     ],
     "software": [
@@ -8506,6 +8454,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Add script](#add-script)
+- [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
@@ -8639,6 +8588,57 @@ echo "hello"
   "script_id": 1227
 }
 ```
+
+### Modify script
+
+Modifies an existing script.
+
+`PATCH /api/v1/fleet/scripts/:id`
+
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                           |
+| ----            | ------- | ---- | --------------------------------------------          |
+| id              | integer | path | **Required**. The ID of the script to modify. |
+| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
+
+#### Example
+
+`PATCH /api/v1/fleet/scripts/1`
+
+
+##### Request headers
+
+```http
+Content-Length: 306
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="script"; filename="myscript.sh"
+Content-Type: application/octet-stream
+echo "hello"
+--------------------------f02md47480und42y--
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 1,
+  "team_id": null,
+  "name": "script_1.sh",
+  "created_at": "2023-07-30T13:41:07Z",
+  "updated_at": "2023-07-30T13:41:07Z"
+}
+```
+
 
 ### Delete script
 
@@ -8824,6 +8824,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
+- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -9603,6 +9604,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9622,6 +9627,81 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ##### Default response
 
 `Status: 200`
+
+
+### Modify App Store app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+Modify App Store (VPP) app's options.
+
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
+
+##### Request body
+
+```json
+{
+  "team_id": 2,
+  "self_service": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_app": {
+    "name": "Logic Pro",
+    "app_store_id": 1091189122,
+    "latest_version": "2.04",
+    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "self_service": true,
+    "labels_include_any": [
+      {
+        "name": "Product",
+        "id": 12
+      },
+      {
+        "name": "Marketing",
+        "id": 17
+      }
+    ],
+    "automatic_install_policies": [
+      {
+        "id": 345,
+        "name": "[Install software] Logic Pro",
+      } 
+    ],
+    "status": {
+      "installed": 3,
+      "pending": 1,
+      "failed": 2,
+    }
+  }
+}
+```
 
 
 ### List Fleet-maintained apps
@@ -9707,6 +9787,7 @@ Returns information about the specified Fleet-maintained app.
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
     "platform": "darwin",
+    "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
   }
@@ -10467,43 +10548,41 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "teams": [
-    {
-      "name": "workstations",
-      "id": 1,
-      "user_count": 0,
-      "host_count": 0,
-      "agent_options": {
-        "config": {
-          "options": {
-            "pack_delimiter": "/",
-            "logger_tls_period": 10,
-            "distributed_plugin": "tls",
-            "disable_distributed": false,
-            "logger_tls_endpoint": "/api/v1/osquery/log",
-            "distributed_interval": 10,
-            "distributed_tls_max_attempts": 3
-          },
-          "decorators": {
-            "load": [
-              "SELECT uuid AS host_uuid FROM system_info;",
-              "SELECT hostname AS hostname FROM system_info;"
-            ]
-          }
+  "team": {
+    "name": "workstations",
+    "id": 1,
+    "user_count": 0,
+    "host_count": 0,
+    "agent_options": {
+      "config": {
+        "options": {
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
         },
-        "overrides": {},
-        "command_line_flags": {}
-      },
-      "webhook_settings": {
-        "failing_policies_webhook": {
-          "enable_failing_policies_webhook": false,
-          "destination_url": "",
-          "policy_ids": null,
-          "host_batch_size": 0
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
         }
+      },
+      "overrides": {},
+      "command_line_flags": {}
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
       }
     }
-  ]
+  }
 }
 ```
 
