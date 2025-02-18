@@ -131,14 +131,8 @@ const About = ({
       if (!source) {
         displayPrimaryUser = email;
       } else {
-        const classNames = classnames(
-          `${baseClass}__device-mapping__primary-user`,
-          {
-            [`${baseClass}__multiple`]: newDeviceMapping.length > 1,
-          }
-        );
         displayPrimaryUser = (
-          <span className={classNames}>
+          <span className={`${baseClass}__device-mapping__primary-user`}>
             {email}{" "}
             <span
               className={`${baseClass}__device-mapping__source`}
@@ -153,7 +147,7 @@ const About = ({
         value={
           newDeviceMapping.length > 1 ? (
             <div>
-              <span style={{ display: "inline-block", width: "270px" }}>
+              <span className={`${baseClass}__multiple`}>
                 <TooltipTruncatedText value={displayPrimaryUser} />
               </span>
               <TooltipWrapper

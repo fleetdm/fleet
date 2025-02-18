@@ -2,12 +2,20 @@
 
   .tooltip-truncated-text {
     display: inline-block;
+
   }
 
-  // &__multiple {
-  //   display: inline-block; 
-  //   width: 270px;
-  // }
+  .truncated-tooltip {
+    .about-card__device-mapping__source {
+        color: inherit;
+      }
+  }
+
+  &__multiple {
+    display: inline-block; 
+    max-width: 270px;
+    padding-right: 5px;
+  }
   
   &__device-mapping {
     &__source {
@@ -21,12 +29,7 @@
     &__primary-user {
       text-overflow: ellipsis;
       overflow: hidden;
-      // display: inline-block;
       vertical-align: text-bottom;
-
-      &.about-card__multiple {
-        // max-width: 100%;
-      }
     }
   }
 
