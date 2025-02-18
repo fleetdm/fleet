@@ -61,6 +61,14 @@ function PoliciesPaginatedList(
     },
   }));
 
+  const onClickSave = () => {
+    let changedItems: IFormPolicy[] = [];
+    if (paginatedListRef.current) {
+      changedItems = paginatedListRef.current.getDirtyItems();
+    }
+    onSubmit(changedItems);
+  };
+
   const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
@@ -119,7 +127,7 @@ function PoliciesPaginatedList(
         <Button
           type="submit"
           variant="brand"
-          onClick={onSubmit}
+          onClick={onClickSave}
           className="save-loading"
           isLoading={isUpdating}
         >
