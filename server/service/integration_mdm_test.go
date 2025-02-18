@@ -943,6 +943,37 @@ func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fl
 	return nil
 }
 
+func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
+	t := s.T()
+
+	s.enableABM(t.Name())
+
+	// Same tests, but for teams
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+
+	tokensResp := listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
+
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/teams", tok.ID), json.RawMessage(fmt.Sprintf(`{
+    "ios_team_id": %d
+	}`, team.ID)), http.StatusOK, &updateABMTokenTeamsResponse{})
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "org_info": {"org_name": "New name"}
+	}`), http.StatusOK, &appConfigResponse{})
+
+	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+
+	require.Len(t, tokensResp.Tokens, 1)
+	assert.Equal(t, team.Name, tokensResp.Tokens[0].IOSTeam.Name)
+	assert.Equal(t, team.ID, tokensResp.Tokens[0].IOSTeam.ID)
+}
+
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
 
