@@ -13,21 +13,39 @@ import Pagination from "components/Pagination";
 
 const baseClass = "paginated-list";
 
+// Create an interface for the Ref, so that when parents use `useRef` to provide
+// a reference to this list, they can call `getDirtyItems()` on it to retrieve
+// the list of dirty items.
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
 }
 interface IPaginatedListProps<TItem> {
+  // Function to fetch one page of data.
   fetchPage: (pageNumber: number) => Promise<TItem[]>;
-  idKey?: string; // defaults to `id`
+  // UID property in an item. Defaults to `id`.
+  idKey?: string;
+  // Property to use as an item's label. Defaults to `name`.
   labelKey?: string;
+  // How to determine whether to check an item's checkbox.
+  // If string, a key in an item whose truthiness will be checked.
+  // if function, a function that given an item, returns a boolean.
   isSelected: string | ((item: TItem) => boolean);
+  // Custom function to render the label for an item.
   renderItemLabel?: (item: TItem) => ReactElement | null;
+  // Custom function to render extra markup (besides the label) in an item row.
   renderItemRow?: (
     item: TItem,
+    // A callback function that the extra markup logic can call to indicate a change
+    // to the item, for example if a dropdown is changed.
     onChange: (item: TItem) => void
   ) => ReactElement | false | null | undefined;
+  // A function to call when an item's checkbox is toggled.
+  // Parents can use this to change whatever item metadata is needed to toggle
+  // the value indicated by `isSelected`.
   onToggleItem: (item: TItem) => TItem;
+  // The size of the page to fetch and show.
   pageSize?: number;
+  // The total # of items on all pages.
   totalItems: number;
 }
 
@@ -44,8 +62,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
+  // The # of the page to display.
   const [currentPage, setCurrentPage] = useState(0);
+  // The set of items fetched via `fetchPage`.
   const [items, setItems] = useState<TItem[]>([]);
+  // The set of items that have been changed in some way.
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
@@ -55,8 +76,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
 
-  console.log(dirtyItems);
-
+  // When the current page # changes, fetch a new page of data.
   useEffect(() => {
     let isCancelled = false;
 
@@ -86,14 +106,18 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [currentPage, fetchPage]);
 
+  // Create an imperative handle for this component so that parents
+  // can call `ref.current.getDirtyItems()` to get the changed set.
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
       return Object.values(dirtyItems);
     },
   }));
 
+  // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
 
+  // Redner the list.
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -103,6 +127,10 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       )}
       <ul className={`${baseClass}__list`}>
         {items.map((_item) => {
+          // If an item has been marked as changed, use the changed version
+          // of the item rather than the one from the page fetch.  This allows
+          // us to render an item correctly even after we've navigated away
+          // from its page and then back again.
           const item = dirtyItems[_item[idKey]] ?? _item;
           return (
             <li className={`${baseClass}__row`} key={item[idKey]}>
@@ -114,6 +142,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 }
                 name={`item_${item[idKey]}_checkbox`}
                 onChange={() => {
+                  // When checkbox is toggled, set item as dirty.
+                  // The parent is responsible for actually updating item properties via onToggleItem().
                   setDirtyItems({
                     ...dirtyItems,
                     [item[idKey]]: onToggleItem(item),
@@ -127,6 +157,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 )}
               </Checkbox>
               {renderItemRow &&
+                // If a custom row renderer was supplied, call it with the item value
+                // as well as the callback the parent can use to indicate changes to an item.
                 renderItemRow(item, (changedItem) => {
                   setDirtyItems({
                     ...dirtyItems,
