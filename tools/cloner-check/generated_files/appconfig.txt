@@ -174,10 +174,10 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]	Value	[]fleet.MDMAppleVolumePurchasingProgramInfo
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleVolumePurchasingProgramInfo	Location	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleVolumePurchasingProgramInfo	Teams	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string
-github.com/fleetdm/fleet/v4/server/fleet/MDM	AndroidEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
