@@ -251,12 +251,21 @@ INSERT INTO software_installers (
 		}
 
 		if payload.AutomaticInstall {
-			generatedPolicyData, err := automatic_policy.Generate(automatic_policy.FullInstallerMetadata{
-				Title:            payload.Title,
-				Extension:        payload.Extension,
-				BundleIdentifier: payload.BundleIdentifier,
-				PackageIDs:       payload.PackageIDs,
-			})
+			var installerMetadata automatic_policy.InstallerMetadata
+			// Not using apps.json as all queries there are identical to the auto-generated one based on bundle ID.
+			// Will need to be revised to work with FMAv2 and probably Windows.
+			if payload.FleetLibraryAppID != nil && payload.Platform == "darwin" {
+				installerMetadata = automatic_policy.MacInstallerMetadata{Title: payload.Title, BundleIdentifier: payload.BundleIdentifier}
+			} else {
+				installerMetadata = automatic_policy.FullInstallerMetadata{
+					Title:            payload.Title,
+					Extension:        payload.Extension,
+					BundleIdentifier: payload.BundleIdentifier,
+					PackageIDs:       payload.PackageIDs,
+				}
+			}
+
+			generatedPolicyData, err := automatic_policy.Generate(installerMetadata)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
 			}
