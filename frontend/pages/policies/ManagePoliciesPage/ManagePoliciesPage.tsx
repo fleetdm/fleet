@@ -1005,6 +1005,7 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
+            teamId={currentTeamId ?? 0}
           />
         )}
         {showAddPolicyModal && (

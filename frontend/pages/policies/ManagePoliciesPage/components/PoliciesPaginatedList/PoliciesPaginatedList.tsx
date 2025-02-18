@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { useQueryClient } from "react-query";
 import { IPolicy } from "interfaces/policy";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -40,7 +39,6 @@ const baseClass = "policies-paginated-list";
 function PoliciesPaginatedList(
   {
     isSelected,
-    renderItemLabel,
     renderItemRow,
     onToggleItem,
     onCancel,
