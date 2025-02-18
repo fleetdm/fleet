@@ -106,8 +106,6 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].SubjectCommonName)
 }
 
-func testListHostCertificates(t *testing.T, ds *Datastore) {}
-
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
 	b, _, err := GenerateTestCertBytes(template)
 	require.NoError(t, err)

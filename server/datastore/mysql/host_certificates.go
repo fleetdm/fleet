@@ -23,12 +23,12 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 			// caller should ensure this does not happen
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
-		if _, ok := incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum[:]))]; ok {
+		if _, ok := incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))]; ok {
 			// TODO: sha1 is broken so this could be a sign of a problem, how should we handle?
 			level.Info(ds.logger).Log("msg", "host has multiple certificates with the same SHA1, only the first will be recorded", "host_id", hostID, "sha1", string(cert.SHA1Sum))
 			continue
 		}
-		incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum[:]))] = cert
+		incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))] = cert
 	}
 
 	// get existing certs for this host; we'll use the reader because we expect certs to change
@@ -39,7 +39,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 	}
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
 	for _, ec := range existingCerts {
-		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum[:]))] = ec
+		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))] = ec
 	}
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
@@ -48,6 +48,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("existing certificate: %s", sha1), "host_id", hostID)
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
