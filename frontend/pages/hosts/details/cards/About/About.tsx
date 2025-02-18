@@ -145,22 +145,26 @@ const About = ({
       <DataSet
         title="Used by"
         value={
-          newDeviceMapping.length > 1 ? (
-            <div>
-              <span className={`${baseClass}__multiple`}>
+          <div className={`${baseClass}__used-by`}>
+            {newDeviceMapping.length > 1 ? (
+              <>
+                <span className={`${baseClass}__multiple`}>
+                  <TooltipTruncatedText value={displayPrimaryUser} />
+                </span>
+                <TooltipWrapper
+                  tipContent={getDeviceUserTipContent(newDeviceMapping)}
+                >
+                  <span className="device-mapping__more">{` +${
+                    newDeviceMapping.length - 1
+                  } more`}</span>
+                </TooltipWrapper>
+              </>
+            ) : (
+              <span className={`${baseClass}__single`}>
                 <TooltipTruncatedText value={displayPrimaryUser} />
               </span>
-              <TooltipWrapper
-                tipContent={getDeviceUserTipContent(newDeviceMapping)}
-              >
-                <span className="device-mapping__more">{` +${
-                  newDeviceMapping.length - 1
-                } more`}</span>
-              </TooltipWrapper>
-            </div>
-          ) : (
-            <TooltipTruncatedText value={displayPrimaryUser} />
-          )
+            )}
+          </div>
         }
       />
     );

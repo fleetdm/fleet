@@ -1,22 +1,24 @@
 .about-card {
 
-  .tooltip-truncated-text {
-    display: inline-block;
-
-  }
-
   .truncated-tooltip {
     .about-card__device-mapping__source {
         color: inherit;
       }
   }
 
+  &__used-by {
+    display: flex;
+  }
+
   &__multiple {
-    display: inline-block; 
     max-width: 270px;
     padding-right: 5px;
   }
-  
+
+  &__single {
+    max-width: 300px;
+  }
+
   &__device-mapping {
     &__source {
       color: $ui-fleet-black-75;
