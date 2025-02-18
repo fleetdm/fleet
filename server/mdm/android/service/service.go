@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,9 +12,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
 	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 )
+
+const policyName = "default"
 
 type Service struct {
 	logger  kitlog.Logger
@@ -75,13 +75,9 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
-	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting app config")
-	}
-	if appConfig.MDM.AndroidEnabledAndConfigured {
-		return nil, fleet.NewInvalidArgumentError("android",
-			"Android is already enabled and configured").WithStatus(http.StatusConflict)
+		return nil, err
 	}
 
 	id, err := svc.ds.CreateEnterprise(ctx)
@@ -108,6 +104,18 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	return signupDetails, nil
 }
 
+func (svc *Service) checkIfAndroidAlreadyConfigured(ctx context.Context) (*fleet.AppConfig, error) {
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if appConfig.MDM.AndroidEnabledAndConfigured {
+		return nil, fleet.NewInvalidArgumentError("android",
+			"Android is already enabled and configured").WithStatus(http.StatusConflict)
+	}
+	return appConfig, nil
+}
+
 type androidEnterpriseSignupCallbackRequest struct {
 	ID              uint   `url:"id"`
 	EnterpriseToken string `query:"enterpriseToken"`
@@ -124,13 +132,9 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	// TODO: Add some authorization here so random people can't bind random Android enterprises just for fun.
 	svc.authz.SkipAuthorization(ctx)
 
-	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
-	}
-	if appConfig.MDM.AndroidEnabledAndConfigured {
-		return fleet.NewInvalidArgumentError("android",
-			"Android is already enabled and configured").WithStatus(http.StatusConflict)
+		return err
 	}
 
 	enterprise, err := svc.ds.GetEnterpriseByID(ctx, id)
@@ -165,7 +169,6 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	const policyName = "default"
 	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			ApplicationReportsEnabled:    true,
@@ -246,7 +249,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 }
 
 type androidEnrollmentTokenRequest struct {
-	EnterpriseID uint `url:"id"`
+	EnrollSecret string `query:"enroll_secret"`
 }
 
 type androidEnrollmentTokenResponse struct {
@@ -255,17 +258,62 @@ type androidEnrollmentTokenResponse struct {
 }
 
 func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	token, err := svc.CreateEnrollmentToken(ctx)
+	req := request.(*androidEnrollmentTokenRequest)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
 	if err != nil {
 		return androidResponse{Err: err}
 	}
 	return androidEnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context) (*android.EnrollmentToken, error) {
-	svc.authz.SkipAuthorization(ctx)
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
 
-	// TODO: remove me
-	level.Warn(svc.logger).Log("msg", "CreateEnrollmentToken called")
-	return nil, errors.New("not implemented")
+	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = svc.fleetDS.VerifyEnrollSecret(ctx, enrollSecret)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewAuthFailedError("invalid secret")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+
+	token := &androidmanagement.EnrollmentToken{
+		// Default duration is 1 hour
+
+		AdditionalData:     enrollSecret,
+		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
+		PolicyName:         enterprise.Name() + "/policies/" + policyName,
+		OneTimeOnly:        true,
+	}
+	token, err = svc.proxy.EnterprisesEnrollmentTokensCreate(enterprise.Name(), token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating Android enrollment token")
+	}
+
+	return &android.EnrollmentToken{
+		EnrollmentToken: token.Value,
+		EnrollmentURL:   "https://enterprise.google.com/android/enroll?et=" + token.Value,
+	}, nil
+}
+
+func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.AppConfig, error) {
+	// This call uses cached_mysql implementation, so it's safe to call it multiple times
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if !appConfig.MDM.AndroidEnabledAndConfigured {
+		return nil, fleet.NewInvalidArgumentError("android",
+			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
+	}
+	return appConfig, nil
 }

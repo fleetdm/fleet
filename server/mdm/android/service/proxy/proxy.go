@@ -157,6 +157,18 @@ func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string,
 	return nil
 }
 
+func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken,
+) (*androidmanagement.EnrollmentToken, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Do()
+	if err != nil {
+		return nil, fmt.Errorf("creating enrollment token: %w", err)
+	}
+	return token, nil
+}
+
 func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
 	if p == nil || p.mgmt == nil {
 		return errors.New("android management service not initialized")

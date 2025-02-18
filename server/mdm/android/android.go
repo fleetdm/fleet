@@ -30,7 +30,8 @@ type EnterpriseDetails struct {
 }
 
 type EnrollmentToken struct {
-	Value string `json:"value"`
+	EnrollmentToken string `json:"android_enrollment_token"`
+	EnrollmentURL   string `json:"android_enrollment_url"`
 }
 
 type Host struct {
