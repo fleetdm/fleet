@@ -19,6 +19,7 @@ spec:
     ndes_scep_proxy: null
     zendesk: null
   mdm:
+    android_enabled_and_configured: false
     apple_business_manager:
     apple_server_url: ""
     volume_purchasing_program:

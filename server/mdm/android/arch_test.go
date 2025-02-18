@@ -13,6 +13,8 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android...").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
 		IgnorePackages(
 			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql",
 			"github.com/fleetdm/fleet/v4/server/service/externalsvc", // TODO(#26218): remove this dependency on Jira and Zendesk
