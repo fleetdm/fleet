@@ -267,6 +267,9 @@ func androidEnrollmentTokenEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
+	// Authorization is done by VerifyEnrollSecret below.
+	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
+	svc.authz.SkipAuthorization(ctx)
 
 	_, err := svc.checkIfAndroidNotConfigured(ctx)
 	if err != nil {
