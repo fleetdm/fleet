@@ -22,13 +22,17 @@ Verify the [fleetctl binary](https://github.com/fleetdm/fleet/releases) (CLI):
 gh attestation verify --owner fleetdm fleetdm /path/to/fleetctl
 ```
 
-After, installing Fleet's agent (fleetd) on a macOS host, run this command on the host to verify:
+After, installing Fleet's agent (fleetd) on a macOS or Linux host, run this command on the host to verify:
 
 ```
 gh attestation verify --owner fleetdm /usr/local/bin/orbit
 ```
 
-TODO: Filepath for Windows and Linux
+To verify fleetd on Windows, run this command:
+
+```
+gh attestation verify --owner fleetdm "C:\Program Files\Orbit\bin\orbit\orbit.exe"
+```
 
 <meta name="authorGitHubUsername" value="sgress454">
 <meta name="authorFullName" value="Scott Gress">
