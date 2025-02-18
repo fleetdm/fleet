@@ -643,3 +643,8 @@ func (e ConflictError) Error() string {
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
+
+// Errorer interface is implemented by response structs to encode business logic errors
+type Errorer interface {
+	Error() error
+}

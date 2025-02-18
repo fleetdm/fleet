@@ -26,6 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/log"
@@ -289,6 +291,11 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	go ds.writeChanLoop()
 
 	return ds, nil
+}
+
+func NewAndroidDS(ds fleet.Datastore) android.Datastore {
+	mysqlDs := ds.(*Datastore)
+	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
 }
 
 type itemToWrite struct {

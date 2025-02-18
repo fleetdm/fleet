@@ -30,7 +30,7 @@ type createInviteResponse struct {
 
 func (r createInviteResponse) Error() error { return r.Err }
 
-func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createInviteRequest)
 	invite, err := svc.InviteNewUser(ctx, req.InvitePayload)
 	if err != nil {
@@ -170,7 +170,7 @@ type listInvitesResponse struct {
 
 func (r listInvitesResponse) Error() error { return r.Err }
 
-func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listInvitesRequest)
 	invites, err := svc.ListInvites(ctx, req.ListOptions)
 	if err != nil {
@@ -207,7 +207,7 @@ type updateInviteResponse struct {
 
 func (r updateInviteResponse) Error() error { return r.Err }
 
-func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateInviteRequest)
 	invite, err := svc.UpdateInvite(ctx, req.ID, req.InvitePayload)
 	if err != nil {
@@ -290,7 +290,7 @@ type deleteInviteResponse struct {
 
 func (r deleteInviteResponse) Error() error { return r.Err }
 
-func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteInviteRequest)
 	err := svc.DeleteInvite(ctx, req.ID)
 	if err != nil {
@@ -321,7 +321,7 @@ type verifyInviteResponse struct {
 
 func (r verifyInviteResponse) Error() error { return r.Err }
 
-func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*verifyInviteRequest)
 	invite, err := svc.VerifyInvite(ctx, req.Token)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -58,6 +59,7 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
+	AndroidEnabled bool  `json:"android_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -104,7 +106,7 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 
 func (r appConfigResponse) Error() error { return r.Err }
 
-func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("could not fetch user")
@@ -199,6 +201,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
+			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
 		},
 	}
 	return response, nil
@@ -235,7 +238,7 @@ type modifyAppConfigRequest struct {
 	json.RawMessage
 }
 
-func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
@@ -542,6 +545,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
 	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
+	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
+	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -1420,7 +1425,7 @@ type applyEnrollSecretSpecResponse struct {
 
 func (r applyEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
 	err := svc.ApplyEnrollSecretSpec(
 		ctx, req.Spec, fleet.ApplySpecOptions{
@@ -1478,7 +1483,7 @@ type getEnrollSecretSpecResponse struct {
 
 func (r getEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
 	if err != nil {
 		return getEnrollSecretSpecResponse{Err: err}, nil
@@ -1509,7 +1514,7 @@ type versionResponse struct {
 
 func (r versionResponse) Error() error { return r.Err }
 
-func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	info, err := svc.Version(ctx)
 	if err != nil {
 		return versionResponse{Err: err}, nil
@@ -1537,7 +1542,7 @@ type getCertificateResponse struct {
 
 func (r getCertificateResponse) Error() error { return r.Err }
 
-func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	chain, err := svc.CertificateChain(ctx)
 	if err != nil {
 		return getCertificateResponse{Err: err}, nil
