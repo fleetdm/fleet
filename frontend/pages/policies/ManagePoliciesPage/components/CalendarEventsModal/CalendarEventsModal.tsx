@@ -1,6 +1,4 @@
-import React, { useCallback, useState, useRef, useContext } from "react";
-
-import { IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import React, { useState, useRef, useContext } from "react";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
@@ -12,8 +10,6 @@ import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
@@ -39,9 +35,6 @@ interface ICalendarEventsModal {
   url: string;
   teamId: number;
 }
-
-// allows any policy name to be the name of a form field, one of the checkboxes
-type FormNames = string;
 
 const CalendarEventsModal = ({
   onExit,
@@ -330,13 +323,15 @@ const CalendarEventsModal = ({
       className={baseClass}
       width="large"
     >
-      {configured ? renderConfiguredModal() : renderPlaceholderModal()}
-      {showPreviewCalendarEvent && (
-        <CalendarEventPreviewModal
-          onCancel={togglePreviewCalendarEvent}
-          policy={selectedPolicyToPreview}
-        />
-      )}
+      <>
+        {configured ? renderConfiguredModal() : renderPlaceholderModal()}
+        {showPreviewCalendarEvent && (
+          <CalendarEventPreviewModal
+            onCancel={togglePreviewCalendarEvent}
+            policy={selectedPolicyToPreview}
+          />
+        )}
+      </>
     </Modal>
   );
 };

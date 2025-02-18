@@ -568,34 +568,12 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
 
-        const turnedOff =
-          prevPolicyState?.run_script !== undefined &&
-          formPolicy.runScriptEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.run_script === undefined &&
-          formPolicy.runScriptEnabled === true;
-
-        const updatedRunScriptId =
-          prevPolicyState?.run_script?.id !== undefined &&
-          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
-
-        return turnedOff || turnedOn || updatedRunScriptId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
       const responses: Promise<
         ReturnType<typeof teamPoliciesAPI.update>
       >[] = [];
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
@@ -1059,7 +1037,6 @@ const ManagePolicyPage = ({
             onExit={togglePolicyRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />

@@ -16,6 +16,8 @@ import Button from "components/buttons/Button";
 export interface IFormPolicy extends IPolicy {
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
+  runScriptEnabled: boolean;
+  scriptIdToRun?: number;
 }
 
 interface IPoliciesPaginatedListProps {
@@ -92,6 +94,8 @@ function PoliciesPaginatedList(
           id: policy.id,
           installSoftwareEnabled: !!policy.install_software,
           swIdToInstall: policy.install_software?.software_title_id,
+          runScriptEnabled: !!policy.run_script,
+          scriptIdToRun: policy.run_script?.id,
           platform: policy.platform,
         })) as IFormPolicy[];
       });

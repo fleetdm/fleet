@@ -37,7 +37,7 @@ describe("CalendarEventsModal - component", () => {
         configured
         enabled
         url="https://server.com/example"
-        policies={testGlobalPolicy}
+        teamId={2}
       />
     );
 
@@ -70,7 +70,7 @@ describe("CalendarEventsModal - component", () => {
         configured
         enabled
         url="https://server.com/example"
-        policies={testGlobalPolicy}
+        teamId={2}
       />
     );
 
