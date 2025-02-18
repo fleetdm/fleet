@@ -99,7 +99,7 @@ archives:
   - id: fleetctl
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}_{{.Arch}}
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}{{- if eq .Os "linux" }}_{{.Arch}}{{ end }}
     wrap_in_directory: true
 
   - id: fleetctl-zip
