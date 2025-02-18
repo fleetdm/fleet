@@ -105,7 +105,7 @@ archives:
   - id: fleetctl-zip
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}{{- if eq .Os "linux" }}_{{.Arch}}{{ end }
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}{{- if eq .Os "linux" }}_{{.Arch}}{{ end }}
     format: zip
     wrap_in_directory: true
 
