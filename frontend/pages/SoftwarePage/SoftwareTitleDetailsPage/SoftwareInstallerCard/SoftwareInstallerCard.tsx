@@ -321,25 +321,35 @@ const SoftwareInstallerCard = ({
     );
   };
 
-  const versionInfo = version ? (
-    <span>{version}</span>
-  ) : (
-    <TooltipWrapper
-      tipContent={
-        <span>
-          Fleet couldn&apos;t read the version from {name}.{" "}
-          <CustomLink
-            newTab
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-            text="Learn more"
-            variant="tooltip-link"
-          />
-        </span>
-      }
-    >
-      Version (unknown)
-    </TooltipWrapper>
-  );
+  let versionInfo = <span>{version}</span>;
+
+  if (installerType === "vpp") {
+    versionInfo = (
+      <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+        <span>{version}</span>
+      </TooltipWrapper>
+    );
+  }
+
+  if (installerType === "package" && !version) {
+    versionInfo = (
+      <TooltipWrapper
+        tipContent={
+          <span>
+            Fleet couldn&apos;t read the version from {name}.{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+              variant="tooltip-link"
+            />
+          </span>
+        }
+      >
+        <span>Version (unknown)</span>
+      </TooltipWrapper>
+    );
+  }
 
   const renderDetails = () => {
     return !uploadedAt ? (

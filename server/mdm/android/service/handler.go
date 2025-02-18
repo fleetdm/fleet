@@ -24,6 +24,8 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
 	ue.GET("/api/_version_/fleet/android_enterprise/signup_url", androidEnterpriseSignupEndpoint, nil)
+	ue.DELETE("/api/_version_/fleet/android_enterprise", androidDeleteEnterpriseEndpoint, nil)
+
 	ue.GET("/api/_version_/fleet/android_enterprise/{id:[0-9]+}/enrollment_token", androidEnrollmentTokenEndpoint,
 		androidEnrollmentTokenRequest{})
 

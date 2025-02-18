@@ -28,6 +28,9 @@ const (
 	CronCalendar                    CronScheduleName = "calendar"
 	CronUninstallSoftwareMigration  CronScheduleName = "uninstall_software_migration"
 	CronMaintainedApps              CronScheduleName = "maintained_apps"
+	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
+	// every 1h.
+	CronRefreshVPPAppVersions CronScheduleName = "refresh_vpp_app_versions"
 )
 
 type CronSchedulesService interface {

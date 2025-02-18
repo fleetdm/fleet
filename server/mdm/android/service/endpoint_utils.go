@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -37,9 +38,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 		}
 	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(response)
+	return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 }
 
 // statuser allows response types to implement a custom
@@ -98,7 +97,8 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 			}
 
 			req := v.Interface()
-			if err := json.NewDecoder(body).Decode(req); err != nil {
+			err = json.UnmarshalRead(body, req)
+			if err != nil {
 				return nil, endpoint_utils.BadRequestErr("json decoder error", err)
 			}
 			v = reflect.ValueOf(req)
