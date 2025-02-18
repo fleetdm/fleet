@@ -308,7 +308,7 @@ CREATE TABLE `host_certificates` (
   `deleted_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_host_certs_hid_cn` (`host_id`,`common_name`),
-  KEY `idx_host_certs_hid_sha1` (`host_id`,`sha1_sum`)
+  KEY `idx_host_certs_not_valid_after` (`host_id`,`not_valid_after`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

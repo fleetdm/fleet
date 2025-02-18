@@ -3,8 +3,8 @@ package fleet
 import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
-	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -44,6 +44,44 @@ type HostCertificateRecord struct {
 	IssuerCommonName          string    `json:"-" db:"issuer_common_name"`
 }
 
+func NewHostCertificateRecord(
+	hostID uint,
+	cert *x509.Certificate,
+) *HostCertificateRecord {
+	hash := sha1.Sum(cert.Raw) // nolint:gosec
+
+	return &HostCertificateRecord{
+		HostID:               hostID,
+		SHA1Sum:              hash[:], // nolint:gosec
+		NotValidAfter:        cert.NotAfter,
+		NotValidBefore:       cert.NotBefore,
+		CertificateAuthority: cert.IsCA,
+		// TODO: we need to define methodology for determining common name analogous to osquery,
+		// which seems to preferentially use Subject.CommonName for this value:
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L253
+		CommonName:   cert.Subject.CommonName,
+		KeyAlgorithm: cert.PublicKeyAlgorithm.String(),
+		// TODO: we need to define methodology for determining key strength analogous to osquery,
+		// which describes this value as "Key size used for RSA/DSA, or curve name":
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L337
+		KeyStrength: 0, // TODO: add key strength here
+		// TODO: we need to define methodology for determining key usage analogous to osquery, which
+		// describes this as "Certificate key usage and extended key usage":
+		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L166
+		KeyUsage:                  "",
+		Serial:                    cert.SerialNumber.String(),
+		SigningAlgorithm:          cert.SignatureAlgorithm.String(),
+		SubjectCommonName:         cert.Subject.CommonName,
+		SubjectCountry:            firstOrEmpty(cert.Subject.Country),            // TODO: confirm methodology
+		SubjectOrganization:       firstOrEmpty(cert.Subject.Organization),       // TODO: confirm methodology
+		SubjectOrganizationalUnit: firstOrEmpty(cert.Subject.OrganizationalUnit), // TODO: confirm methodology
+		IssuerCommonName:          cert.Issuer.CommonName,
+		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
+		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
+		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
+	}
+}
+
 type HostCertificateNameDetails struct {
 	CommonName         string `json:"common_name"`
 	Country            string `json:"country"`
@@ -71,48 +109,17 @@ type MDMAppleCertificateListResponse struct {
 // https://developer.apple.com/documentation/devicemanagement/certificatelistresponse/certificatelistitem
 type MDMAppleCertificateListItem struct {
 	CommonName string `plist:"CommonName"`
-	// Data is the DER encoded certificate.
-	Data       b64Data `plist:"Data"`
-	IsIdentity bool    `plist:"IsIdentity"`
+	// Data is the DER-encoded certificate.
+	Data       []byte `plist:"Data"`
+	IsIdentity bool   `plist:"IsIdentity"`
 }
 
 func (c *MDMAppleCertificateListItem) Parse() (*HostCertificateRecord, error) {
-	hash := sha1.Sum(c.Data) // nolint:gosec
-
-	parsed, err := x509.ParseCertificate(c.Data)
+	cert, err := x509.ParseCertificate(c.Data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing certificate list item: %w", err)
 	}
-
-	return &HostCertificateRecord{
-		SHA1Sum:              hash[:],
-		NotValidBefore:       parsed.NotBefore,
-		NotValidAfter:        parsed.NotAfter,
-		CertificateAuthority: parsed.IsCA,
-		// TODO: we need to define methodology for determining common name analogous to osquery,
-		// which seems to preferentially use Subject.CommonName for this value:
-		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L253
-		CommonName:   parsed.Subject.CommonName,
-		KeyAlgorithm: parsed.PublicKeyAlgorithm.String(),
-		// TODO: we need to define methodology for determining key strength analogous to osquery,
-		// which describes this value as "Key size used for RSA/DSA, or curve name":
-		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L337
-		KeyStrength: 0,
-		// TODO: we need to define methodology for determining key usage analogous to osquery, which
-		// describes this as "Certificate key usage and extended key usage":
-		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L166
-		KeyUsage:                  "",
-		Serial:                    parsed.SerialNumber.String(),
-		SigningAlgorithm:          parsed.SignatureAlgorithm.String(),
-		SubjectCommonName:         parsed.Subject.CommonName,
-		SubjectCountry:            parsed.Subject.Country[0],            // TODO: confirm methodology
-		SubjectOrganization:       parsed.Subject.Organization[0],       // TODO: confirm methodology
-		SubjectOrganizationalUnit: parsed.Subject.OrganizationalUnit[0], // TODO: confirm methodology
-		IssuerCommonName:          parsed.Issuer.CommonName,
-		IssuerCountry:             parsed.Issuer.Country[0],            // TODO: confirm methodology
-		IssuerOrganization:        parsed.Issuer.Organization[0],       // TODO: confirm methodology
-		IssuerOrganizationalUnit:  parsed.Issuer.OrganizationalUnit[0], // TODO: confirm methodology
-	}, nil
+	return NewHostCertificateRecord(0, cert), nil
 }
 
 // MdmAppleErrorChainItem is the plist model for an error chain item.
@@ -122,14 +129,6 @@ type MDMAppleErrorChainItem struct {
 	ErrorDomain          string `plist:"ErrorDomain"`
 	LocalizedDescription string `plist:"LocalizedDescription"`
 	USEnglishDescription string `plist:"USEnglishDescription"`
-}
-
-// b64Data is a byte slice that can be base64 encoded.
-type b64Data []byte
-
-// String returns the base64-encoded string form of b
-func (b b64Data) String() string {
-	return base64.StdEncoding.EncodeToString(b)
 }
 
 // ExtractDetailsFromOsqueryDistinguishedName parses a distinguished name and returns the country,
@@ -142,4 +141,11 @@ func (b b64Data) String() string {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	// TODO
 	return nil, errors.New("not implemented")
+}
+
+func firstOrEmpty(s []string) string {
+	if len(s) > 0 {
+		return s[0]
+	}
+	return ""
 }

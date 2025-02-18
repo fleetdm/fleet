@@ -273,6 +273,10 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
+type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
+
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error
+
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
@@ -1601,6 +1605,12 @@ type DataStore struct {
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
+
+	ListHostCertificatesFunc        ListHostCertificatesFunc
+	ListHostCertificatesFuncInvoked bool
+
+	UpdateHostCertificatesFunc        UpdateHostCertificatesFunc
+	UpdateHostCertificatesFuncInvoked bool
 
 	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
 	AreHostsConnectedToFleetMDMFuncInvoked bool
@@ -3910,6 +3920,20 @@ func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.H
 	s.IsHostConnectedToFleetMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsHostConnectedToFleetMDMFunc(ctx, host)
+}
+
+func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostCertificatesFunc(ctx, hostID, opts)
+}
+
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+	s.mu.Lock()
+	s.UpdateHostCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostCertificatesFunc(ctx, hostID, certs)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {

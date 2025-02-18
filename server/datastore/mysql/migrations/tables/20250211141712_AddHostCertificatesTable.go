@@ -36,7 +36,7 @@ CREATE TABLE host_certificates (
 
 	PRIMARY KEY (id),
 	INDEX idx_host_certs_hid_cn (host_id, common_name),
-	INDEX idx_host_certs_hid_sha1 (host_id, sha1_sum)
+	INDEX idx_host_certs_not_valid_after (host_id, not_valid_after)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 
 	return err
