@@ -1159,7 +1159,7 @@ type GetVPPAppsFunc func(ctx context.Context, teamID *uint) ([]fleet.VPPAppRespo
 
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppTeam) error
 
-type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint, addAutoInstallPolicy bool) (*fleet.VPPApp, error)
 
 type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
 
@@ -7023,11 +7023,11 @@ func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []f
 	return s.SetTeamVPPAppsFunc(ctx, teamID, appIDs)
 }
 
-func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, addAutoInstallPolicy bool) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.InsertVPPAppWithTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID, addAutoInstallPolicy)
 }
 
 func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {

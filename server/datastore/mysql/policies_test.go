@@ -4318,7 +4318,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
 	require.NoError(t, err)
@@ -4346,7 +4346,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, false)
 	require.NoError(t, err)
 	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), noTeamApp.TitleID)
 	require.NoError(t, err)
@@ -4365,7 +4365,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	team1App2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp2", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 	team1Meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App2.TitleID)
 	require.NoError(t, err)
@@ -4660,17 +4660,17 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, false)
 	require.NoError(t, err)
 	va1NoTeam, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, false)
 	require.NoError(t, err)
 
 	// Installers cannot be assigned to global policies.
@@ -4953,7 +4953,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va4Team2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
-	}, &team2.ID)
+	}, &team2.ID, false)
 	require.NoError(t, err)
 
 	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -5081,7 +5081,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	va4Team1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp4", BundleIdentifier: "com.app.vpp4",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_4", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 
 	// Now change the installer, should clear results.
@@ -5723,7 +5723,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.appy",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
 	require.NoError(t, err)

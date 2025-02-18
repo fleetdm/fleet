@@ -13195,7 +13195,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, false)
 	require.NoError(t, err)
 
 	resp := getHostSoftwareResponse{}
@@ -13239,7 +13239,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.NoError(t, err)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
 	require.NoError(t, err)
 
 	var respListTitles listSoftwareTitlesResponse

@@ -14426,7 +14426,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, false)
 	require.NoError(t, err)
 
 	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
@@ -14633,7 +14633,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team1.ID)
+	}, &team1.ID, false)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded VPP app.
 	resp = listSoftwareTitlesResponse{}

@@ -54,6 +54,7 @@ type addAppStoreAppRequest struct {
 	AppStoreID       string                    `json:"app_store_id"`
 	Platform         fleet.AppleDevicePlatform `json:"platform"`
 	SelfService      bool                      `json:"self_service"`
+	AutomaticInstall bool                      `json:"automatic_install"`
 	LabelsIncludeAny []string                  `json:"labels_include_any"`
 	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
 }
@@ -71,7 +72,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsExcludeAny: req.LabelsExcludeAny,
-	})
+	}, req.AutomaticInstall)
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
@@ -79,7 +80,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return &addAppStoreAppResponse{}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam, _ bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
