@@ -7,14 +7,32 @@
 
   &__row-1 {
     display: flex;
-    justify-content: space-between;
     width: 100%;
     gap: $pad-medium;
+  }
+
+  // &__main-info and &__tags-wrapper can wrap lines on low widths
+  &__row-1--responsive {
+    display: flex;
+    flex-grow: 1;
+    justify-content: space-between;
+
+    @media (max-width: ($break-md - 1)) {
+      flex-direction: column;
+      gap: $pad-medium;
+    }
   }
 
   &__main-info {
     display: flex;
     gap: $pad-medium;
+  }
+
+  &__tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: $pad-medium; // Between tags
   }
 
   &__info {
@@ -82,9 +100,7 @@
 
   &__actions-wrapper {
     display: flex;
-    justify-content: flex-end;
     gap: $pad-medium;
-    align-items: center;
   }
 
   &__download-icon {

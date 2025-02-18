@@ -232,7 +232,7 @@ const SoftwareActionsDropdown = ({
 interface ISoftwareInstallerCardProps {
   name: string;
   version: string | null;
-  uploadedAt: string; // TODO: optional?
+  uploadedAt: string;
   status: {
     installed: number;
     pending: number;
@@ -375,16 +375,17 @@ const SoftwareInstallerCard = ({
       <div className={`${baseClass}__row-1`}>
         {/* TODO: main-info could be a separate component as its reused on a couple
         pages already. Come back and pull this into a component */}
-        <div className={`${baseClass}__main-info`}>
-          {renderIcon()}
-          <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwareInstaller?.name || name} />
-            <span className={`${baseClass}__details`}>{renderDetails()}</span>
+        <div className={`${baseClass}__row-1--responsive`}>
+          <div className={`${baseClass}__main-info`}>
+            {renderIcon()}
+            <div className={`${baseClass}__info`}>
+              <SoftwareName name={softwareInstaller?.name || name} />
+              <span className={`${baseClass}__details`}>{renderDetails()}</span>
+            </div>
           </div>
-        </div>
-        <div className={`${baseClass}__actions-wrapper`}>
-          {softwareInstaller?.automatic_install_policies &&
-            softwareInstaller?.automatic_install_policies.length > 0 && (
+          <div className={`${baseClass}__tags-wrapper`}>
+            {(!softwareInstaller?.automatic_install_policies ||
+              softwareInstaller?.automatic_install_policies.length > 0) && (
               <TooltipWrapper
                 showArrow
                 position="top"
@@ -398,7 +399,10 @@ const SoftwareInstallerCard = ({
                 />
               </TooltipWrapper>
             )}
-          {isSelfService && <Tag icon="user" text="Self-service" />}
+            {isSelfService && <Tag icon="user" text="Self-service" />}
+          </div>
+        </div>
+        <div className={`${baseClass}__actions-wrapper`}>
           {showActions && (
             <SoftwareActionsDropdown
               installerType={installerType}

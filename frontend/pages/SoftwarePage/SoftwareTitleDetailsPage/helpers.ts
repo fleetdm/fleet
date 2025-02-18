@@ -29,7 +29,7 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     version:
       (isPackage ? installerData.version : installerData.latest_version) ||
       null,
-    uploadedAt: isPackage ? installerData.uploaded_at : "",
+    uploadedAt: installerData.uploaded_at, // TODO: double check once API is finalized
     status: isPackage
       ? aggregateInstallStatusCounts(installerData.status)
       : installerData.status,
