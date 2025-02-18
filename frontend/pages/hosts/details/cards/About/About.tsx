@@ -2,6 +2,7 @@ import React from "react";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 
 import {
@@ -25,7 +26,7 @@ const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   const format = (d: IDeviceUser) =>
     d.source ? `${d.email} (${d.source})` : d.email;
 
-  return deviceMapping.map((d) => (
+  return deviceMapping.slice(1).map((d) => (
     <span key={format(d)}>
       {format(d)}
       <br />
@@ -151,16 +152,20 @@ const About = ({
         title="Used by"
         value={
           newDeviceMapping.length > 1 ? (
-            <TooltipWrapper
-              tipContent={getDeviceUserTipContent(newDeviceMapping)}
-            >
-              {displayPrimaryUser}
-              <span className="device-mapping__more">{` +${
-                newDeviceMapping.length - 1
-              } more`}</span>
-            </TooltipWrapper>
+            <div>
+              <span style={{ display: "inline-block", width: "270px" }}>
+                <TooltipTruncatedText value={displayPrimaryUser} />
+              </span>
+              <TooltipWrapper
+                tipContent={getDeviceUserTipContent(newDeviceMapping)}
+              >
+                <span className="device-mapping__more">{` +${
+                  newDeviceMapping.length - 1
+                } more`}</span>
+              </TooltipWrapper>
+            </div>
           ) : (
-            displayPrimaryUser
+            <TooltipTruncatedText value={displayPrimaryUser} />
           )
         }
       />

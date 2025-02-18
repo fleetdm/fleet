@@ -1,5 +1,14 @@
 .about-card {
 
+  .tooltip-truncated-text {
+    display: inline-block;
+  }
+
+  // &__multiple {
+  //   display: inline-block; 
+  //   width: 270px;
+  // }
+  
   &__device-mapping {
     &__source {
       color: $ui-fleet-black-75;
@@ -12,11 +21,11 @@
     &__primary-user {
       text-overflow: ellipsis;
       overflow: hidden;
-      display: inline-block;
+      // display: inline-block;
       vertical-align: text-bottom;
 
       &.about-card__multiple {
-        max-width: 270px;
+        // max-width: 100%;
       }
     }
   }
