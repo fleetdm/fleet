@@ -41,10 +41,12 @@ func TestUp_20250217093329_Script(t *testing.T) {
 	assertRowCount(t, db, "script_upcoming_activities", 1)
 	assertRowCount(t, db, "software_install_upcoming_activities", 0)
 	assertRowCount(t, db, "vpp_app_upcoming_activities", 0)
+
 	var execID string
 	err := db.Get(&execID, `SELECT execution_id FROM upcoming_activities`)
 	require.NoError(t, err)
 	require.Equal(t, execIDPending, execID)
+
 	var count int
 	err = db.Get(&count, `SELECT COUNT(*) FROM upcoming_activities WHERE activated_at IS NULL`)
 	require.NoError(t, err)
@@ -79,12 +81,14 @@ func TestUp_20250217093329_SoftwareInstall(t *testing.T) {
 	assertRowCount(t, db, "software_install_upcoming_activities", 2)
 	assertRowCount(t, db, "vpp_app_upcoming_activities", 0)
 	assertRowCount(t, db, "script_upcoming_activities", 0)
+
 	var execIDs []string
 	err := db.Select(&execIDs, `SELECT execution_id FROM upcoming_activities`)
 	require.NoError(t, err)
 	// will add both the pending install and uninstall to upcoming, but not the
 	// host deleted entry, the removed and the failed install
 	require.ElementsMatch(t, []string{execIDPending, execIDUninstall}, execIDs)
+
 	var count int
 	err = db.Get(&count, `SELECT COUNT(*) FROM upcoming_activities WHERE activated_at IS NULL`)
 	require.NoError(t, err)
@@ -120,12 +124,14 @@ func TestUp_20250217093329_SoftwareUninstall(t *testing.T) {
 	assertRowCount(t, db, "software_install_upcoming_activities", 2)
 	assertRowCount(t, db, "vpp_app_upcoming_activities", 0)
 	assertRowCount(t, db, "script_upcoming_activities", 0)
+
 	var execIDs []string
 	err := db.Select(&execIDs, `SELECT execution_id FROM upcoming_activities`)
 	require.NoError(t, err)
 	// will add both the pending install and uninstall to upcoming, but not the
 	// host deleted entry, the removed and the failed uninstall
 	require.ElementsMatch(t, []string{execIDPending, execIDInstall}, execIDs)
+
 	var count int
 	err = db.Get(&count, `SELECT COUNT(*) FROM upcoming_activities WHERE activated_at IS NULL`)
 	require.NoError(t, err)
@@ -178,10 +184,12 @@ func TestUp_20250217093329_VPPInstall(t *testing.T) {
 	assertRowCount(t, db, "vpp_app_upcoming_activities", 1)
 	assertRowCount(t, db, "software_install_upcoming_activities", 0)
 	assertRowCount(t, db, "script_upcoming_activities", 0)
+
 	var execIDs []string
 	err := db.Select(&execIDs, `SELECT execution_id FROM upcoming_activities`)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{execIDPending}, execIDs)
+
 	var count int
 	err = db.Get(&count, `SELECT COUNT(*) FROM upcoming_activities WHERE activated_at IS NULL`)
 	require.NoError(t, err)
@@ -216,14 +224,14 @@ func TestUp_20250217093329_Load(t *testing.T) {
 
 			// create the pending software install
 			execID = uuid.NewString()
-			execNoErr(t, db, `INSERT INTO host_software_installs 
+			execNoErr(t, db, `INSERT INTO host_software_installs
 				(host_id, execution_id, software_installer_id) VALUES (?, ?, ?)`,
 				hostID, execID, installerIDs[i%len(installerIDs)])
 			allExecIDs = append(allExecIDs, execID)
 
 			// create the pending software uninstall
 			execID = uuid.NewString()
-			execNoErr(t, db, `INSERT INTO host_software_installs 
+			execNoErr(t, db, `INSERT INTO host_software_installs
 				(host_id, execution_id, software_installer_id, uninstall) VALUES (?, ?, ?, 1)`,
 				hostID, execID, installerIDs[(i+1)%len(installerIDs)])
 			allExecIDs = append(allExecIDs, execID)
@@ -250,13 +258,75 @@ func TestUp_20250217093329_Load(t *testing.T) {
 	assertRowCount(t, db, "vpp_app_upcoming_activities", 1000)
 	assertRowCount(t, db, "software_install_upcoming_activities", 6000)
 	assertRowCount(t, db, "script_upcoming_activities", 3000)
+
 	var execIDs []string
 	err := db.Select(&execIDs, `SELECT execution_id FROM upcoming_activities`)
 	require.NoError(t, err)
 	require.Len(t, execIDs, len(allExecIDs))
 	require.ElementsMatch(t, allExecIDs, execIDs)
+
 	var count int
 	err = db.Get(&count, `SELECT COUNT(*) FROM upcoming_activities WHERE activated_at IS NULL`)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, count)
+
+	var stats []struct {
+		TargetID    int    `db:"target_id"`
+		TargetIDStr string `db:"target_id_str"`
+		Count       int    `db:"count"`
+	}
+	// sanity-check software installs
+	err = db.Select(&stats, `SELECT software_installer_id as target_id, COUNT(DISTINCT host_id) as count
+		FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua
+		ON ua.id = siua.upcoming_activity_id
+		WHERE ua.activity_type = 'software_install'
+		GROUP BY software_installer_id`)
+	require.NoError(t, err)
+	require.Len(t, stats, 10)
+	for _, stat := range stats {
+		// each installer installs on 1/10th of the hosts
+		require.EqualValues(t, 300, stat.Count)
+	}
+
+	// sanity-check software uninstalls
+	stats = stats[:0]
+	err = db.Select(&stats, `SELECT software_installer_id as target_id, COUNT(DISTINCT host_id) as count
+		FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua
+		ON ua.id = siua.upcoming_activity_id
+		WHERE ua.activity_type = 'software_uninstall'
+		GROUP BY software_installer_id`)
+	require.NoError(t, err)
+	require.Len(t, stats, 10)
+	for _, stat := range stats {
+		// each installer uninstalls on 1/10th of the hosts
+		require.EqualValues(t, 300, stat.Count)
+	}
+
+	// sanity-check scripts
+	stats = stats[:0]
+	err = db.Select(&stats, `SELECT script_content_id as target_id, COUNT(DISTINCT host_id) as count
+		FROM upcoming_activities ua INNER JOIN script_upcoming_activities sua
+		ON ua.id = sua.upcoming_activity_id
+		WHERE ua.activity_type = 'script'
+		GROUP BY script_content_id`)
+	require.NoError(t, err)
+	require.Len(t, stats, 10)
+	for _, stat := range stats {
+		// each script runs on 1/10th of the hosts
+		require.EqualValues(t, 300, stat.Count)
+	}
+
+	// sanity-check VPP apps
+	stats = stats[:0]
+	err = db.Select(&stats, `SELECT adam_id as target_id_str, COUNT(DISTINCT host_id) as count
+		FROM upcoming_activities ua INNER JOIN vpp_app_upcoming_activities vaua
+		ON ua.id = vaua.upcoming_activity_id
+		WHERE ua.activity_type = 'vpp_app_install'
+		GROUP BY adam_id`)
+	require.NoError(t, err)
+	require.Len(t, stats, 10)
+	for _, stat := range stats {
+		// each vpp app installs on 1/10th of the macOS hosts
+		require.EqualValues(t, 100, stat.Count)
+	}
 }
