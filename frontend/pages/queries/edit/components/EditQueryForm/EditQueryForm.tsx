@@ -64,6 +64,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SaveQueryModal from "../SaveQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -858,19 +859,23 @@ const EditQueryForm = ({
                   </Button>
                 )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
-                  <Button
-                    className="save-loading"
-                    variant="brand"
-                    onClick={
-                      confirmChanges
-                        ? toggleConfirmSaveChangesModal
-                        : promptSaveQuery()
-                    }
-                    disabled={disableSaveFormErrors}
-                    isLoading={isQueryUpdating}
-                  >
-                    Save
-                  </Button>
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(dC) => (
+                      <Button
+                        className="save-loading"
+                        variant="brand"
+                        onClick={
+                          confirmChanges
+                            ? toggleConfirmSaveChangesModal
+                            : promptSaveQuery()
+                        }
+                        disabled={disableSaveFormErrors || dC}
+                        isLoading={isQueryUpdating}
+                      >
+                        Save
+                      </Button>
+                    )}
+                  />
                 </div>
               </>
             )}
