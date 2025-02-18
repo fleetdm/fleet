@@ -35,4 +35,10 @@
   .info-banner {
     margin-top: $pad-small;
   }
+
+  &__form-fields {
+    &--gitops-disabled {
+      @include disabled;
+    }
+  }
 }
