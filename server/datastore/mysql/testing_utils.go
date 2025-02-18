@@ -877,7 +877,6 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	return certPEM, keyPEM, []byte(tokenBytes), nil
 }
 
-// TODO: move to mdmcrypto?
 func GenerateTestCertBytes(template *x509.Certificate) ([]byte, []byte, error) {
 	if template == nil {
 		return nil, nil, errors.New("template is nil")
