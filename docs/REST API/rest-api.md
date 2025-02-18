@@ -9518,15 +9518,14 @@ List available Fleet-maintained apps.
       "id": 2,
       "name": "1Password",
       "version": "8.10.40",
-      "platform": "windows",
-      "software_added": false
+      "platform": "windows"
     },
     {
       "id": 3,
       "name": "Box Drive",
       "version": "2.39.179",
       "platform": "darwin",
-      "software_added": true
+      "software_title_id": 1
     },
     ...
   ],
@@ -9569,7 +9568,7 @@ Returns information about the specified Fleet-maintained app.
     "platform": "darwin",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
-    "software_added": false
+    "software_title_id": 3
   }
 }
 ```
