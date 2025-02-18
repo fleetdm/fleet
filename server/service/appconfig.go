@@ -1226,7 +1226,7 @@ func (svc *Service) validateABMAssignments(
 		return []*fleet.ABMToken{tok}, nil
 	}
 
-	if mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
+	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
 			return nil, nil
