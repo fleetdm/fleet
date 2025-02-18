@@ -40,7 +40,7 @@ parasails.registerComponent('docsNavAndSearch', {
           <a :class="[currentSection === 'queries' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/queries" style="text-decoration: none; text-decoration-line: none;">Queries</a>
           <a :class="[currentSection === 'policies' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/policies" style="text-decoration: none; text-decoration-line: none;">Policies</a>
           <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/app-library" style="text-decoration: none; text-decoration-line: none;">Software</a>
-          <!-- <a :class="[currentSection === 'osSettings' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/os-settings" style="text-decoration: none; text-decoration-line: none;">OS settings</a> -->
+          <a :class="[currentSection === 'osSettings' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/os-settings" style="text-decoration: none; text-decoration-line: none;">OS settings</a>
           <a :class="[currentSection === 'tables' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/tables" style="text-decoration: none; text-decoration-line: none;">Data tables</a>
         </div>
       </div>
