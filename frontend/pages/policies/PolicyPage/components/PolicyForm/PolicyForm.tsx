@@ -30,6 +30,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "policy-form";
 
@@ -169,6 +170,7 @@ const PolicyForm = ({
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
+  const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -590,6 +592,7 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
+            disabled={gomEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
@@ -597,38 +600,44 @@ const PolicyForm = ({
           {renderLiveQueryWarning()}
           <div className="button-wrap">
             {hasSavePermissions && (
-              <>
-                <span
-                  className={`${baseClass}__button-wrap--tooltip`}
-                  data-tip
-                  data-for="save-policy-button"
-                  data-tip-disable={!isEditMode || isAnyPlatformSelected}
-                >
-                  <Button
-                    variant="brand"
-                    onClick={promptSavePolicy()}
-                    disabled={disableSaveFormErrors}
-                    className="save-loading"
-                    isLoading={isUpdatingPolicy}
-                  >
-                    Save
-                  </Button>
-                </span>
-                <ReactTooltip
-                  className={`${baseClass}__button-wrap--tooltip`}
-                  place="bottom"
-                  effect="solid"
-                  id="save-policy-button"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                >
-                  Select the platforms this
-                  <br />
-                  policy will be checked on
-                  <br />
-                  to save or run the policy.
-                </ReactTooltip>
-              </>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(dC) => (
+                  // TODO - update to use TooltipWrapper
+                  <>
+                    <span
+                      className={`${baseClass}__button-wrap--tooltip`}
+                      data-tip
+                      data-for="save-policy-button"
+                      data-tip-disable={!isEditMode || isAnyPlatformSelected}
+                    >
+                      <Button
+                        variant="brand"
+                        onClick={promptSavePolicy()}
+                        disabled={disableSaveFormErrors || dC}
+                        className="save-loading"
+                        isLoading={isUpdatingPolicy}
+                      >
+                        Save
+                      </Button>
+                    </span>
+                    <ReactTooltip
+                      className={`${baseClass}__button-wrap--tooltip`}
+                      place="bottom"
+                      effect="solid"
+                      id="save-policy-button"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                    >
+                      Select the platforms this
+                      <br />
+                      policy will be checked on
+                      <br />
+                      to save or run the policy.
+                    </ReactTooltip>
+                  </>
+                )}
+              />
             )}
+            {/* TODO - update to use TooltipWrapper */}
             <span
               className={`${baseClass}__button-wrap--tooltip`}
               data-tip
