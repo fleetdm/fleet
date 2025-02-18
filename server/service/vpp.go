@@ -68,11 +68,12 @@ func (r addAppStoreAppResponse) Error() error { return r.Err }
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
 	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
-		VPPAppID:         fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
-		SelfService:      req.SelfService,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsExcludeAny: req.LabelsExcludeAny,
-	}, req.AutomaticInstall)
+		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
+		SelfService:          req.SelfService,
+		LabelsIncludeAny:     req.LabelsIncludeAny,
+		LabelsExcludeAny:     req.LabelsExcludeAny,
+		AddAutoInstallPolicy: req.AutomaticInstall,
+	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
 	}
@@ -80,7 +81,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return &addAppStoreAppResponse{}, nil
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam, _ bool) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

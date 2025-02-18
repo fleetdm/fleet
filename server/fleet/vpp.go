@@ -35,6 +35,9 @@ type VPPAppTeam struct {
 	// ValidatedLabels are the labels (either include or exclude any) that have been validated by
 	// Fleet as being valid labels. This field is only used internally.
 	ValidatedLabels *LabelIdentsWithScope `json:"-"`
+
+	// AddAutoInstallPolicy
+	AddAutoInstallPolicy bool `json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

@@ -439,7 +439,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 	})
 }
 
-func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, addAutoInstallPolicy bool) (*fleet.VPPApp, error) {
+func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
 	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
@@ -470,7 +470,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
-		if addAutoInstallPolicy {
+		if app.VPPAppTeam.AddAutoInstallPolicy {
 			generatedPolicyData, err := automatic_policy.Generate(automatic_policy.MacInstallerMetadata{
 				Title:            app.Name,
 				BundleIdentifier: app.BundleIdentifier,

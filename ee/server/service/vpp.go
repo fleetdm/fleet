@@ -297,11 +297,11 @@ func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.Apple
 	return platforms
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam, autoInstall bool) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam) error {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if autoInstall {
+	if appID.AddAutoInstallPolicy {
 		// Currently, same write permissions are applied on software and policies,
 		// but leaving this here in case it changes in the future.
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: teamID}}, fleet.ActionWrite); err != nil {
@@ -339,7 +339,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if appID.SelfService && appID.Platform != fleet.MacOSPlatform {
 		return fleet.NewUserMessageError(errors.New("Currently, self-service is only supported on macOS, Windows, and Linux. Please add the app without self_service and manually install it on the Host details page."), http.StatusBadRequest)
 	}
-	if autoInstall && appID.Platform != fleet.MacOSPlatform {
+	if appID.AddAutoInstallPolicy && appID.Platform != fleet.MacOSPlatform {
 		return fleet.NewUserMessageError(errors.New("Currently, automatic install is only supported on macOS, Windows, and Linux. Please add the app without automatic_install and manually install it on the Host details page."), http.StatusBadRequest)
 	}
 
@@ -396,7 +396,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LatestVersion:    assetMD.Version,
 	}
 
-	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID, autoInstall)
+	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
@@ -555,7 +555,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	// Update the app
-	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, false)
+	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
 	}

@@ -103,11 +103,11 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	// Create some VPP apps and add them to setup experience
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID, false)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -402,24 +402,24 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
 	require.NoError(t, err)
 
 	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	require.NoError(t, err)
 
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, false)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
 	require.NoError(t, err)
 
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, false)
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -543,26 +543,26 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
 	require.NoError(t, err)
 
 	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, false)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	require.NoError(t, err)
 
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, false)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	_ = vpp1
 	require.NoError(t, err)
 
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, false)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
 	_ = vpp2
 	require.NoError(t, err)
 
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, false)
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	_ = vpp3
 	require.NoError(t, err)
 
@@ -699,7 +699,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 	assert.NoError(t, err)
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{BundleIdentifier: "com.test.test", Name: "test.app", LatestVersion: "1.0.0"}, nil, false)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{BundleIdentifier: "com.test.test", Name: "test.app", LatestVersion: "1.0.0"}, nil)
 	require.NoError(t, err)
 	var vppAppsTeamsID uint
 	err = sqlx.GetContext(context.Background(), ds.reader(ctx),
