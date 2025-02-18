@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
 )
@@ -37,7 +38,7 @@ type getInfoAboutSessionResponse struct {
 
 func (r getInfoAboutSessionResponse) Error() error { return r.Err }
 
-func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
@@ -84,7 +85,7 @@ type deleteSessionResponse struct {
 
 func (r deleteSessionResponse) Error() error { return r.Err }
 
-func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
@@ -139,7 +140,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 
 func (r loginMfaResponse) Error() error { return r.Err }
 
-func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*loginRequest)
 	req.Email = strings.ToLower(req.Email)
 
@@ -170,7 +171,7 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
 var noMFASupported = errors.New("client with no MFA email support")
-var mfaNotSupportedForClient = badRequestErr(
+var mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
 	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
 	noMFASupported,
 )
@@ -257,7 +258,7 @@ type sessionCreateRequest struct {
 	Token string `json:"token,omitempty"`
 }
 
-func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*sessionCreateRequest)
 	session, user, err := svc.CompleteMFA(ctx, req.Token)
 	if err != nil {
@@ -314,7 +315,7 @@ type logoutResponse struct {
 
 func (r logoutResponse) Error() error { return r.Err }
 
-func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
 		return logoutResponse{Err: err}, nil
@@ -366,7 +367,7 @@ type initiateSSOResponse struct {
 
 func (r initiateSSOResponse) Error() error { return r.Err }
 
-func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateSSORequest)
 	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
@@ -399,7 +400,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
@@ -464,10 +465,10 @@ type callbackSSOResponse struct {
 func (r callbackSSOResponse) Error() error { return r.Err }
 
 // If html is present we return a web page
-func (r callbackSSOResponse) html() string { return r.content }
+func (r callbackSSOResponse) Html() string { return r.content }
 
-func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		authResponse := request.(fleet.Auth)
 		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
@@ -589,7 +590,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
-		var nfe notFoundErrorInterface
+		var nfe endpoint_utils.NotFoundErrorInterface
 		if errors.As(err, &nfe) {
 			return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountInvalid))
 		}
@@ -638,7 +639,7 @@ type ssoSettingsResponse struct {
 
 func (r ssoSettingsResponse) Error() error { return r.Err }
 
-func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	settings, err := svc.SSOSettings(ctx)
 	if err != nil {
 		return ssoSettingsResponse{Err: err}, nil
