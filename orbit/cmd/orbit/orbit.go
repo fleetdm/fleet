@@ -2171,12 +2171,12 @@ func (w *wrapSubsystem) Interrupt(err error) {
 }
 
 func checkAndPatchCertificate(rootDir string) {
-	// Open the rootDir/certs.pem file and check if it matches by comparing the SHA256 of the raw
+	// Open the rootDir/fleet.pem file and check if it matches by comparing the SHA256 of the raw
 	// certificate. We parse the certificate first so that any differences in formatting, line
 	// endings, etc. don't prevent us from matching. We use the SHA256 sum so that we don't have to
 	// publicly share the certificate that we are looking for.
 
-	certPath := filepath.Join(rootDir, "certs.pem")
+	certPath := filepath.Join(rootDir, "fleet.pem")
 	log.Info().Str("path", certPath).Msg("checking and patching certificate")
 
 	// Load the certificate from disk
