@@ -5,7 +5,7 @@ team_settings:
     enable_software_inventory: true
   host_expiry_settings:
     host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_window: 50000
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
