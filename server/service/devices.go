@@ -685,3 +685,42 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 	return getDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Current Device's Certificates
+////////////////////////////////////////////////////////////////////////////////
+
+type listDeviceCertificatesRequest struct {
+	Token string `url:"token"`
+	fleet.ListOptions
+}
+
+func (r *listDeviceCertificatesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type listDeviceCertificatesResponse struct {
+	Certificates []*fleet.HostCertificateRecord `json:"certificates"`
+	Meta         *fleet.PaginationMetadata      `json:"meta,omitempty"`
+	Err          error                          `json:"error,omitempty"`
+}
+
+func (r listDeviceCertificatesResponse) Error() error { return r.Err }
+
+func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return listDevicePoliciesResponse{Err: err}, nil
+	}
+
+	req := request.(*listDeviceCertificatesRequest)
+	res, meta, err := svc.ListHostCertificates(ctx, host.ID, req.ListOptions)
+	if err != nil {
+		return listDeviceCertificatesResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostCertificateRecord{}
+	}
+	return listDeviceCertificatesResponse{Certificates: res, Meta: meta}, nil
+}
