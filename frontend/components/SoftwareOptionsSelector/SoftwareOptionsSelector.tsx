@@ -18,8 +18,8 @@ interface ISoftwareOptionsSelector {
     | ISoftwareVppFormData
     | IPackageFormData;
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
-  onToggleAutomaticInstall: any;
-  onToggleSelfService: any;
+  onToggleAutomaticInstall: (value: boolean) => void;
+  onToggleSelfService: (value: boolean) => void;
   platform?: string;
   className?: string;
   isCustomPackage?: boolean;
