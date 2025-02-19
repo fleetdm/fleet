@@ -207,7 +207,7 @@ const SoftwareVppForm = ({
             graphicNames="app-store"
             fileDetails={{
               name: softwareVppForEdit.name,
-              platform: softwareVppForEdit.platform,
+              platform: PLATFORM_DISPLAY_NAMES[softwareVppForEdit.platform],
             }}
             canEdit={false}
           />
