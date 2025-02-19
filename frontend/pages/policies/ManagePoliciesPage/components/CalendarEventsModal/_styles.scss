@@ -47,3 +47,19 @@
     margin: 24px 0;
   }
 }
+
+.policy-row {
+  &__preview-button {
+    flex: 0 0 auto;
+    /* This prevents growing and shrinking */
+    width: fit-content;
+    /* This ensures button isn't cut off */
+    visibility: hidden;
+  }
+
+  &:hover {
+    &__preview-button {
+      visibility: visible;
+    }
+  }
+}
