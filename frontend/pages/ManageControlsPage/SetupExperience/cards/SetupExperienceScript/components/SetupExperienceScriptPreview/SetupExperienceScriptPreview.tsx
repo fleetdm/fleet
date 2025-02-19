@@ -8,7 +8,7 @@ const baseClass = "setup-experience-script-preview";
 
 const SetupExperienceScriptPreview = () => {
   return (
-    <Card color="gray" paddingSize="xxlarge" className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
         After software is installed, the end user will see the script being run.

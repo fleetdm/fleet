@@ -147,7 +147,7 @@ export const FileUploader = ({
   };
 
   return (
-    <Card color="gray" className={classes}>
+    <Card color="grey" className={classes}>
       {isFileSelected && fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}

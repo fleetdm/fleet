@@ -222,7 +222,7 @@ func (s *Stats) IncrementSoftwareInstalls() {
 func (s *Stats) IncrementSoftwareInstallErrs() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.softwareInstalls++
+	s.softwareInstallErrs++
 }
 
 func (s *Stats) Log() {
