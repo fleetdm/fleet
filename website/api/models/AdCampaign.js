@@ -32,7 +32,6 @@ module.exports = {
     linkedinCampaignUrn: {
       type: 'string',
       example: 'urn:li:sponsoredCampaign:379399199',
-      startsWith: 'urn:li:sponsoredCampaign:',
       required: true
     },
 
