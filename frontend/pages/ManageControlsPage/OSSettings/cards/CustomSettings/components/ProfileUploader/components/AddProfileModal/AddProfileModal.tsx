@@ -208,7 +208,7 @@ const AddProfileModal = ({
         {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
         {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
           <div className={`${baseClass}__modal-content-wrap`}>
-            <Card color="gray" className={`${baseClass}__file`}>
+            <Card color="grey" className={`${baseClass}__file`}>
               {!fileDetails ? (
                 <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
               ) : (
