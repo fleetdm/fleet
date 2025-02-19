@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250218171742, Down_20250218171742)
+	MigrationClient.AddMigration(Up_20250219100000, Down_20250219100000)
 }
 
-func Up_20250218171742(tx *sql.Tx) error {
+func Up_20250219100000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE vpp_apps_teams
 		ADD COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -30,6 +30,6 @@ func Up_20250218171742(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250218171742(tx *sql.Tx) error {
+func Down_20250219100000(tx *sql.Tx) error {
 	return nil
 }
