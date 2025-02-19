@@ -5,6 +5,7 @@ const { spawnSync } = require("child_process");
 const { existsSync, mkdirSync } = require("fs");
 const { type } = require("os");
 const { join } = require("path");
+const { arch } = require("process");
 
 const axios = require("axios");
 const { rimrafSync } = require("rimraf");
@@ -27,9 +28,9 @@ const installDir = join(binDir, strippedVersion);
 const platform = (() => {
   switch (type()) {
     case "Windows_NT":
-      return "windows";
+      return `windows_${arch}`;
     case "Linux":
-      return "linux";
+      return `linux_${arch}`;
     case "Darwin":
       return "macos";
     default:
