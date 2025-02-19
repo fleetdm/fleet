@@ -32,8 +32,8 @@ const SoftwareOptionsSelector = ({
       {isSelfServiceDisabled && (
         <p>
           Currently, self-service and automatic installation are not available
-          for iOS and iPadOS. Manually install on the Host details page for each
-          host.
+          for iOS and iPadOS. Manually install on the <b>Host details</b> page
+          for each host.
         </p>
       )}
       <Checkbox
@@ -55,9 +55,9 @@ const SoftwareOptionsSelector = ({
         Self-service
       </Checkbox>
       <Checkbox
-        value={formData.automaticInstall} // TODO: change
-        onChange={
-          (newVal: boolean) => setFormData({ ...formData, selfService: newVal }) // TODO: change
+        value={formData.automaticInstall}
+        onChange={(newVal: boolean) =>
+          setFormData({ ...formData, automaticInstall: newVal })
         }
         className={`${baseClass}__automatic-install-checkbox`}
         tooltipContent={
