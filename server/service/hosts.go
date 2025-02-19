@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -2714,4 +2715,62 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Certificates
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostCertificatesRequest struct {
+	ID uint `url:"id"`
+	fleet.ListOptions
+}
+
+type listHostCertificatesResponse struct {
+	Certificates []*fleet.HostCertificateRecord `json:"certificates"`
+	Meta         *fleet.PaginationMetadata      `json:"meta,omitempty"`
+	Err          error                          `json:"error,omitempty"`
+}
+
+func (r listHostCertificatesResponse) Error() error { return r.Err }
+
+func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listHostCertificatesRequest)
+	res, meta, err := svc.ListHostCertificates(ctx, req.ID, req.ListOptions)
+	if err != nil {
+		return listHostCertificatesResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostCertificateRecord{}
+	}
+	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
+}
+
+var listHostCertificatesSortCols = map[string]bool{
+	"common_name":     true,
+	"not_valid_after": true,
+}
+
+func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, nil, ctxerr.Wrap(ctx, err, "failed to load host")
+		}
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// query/after not supported, always include pagination info
+	opts.MatchQuery = ""
+	opts.After = ""
+	opts.IncludeMetadata = true
+	// default sort order is common name ascending
+	if opts.OrderKey == "" || !listHostCertificatesSortCols[opts.OrderKey] {
+		opts.OrderKey = "common_name"
+	}
+
+	return svc.ds.ListHostCertificates(ctx, hostID, opts)
 }
