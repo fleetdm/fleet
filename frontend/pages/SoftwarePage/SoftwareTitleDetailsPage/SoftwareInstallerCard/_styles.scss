@@ -11,7 +11,7 @@
     gap: $pad-medium;
   }
 
-  // &__main-info and &__tags-wrapper can wrap lines on low widths
+  // SoftwareDetailsWidget and Tags wrap onto 2 lines on low widths
   &__row-1--responsive {
     display: flex;
     flex-grow: 1;
@@ -23,34 +23,11 @@
     }
   }
 
-  &__main-info {
-    display: flex;
-    gap: $pad-medium;
-  }
-
   &__tags-wrapper {
     display: flex;
     flex-wrap: wrap;
     align-content: center;
     gap: $pad-medium; // Between tags
-  }
-
-  &__info {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
-    justify-content: center;
-  }
-
-  &__title {
-    font-size: $x-small;
-    font-weight: $bold;
-    @include ellipse-text;
-    max-width: 48vw;
-  }
-
-  &__details {
-    font-size: $xx-small;
   }
 
   &__installer-statuses {
