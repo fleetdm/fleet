@@ -73,6 +73,7 @@ const EditSoftwareModal = ({
     software: null,
     installScript: "",
     selfService: false,
+    automaticInstall: false,
     targetType: "",
     customTarget: "",
     labelTargets: {},

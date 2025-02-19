@@ -2,23 +2,39 @@ import React, { Dispatch, SetStateAction } from "react";
 import classnames from "classnames";
 
 import Checkbox from "components/forms/fields/Checkbox";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 
 const baseClass = "software-options-selector";
 
 interface ISoftwareOptionsSelector {
-  platform: string;
+  formData:
+    | IFleetMaintainedAppFormData
+    | ISoftwareVppFormData
+    | IPackageFormData;
+  /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
+  onToggleAutomaticInstall: any;
+  onToggleSelfService: any;
+  platform?: string;
   className?: string;
-  formData: ISoftwareVppFormData;
-  setFormData: Dispatch<SetStateAction<ISoftwareVppFormData>>;
+  isCustomPackage?: boolean;
+  /** Edit mode does not have ability to change automatic install */
+  isEditingSoftware?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
+  formData,
+  onToggleAutomaticInstall,
+  onToggleSelfService,
   platform,
   className,
-  formData,
-  setFormData,
+  isCustomPackage,
+  isEditingSoftware,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
@@ -38,9 +54,7 @@ const SoftwareOptionsSelector = ({
       )}
       <Checkbox
         value={formData.selfService}
-        onChange={(newVal: boolean) =>
-          setFormData({ ...formData, selfService: newVal })
-        }
+        onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
         tooltipContent={
           !isSelfServiceDisabled && (
@@ -54,21 +68,37 @@ const SoftwareOptionsSelector = ({
       >
         Self-service
       </Checkbox>
-      <Checkbox
-        value={formData.automaticInstall}
-        onChange={(newVal: boolean) =>
-          setFormData({ ...formData, automaticInstall: newVal })
-        }
-        className={`${baseClass}__automatic-install-checkbox`}
-        tooltipContent={
-          !isAutomaticInstallDisabled && (
-            <>Automatically install only on hosts missing this software.</>
-          )
-        }
-        disabled={isAutomaticInstallDisabled}
-      >
-        Automatic install
-      </Checkbox>
+      {!isEditingSoftware && (
+        <Checkbox
+          value={formData.automaticInstall}
+          onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
+          className={`${baseClass}__automatic-install-checkbox`}
+          tooltipContent={
+            !isAutomaticInstallDisabled && (
+              <>Automatically install only on hosts missing this software.</>
+            )
+          }
+          disabled={isAutomaticInstallDisabled}
+        >
+          Automatic install
+        </Checkbox>
+      )}
+      {formData.automaticInstall && isCustomPackage && (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
+              text="Learn more"
+              newTab
+            />
+          }
+        >
+          Installing software over existing installations might cause issues.
+          Fleet&apos;s policy may not detect these existing installations.
+          Please create a test team in Fleet to verify a smooth installation.
+        </InfoBanner>
+      )}
     </div>
   );
 };

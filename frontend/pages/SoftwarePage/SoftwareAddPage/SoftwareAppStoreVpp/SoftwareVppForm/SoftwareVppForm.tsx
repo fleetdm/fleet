@@ -177,6 +177,17 @@ const SoftwareVppForm = ({
     }
   };
 
+  const onToggleSelfServiceCheckbox = (value: boolean) => {
+    const newData = { ...formData, selfService: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onToggleAutomaticInstall = (value: boolean) => {
+    const newData = { ...formData, automaticInstall: value };
+    setFormData(newData);
+  };
+
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
     setFormData(newData);
@@ -200,6 +211,7 @@ const SoftwareVppForm = ({
   const isSubmitDisabled = !formValidation.isValid;
 
   const renderContent = () => {
+    // Edit VPP form
     if (softwareVppForEdit) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -216,7 +228,9 @@ const SoftwareVppForm = ({
               <SoftwareOptionsSelector
                 platform={softwareVppForEdit.platform}
                 formData={formData}
-                setFormData={setFormData}
+                onToggleAutomaticInstall={onToggleAutomaticInstall}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
+                isEditingSoftware
               />
             </Card>
             <Card>
@@ -231,7 +245,7 @@ const SoftwareVppForm = ({
                 onSelectLabel={onSelectLabel}
                 labels={labels || []}
                 dropdownHelpText={
-                  generateHelpText("manual", formData.customTarget) // maps to manual install help text
+                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
                 }
               />
             </Card>
@@ -240,6 +254,7 @@ const SoftwareVppForm = ({
       );
     }
 
+    // Add VPP form
     if (vppApps) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -263,7 +278,8 @@ const SoftwareVppForm = ({
                   ""
                 }
                 formData={formData}
-                setFormData={setFormData}
+                onToggleAutomaticInstall={onToggleAutomaticInstall}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
               />
             </Card>
             <Card paddingSize="medium" borderRadiusSize="medium">
@@ -278,7 +294,7 @@ const SoftwareVppForm = ({
                 onSelectLabel={onSelectLabel}
                 labels={labels || []}
                 dropdownHelpText={
-                  generateHelpText("manual", formData.customTarget) // maps to manual install help text
+                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
                 }
               />
             </Card>
