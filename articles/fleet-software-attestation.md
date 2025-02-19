@@ -19,7 +19,7 @@ gh attestation verify --owner fleetdm /path/to/fleet
 Verify the [fleetctl binary](https://github.com/fleetdm/fleet/releases) (CLI):
 
 ```
-gh attestation verify --owner fleetdm fleetdm /path/to/fleetctl
+gh attestation verify --owner fleetdm /path/to/fleetctl
 ```
 
 After, installing Fleet's agent (fleetd) on a macOS or Linux host, run this command on the host to verify:
