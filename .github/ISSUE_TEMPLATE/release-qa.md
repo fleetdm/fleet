@@ -250,7 +250,7 @@ List versions changes for any component updates below:
 2. Confirm any new features and/or bug fixes associated with this release are working as intended.<br>
 </td>
 <td>pass/fail</td></tr>
- <td>`fleetd` auto-update tests</td>
+<td>`fleetd` auto-update tests</td>
 <td>
 1. Conduct the [`fleetd` auto-update n+1 test]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md))<br>
 2. QA certifies new release by commenting in issue.<br>
