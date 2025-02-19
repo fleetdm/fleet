@@ -41,7 +41,7 @@ type devicePingResponse struct{}
 
 func (r devicePingResponse) Error() error { return nil }
 
-func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r devicePingResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	writeCapabilitiesHeader(w, fleet.GetServerDeviceCapabilities())
 }
 
@@ -379,11 +379,11 @@ func (r *transparencyURLRequest) deviceAuthToken() string {
 }
 
 type transparencyURLResponse struct {
-	RedirectURL string `json:"-"` // used to control the redirect, see hijackRender method
+	RedirectURL string `json:"-"` // used to control the redirect, see HijackRender method
 	Err         error  `json:"error,omitempty"`
 }
 
-func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.RedirectURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
@@ -489,13 +489,13 @@ func (r *getDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
 }
 
 type getDeviceMDMManualEnrollProfileResponse struct {
-	// Profile field is used in hijackRender for the response.
+	// Profile field is used in HijackRender for the response.
 	Profile []byte
 
 	Err error `json:"error,omitempty"`
 }
 
-func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getDeviceMDMManualEnrollProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// make the browser download the content to a file
 	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
 	// explicitly set the content length before the write, so the caller can

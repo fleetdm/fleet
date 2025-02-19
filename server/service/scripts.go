@@ -695,7 +695,7 @@ type downloadFileResponse struct {
 
 func (r downloadFileResponse) Error() error { return r.Err }
 
-func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r downloadFileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
 	if r.contentType == "" {
 		r.contentType = "application/octet-stream"
