@@ -93,4 +93,9 @@
             border-bottom: none;
         }
     }
+
+    // For TooltipTruncatedText
+    .fleet-checkbox__label {
+        display: flex;
+    }
 }

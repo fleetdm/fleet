@@ -8,6 +8,7 @@ import React, {
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 // @ts-ignore
 import Pagination from "components/Pagination";
 
@@ -151,7 +152,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 {renderItemLabel ? (
                   renderItemLabel(item)
                 ) : (
-                  <span>{item[labelKey]}</span>
+                  <TooltipTruncatedText
+                    value={
+                      <span className={`${baseClass}__item-label`}>
+                        {item[labelKey]}
+                      </span>
+                    }
+                  />
                 )}
               </Checkbox>
               {renderItemRow &&
