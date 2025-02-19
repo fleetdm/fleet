@@ -892,6 +892,8 @@ const ManagePolicyPage = ({
       config?.integrations.google_calendar.length > 0) ??
     false;
 
+  const gomEnabled = config?.gitops.gitops_mode_enabled;
+
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
@@ -1102,6 +1104,7 @@ const ManagePolicyPage = ({
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
+            gomEnabled={gomEnabled}
           />
         )}
       </div>
