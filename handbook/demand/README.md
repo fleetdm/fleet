@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_
 
 
 ## Contact us
@@ -22,6 +22,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Demand department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
 
 
 ### Refresh event calendar
@@ -77,7 +78,7 @@ Follow these steps to research an account and move it toward sales-readiness **a
   - "Psychological stage" 
   - "intent signals" 
 3. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
-After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)":
 
 1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
 2. For "Contact source" for any new contacts, use "Manual research".
