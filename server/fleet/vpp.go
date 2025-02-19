@@ -36,7 +36,7 @@ type VPPAppTeam struct {
 	// Fleet as being valid labels. This field is only used internally.
 	ValidatedLabels *LabelIdentsWithScope `json:"-"`
 	// AddedAt is when the VPP app was added to the team
-	AddedAt time.Time `db:"added_at" json:"added_at"`
+	AddedAt time.Time `db:"added_at" json:"created_at"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
