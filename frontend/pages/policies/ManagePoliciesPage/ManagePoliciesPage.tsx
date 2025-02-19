@@ -1092,6 +1092,7 @@ const ManagePolicyPage = ({
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
+            gomEnabled={gomEnabled}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />

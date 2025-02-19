@@ -2,6 +2,8 @@ import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
+import classnames from "classnames";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import scriptsAPI, {
@@ -22,6 +24,7 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "policy-run-script-modal";
 
@@ -45,6 +48,7 @@ interface IPolicyRunScriptModal {
   isUpdating: boolean;
   policies: IPolicyStats[];
   teamId: number;
+  gomEnabled?: boolean;
 }
 
 const PolicyRunScriptModal = ({
@@ -53,6 +57,7 @@ const PolicyRunScriptModal = ({
   isUpdating,
   policies,
   teamId,
+  gomEnabled = false,
 }: IPolicyRunScriptModal) => {
   const [formData, setFormData] = useState<IPolicyRunScriptFormData>(
     policies.map((policy) => ({
@@ -137,15 +142,19 @@ const PolicyRunScriptModal = ({
       scriptIdToRun,
     } = policy;
 
+    const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
+      "policy-row--gitops-mode-disabled": gomEnabled,
+    });
     return (
       <li
-        className={`${baseClass}__policy-row policy-row`}
+        className={classes}
         id={`policy-row--${policyId}`}
         key={`${policyId}-${enabled}`}
       >
         <Checkbox
           value={enabled}
           name={policyName}
+          disabled={gomEnabled}
           onChange={() => {
             onChangeEnableRunScript({
               policyId,
@@ -228,16 +237,20 @@ const PolicyRunScriptModal = ({
           </div>
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onUpdate}
-            className="save-loading"
-            isLoading={isUpdating}
-            disabled={anyEnabledWithoutSelection}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(dC) => (
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={onUpdate}
+                className="save-loading"
+                isLoading={isUpdating}
+                disabled={dC || anyEnabledWithoutSelection}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onExit} variant="inverse">
             Cancel
           </Button>
