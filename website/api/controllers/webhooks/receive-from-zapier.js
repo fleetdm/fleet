@@ -30,7 +30,8 @@ module.exports = {
 
   exits: {
     success: { description: 'An event has successfully been received.' },
-    unrecognizedEventName: { description: 'I do not know how to handle that kind of event.', responseType: 'badRequest' },
+    unrecognizedEventName: { description: 'I do not know how to handle that kind of event.', responseType: 'badRequest' },// TODO: how will zapier react to receiving a bad request response?
+    couldNotMatchLinkedinId: { description: 'A linkedIn company could not be found using the provided linkedIn url', responseType: 'TODO' }
   },
 
 
@@ -39,6 +40,10 @@ module.exports = {
 
     if (!sails.config.custom.zapierWebhookSecret) {
       throw new Error('No webhook secret configured!  (Please set `sails.config.custom.zapierWebhookSecret`.)');
+    }
+
+    if (!sails.config.custom.iqSecret) {
+      throw new Error('No iqSecret configured!  (Please set `sails.config.custom.iqSecret`.)');
     }
 
     if (sails.config.custom.zapierWebhookSecret !== webhookSecret) {
@@ -55,9 +60,22 @@ module.exports = {
       assert(_.isString(data.persona) && AdCampaign.validate('persona', data.persona));
 
       // Enrich to obtain linkedin company ID using provided data.
+      // Remove any trailing slashes from the LinkedIn URL.
+      let trailingSlashlessLinkedinCompanyUrl = _.trim(data.linkedinCompanyPageUrl, '/');
+      // Split the LinkedIn url by slashes
+      let splitLinkedinCompanyUrl = trailingSlashlessLinkedinCompanyUrl.split('/');
+      // Grab the last fragment of the URL, we'll use this for the coreSignal API request to
+      let linkedinCompanyIdOrSLug = splitLinkedinCompanyUrl[splitLinkedinCompanyUrl.length - 1];
+      let matchedCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+linkedinCompanyIdOrSLug, {}, {
+        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+        'content-type': 'application/json'
+      }).intercept((err)=>{
+        sails.log.info(`When the receive-from-zapier webhook received a request about a Salesforce record, a linkedin company could not be found using the provided linkedIn URL (${data.linkedinCompanyPageUrl})`, err);
+        return 'couldNotMatchLinkedinId';
+      });
+
       // (FUTURE: make field for this and have it already in CRM so this step isn't necessary)
-      let linkedinCompanyId;
-      // ^TODO: use coresignal for now
+      let linkedinCompanyId = matchedCompanyPageInfo.id;
 
       // Check if we have enough space in our current active campaign.
       // If so, then use it and update its inventory.  Otherwise, prepare to create
