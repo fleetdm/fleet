@@ -569,7 +569,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             onActionButtonClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
+          resultsTitle="users"
           emptyComponent={EmptyUsersTable}
           searchable
           showMarkAllPages={false}

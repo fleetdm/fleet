@@ -258,7 +258,7 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities || []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}

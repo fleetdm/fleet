@@ -53,7 +53,7 @@ const AutoEnrollMdmModal = ({
               readOnly
               inputWrapperClass
               name="profiles-renew-command"
-              value={"sudo profiles renew -type enrollment"}
+              value="sudo profiles renew -type enrollment"
             />
           </div>
         </li>
@@ -94,7 +94,7 @@ const AutoEnrollMdmModal = ({
               readOnly
               inputWrapperClass
               name="profiles-renew-command"
-              value={"sudo profiles renew -type enrollment"}
+              value="sudo profiles renew -type enrollment"
             />
           </div>
         </li>
