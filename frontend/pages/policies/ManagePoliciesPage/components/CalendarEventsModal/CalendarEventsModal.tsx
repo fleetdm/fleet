@@ -1,4 +1,5 @@
 import React, { useState, useRef, useContext } from "react";
+import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
@@ -317,7 +318,9 @@ const CalendarEventsModal = ({
     <>
       <Modal
         title="Calendar events"
-        onExit={onExit}
+        // Disable exit when preview modal is open, so that escape key
+        // only closes the preview.
+        onExit={showPreviewCalendarEvent ? noop : onExit}
         onEnter={
           configured
             ? () => {
