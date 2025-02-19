@@ -26,12 +26,15 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
     Card: Calendars,
   },
-  {
+];
+
+if (featureFlags.allowGitOpsMode === "true") {
+  integrationSettingsNavItems.push({
     title: "Change management",
     urlSection: "change-management",
     path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
     Card: ChangeManagement,
-  },
-];
+  });
+}
 
 export default integrationSettingsNavItems;
