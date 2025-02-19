@@ -1211,7 +1211,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
 	commandUUID := uuid.NewString()
 
-	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2*len(devices))
+	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
 	installedAppsUUIDs := make([]string, 0, len(devices))
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
@@ -1226,6 +1226,23 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+		}
+	}
+
+	certsListUUIDs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchCertsCommandUUIDPrefix) {
+			certsListUUIDs = append(certsListUUIDs, device.UUID)
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      device.HostID,
+				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+			})
+		}
+	}
+	if len(certsListUUIDs) > 0 {
+		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
 		}
 	}
 

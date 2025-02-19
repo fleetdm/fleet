@@ -3030,44 +3030,102 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		return nil, ctxerr.Wrap(ctx, err, "failed to get host by identifier")
 	}
 
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
-		// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
-		err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
-			HostID:      host.ID,
-			CommandType: fleet.RefetchAppsCommandUUIDPrefix,
-		})
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
-		}
+	switch {
+	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix):
+		return svc.handleRefetchAppsResults(ctx, host, cmdResult)
 
-		if host.Platform != "ios" && host.Platform != "ipados" {
-			return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
-		}
-		source := "ios_apps"
-		if host.Platform == "ipados" {
-			source = "ipados_apps"
-		}
+	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix):
+		return svc.handleRefetchCertsResults(ctx, host, cmdResult)
 
-		response := cmdResult.Raw
-		software, err := unmarshalAppList(ctx, response, source)
-		if err != nil {
-			return nil, err
-		}
-		_, err = svc.ds.UpdateHostSoftware(ctx, host.ID, software)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "update host software")
-		}
+	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix):
+		return svc.handleRefetchDeviceResults(ctx, host, cmdResult)
 
-		return nil, nil
+	default:
+		// This should never happen, but just in case we'll return an error.
+		return nil, ctxerr.New(ctx, fmt.Sprintf("unknown refetch command type %s", cmdResult.CommandUUID))
+	}
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+		// Caller should have checked this, but just in case we'll return an error.
+		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-APPS- prefix but got %s", cmdResult.CommandUUID))
 	}
 
-	// Otherwise, the command has prefix fleet.RefetchDeviceCommandUUIDPrefix, which is a refetch device command.
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
-	err = svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID:      host.ID,
+		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
+	}
+
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
+	}
+	source := "ios_apps"
+	if host.Platform == "ipados" {
+		source = "ipados_apps"
+	}
+
+	response := cmdResult.Raw
+	software, err := unmarshalAppList(ctx, response, source)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list")
+	}
+	_, err = svc.ds.UpdateHostSoftware(ctx, host.ID, software)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update host software")
+	}
+
+	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix) {
+		// Caller should have checked this, but just in case we'll return an error.
+		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-CERTS- prefix but got %s", cmdResult.CommandUUID))
+	}
+
+	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID:      host.ID,
+		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "refetch certs: remove refetch command")
+	}
+
+	var listResp fleet.MDMAppleCertificateListResponse
+	if err := plist.Unmarshal(cmdResult.Raw, &listResp); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "refetch certs: unmarshal certificate list command result")
+	}
+	payload := make([]*fleet.HostCertificateRecord, 0, len(listResp.CertificateList))
+	for _, cert := range listResp.CertificateList {
+		parsed, err := cert.Parse(host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "refetch certs: parse certificate")
+		}
+		payload = append(payload, parsed)
+	}
+
+	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, payload); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
+	}
+
+	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix) {
+		// Caller should have checked this, but just in case we'll return an error.
+		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-DEVICE- prefix but got %s", cmdResult.CommandUUID))
+	}
+
+	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
 	}
 
@@ -3075,7 +3133,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		QueryResponses map[string]interface{} `plist:"QueryResponses"`
 	}
 	if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
-		return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
+		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal device information command result")
 	}
 	deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
 	deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
@@ -3103,26 +3161,25 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
 	host.RefetchRequested = false
-	if err := svc.ds.UpdateHost(r.Context, host); err != nil {
-		return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
+	if err := svc.ds.UpdateHost(ctx, host); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
-	if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
+	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
 		deviceCapacity); err != nil {
-		return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
 	}
-	if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
 		Name:     osVersionPrefix,
 		Version:  osVersion,
 		Platform: platform,
 	}); err != nil {
-		return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
+		return nil, ctxerr.Wrap(ctx, err, "failed to update host operating system")
 	}
 
 	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {
 		// Since the device has been refetched, we can assume it's enrolled.
-		err = svc.ds.UpdateMDMData(ctx, host.ID, true)
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to update MDM data")
+		if err := svc.ds.UpdateMDMData(ctx, host.ID, true); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to update MDM data")
 		}
 	}
 	return nil, nil

@@ -10710,6 +10710,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Len(t, commands, commandsSent)
 	assert.ElementsMatch(t, []fleet.HostMDMCommand{
 		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
 		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 

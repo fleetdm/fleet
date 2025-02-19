@@ -1065,15 +1065,18 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 		doAppRefetch := true
 		doDeviceInfoRefetch := true
+		doCertsRefetch := true
 		for _, cmd := range commands {
 			switch cmd.CommandType {
 			case fleet.RefetchDeviceCommandUUIDPrefix:
 				doDeviceInfoRefetch = false
 			case fleet.RefetchAppsCommandUUIDPrefix:
 				doAppRefetch = false
+			case fleet.RefetchCertsCommandUUIDPrefix:
+				doCertsRefetch = false
 			}
 		}
-		if !doAppRefetch && !doDeviceInfoRefetch {
+		if !doAppRefetch && !doDeviceInfoRefetch && !doCertsRefetch {
 			// Nothing to do.
 			return nil
 		}
@@ -1081,7 +1084,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err != nil {
 			return err
 		}
-		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2)
+		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
 			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
@@ -1091,6 +1094,15 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      host.ID,
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			})
+		}
+		if doCertsRefetch {
+			if err := svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 			})
 		}
 		if doDeviceInfoRefetch {
