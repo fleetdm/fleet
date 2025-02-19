@@ -9,7 +9,14 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
 import { IPolicy } from "interfaces/policy";
-import teamPoliciesAPI from "services/entities/team_policies";
+import teamPoliciesAPI, {
+  ITeamPoliciesQueryKey,
+} from "services/entities/team_policies";
+import globalPoliciesAPI, {
+  IPoliciesQueryKey,
+} from "services/entities/global_policies";
+
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
 
 // Extend the IPolicy interface with some virtual properties that make it easier
@@ -74,12 +81,30 @@ function PoliciesPaginatedList(
 
   // Fetch a single page of policies.
   const queryClient = useQueryClient();
-  const DEFAULT_PAGE_SIZE = 10;
+  const DEFAULT_PAGE_SIZE = 8;
   const DEFAULT_SORT_COLUMN = "name";
 
   const fetchPage = useCallback((pageNumber: number) => {
-    return queryClient
-      .fetchQuery(
+    let fetchPromise;
+
+    if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      fetchPromise = queryClient.fetchQuery(
+        [
+          {
+            scope: "globalPolicies",
+            page: pageNumber,
+            perPage: DEFAULT_PAGE_SIZE,
+            query: "",
+            orderDirection: "asc" as const,
+            orderKey: DEFAULT_SORT_COLUMN,
+          },
+        ],
+        ({ queryKey }) => {
+          return globalPoliciesAPI.loadAllNew(queryKey[0]);
+        }
+      );
+    } else {
+      fetchPromise = queryClient.fetchQuery(
         [
           {
             scope: "teamPolicies",
@@ -95,17 +120,19 @@ function PoliciesPaginatedList(
         ({ queryKey }) => {
           return teamPoliciesAPI.loadAllNew(queryKey[0]);
         }
-      )
-      .then((policiesResponse) => {
-        // Marshall the response into IFormPolicy objects.
-        return (policiesResponse.policies || []).map((policy) => ({
-          ...policy,
-          installSoftwareEnabled: !!policy.install_software,
-          swIdToInstall: policy.install_software?.software_title_id,
-          runScriptEnabled: !!policy.run_script,
-          scriptIdToRun: policy.run_script?.id,
-        })) as IFormPolicy[];
-      });
+      );
+    }
+
+    return fetchPromise.then((policiesResponse) => {
+      // Marshall the response into IFormPolicy objects.
+      return (policiesResponse.policies || []).map((policy) => ({
+        ...policy,
+        installSoftwareEnabled: !!policy.install_software,
+        swIdToInstall: policy.install_software?.software_title_id,
+        runScriptEnabled: !!policy.run_script,
+        scriptIdToRun: policy.run_script?.id,
+      })) as IFormPolicy[];
+    });
   }, []);
 
   return (
