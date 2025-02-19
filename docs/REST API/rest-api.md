@@ -501,13 +501,19 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_id": 3,
       "actor_gravatar": "",
       "actor_email": "",
-      "type": "uninstalled_software",
+      "type": "installed_software",
+      "fleet_initiated": false,
       "details": {
-        "host_id": 1,
-        "host_display_name": "Marko's MacBook Pro",
-        "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
-        "status": "failed_install"
+	    "status": "installed",
+	    "host_id": 1272,
+	    "host_display_name": "MacBook Pro",
+	    "policy_id": null,
+	    "policy_name": null,
+	    "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+	    "self_service": false,
+	    "software_title": "zoom.us.app",
+	    "software_package": "ZoomInstallerIT.pkg",
+	}
       }
     },
     {
@@ -518,64 +524,29 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_team",
+      "fleet_initiated": false,
       "details": {
         "team_id": 2,
         "team_name": "Apples"
       }
     },
     {
-      "created_at": "2021-07-30T13:41:07Z",
-      "id": 24,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 25,
+      "type": "installed_software",
+      "fleet_initiated": true,
       "details": {
-        "targets_count": 231
+	    "status": "installed",
+	    "host_id": 1272,
+	    "host_display_name": "MacBook Pro",
+	    "policy_id": 24,
+	    "policy_name": "[Install software] Zoom",
+	    "install_uuid": "077970ab-0ed6-4573-9cdc-ca9ef9015283",
+	    "self_service": false,
+	    "software_title": "zoom.us.app",
+	    "software_package": "ZoomInstallerIT.pkg",
+	}
       }
-    },
-    {
-      "created_at": "2021-07-29T15:35:33Z",
-      "id": 23,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "deleted_multiple_saved_query",
-      "details": {
-        "query_ids": [
-          2,
-          24,
-          25
-        ]
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:30Z",
-      "id": 22,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 3,
-        "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:08Z",
-      "id": 15,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
-      }
-    }
   ],
   "meta": {
     "has_next_results": true,
