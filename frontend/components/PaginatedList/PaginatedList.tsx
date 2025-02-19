@@ -45,8 +45,6 @@ interface IPaginatedListProps<TItem> {
   onToggleItem: (item: TItem) => TItem;
   // The size of the page to fetch and show.
   pageSize?: number;
-  // The total # of items on all pages.
-  totalItems: number;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(

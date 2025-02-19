@@ -9,12 +9,8 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
 import { IPolicy } from "interfaces/policy";
-import teamPoliciesAPI, {
-  ITeamPoliciesQueryKey,
-} from "services/entities/team_policies";
-import globalPoliciesAPI, {
-  IPoliciesQueryKey,
-} from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
+import globalPoliciesAPI from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
@@ -146,7 +142,6 @@ function PoliciesPaginatedList(
             isSelected={isSelected}
             onToggleItem={onToggleItem}
             renderItemRow={renderItemRow}
-            totalItems={100}
             pageSize={DEFAULT_PAGE_SIZE}
           />
 
