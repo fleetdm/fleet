@@ -35,7 +35,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 	// infrequently and they will be eventually consistent
 	existingCerts, _, err := listHostCertsDB(ctx, ds.reader(ctx), hostID, fleet.ListOptions{}) // requesting unpaginated results with default limit of 1 million
 	if err != nil {
-		return fmt.Errorf("list host certs for update: %w", err)
+		return ctxerr.Wrap(ctx, err, "list host certificates for update")
 	}
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
 	for _, ec := range existingCerts {
@@ -115,7 +115,7 @@ WHERE
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {
-		return nil, nil, err
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting host certificates")
 	}
 
 	var metaData *fleet.PaginationMetadata
@@ -169,10 +169,10 @@ INSERT INTO host_certificates (
 			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
 	}
 
-	stmt = fmt.Sprintf(stmt, strings.Trim(strings.Join(placeholders, ","), ","))
+	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "inserting host certificates")
 	}
 
 	return nil
@@ -186,11 +186,11 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	stmt := `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND id IN (?)`
 	stmt, args, err := sqlx.In(stmt, hostID, toDelete)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "building soft delete query")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "soft deleting host certificates")
 	}
 
 	return nil
