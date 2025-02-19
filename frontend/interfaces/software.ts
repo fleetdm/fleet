@@ -98,7 +98,7 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
-  uploaded_at: string;
+  created_at: string;
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];

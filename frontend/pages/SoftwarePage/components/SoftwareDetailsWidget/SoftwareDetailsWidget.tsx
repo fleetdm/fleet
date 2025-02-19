@@ -5,7 +5,7 @@ import React, { useLayoutEffect, useState } from "react";
 import classnames from "classnames";
 
 import { internationalTimeFormat } from "utilities/helpers";
-import { uploadedFromNow } from "utilities/date_format";
+import { addedFromNow } from "utilities/date_format";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -60,7 +60,7 @@ interface ISoftwareDetailsWidget {
   className?: string;
   softwareName: string;
   installerType: "package" | "vpp";
-  uploadedAt?: string;
+  addedTimestamp?: string;
   versionInfo?: JSX.Element;
 }
 
@@ -68,7 +68,7 @@ const SoftwareDetailsWidget = ({
   className,
   softwareName,
   installerType,
-  uploadedAt,
+  addedTimestamp,
   versionInfo,
 }: ISoftwareDetailsWidget) => {
   const classNames = classnames(baseClass, className);
@@ -82,16 +82,16 @@ const SoftwareDetailsWidget = ({
   };
 
   const renderDetails = () => {
-    return !uploadedAt ? (
+    return !addedTimestamp ? (
       versionInfo
     ) : (
       <>
         {versionInfo} &bull;{" "}
         <TooltipWrapper
-          tipContent={internationalTimeFormat(new Date(uploadedAt))}
+          tipContent={internationalTimeFormat(new Date(addedTimestamp))}
           underline={false}
         >
-          {uploadedFromNow(uploadedAt)}
+          {addedFromNow(addedTimestamp)}
         </TooltipWrapper>
       </>
     );

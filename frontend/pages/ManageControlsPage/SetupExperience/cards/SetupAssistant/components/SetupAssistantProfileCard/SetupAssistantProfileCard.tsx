@@ -1,7 +1,7 @@
 import React from "react";
 import FileSaver from "file-saver";
 
-import { uploadedFromNow } from "utilities/date_format";
+import { addedFromNow } from "utilities/date_format";
 
 import Icon from "components/Icon";
 import Card from "components/Card";
@@ -38,7 +38,7 @@ const SetupAssistantProfileCard = ({
       <div className={`${baseClass}__info`}>
         <span className={`${baseClass}__profile-name`}>{profile.name}</span>
         <span className={`${baseClass}__uploaded-at`}>
-          {uploadedFromNow(profile.uploaded_at)}
+          {addedFromNow(profile.uploaded_at)}
         </span>
       </div>
       <div className={`${baseClass}__actions`}>
