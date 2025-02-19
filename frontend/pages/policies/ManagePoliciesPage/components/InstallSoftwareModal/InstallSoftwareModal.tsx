@@ -3,6 +3,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
+import classnames from "classnames";
+
 import { IPolicyStats } from "interfaces/policy";
 import {
   CommaSeparatedPlatformString,
@@ -29,6 +31,7 @@ import {
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -63,6 +66,7 @@ interface IInstallSoftwareModal {
   isUpdating: boolean;
   policies: IPolicyStats[];
   teamId: number;
+  gomEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -91,6 +95,7 @@ const InstallSoftwareModal = ({
   isUpdating,
   policies,
   teamId,
+  gomEnabled = false,
 }: IInstallSoftwareModal) => {
   const [formData, setFormData] = useState<IInstallSoftwareFormData>(
     policies.map((policy) => ({
@@ -251,14 +256,18 @@ const InstallSoftwareModal = ({
       swIdToInstall,
     } = policy;
 
+    const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
+      "policy-row--gitops-mode-disabled": gomEnabled,
+    });
     return (
       <li
-        className={`${baseClass}__policy-row policy-row`}
+        className={classes}
         id={`policy-row--${policyId}`}
         key={`${policyId}-${enabled}`} // Re-renders when modifying enabled for truncation check
       >
         <Checkbox
           value={enabled}
+          disabled={gomEnabled}
           name={policyName}
           onChange={() => {
             onChangeEnableInstallSoftware({
@@ -326,16 +335,20 @@ const InstallSoftwareModal = ({
           </div>
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onUpdateInstallSoftware}
-            className="save-loading"
-            isLoading={isUpdating}
-            disabled={anyPolicyEnabledWithoutSelectedSoftware}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(dC) => (
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={onUpdateInstallSoftware}
+                className="save-loading"
+                isLoading={isUpdating}
+                disabled={dC || anyPolicyEnabledWithoutSelectedSoftware}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onExit} variant="inverse">
             Cancel
           </Button>
