@@ -26,9 +26,10 @@ version_gt() {
 
 # Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
+ARCH="$(uname -m)"
 
 case "${OS}" in
-    Linux*)     OS='linux' OS_DISPLAY_NAME='Linux';;
+    Linux*)     OS="linux_${ARCH}" OS_DISPLAY_NAME='Linux';;
     Darwin*)    OS='macos' OS_DISPLAY_NAME='macOS';;
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac
