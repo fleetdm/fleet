@@ -2,16 +2,14 @@ import React, { useState } from "react";
 
 import { ILabelSummary } from "interfaces/label";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
+import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
-  InstallType,
-  InstallTypeSection,
 } from "pages/SoftwarePage/helpers";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
@@ -22,11 +20,11 @@ const baseClass = "fleet-app-details-form";
 
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
+  automaticInstall: boolean;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   uninstallScript?: string;
-  installType: InstallType;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
@@ -65,11 +63,11 @@ const FleetAppDetailsForm = ({
 
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
+    automaticInstall: false,
     preInstallQuery: undefined,
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
-    installType: "manual",
     targetType: "All hosts",
     customTarget: "labelsIncludeAny",
     labelTargets: {},
@@ -109,9 +107,8 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onChangeInstallType = (value: string) => {
-    const installType = value as InstallType;
-    const newData = { ...formData, installType };
+  const onToggleAutomaticInstallCheckbox = (value: boolean) => {
+    const newData = { ...formData, automaticInstall: value };
     setFormData(newData);
   };
 
@@ -144,41 +141,33 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <InstallTypeSection
-        className={baseClass}
-        installType={formData.installType}
-        onChangeInstallType={onChangeInstallType}
-      />
-      <TargetLabelSelector
-        selectedTargetType={formData.targetType}
-        selectedCustomTarget={formData.customTarget}
-        selectedLabels={formData.labelTargets}
-        customTargetOptions={CUSTOM_TARGET_OPTIONS}
-        className={`${baseClass}__target`}
-        dropdownHelpText={
-          formData.targetType === "Custom" &&
-          generateHelpText(formData.installType, formData.customTarget)
-        }
-        onSelectTargetType={onSelectTargetType}
-        onSelectCustomTarget={onSelectCustomTargetOption}
-        onSelectLabel={onSelectLabel}
-        labels={labels || []}
-      />
-      <Checkbox
-        value={formData.selfService}
-        onChange={onToggleSelfServiceCheckbox}
-      >
-        <TooltipWrapper
-          tipContent={
-            <>
-              End users can install from <b>Fleet Desktop {">"} Self-service</b>
-              .
-            </>
-          }
-        >
-          Self-service
-        </TooltipWrapper>
-      </Checkbox>
+      <div className={`${baseClass}__form-frame`}>
+        <Card>
+          <SoftwareOptionsSelector
+            formData={formData}
+            onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
+            onToggleSelfService={onToggleSelfServiceCheckbox}
+            isCustomPackage
+          />
+        </Card>
+        <Card>
+          <TargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            className={`${baseClass}__target`}
+            dropdownHelpText={
+              formData.targetType === "Custom" &&
+              generateHelpText(formData.automaticInstall, formData.customTarget)
+            }
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTargetOption}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+          />
+        </Card>
+      </div>
       <div className={`${baseClass}__advanced-options-section`}>
         <RevealButton
           className={`${baseClass}__accordion-title`}
