@@ -306,7 +306,7 @@ const PackageForm = ({
           onChangePostInstallScript={onChangePostInstallScript}
           onChangeUninstallScript={onChangeUninstallScript}
         />
-        <div className="form-buttons">
+        <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
             tipOffset={6}
             renderChildren={(disableChildren) => (
@@ -319,9 +319,6 @@ const PackageForm = ({
               </Button>
             )}
           />
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
         </div>
       </form>
     </div>

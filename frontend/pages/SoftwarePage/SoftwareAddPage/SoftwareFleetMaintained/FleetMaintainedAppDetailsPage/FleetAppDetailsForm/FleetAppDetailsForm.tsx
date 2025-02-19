@@ -199,7 +199,7 @@ const FleetAppDetailsForm = ({
           />
         )}
       </div>
-      <div className={`${baseClass}__form-buttons`}>
+      <div className={`${baseClass}__action-buttons`}>
         <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
           Add software
         </Button>
