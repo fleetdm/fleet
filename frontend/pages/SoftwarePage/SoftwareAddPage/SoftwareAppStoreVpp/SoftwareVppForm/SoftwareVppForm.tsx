@@ -205,7 +205,10 @@ const SoftwareVppForm = ({
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
             graphicNames="app-store"
-            fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
+            fileDetails={{
+              name: softwareVppForEdit.name,
+              platform: softwareVppForEdit.platform,
+            }}
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>

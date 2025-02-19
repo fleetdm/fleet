@@ -27,7 +27,7 @@ const SoftwareOptionsSelector = ({
     platform === "ios" || platform === "ipados";
 
   return (
-    <div className={"form-field"}>
+    <div className="form-field">
       <div className="form-field__label">Options</div>
       {isSelfServiceDisabled && (
         <p>

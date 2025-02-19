@@ -235,7 +235,7 @@ const PackageForm = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={isEditingSoftware}
-          graphicName={"file-pkg"}
+          graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
           message=".pkg, .msi, .exe, .deb, or .rpm"
           onFileUpload={onFileSelect}
