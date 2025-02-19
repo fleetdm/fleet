@@ -25,8 +25,8 @@ func (e Enterprise) AuthzType() string {
 type EnterpriseDetails struct {
 	Enterprise
 	SignupName  string `db:"signup_name"`
-	TopicID     string `db:"topic_id"`
 	SignupToken string `db:"signup_token"`
+	TopicID     string `db:"pubsub_topic_id"`
 }
 
 type EnrollmentToken struct {

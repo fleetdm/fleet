@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -146,12 +147,19 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
 
+	// pubSubToken is used to authenticate the pubsub push endpoint -- to ensure that the push came from our Android enterprise
+	pubSubToken, err := server.GenerateRandomURLSafeText(64)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating pubsub token")
+	}
+	// TODO: Use ds.insertOrReplaceConfigAsset to save the token and retrieve it via cached_mysql
+
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
 		[]string{"ENROLLMENT", "STATUS_REPORT", "COMMAND", "USAGE_LOGS"},
 		enterpriseToken,
 		enterprise.SignupName,
-		appConfig.ServerSettings.ServerURL+pubSubPushEndpoint,
+		appConfig.ServerSettings.ServerURL+pubSubPushEndpoint+"?token="+pubSubToken,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")

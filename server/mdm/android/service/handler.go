@@ -14,7 +14,7 @@ func GetRoutes(fleetSvc fleet.Service, svc android.Service) endpoint_utils.Handl
 	}
 }
 
-const pubSubPushEndpoint = "/api/v1/fleet/android_enterprise/push"
+const pubSubPushEndpoint = "/api/v1/fleet/android_enterprise/pubsub"
 
 func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
 
@@ -32,6 +32,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 		androidEnterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", androidEnrollmentTokenEndpoint,
 		androidEnrollmentTokenRequest{})
+	ne.POST(pubSubPushEndpoint, androidPubSubPushEndpoint, androidPubSubPushRequest{})
 
 }
 

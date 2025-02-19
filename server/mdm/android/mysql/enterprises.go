@@ -22,7 +22,7 @@ func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
 }
 
 func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
-	stmt := `SELECT id, signup_name, enterprise_id, topic_id, signup_token FROM android_enterprises WHERE id = ?`
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token FROM android_enterprises WHERE id = ?`
 	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
 	switch {
@@ -54,7 +54,7 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
 	stmt := `UPDATE android_enterprises
     SET signup_name = ?,
         enterprise_id = ?,
-        topic_id = ?,
+        pubsub_topic_id = ?,
         signup_token = ?
 	WHERE id = ?`
 	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.TopicID,
