@@ -2,6 +2,7 @@ import React, { useState, useRef, useContext } from "react";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
+import classnames from "classnames";
 import validURL from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -233,7 +234,7 @@ const CalendarEventsModal = ({
   );
 
   const renderConfiguredModal = () => (
-    <div className={`${baseClass} form`}>
+    <div className={`${baseClass}__configured-modal form`}>
       {isAdmin ? renderAdminHeader() : renderMaintainerHeader()}
       <div
         className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
@@ -309,30 +310,33 @@ const CalendarEventsModal = ({
     </div>
   );
 
+  const classes = classnames(baseClass, {
+    [`${baseClass}__hide-main`]: showPreviewCalendarEvent,
+  });
   return (
-    <Modal
-      title="Calendar events"
-      onExit={onExit}
-      onEnter={
-        configured
-          ? () => {
-              onUpdateCalendarEvents();
-            }
-          : onExit
-      }
-      className={baseClass}
-      width="large"
-    >
-      <>
+    <>
+      <Modal
+        title="Calendar events"
+        onExit={onExit}
+        onEnter={
+          configured
+            ? () => {
+                onUpdateCalendarEvents();
+              }
+            : onExit
+        }
+        className={classes}
+        width="large"
+      >
         {configured ? renderConfiguredModal() : renderPlaceholderModal()}
-        {showPreviewCalendarEvent && (
-          <CalendarEventPreviewModal
-            onCancel={togglePreviewCalendarEvent}
-            policy={selectedPolicyToPreview}
-          />
-        )}
-      </>
-    </Modal>
+      </Modal>
+      {showPreviewCalendarEvent && (
+        <CalendarEventPreviewModal
+          onCancel={togglePreviewCalendarEvent}
+          policy={selectedPolicyToPreview}
+        />
+      )}
+    </>
   );
 };
 
