@@ -288,6 +288,16 @@ Here are some links that filter relevant conversations on each platform:
 4. If a post is helpful to our audience, reshare it.
 
 
+### Record and edit Sprint demos
+Every three weeks there's a sprint demos meeting on the office hours calendar. Demand is responsible for utilizing the Gong recording and preparing it for YouTube and other social media.
+
+1. Download the most recent Sprint demos video from [Gong](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22sprint%20demos%22%7D%5D%7D%7D)
+2. Use video editing software to ensure there are no mentions of current customers, private information, or irrelevant conversation. (Private IP addresses, sensitive information, etc.)
+3. Split out key features into smaller clips based on the ["Key feature sync doc".](https://docs.google.com/document/d/1NCewdIsVP1ghPv-WJrQ66Ni0KjMaGv_PXjM1ToEVDWc/edit?tab=t.0#heading=h.iumgpdfepucr)
+4. Render the clips and final sprint demos then upload video to YouTube as private.
+5. Edit the title and discription using the prior videos format then make it public. 
+6. Embed the youtube video to the related release on [Fleet](https://fleetdm.com/releases)
+
 ### Upload to YouTube
 
 Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
@@ -298,10 +308,9 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 - Set the visibility to "Public"
 - Share video link on social media
 
-
 ### Create a podcast episode
 
-Fleet invites guests to discuss the future of IT and security on the [ExpedITioners podcast](https://expeditioners.podbean.com/) to be shared with the community,
+Fleet invites guests to discuss the future of IT and security on the [ExpedITioners podcast](https://expeditioners.podbean.com/) to be shared with the community.
 
 - Find the new episode in the [Fleet drive](https://drive.google.com/drive/folders/1v2sBswrqaayxRTfqoDDZBhz0xViqoNbC?usp=drive_link).
 - Combine audio from the guest and speaker together in Garageband with the [jingle and introduction](https://drive.google.com/drive/u/0/folders/1Av8yAgkKo22nYOeFJyXXEHtpyX9tETIH).
