@@ -182,7 +182,7 @@ const SoftwareActionsDropdown = ({
 interface ISoftwareInstallerCardProps {
   name: string;
   version: string | null;
-  uploadedAt: string;
+  addedTimestamp: string;
   status: {
     installed: number;
     pending: number;
@@ -202,7 +202,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   name,
   version,
-  uploadedAt,
+  addedTimestamp,
   status,
   isSelfService,
   softwareInstaller,
@@ -304,6 +304,7 @@ const SoftwareInstallerCard = ({
             softwareName={softwareInstaller?.name || name}
             installerType={installerType}
             versionInfo={versionInfo}
+            addedTimestamp={addedTimestamp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
             {(!softwareInstaller?.automatic_install_policies ||

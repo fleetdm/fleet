@@ -1,4 +1,4 @@
-import { dateAgo, monthDayYearFormat, uploadedFromNow } from ".";
+import { dateAgo, monthDayYearFormat, addedFromNow } from ".";
 
 describe("date_format utilities", () => {
   describe("uploadedFromNow util", () => {
@@ -7,7 +7,7 @@ describe("date_format utilities", () => {
       currentDate.setDate(currentDate.getDate() - 2);
       const twoDaysAgo = currentDate.toISOString();
 
-      expect(uploadedFromNow(twoDaysAgo)).toEqual("Uploaded 2 days ago");
+      expect(addedFromNow(twoDaysAgo)).toEqual("Uploaded 2 days ago");
     });
   });
 

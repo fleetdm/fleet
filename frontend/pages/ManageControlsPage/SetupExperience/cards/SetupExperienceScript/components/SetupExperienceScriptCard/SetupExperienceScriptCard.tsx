@@ -5,7 +5,7 @@ import mdmAPI, {
   IGetSetupExperienceScriptResponse,
 } from "services/entities/mdm";
 
-import { uploadedFromNow } from "utilities/date_format";
+import { addedFromNow } from "utilities/date_format";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
@@ -49,7 +49,7 @@ const SetupExperienceScriptCard = ({
       <div className={`${baseClass}__info`}>
         <span className={`${baseClass}__profile-name`}>{script.name}</span>
         <span className={`${baseClass}__uploaded-at`}>
-          {uploadedFromNow(script.created_at)}
+          {addedFromNow(script.created_at)}
         </span>
       </div>
       <div className={`${baseClass}__actions`}>
