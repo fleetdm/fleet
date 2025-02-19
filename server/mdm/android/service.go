@@ -2,8 +2,6 @@ package android
 
 import (
 	"context"
-
-	"google.golang.org/api/pubsub/v1"
 )
 
 type Service interface {
@@ -13,5 +11,5 @@ type Service interface {
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
 	CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*EnrollmentToken, error)
-	ProcessPubSubPush(ctx context.Context, message *pubsub.PubsubMessage) error
+	ProcessPubSubPush(ctx context.Context, message *PubSubMessage) error
 }

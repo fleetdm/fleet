@@ -110,7 +110,8 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 	defer pubSubClient.Close()
 	pubSubTopic := "a" + uuid.NewString() // PubSub topic names must start with a letter
 	topicConfig := pubsub.TopicConfig{
-		// Message retention is free for 1 day, so we default to that
+		// Message retention is free for 1 day, so we default to that.
+		// Both the topic and subscription retention durations should be 1 day since Google uses whatever is longer.
 		// https://cloud.google.com/pubsub/pricing
 		RetentionDuration: 24 * time.Hour,
 	}
@@ -129,8 +130,9 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
 
 	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
-		Topic:       topic,
-		AckDeadline: 60 * time.Second,
+		Topic:             topic,
+		AckDeadline:       60 * time.Second,
+		RetentionDuration: 24 * time.Hour,
 		PushConfig: pubsub.PushConfig{
 			Endpoint: pushURL,
 			// TODO(26219): Add authentication
