@@ -788,7 +788,7 @@ SELECT
   va.created_at,
   va.updated_at,
   vat.self_service,
-  vat.created_at added_at,
+  vat.created_at added_at
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?
