@@ -17,6 +17,23 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery
 ```
 
+## certificates_darwin
+
+- Platforms: darwin
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1
+	FROM
+		certificates
+	WHERE
+		path = '/Library/Keychains/System.keychain';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome

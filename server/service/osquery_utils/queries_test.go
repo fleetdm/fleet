@@ -290,13 +290,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_linux",
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
+		"certificates_darwin",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 25)
+	require.Len(t, queriesWithoutWinOSVuln, 26)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := baseQueries
@@ -1530,7 +1531,8 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	}
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
-		decryptable *bool) error {
+		decryptable *bool,
+	) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
@@ -2217,6 +2219,57 @@ func TestIngestNetworkInterface(t *testing.T) {
 		assert.Empty(t, h.PrimaryIP)
 		assert.Contains(t, b.String(), "expected single result")
 	})
+}
+
+func TestDirectIngestHostCertificates(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1}
+
+	row1 := map[string]string{
+		"ca":                "0",
+		"common_name":       "Cert 1 Common Name",
+		"issuer":            "/C=US/O=Issuer 1 Inc./CN=Issuer 1 Common Name",
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abc",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
+	}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Len(t, certs, 1)
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
+		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[0].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[0].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[0].SubjectCountry)
+		require.Equal(t, "Issuer 1 Common Name", certs[0].IssuerCommonName)
+		require.Equal(t, "Issuer 1 Inc.", certs[0].IssuerOrganization)
+		require.Empty(t, certs[0].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[0].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[0].KeyAlgorithm)
+		require.Equal(t, 2048, certs[0].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[0].KeyUsage)
+		require.Equal(t, "123abc", certs[0].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[0].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[0].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[0].NotValidBefore.Unix())
+		require.False(t, certs[0].CertificateAuthority)
+
+		return nil
+	}
+
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
