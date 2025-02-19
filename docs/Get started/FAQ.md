@@ -98,8 +98,6 @@ Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](htt
 
 Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
-On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
-
 The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
