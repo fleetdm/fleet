@@ -11,6 +11,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 
 import AppleMdmCard from "./AppleMdmCard";
 import WindowsMdmCard from "./WindowsMdmCard";
+import AndroidMdmCard from "./AndroidMdmCard";
 
 const baseClass = "mdm-settings-section";
 
@@ -58,6 +59,7 @@ const MdmSettingsSection = ({
           turnOnWindowsMdm={navigateToWindowsMdm}
           editWindowsMdm={navigateToWindowsMdm}
         />
+        <AndroidMdmCard />
       </div>
     );
   };
