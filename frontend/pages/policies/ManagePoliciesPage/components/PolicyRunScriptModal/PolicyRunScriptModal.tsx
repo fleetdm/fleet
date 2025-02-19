@@ -125,6 +125,13 @@ const PolicyRunScriptModal = ({
             <PoliciesPaginatedList
               ref={paginatedListRef}
               isSelected="runScriptEnabled"
+              disableSave={(changedItems) => {
+                return changedItems.some(
+                  (item) => item.runScriptEnabled && !item.scriptIdToRun
+                )
+                  ? "Add scripts to all selected policies to save."
+                  : false;
+              }}
               onToggleItem={(item) => {
                 item.runScriptEnabled = !item.runScriptEnabled;
                 if (!item.runScriptEnabled) {
