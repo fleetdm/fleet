@@ -4,7 +4,7 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 - Fleet GitOps is a declarative configuration management system. You define your desired Fleet settings in YAML files and Fleet GitOps makes it so.
 - Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
-- Any settings not defined in your YAML files (including missing or mispelled settings) will be reset to the default values, which may include deleting assets such as software packages.
+- Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
