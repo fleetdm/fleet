@@ -223,10 +223,12 @@ const InstallSoftwareModal = ({
             <PoliciesPaginatedList
               ref={paginatedListRef}
               isSelected="installSoftwareEnabled"
-              isDisabled={(changedItems) => {
+              disableSave={(changedItems) => {
                 return changedItems.some(
                   (item) => item.installSoftwareEnabled && !item.swIdToInstall
-                );
+                )
+                  ? "Add software to all selected policies to save."
+                  : false;
               }}
               onToggleItem={(item) => {
                 item.installSoftwareEnabled = !item.installSoftwareEnabled;

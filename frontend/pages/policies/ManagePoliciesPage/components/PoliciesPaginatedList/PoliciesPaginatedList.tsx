@@ -15,6 +15,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 
 // Extend the IPolicy interface with some virtual properties that make it easier
 // to track item state. These are set by the various Manage Automations modals.
@@ -35,7 +36,7 @@ interface IPoliciesPaginatedListProps {
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
-  isDisabled?: (changedItems: IFormPolicy[]) => boolean;
+  disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
   teamId: number;
   footer: ReactElement | undefined | null;
 }
@@ -50,7 +51,7 @@ function PoliciesPaginatedList(
     onCancel,
     onSubmit,
     isUpdating,
-    isDisabled,
+    disableSave,
     teamId,
     footer,
   }: IPoliciesPaginatedListProps,
@@ -59,7 +60,7 @@ function PoliciesPaginatedList(
   // Create a ref to use with the PaginatedList, so we can access its dirty items.
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
-  const [saveDisabled, setSaveDisabled] = useState(false);
+  const [saveDisabled, setSaveDisabled] = useState<string | boolean>(false);
 
   // Allow parents access to the `getDirtyItems` of the underlying PaginatedList.
   useImperativeHandle(ref, () => ({
@@ -80,12 +81,16 @@ function PoliciesPaginatedList(
     onSubmit(changedItems);
   };
 
-  const onUpdate = (changedItems: IFormPolicy[]) => {
-    if (!isDisabled) {
-      return;
-    }
-    setSaveDisabled(isDisabled(changedItems));
-  };
+  // When any item in the list is changed, check whether we should disable the save button.
+  const onUpdate = useCallback(
+    (changedItems: IFormPolicy[]) => {
+      if (!disableSave) {
+        return;
+      }
+      setSaveDisabled(disableSave(changedItems));
+    },
+    [disableSave]
+  );
 
   // Fetch a single page of policies.
   const queryClient = useQueryClient();
@@ -162,16 +167,24 @@ function PoliciesPaginatedList(
         </div>
       </div>
       <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onClickSave}
-          className="save-loading"
-          isLoading={isUpdating}
-          disabled={saveDisabled}
+        <TooltipWrapper
+          showArrow
+          position="top"
+          tipContent={saveDisabled}
+          disableTooltip={!saveDisabled}
+          underline={false}
         >
-          Save
-        </Button>
+          <Button
+            type="submit"
+            variant="brand"
+            onClick={onClickSave}
+            className="save-loading"
+            isLoading={isUpdating}
+            disabled={!!saveDisabled}
+          >
+            Save
+          </Button>
+        </TooltipWrapper>
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>

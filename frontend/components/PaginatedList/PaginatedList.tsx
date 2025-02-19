@@ -107,11 +107,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [currentPage, fetchPage]);
 
+  // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
     if (onUpdate) {
       onUpdate(Object.values(dirtyItems));
     }
-  }, [dirtyItems]);
+  }, [onUpdate, dirtyItems]);
 
   // Create an imperative handle for this component so that parents
   // can call `ref.current.getDirtyItems()` to get the changed set.
