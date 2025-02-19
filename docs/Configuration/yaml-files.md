@@ -19,7 +19,6 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-
 Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 ## policies
