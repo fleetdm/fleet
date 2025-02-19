@@ -38,6 +38,10 @@ const MdmSettingsSection = ({
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
+  const navigateToAndroidMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID);
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -59,7 +63,10 @@ const MdmSettingsSection = ({
           turnOnWindowsMdm={navigateToWindowsMdm}
           editWindowsMdm={navigateToWindowsMdm}
         />
-        <AndroidMdmCard />
+        <AndroidMdmCard
+          turnOffAndroidMdm={navigateToAndroidMdm}
+          editAndroidMdm={navigateToAndroidMdm}
+        />
       </div>
     );
   };
