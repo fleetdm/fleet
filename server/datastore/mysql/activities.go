@@ -42,7 +42,8 @@ func (ds *Datastore) NewActivity(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+	}
+	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
 		userName = &automationActivityAuthor
 		fleetInitiated = true
 	}
