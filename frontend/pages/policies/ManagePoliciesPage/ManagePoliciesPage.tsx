@@ -1057,6 +1057,7 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
+            gomEnabled={gomEnabled}
           />
         )}
         {showAddPolicyModal && (

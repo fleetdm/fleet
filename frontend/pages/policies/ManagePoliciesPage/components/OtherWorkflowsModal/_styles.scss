@@ -16,6 +16,12 @@
     }
   }
 
+  .policy-row {
+    &--gitops-mode-disabled {
+      @include disabled;
+    }
+  }
+
   &__no-integrations a {
     display: block;
   }
