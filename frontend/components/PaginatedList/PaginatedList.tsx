@@ -46,6 +46,7 @@ interface IPaginatedListProps<TItem> {
   onToggleItem: (item: TItem) => TItem;
   // The size of the page to fetch and show.
   pageSize?: number;
+  onUpdate?: (changedItems: TItem[]) => void;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
@@ -57,6 +58,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     renderItemLabel,
     renderItemRow,
     onToggleItem,
+    onUpdate,
     isSelected,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
@@ -104,6 +106,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       isCancelled = true;
     };
   }, [currentPage, fetchPage]);
+
+  useEffect(() => {
+    if (onUpdate) {
+      onUpdate(Object.values(dirtyItems));
+    }
+  }, [dirtyItems]);
 
   // Create an imperative handle for this component so that parents
   // can call `ref.current.getDirtyItems()` to get the changed set.

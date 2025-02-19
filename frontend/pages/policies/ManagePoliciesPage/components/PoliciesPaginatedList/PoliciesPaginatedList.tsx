@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useImperativeHandle,
   useRef,
+  useState,
   forwardRef,
   Ref,
 } from "react";
@@ -34,6 +35,7 @@ interface IPoliciesPaginatedListProps {
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
+  isDisabled?: (changedItems: IFormPolicy[]) => boolean;
   teamId: number;
   footer: ReactElement | undefined | null;
 }
@@ -48,6 +50,7 @@ function PoliciesPaginatedList(
     onCancel,
     onSubmit,
     isUpdating,
+    isDisabled,
     teamId,
     footer,
   }: IPoliciesPaginatedListProps,
@@ -55,6 +58,8 @@ function PoliciesPaginatedList(
 ) {
   // Create a ref to use with the PaginatedList, so we can access its dirty items.
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
+
+  const [saveDisabled, setSaveDisabled] = useState(false);
 
   // Allow parents access to the `getDirtyItems` of the underlying PaginatedList.
   useImperativeHandle(ref, () => ({
@@ -73,6 +78,13 @@ function PoliciesPaginatedList(
       changedItems = paginatedListRef.current.getDirtyItems();
     }
     onSubmit(changedItems);
+  };
+
+  const onUpdate = (changedItems: IFormPolicy[]) => {
+    if (!isDisabled) {
+      return;
+    }
+    setSaveDisabled(isDisabled(changedItems));
   };
 
   // Fetch a single page of policies.
@@ -143,6 +155,7 @@ function PoliciesPaginatedList(
             onToggleItem={onToggleItem}
             renderItemRow={renderItemRow}
             pageSize={DEFAULT_PAGE_SIZE}
+            onUpdate={onUpdate}
           />
 
           {footer}
@@ -155,6 +168,7 @@ function PoliciesPaginatedList(
           onClick={onClickSave}
           className="save-loading"
           isLoading={isUpdating}
+          disabled={saveDisabled}
         >
           Save
         </Button>

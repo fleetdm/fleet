@@ -223,6 +223,11 @@ const InstallSoftwareModal = ({
             <PoliciesPaginatedList
               ref={paginatedListRef}
               isSelected="installSoftwareEnabled"
+              isDisabled={(changedItems) => {
+                return changedItems.some(
+                  (item) => item.installSoftwareEnabled && !item.swIdToInstall
+                );
+              }}
               onToggleItem={(item) => {
                 item.installSoftwareEnabled = !item.installSoftwareEnabled;
                 if (!item.installSoftwareEnabled) {
