@@ -1,1 +1,0 @@
-Disk encryption keys are now archived when they are created or updated. They are never fully deleted from the database.
