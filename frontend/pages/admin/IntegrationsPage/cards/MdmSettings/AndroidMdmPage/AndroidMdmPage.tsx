@@ -1,10 +1,12 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAndroidAPI from "services/entities/mdm_android";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
@@ -12,14 +14,14 @@ import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
 const baseClass = "android-mdm-page";
 
-interface ITurnOnAndroidMdmProps {}
-
-const TurnOnAndroidMdm = ({}: ITurnOnAndroidMdmProps) => {
+const TurnOnAndroidMdm = () => {
   const { renderFlash } = useContext(NotificationContext);
   const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
 
@@ -55,6 +57,24 @@ interface ITurnOffAndroidMdmProps {
 }
 
 const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
+  const { data, isLoading, isError } = useQuery(
+    ["androidEnterprise"],
+    () => mdmAndroidAPI.getAndroidEnterprise(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
+
+  if (isLoading) {
+    return <Spinner />;
+  }
+
+  if (isError) {
+    return <DataError />;
+  }
+
+  if (!data) return null;
+
   return (
     <>
       <DataSet
@@ -76,7 +96,7 @@ const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
             Android Enterprise Id
           </TooltipWrapper>
         }
-        value="1234"
+        value={data.android_enterprise_id}
       />
       <Button onClick={onClickTurnOff}>Turn off Android MDM</Button>
     </>
@@ -88,8 +108,7 @@ interface IAndroidMdmPageProps {
 }
 
 const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
-  let { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
-  isAndroidMdmEnabledAndConfigured = true;
+  const { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
 
