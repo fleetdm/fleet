@@ -4,7 +4,6 @@ import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -115,12 +114,12 @@ type MDMAppleCertificateListItem struct {
 	IsIdentity bool   `plist:"IsIdentity"`
 }
 
-func (c *MDMAppleCertificateListItem) Parse() (*HostCertificateRecord, error) {
+func (c *MDMAppleCertificateListItem) Parse(hostID uint) (*HostCertificateRecord, error) {
 	cert, err := x509.ParseCertificate(c.Data)
 	if err != nil {
-		return nil, fmt.Errorf("parsing certificate list item: %w", err)
+		return nil, err
 	}
-	return NewHostCertificateRecord(0, cert), nil
+	return NewHostCertificateRecord(hostID, cert), nil
 }
 
 // MdmAppleErrorChainItem is the plist model for an error chain item.

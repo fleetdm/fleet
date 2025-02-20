@@ -800,6 +800,7 @@ const (
 	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
 	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
 	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
