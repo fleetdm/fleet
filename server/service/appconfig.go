@@ -193,6 +193,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Integrations:    appConfig.Integrations,
 			MDM:             appConfig.MDM,
 			Scripts:         appConfig.Scripts,
+			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -625,6 +626,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// If google_calendar is null, we keep the existing setting. If it's not null, we update.
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
+	}
+
+	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
+	if gme {
+		if !license.IsPremium() {
+			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
+		}
+		if rurl == "" {
+			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
+		}
+	}
+	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+
+	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+		// generate the activity
+		var act fleet.ActivityDetails
+		if gme {
+			act = fleet.ActivityTypeEnabledGitOpsMode{}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsMode{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+
 	}
 
 	if !license.IsPremium() {
@@ -1369,9 +1395,6 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if existing.Metadata == "" && existing.MetadataURL == "" {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
-	}
-	if incoming.Metadata != "" && incoming.MetadataURL != "" {
-		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
 	}
 	if incoming.EntityID == "" {
 		if existing.EntityID == "" {
