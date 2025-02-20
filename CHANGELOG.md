@@ -1,3 +1,9 @@
+## Fleet 4.64.1 (Feb 20, 2025)
+
+### Bug fixes
+
+- Fixed an issue where the ABM token teams were being reset when making updates to the app config.
+
 ## Fleet 4.64.0 (Feb 18, 2025)
 
 ## Device management (MDM)
