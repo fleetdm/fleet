@@ -1,6 +1,14 @@
 import { format, formatDistanceToNow } from "date-fns";
 
 /** Utility to create a string from a date in this format:
+  `Uploaded .... ago`
+*/
+export const uploadedFromNow = (date: string) => {
+  // NOTE: Malformed dates will result in errors. This is expected "fail loudly" behavior.
+  return `Uploaded ${formatDistanceToNow(new Date(date), { addSuffix: true })}`;
+};
+
+/** Utility to create a string from a date in this format:
   `Added .... ago`
 */
 export const addedFromNow = (date: string) => {

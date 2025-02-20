@@ -1,4 +1,4 @@
-import React, { Dispatch, SetStateAction } from "react";
+import React from "react";
 import classnames from "classnames";
 
 import Checkbox from "components/forms/fields/Checkbox";
