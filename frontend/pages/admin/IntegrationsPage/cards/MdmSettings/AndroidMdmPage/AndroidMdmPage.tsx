@@ -28,7 +28,10 @@ const TurnOnAndroidMdm = () => {
   const onConnectMdm = async () => {
     setFetchingSignupUrl(true);
     try {
-      await mdmAndroidAPI.getSignupUrl();
+      const res = await mdmAndroidAPI.getSignupUrl();
+
+      // TODO: set up SSE for successful android mdm turned on here.
+      window.open(res.android_enterprise_signup_url, "_blank");
     } catch (e) {
       renderFlash("error", "Couldn't connect. Please try again");
     }
