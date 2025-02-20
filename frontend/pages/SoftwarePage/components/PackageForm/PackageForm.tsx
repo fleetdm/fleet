@@ -258,41 +258,43 @@ const PackageForm = ({
               : "form"
           }
         >
-          <Card
-            paddingSize="medium"
-            borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-          >
-            <SoftwareOptionsSelector
-              formData={formData}
-              onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-              onToggleSelfService={onToggleSelfServiceCheckbox}
-              isCustomPackage
-              isEditingSoftware={isEditingSoftware}
-            />
-          </Card>
-          <Card
-            paddingSize="medium"
-            borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-          >
-            <TargetLabelSelector
-              selectedTargetType={formData.targetType}
-              selectedCustomTarget={formData.customTarget}
-              selectedLabels={formData.labelTargets}
-              customTargetOptions={CUSTOM_TARGET_OPTIONS}
-              className={`${baseClass}__target`}
-              onSelectTargetType={onSelectTargetType}
-              onSelectCustomTarget={onSelectCustomTarget}
-              onSelectLabel={onSelectLabel}
-              labels={labels || []}
-              dropdownHelpText={
-                formData.targetType === "Custom" &&
-                generateHelpText(
-                  formData.automaticInstall,
-                  formData.customTarget
-                )
-              }
-            />
-          </Card>
+          <div className={`${baseClass}__form-frame`}>
+            <Card
+              paddingSize="medium"
+              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+            >
+              <SoftwareOptionsSelector
+                formData={formData}
+                onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
+                isCustomPackage
+                isEditingSoftware={isEditingSoftware}
+              />
+            </Card>
+            <Card
+              paddingSize="medium"
+              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+            >
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTarget}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  formData.targetType === "Custom" &&
+                  generateHelpText(
+                    formData.automaticInstall,
+                    formData.customTarget
+                  )
+                }
+              />
+            </Card>
+          </div>
         </div>
         <PackageAdvancedOptions
           showSchemaButton={showSchemaButton}
