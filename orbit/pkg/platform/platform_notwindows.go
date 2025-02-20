@@ -54,7 +54,7 @@ func SignalProcessBeforeTerminate(processName string) error {
 	return nil
 }
 
-// GetProcessesByName gets a single running process object by its name.
+// GetProcessesByName gets all running processes by its name.
 // Returns ErrProcessNotFound if the process was not found running.
 func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	if name == "" {
