@@ -185,6 +185,8 @@ type GetHostHealthFunc func(ctx context.Context, id uint) (*fleet.HostHealth, er
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
+type NewAndroidHostFunc func(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) (*fleet.Host, error)
+
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
 type ListHostsLiteByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.Host, error)
@@ -1475,6 +1477,9 @@ type DataStore struct {
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
+
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
 
 	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
 	ListHostsLiteByUUIDsFuncInvoked bool
@@ -3617,6 +3622,13 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	s.ListHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) NewAndroidHost(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) (*fleet.Host, error) {
+	s.mu.Lock()
+	s.NewAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidHostFunc(ctx, tx, host)
 }
 
 func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {

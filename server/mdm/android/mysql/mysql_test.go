@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
@@ -39,7 +40,7 @@ func initializeDatabase(t testing.TB, testName string, opts *testing_utils.Datas
 func connectMySQL(t testing.TB, testName string) *Datastore {
 	dbWriter, err := common_mysql.NewDB(testing_utils.MysqlTestConfig(testName), &common_mysql.DBOptions{}, "")
 	require.NoError(t, err)
-	ds := New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter)
+	ds := New(log.NewLogfmtLogger(os.Stdout), dbWriter, dbWriter, new(mock.DataStore))
 	return ds.(*Datastore)
 }
 

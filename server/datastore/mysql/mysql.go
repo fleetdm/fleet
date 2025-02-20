@@ -267,7 +267,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 func NewAndroidDS(ds fleet.Datastore) android.Datastore {
 	mysqlDs := ds.(*Datastore)
-	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
+	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica, ds)
 }
 
 type itemToWrite struct {

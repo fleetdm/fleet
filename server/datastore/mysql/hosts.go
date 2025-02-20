@@ -138,6 +138,70 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 	return host, nil
 }
 
+func (ds *Datastore) NewAndroidHost(ctx context.Context, tx sqlx.ExtContext, host *fleet.Host) (*fleet.Host, error) {
+	sqlStatement := `
+		INSERT INTO hosts (
+			detail_updated_at,
+			label_updated_at,
+			policy_updated_at,
+			computer_name,
+			platform,
+			os_version,
+		    build,
+			memory,
+			team_id,
+			hardware_serial,
+		)
+		VALUES (
+			:detail_updated_at,
+			:label_updated_at,
+			:policy_updated_at,
+			:computer_name,
+			:platform,
+			:os_version,
+			:build,
+			:memory,
+			:team_id,
+			:hardware_serial
+		)
+		`
+	sqlStatement, args, err := sqlx.Named(sqlStatement, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "could not bind parameters for new Android host")
+	}
+	result, err := tx.ExecContext(ctx, sqlStatement, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new Android host")
+	}
+	id, _ := result.LastInsertId()
+	host.ID = uint(id)
+
+	err = upsertHostDisplayNames(ctx, tx, *host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new Android host display name")
+	}
+	return host, nil
+}
+
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
+	for _, h := range hosts {
+		args = append(args, h.ID, h.DisplayName())
+		parts = append(parts, "(?, ?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_display_names (host_id, display_name) VALUES %s
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host display names")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	errCh := make(chan error, 1)
 	defer close(errCh)
