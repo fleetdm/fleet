@@ -67,7 +67,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 - Be intentional about changes to design components (e.g. button border-radius or modal width) because these are expensive. They'll require code changes and QA in multiple parts of the product. Propose changes to a design component as part of an already-prioritized user story instead of [making a new request](#making-a-request) in 🎁🗣 Feature Fest.
 
-- Reach out to sales, customer success, and demand for a business perspective.
+- Reach out to Sales, Customer Success, and Marketing for a business perspective.
 
 - Engage engineering to gain insight into technical costs and feasibility.
 

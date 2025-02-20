@@ -58,8 +58,8 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Ads                                  | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
 | Blog                                 | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
