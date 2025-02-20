@@ -989,17 +989,34 @@ None.
       }
     ],
     "jira": [],
+    "digicert": [
+      {
+        "name": "DIGICERT_WIFI",
+        "api_token": "********",
+        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
+        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
+      }
+    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "********",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
     },
-    "scep_proxy": {
-      "name": "SCEP_WIFI",
-      "server_url": "https://example.com/scep",
-      "challenge": "********",
-    },
+    "scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "server_url": "https://example.com/scep",
+        "challenge": "********",
+      },
+      {
+        "name": "SCEP_VPN",
+        "server_url": "https://example.com/scep",
+        "challenge": "********",
+      }
+    ],
     "zendesk": []
   },
   "logging": {
