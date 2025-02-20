@@ -142,7 +142,7 @@ const FleetAppDetailsForm = ({
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
       <div className={`${baseClass}__form-frame`}>
-        <Card>
+        <Card paddingSize="medium" borderRadiusSize="large">
           <SoftwareOptionsSelector
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
@@ -150,7 +150,7 @@ const FleetAppDetailsForm = ({
             isCustomPackage
           />
         </Card>
-        <Card>
+        <Card paddingSize="medium" borderRadiusSize="large">
           <TargetLabelSelector
             selectedTargetType={formData.targetType}
             selectedCustomTarget={formData.customTarget}

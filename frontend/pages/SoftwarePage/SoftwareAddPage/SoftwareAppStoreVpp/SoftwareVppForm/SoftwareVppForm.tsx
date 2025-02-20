@@ -223,7 +223,7 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
-            <Card>
+            <Card paddingSize="medium" borderRadiusSize="medium">
               <SoftwareOptionsSelector
                 platform={softwareVppForEdit.platform}
                 formData={formData}
@@ -232,7 +232,7 @@ const SoftwareVppForm = ({
                 isEditingSoftware
               />
             </Card>
-            <Card>
+            <Card paddingSize="medium" borderRadiusSize="medium">
               <TargetLabelSelector
                 selectedTargetType={formData.targetType}
                 selectedCustomTarget={formData.customTarget}
@@ -268,7 +268,7 @@ const SoftwareVppForm = ({
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
           <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="medium">
+            <Card paddingSize="medium" borderRadiusSize="large">
               <SoftwareOptionsSelector
                 platform={
                   ("selectedApp" in formData &&
@@ -281,7 +281,7 @@ const SoftwareVppForm = ({
                 onToggleSelfService={onToggleSelfServiceCheckbox}
               />
             </Card>
-            <Card paddingSize="medium" borderRadiusSize="medium">
+            <Card paddingSize="medium" borderRadiusSize="large">
               <TargetLabelSelector
                 selectedTargetType={formData.targetType}
                 selectedCustomTarget={formData.customTarget}
