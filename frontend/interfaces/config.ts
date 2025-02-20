@@ -207,6 +207,7 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  gitops: IGitOpsModeConfig;
 }
 
 export interface IWebhookSettings {
@@ -225,4 +226,8 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 
 export interface IUserSettings {
   hidden_host_columns: string[];
+}
+export interface IGitOpsModeConfig {
+  gitops_mode_enabled: boolean;
+  repository_url: string;
 }

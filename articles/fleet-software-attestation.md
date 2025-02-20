@@ -10,7 +10,7 @@ A software attestation is a cryptographically-signed statement provided by a sof
 
 Any Fleet release can be _verified_ to prove that it was indeed created by Fleet, using the `gh` command line tool from Github.  See the [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify) docs for more info.
 
-After downloading the [Fleet binary](https://github.com/fleetdm/fleet/releases), here's how to verify:
+After downloading the [Fleet server binary](https://github.com/fleetdm/fleet/releases), here's how to verify:
 
 ```
 gh attestation verify --owner fleetdm /path/to/fleet
@@ -22,13 +22,11 @@ Verify the [fleetctl binary](https://github.com/fleetdm/fleet/releases) (CLI):
 gh attestation verify --owner fleetdm fleetdm /path/to/fleetctl
 ```
 
-After, installing Fleet's agent (fleetd) on a macOS host, run this command on the host to verify:
+Currently, you can verify Fleet's agent (fleetd) on macOS and Linux. To verify, after installing fleetd on a macOS or Linux host, run this command::
 
 ```
 gh attestation verify --owner fleetdm /usr/local/bin/orbit
 ```
-
-TODO: Filepath for Windows and Linux
 
 <meta name="authorGitHubUsername" value="sgress454">
 <meta name="authorFullName" value="Scott Gress">

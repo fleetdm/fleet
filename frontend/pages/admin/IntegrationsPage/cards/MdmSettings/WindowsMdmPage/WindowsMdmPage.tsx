@@ -1,10 +1,8 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { isAxiosError } from "axios";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { getErrorReason } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
@@ -13,29 +11,25 @@ import Button from "components/buttons/Button";
 import BackLink from "components/BackLink/BackLink";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "windows-mdm-page";
 
 interface ISetWindowsMdmOptions {
   enableMdm: boolean;
   enableAutoMigration: boolean;
-  successMessage: string;
-  errorMessage: string;
   router: InjectedRouter;
 }
 
 const useSetWindowsMdm = ({
   enableMdm,
   enableAutoMigration,
-  successMessage,
-  errorMessage,
   router,
 }: ISetWindowsMdmOptions) => {
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const turnOnWindowsMdm = async () => {
-    let flashErrMsg = "";
     try {
       const updatedConfig = await configAPI.updateMDMConfig(
         {
@@ -45,23 +39,16 @@ const useSetWindowsMdm = ({
         true
       );
       setConfig(updatedConfig);
+      renderFlash("success", "Windows MDM settings successfully updated.", {
+        persistOnPageChange: true,
+      });
     } catch (e) {
-      if (enableMdm && isAxiosError(e) && e.response?.status === 422) {
-        flashErrMsg =
-          getErrorReason(e, {
-            nameEquals: "mdm.windows_enabled_and_configured",
-          }) || errorMessage;
-      } else {
-        flashErrMsg = errorMessage;
-      }
-    } finally {
-      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-      if (flashErrMsg) {
-        renderFlash("error", flashErrMsg);
-      } else {
-        renderFlash("success", successMessage);
-      }
+      renderFlash("error", getErrorMessage(e), {
+        persistOnPageChange: true,
+      });
     }
+
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
 
   return turnOnWindowsMdm;
@@ -84,8 +71,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
     enableAutoMigration: autoMigration,
-    successMessage: "Windows MDM settings successfully updated.",
-    errorMessage: "Unable to update Windows MDM. Please try again.",
     router,
   });
 
