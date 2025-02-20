@@ -245,6 +245,7 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
           gitopsCompatible={gitopsCompatible}
+          gomEnabled={gomEnabled}
         />
         <div
           // including `form` class here keeps the children fields subject to the global form
