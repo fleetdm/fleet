@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.12.1"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.13.0"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -32,8 +32,9 @@ module "free" {
       sort_buffer_size = 8388608
     }
     # VPN
-    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
-    subnets             = module.main.vpc.database_subnets
+    allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    subnets                 = module.main.vpc.database_subnets
+    backup_retention_period = 30
   }
   redis_config = {
     name = local.customer_free

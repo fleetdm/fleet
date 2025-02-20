@@ -4,6 +4,7 @@ import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
 import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
+import ChangeManagement from "./cards/ChangeManagement";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -26,5 +27,14 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     Card: Calendars,
   },
 ];
+
+if (featureFlags.allowGitOpsMode === "true") {
+  integrationSettingsNavItems.push({
+    title: "Change management",
+    urlSection: "change-management",
+    path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
+    Card: ChangeManagement,
+  });
+}
 
 export default integrationSettingsNavItems;

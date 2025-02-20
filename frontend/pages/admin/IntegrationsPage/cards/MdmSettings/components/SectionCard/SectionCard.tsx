@@ -25,7 +25,7 @@ const SectionCard = ({
   const cardClasses = classnames(baseClass, className);
 
   return (
-    <Card className={cardClasses} color="gray">
+    <Card className={cardClasses} color="grey">
       <div className={`${baseClass}__content-wrapper`}>
         {iconName && <Icon name={iconName} />}
         <div className={`${baseClass}__content`}>

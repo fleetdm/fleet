@@ -2,43 +2,14 @@
   display: flex;
   justify-content: space-between;
   padding: $pad-medium;
-  border-radius: $border-radius;
-  border: 1px solid $ui-vibrant-blue-50;
   font-size: $x-small;
   font-weight: $regular;
   color: $core-fleet-black;
-
-  &__purple {
-    background-color: $ui-vibrant-blue-10;
-  }
-
-  &__purple-bold-border {
-    background-color: $ui-vibrant-blue-10;
-    border-color: $core-vibrant-blue;
-  }
-
-  &__yellow {
-    background-color: $ui-yellow-banner;
-    border-color: $ui-yellow-banner-outline;
-  }
-
-  &__grey {
-    background-color: $ui-off-white;
-    border-color: $ui-fleet-black-50;
-  }
 
   &__page-banner {
     padding: $pad-large $pad-xlarge;
     margin-bottom: $pad-large;
     width: auto;
-  }
-
-  &__border-radius-large {
-    border-radius: $border-radius-medium;
-  }
-
-  &__border-radius-xlarge {
-    border-radius: $border-radius-xlarge;
   }
 
   &__info {
@@ -62,9 +33,8 @@
   }
 
   &__close {
-    margin-left: $pad-small;
-    padding: $xx-small;
-    padding-right: 0;
+    padding: $pad-small;
+    margin: -$pad-small; // Offset clickable padding from making banner taller
 
     &:hover {
       cursor: pointer;

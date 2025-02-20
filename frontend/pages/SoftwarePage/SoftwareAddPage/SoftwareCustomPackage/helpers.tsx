@@ -29,6 +29,7 @@ export const getErrorMessage = (err: unknown) => {
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/package-metadata-extraction`}
           text="Learn more"
           newTab
+          variant="flash-message-link"
         />
       </>
     );

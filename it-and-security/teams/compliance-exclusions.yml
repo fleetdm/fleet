@@ -28,6 +28,7 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  enable_disk_encryption: true
 policies:
 queries:
 software:

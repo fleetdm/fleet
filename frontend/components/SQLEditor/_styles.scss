@@ -23,6 +23,9 @@
         border: 1px solid $core-vibrant-red;
       }
     }
+    &--disabled {
+      @include disabled;
+    }
   }
 
   .ace_content {

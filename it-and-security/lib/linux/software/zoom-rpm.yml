@@ -1,4 +1,4 @@
-url: https://zoom.us/client/6.3.6.6315/zoom_x86_64.rpm
-self-service: true
+url: https://zoom.us/client/6.3.10.7150/zoom_x86_64.rpm
+self_service: true
 labels_include_any:
   - "RPM-based Linux hosts"

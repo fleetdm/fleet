@@ -40,6 +40,8 @@ parasails.registerPage('osquery-table-details', {
       // otherwise, default the filter to be the first supported platform of the currently viewed table.
       this.selectedPlatform = this.tableToDisplay.platforms[0] === 'darwin' ? 'apple' : this.tableToDisplay.platforms[0];
     }
+    // Note: we do not personalize the selected platform on this page based on the user's
+    // current OS because the default table that the /tables url redirects to does not support windows.
   },
   mounted: async function() {
 
