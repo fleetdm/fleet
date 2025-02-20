@@ -1611,9 +1611,9 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
-| digicert | array | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| digicert | array | See [`integrations.digicert`](#integrations-digicert). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| scep_proxy | array | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| scep_proxy | array | See [`integrations.scep_proxy`](#integrations-scep-proxy). |
 
 <br/>
 
@@ -1732,12 +1732,34 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
         "api_key_json": "<API KEY JSON>"
       }
     ],
+    "digicert": [
+      {
+        "name": "DIGICERT_WIFI",
+        "api_token": "********",
+        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
+        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
+      }
+    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "abc123",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
-    }
+    },
+    "scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "server_url": "https://example.com/scep",
+        "challenge": "********",
+      },
+      {
+        "name": "SCEP_VPN",
+        "server_url": "https://example.com/scep",
+        "challenge": "********",
+      }
+    ],
   }
 }
 ```
