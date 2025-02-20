@@ -6,6 +6,8 @@ import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
@@ -18,6 +20,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
@@ -29,6 +32,7 @@ const AgentOptionsPage = ({
   router,
 }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -170,15 +174,21 @@ const AgentOptionsPage = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
+            disabled={gomEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            className="save-loading"
-            isLoading={isUpdatingAgentOptions}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(dC) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={dC}
+                className="save-loading"
+                isLoading={isUpdatingAgentOptions}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       )}
     </div>
