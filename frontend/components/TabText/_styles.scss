@@ -3,19 +3,18 @@
   flex-direction: row;
   gap: $pad-small;
   align-items: center;
+  height: 21px;
 
   &__count {
     display: flex;
-    height: 23px;
-    padding: 0 12px;
+    padding: 1px 12px;
     justify-content: center;
     align-items: center;
     background-color: $core-vibrant-blue;
     border-radius: 29px;
     color: $core-white;
     font-weight: $bold;
-    margin-top: -$pad-small;
-    margin-bottom: -$pad-small; // Taller count doesn't push text further from bottom line
+    font-size: $xx-small;
 
     &--error {
       background-color: $core-vibrant-red;

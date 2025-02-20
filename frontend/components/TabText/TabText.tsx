@@ -1,6 +1,5 @@
 import React from "react";
 import classnames from "classnames";
-import { isError } from "lodash";
 
 interface ITabTextProps {
   className?: string;

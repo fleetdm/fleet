@@ -851,7 +851,7 @@ const HostDetailsPage = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.title}>
-                    <TabText count={navItem.count || 5000} isErrorCount>
+                    <TabText count={navItem.count} isErrorCount>
                       {navItem.name}
                     </TabText>
                   </Tab>
