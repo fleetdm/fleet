@@ -26,9 +26,6 @@ const IntegrationsPage = ({
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Add ticket destinations and turn on mobile device management features.
-      </p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={navItems}

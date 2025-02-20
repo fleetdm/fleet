@@ -24,6 +24,11 @@ let plugins = [
   new WebpackNotifierPlugin({
     excludeWarnings: true,
   }),
+  new webpack.DefinePlugin({
+    featureFlags: {
+      allowGitOpsMode: JSON.stringify(process.env.ALLOW_GITOPS_MODE),
+    },
+  }),
 ];
 
 if (process.env.NODE_ENV === "production") {

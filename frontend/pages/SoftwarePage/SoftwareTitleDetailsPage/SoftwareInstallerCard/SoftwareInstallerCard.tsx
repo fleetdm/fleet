@@ -321,25 +321,35 @@ const SoftwareInstallerCard = ({
     );
   };
 
-  const versionInfo = version ? (
-    <span>{version}</span>
-  ) : (
-    <TooltipWrapper
-      tipContent={
-        <span>
-          Fleet couldn&apos;t read the version from {name}.{" "}
-          <CustomLink
-            newTab
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-            text="Learn more"
-            variant="tooltip-link"
-          />
-        </span>
-      }
-    >
-      Version (unknown)
-    </TooltipWrapper>
-  );
+  let versionInfo = <span>{version}</span>;
+
+  if (installerType === "vpp") {
+    versionInfo = (
+      <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+        <span>{version}</span>
+      </TooltipWrapper>
+    );
+  }
+
+  if (installerType === "package" && !version) {
+    versionInfo = (
+      <TooltipWrapper
+        tipContent={
+          <span>
+            Fleet couldn&apos;t read the version from {name}.{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+              variant="tooltip-link"
+            />
+          </span>
+        }
+      >
+        <span>Version (unknown)</span>
+      </TooltipWrapper>
+    );
+  }
 
   const renderDetails = () => {
     return !uploadedAt ? (
@@ -363,7 +373,7 @@ const SoftwareInstallerCard = ({
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__row-1`}>
-        {/* TODO: main-info could be a seperate component as its reused on a couple
+        {/* TODO: main-info could be a separate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
           {renderIcon()}
