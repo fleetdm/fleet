@@ -7,6 +7,7 @@ import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
   IMacadminsResponse,
@@ -15,6 +16,7 @@ import {
 } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -46,22 +48,24 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
 
-const PREMIUM_TABS = [
+const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
-const FREE_TABS = [
+const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
@@ -93,13 +97,10 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
-  const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [orgLogoURL, setOrgLogoURL] = useState("");
-  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -108,10 +109,14 @@ const DeviceUserPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
-  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
-    null
+  const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
+  const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
+    false
   );
-  const [hasSelfService, setSelfService] = useState(false);
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -160,7 +165,7 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: { host } = { host: undefined },
+    data: dupResponse,
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
@@ -177,22 +182,8 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      // TODO: refactor to use non-refetch data directly in the component and remove
-      // unnecesary derived states for values that aren't related to the refetch status
-      onSuccess: ({
-        license,
-        org_logo_url,
-        org_contact_url,
-        global_config,
-        host: responseHost,
-        self_service,
-      }) => {
+      onSuccess: ({ host: responseHost }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
-        setIsPremiumTier(license.tier === "premium");
-        setOrgLogoURL(org_logo_url);
-        setOrgContactURL(org_contact_url);
-        setGlobalConfig(global_config);
-        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -240,6 +231,16 @@ const DeviceUserPage = ({
       },
     }
   );
+
+  const {
+    host,
+    license,
+    org_logo_url: orgLogoURL = "",
+    org_contact_url: orgContactURL = "",
+    global_config: globalConfig = null as IDeviceGlobalConfig | null,
+    self_service: hasSelfService = false,
+  } = dupResponse || {};
+  const isPremiumTier = license?.tier === "premium";
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -310,15 +311,20 @@ const DeviceUserPage = ({
     );
   };
 
-  const renderEnrollMdmModal = () => {
-    return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-    ) : (
-      <ManualEnrollMdmModal
-        onCancel={toggleEnrollMdmModal}
-        token={deviceAuthToken}
-      />
-    );
+  const onTriggerEscrowLinuxKey = async () => {
+    setIsTriggeringCreateLinuxKey(true);
+    // modal opens in loading state
+    setShowCreateLinuxKeyModal(true);
+    try {
+      await diskEncryptionAPI.triggerLinuxDiskEncryptionKeyEscrow(
+        deviceAuthToken
+      );
+    } catch (e) {
+      renderFlash("error", "Failed to trigger key creation.");
+      setShowCreateLinuxKeyModal(false);
+    } finally {
+      setIsTriggeringCreateLinuxKey(false);
+    }
   };
 
   const renderDeviceUserPage = () => {
@@ -327,9 +333,14 @@ const DeviceUserPage = ({
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
-    const tabPaths = isPremiumTier
-      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
-      : FREE_TABS.map((t) => t(deviceAuthToken));
+    let tabPaths = (isPremiumTier
+      ? PREMIUM_TAB_PATHS
+      : FREE_TAB_PATHS
+    ).map((t) => t(deviceAuthToken));
+    if (!hasSelfService) {
+      tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
@@ -349,26 +360,30 @@ const DeviceUserPage = ({
           <div className={`${baseClass} main-content`}>
             <DeviceUserBanners
               hostPlatform={host.platform}
+              hostOsVersion={host.os_version}
               mdmEnrollmentStatus={host.mdm.enrollment_status}
               mdmEnabledAndConfigured={
                 !!globalConfig?.mdm.enabled_and_configured
               }
-              mdmConnectedToFleet={!!host.mdm.connected_to_fleet}
-              diskEncryptionStatus={
+              connectedToFleetMdm={!!host.mdm.connected_to_fleet}
+              macDiskEncryptionStatus={
                 host.mdm.macos_settings?.disk_encryption ?? null
               }
               diskEncryptionActionRequired={
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
+              diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
+              diskIsEncrypted={host.disk_encryption_enabled}
+              diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             />
             <HostSummaryCard
               summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
-              hostMdmProfiles={host?.mdm.profiles ?? []}
-              isConnectedToFleetMdm={host?.mdm.connected_to_fleet}
+              hostSettings={host?.mdm.profiles ?? []}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}
@@ -429,6 +444,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
+                      onShowSoftwareDetails={setSelectedSoftwareDetails}
                     />
                   </TabPanel>
                 )}
@@ -447,7 +463,19 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showEnrollMdmModal &&
+              (host.dep_assigned_to_fleet ? (
+                <AutoEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                />
+              ) : (
+                <ManualEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                  token={deviceAuthToken}
+                />
+              ))}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
@@ -474,6 +502,22 @@ const DeviceUserPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
+        {showCreateLinuxKeyModal && !!host && (
+          <CreateLinuxKeyModal
+            isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            onExit={() => {
+              setShowCreateLinuxKeyModal(false);
+            }}
+          />
+        )}
+        {selectedSoftwareDetails && !!host && (
+          <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
+            hideInstallDetails
+          />
+        )}
       </div>
     );
   };
@@ -485,6 +529,7 @@ const DeviceUserPage = ({
         fullWidth
         notification={notification}
         onRemoveFlash={hideFlash}
+        pathname={location.pathname}
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">

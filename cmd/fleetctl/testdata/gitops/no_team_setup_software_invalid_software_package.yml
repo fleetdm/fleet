@@ -1,0 +1,10 @@
+name: No team
+controls:
+  macos_setup:
+    software:
+      - package_path: lib/no_such_software.yml
+policies:
+software:
+  packages:
+    - path: lib/software_ruby.yml
+    - path: lib/software_other.yml

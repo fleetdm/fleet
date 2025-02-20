@@ -35,6 +35,8 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
 ];
 
+const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
+
 interface IManageControlsPageProps {
   children: JSX.Element;
   location: {
@@ -93,8 +95,15 @@ const ManageControlsPage = ({
   const navigateToNav = useCallback(
     (i: number): void => {
       const navPath = controlsSubNav[i].pathname;
+      // remove query params related to the prior tab
+      const newParams = new URLSearchParams(location?.search);
+      subNavQueryParams.forEach((p) => newParams.delete(p));
+      const newQuery = newParams.toString();
+
       router.replace(
-        navPath.concat(location?.search || "").concat(location?.hash || "")
+        navPath
+          .concat(newQuery ? `?${newQuery}` : "")
+          .concat(location?.hash || "")
       );
     },
     [location, router]

@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
@@ -36,7 +36,7 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
   team_id: number | null;
   created_at: string;
   updated_at: string;
@@ -99,13 +99,12 @@ export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
   critical?: boolean;
-  platform?: SelectedPlatformString;
+  platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
-  // undefined from GET/LIST when not set, null for PATCH to unset
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
@@ -119,6 +118,6 @@ export interface IPolicyNew {
   query: string;
   resolution: string;
   critical: boolean;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
   mdm_required?: boolean;
 }

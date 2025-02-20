@@ -240,7 +240,7 @@ func (m *mdmProxy) isUDIDMigrated(udid string) bool {
 
 func udidFromRequestBody(body []byte) (string, error) {
 	// Not all requests (eg. SCEP) contain a UDID. Return empty without an error in this case.
-	if body == nil || len(body) == 0 {
+	if len(body) == 0 {
 		return "", nil
 	}
 

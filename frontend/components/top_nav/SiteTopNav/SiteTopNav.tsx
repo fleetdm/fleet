@@ -9,10 +9,10 @@ import { IUser } from "interfaces/user";
 import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
-import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
+import UserMenu from "../UserMenu";
 import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {

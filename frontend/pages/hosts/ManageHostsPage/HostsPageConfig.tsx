@@ -58,48 +58,38 @@ export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
-export const getHostSelectStatuses = (isSandboxMode = false) => {
-  return [
-    {
-      disabled: false,
-      label: "All hosts",
-      value: "",
-      helpText: "All hosts added to Fleet.",
-    },
-    {
-      disabled: false,
-      label: "Online hosts",
-      value: "online",
-      helpText: "Hosts that will respond to a live query.",
-    },
-    {
-      disabled: false,
-      label: "Offline hosts",
-      value: "offline",
-      helpText: "Hosts that won’t respond to a live query.",
-    },
-    {
-      disabled: false,
-      label: isSandboxMode ? (
-        <span>
-          <span>Missing hosts</span>
-          <Icon name="premium-feature" className="premium-feature-icon" />
-          {/* <PremiumFeatureIconWithTooltip /> */}
-        </span>
-      ) : (
-        "Missing hosts"
-      ),
-      value: "missing",
-      helpText: "Hosts that have been offline for 30 days or more.",
-    },
-    {
-      disabled: false,
-      label: "New hosts",
-      value: "new",
-      helpText: "Hosts added to Fleet in the last 24 hours.",
-    },
-  ];
-};
+export const hostSelectStatuses = [
+  {
+    disabled: false,
+    label: "All hosts",
+    value: "",
+    helpText: "All hosts added to Fleet.",
+  },
+  {
+    disabled: false,
+    label: "Online hosts",
+    value: "online",
+    helpText: "Hosts that will respond to a live query.",
+  },
+  {
+    disabled: false,
+    label: "Offline hosts",
+    value: "offline",
+    helpText: "Hosts that won’t respond to a live query.",
+  },
+  {
+    disabled: false,
+    label: "Missing hosts",
+    value: "missing",
+    helpText: "Hosts that have been offline for 30 days or more.",
+  },
+  {
+    disabled: false,
+    label: "New hosts",
+    value: "new",
+    helpText: "Hosts added to Fleet in the last 24 hours.",
+  },
+];
 
 export const OS_SETTINGS_FILTER_OPTIONS = [
   {

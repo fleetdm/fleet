@@ -1,0 +1,6 @@
+<pkg-info format-version="2" identifier="com.mygreatcompany.pkg.HelloWorld" version="1.2.3" relocatable="false" overwrite-permissions="false" followSymLinks="false" install-location="/" auth="root">
+    <payload installKBytes="0" numberOfFiles="1"/>
+    <scripts>
+        <preinstall file="./preinstall"/>
+    </scripts>
+</pkg-info>

@@ -13,7 +13,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # « Enable automation of GitHub issues
-    labels: [ "#g-demand" ] # label to be applied to issue
+    labels: [ ":help-marketing" ] # label to be applied to issue
     repo: "confidential"
 -
   task: "Settle event strategy"
@@ -73,9 +73,7 @@
   dri: "Drew-P-drawers"
 -
   task: "Check ongoing events"
-
   startedOn: "2024-10-21"
-
   frequency: "Daily"
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"

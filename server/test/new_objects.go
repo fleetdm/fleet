@@ -217,6 +217,12 @@ func WithPlatform(s string) NewHostOption {
 	}
 }
 
+func WithOSVersion(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.OSVersion = s
+	}
+}
+
 func WithTeamID(teamID uint) NewHostOption {
 	return func(h *fleet.Host) {
 		h.TeamID = &teamID

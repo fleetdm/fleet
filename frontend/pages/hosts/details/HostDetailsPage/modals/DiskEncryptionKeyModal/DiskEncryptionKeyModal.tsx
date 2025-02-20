@@ -8,26 +8,14 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
-import { QueryablePlatform } from "interfaces/platform";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { HostPlatform } from "interfaces/platform";
 
 const baseClass = "disk-encryption-key-modal";
 
-// currently these are the only supported platforms for the disk encryption
-// key modal.
-export type ModalSupportedPlatform = Extract<
-  QueryablePlatform,
-  "darwin" | "windows"
->;
-
-// Checks to see if the platform is supported by the modal.
-export const isSupportedPlatform = (
-  platform: string
-): platform is ModalSupportedPlatform => {
-  return ["darwin", "windows"].includes(platform);
-};
-
 interface IDiskEncryptionKeyModal {
-  platform: ModalSupportedPlatform;
+  platform: HostPlatform;
   hostId: number;
   onCancel: () => void;
 }
@@ -37,7 +25,7 @@ const DiskEncryptionKeyModal = ({
   hostId,
   onCancel,
 }: IDiskEncryptionKeyModal) => {
-  const { data: encrpytionKey, error: encryptionKeyError } = useQuery<
+  const { data: encryptionKey, error: encryptionKeyError } = useQuery<
     IHostEncrpytionKeyResponse,
     unknown,
     string
@@ -49,14 +37,10 @@ const DiskEncryptionKeyModal = ({
     select: (data) => data.encryption_key.key,
   });
 
-  const isMacOS = platform === "darwin";
-  const descriptionText = isMacOS
-    ? "The disk encryption key refers to the FileVault recovery key for macOS."
-    : "The disk encryption key refers to the BitLocker recovery key for Windows.";
-
-  const recoveryText = isMacOS
-    ? "Use this key to log in to the host if you forgot the password."
-    : "Use this key to unlock the encrypted drive.";
+  const recoveryText =
+    platform === "darwin"
+      ? "Use this key to log in to the host if you forgot the password."
+      : "Use this key to unlock the encrypted drive.";
 
   return (
     <Modal
@@ -69,9 +53,15 @@ const DiskEncryptionKeyModal = ({
         <DataError />
       ) : (
         <>
-          <InputFieldHiddenContent value={encrpytionKey ?? ""} />
-          <p>{descriptionText}</p>
-          <p>{recoveryText} </p>
+          <InputFieldHiddenContent value={encryptionKey ?? ""} />
+          <p>
+            {recoveryText}{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+              text="Learn more"
+            />
+          </p>
           <div className="modal-cta-wrap">
             <Button onClick={onCancel}>Done</Button>
           </div>

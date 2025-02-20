@@ -22,6 +22,7 @@ type Email struct {
 
 type MailService interface {
 	SendEmail(e Email) error
+	CanSendEmail(smtpSettings SMTPSettings) bool
 }
 
 // PasswordResetRequest represents a database table for

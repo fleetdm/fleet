@@ -1,6 +1,5 @@
 .software-icon {
   flex-shrink: 0;
-  border: 1px solid $ui-fleet-black-10;
 
   &__small {
     border-radius: $border-radius;
@@ -31,34 +30,30 @@
   // TODO: we should change ".core-wrapper a img" selector in that file
   // as it too generic and can affect other parts of the app.
   > img.software-icon__software-img-small {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: $border-radius-small;
-    padding: 1px;
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-medium {
-    width: 38px;
-    height: 38px;
+  > img.software-icon__software-img-medium {
+    width: 40px;
+    height: 40px;
     border-radius: $border-radius-xlarge;
-    padding: 1px;
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-large {
-    width: 60px;
-    height: 60px;
+  > img.software-icon__software-img-large {
+    width: 64px;
+    height: 64px;
     border-radius: $border-radius-xxlarge;
-    padding: 1px;
     margin-left: 0;
   }
 
-  >img.software-icon__software-img-xlarge {
-    width: 88px;
-    height: 88px;
+  > img.software-icon__software-img-xlarge {
+    width: 96px;
+    height: 96px;
     border-radius: $border-radius-xxlarge;
-    padding: $pad-xsmall;
     margin-left: 0;
   }
 }

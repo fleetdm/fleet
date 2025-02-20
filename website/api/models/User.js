@@ -271,6 +271,12 @@ without necessarily having a billing card.`
       description: 'A JS timestamp of when this user\'s Fleet Premium trial license key expires.',
     },
 
+    canUseQueryGenerator: {
+      type: 'boolean',
+      description: 'Whether or not this user can access the query generator page',
+      defaultsTo: false,
+    },
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

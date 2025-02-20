@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
+| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_
 
 
 ## Contact us
@@ -22,6 +22,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The Demand department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
 
 
 ### Refresh event calendar
@@ -77,7 +78,7 @@ Follow these steps to research an account and move it toward sales-readiness **a
   - "Psychological stage" 
   - "intent signals" 
 3. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
-After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)":
 
 1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
 2. For "Contact source" for any new contacts, use "Manual research".
@@ -99,14 +100,10 @@ After an account is marked "[Research-ready](https://fleetdm.lightning.force.com
 
 The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
-1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1KUMsb5OkAsCBQHGkGnNoj__UCPJ7Vbhk1LaEWGEARsg/edit?gid=1931288160#gid=1931288160), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
-  - Content type and title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
-  - Create date: The date by which the DRI will start crafting the content.
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
-  - Primary buying situation: The intended audience.
   - DRI: Person(s) responsible for the project management of this content.
-  - Author: Person(s) responsible for the creation of this content.
-  - Related event?: Related community or Fleet event, if any.
+  - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
@@ -125,6 +122,17 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
+
+
+### Respond to a "Contact us" submission
+
+1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
+2. Mark submission as seen with the "👀" emoji.
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
+5. Mark the Slack message as complete with the "✅" emoji.
+
+> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Book an event
@@ -234,9 +242,15 @@ To do this:
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
 
+### Request swag
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
+1. [Create an issue](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the #g-demand board.
+2. Provide order details (e.g. expected shirt size, name, and shipping details).
+3. Decide if you'd like to include a personalized message and attach it to the issue.
+
 ### Fulfill a swag request
 
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
+Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
 1. Check and communicate availability to the requestor.
 2. Use the appropriate shipping method that best serves the company.
 3. Attach tracking number to the issue and tag the requestor.

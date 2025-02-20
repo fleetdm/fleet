@@ -9,6 +9,7 @@ import { IHost } from "interfaces/host";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
 import StatusIndicator from "components/StatusIndicator";
+import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
@@ -25,9 +26,12 @@ export const generateTableHeaders = (
           id: "delete",
           Header: "",
           Cell: (cellProps: ITableStringCellProps) => (
-            <div onClick={() => handleRowRemove(cellProps.row)}>
+            <Button
+              onClick={() => handleRowRemove(cellProps.row)}
+              variant="icon"
+            >
               <Icon name="close-filled" />
-            </div>
+            </Button>
           ),
           disableHidden: true,
         },

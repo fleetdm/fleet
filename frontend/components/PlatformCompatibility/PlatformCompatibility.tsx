@@ -88,8 +88,15 @@ const PlatformCompatibility = ({
           tipContent={
             <>
               Estimated compatibility based on the <br />
-              tables used in the query. Querying <br />
-              iPhones & iPads is not supported.
+              tables used in the query. Check the <br />
+              table documentation (schema) to verify <br />
+              compatibility of individual columns.
+              <br />
+              <br />
+              Only live queries are supported on ChromeOS.
+              <br />
+              <br />
+              Querying iPhones & iPads is not supported.
             </>
           }
         >

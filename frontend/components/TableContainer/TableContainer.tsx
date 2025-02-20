@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
+import { noop } from "lodash";
 
 import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
@@ -38,6 +39,7 @@ interface ITableContainerProps<T = any> {
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
   defaultPageIndex?: number;
+  defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
   actionButton?: IActionButtonProps;
   inputPlaceHolder?: string;
@@ -71,6 +73,7 @@ interface ITableContainerProps<T = any> {
   isClientSidePagination?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;
+  /** Sets the table to filter the data on the client */
   isClientSideFilter?: boolean;
   /** isMultiColumnFilter is used to preserve the table headers
   in lieu of displaying the empty component when client-side filtering yields zero results */
@@ -80,7 +83,7 @@ interface ITableContainerProps<T = any> {
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  customControl?: () => JSX.Element;
+  customControl?: () => JSX.Element | null;
   /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
   customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
@@ -90,6 +93,8 @@ interface ITableContainerProps<T = any> {
    * if we want to keep this
    */
   onClickRow?: (row: T) => void;
+  /** Used if users can click the row and another child element does not have the same onClick functionality */
+  keyboardSelectableRows?: boolean;
   /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
    * key */
   filters?: Record<string, string | number | boolean>;
@@ -102,6 +107,10 @@ interface ITableContainerProps<T = any> {
    * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
+  /** Set to true to persist the row selections across table data filters */
+  persistSelectedRows?: boolean;
+  /** handler called when the  `clear selection` button is called */
+  onClearSelection?: () => void;
 }
 
 const baseClass = "table-container";
@@ -119,6 +128,7 @@ const TableContainer = <T,>({
   defaultPageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
+  defaultSelectedRows,
   inputPlaceHolder = "Search",
   additionalQueries,
   resultsTitle,
@@ -152,11 +162,14 @@ const TableContainer = <T,>({
   stackControls,
   onSelectSingleRow,
   onClickRow,
+  keyboardSelectableRows,
   renderCount,
   renderTableHelpText,
   setExportRows,
   resetPageIndex,
   disableTableHeader,
+  persistSelectedRows,
+  onClearSelection = noop,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -275,11 +288,11 @@ const TableContainer = <T,>({
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
-    // At low widths, search bar (3rd div of 4) moves above other 3 divs
-    if (customFiltersButton) {
+    // At low widths, right header stacks on top of left header
+    if (stackControls) {
       return (
         <div className="container">
-          <div className="box">
+          <div className="stackable-header">
             {renderCount && !disableCount && (
               <div
                 className={`${baseClass}__results-count ${
@@ -291,8 +304,9 @@ const TableContainer = <T,>({
               </div>
             )}
           </div>
-          <div className="box">
-            {actionButton && !actionButton.hideButton && (
+
+          {actionButton && !actionButton.hideButton && (
+            <div className="stackable-header">
               <Button
                 disabled={disableActionButton}
                 onClick={actionButton.onActionButtonClick}
@@ -304,10 +318,10 @@ const TableContainer = <T,>({
                   {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
                 </>
               </Button>
-            )}
+            </div>
+          )}
+          <div className="stackable-header top-shift-header">
             {customControl && customControl()}
-          </div>
-          <div className="box search">
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
@@ -334,8 +348,8 @@ const TableContainer = <T,>({
                 </ReactTooltip>
               </div>
             )}
+            {customFiltersButton && customFiltersButton()}
           </div>
-          <div className="box"> {customFiltersButton()} </div>
         </div>
       );
     }
@@ -496,10 +510,12 @@ const TableContainer = <T,>({
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={defaultPageIndex}
+                defaultSelectedRows={defaultSelectedRows}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
+                keyboardSelectableRows={keyboardSelectableRows}
                 onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}
@@ -513,6 +529,8 @@ const TableContainer = <T,>({
                   isClientSidePagination ? undefined : renderPagination
                 }
                 setExportRows={setExportRows}
+                onClearSelection={onClearSelection}
+                persistSelectedRows={persistSelectedRows}
               />
             </div>
           </>

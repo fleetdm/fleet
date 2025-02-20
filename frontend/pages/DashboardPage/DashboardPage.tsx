@@ -54,19 +54,21 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
 import {
+  LOW_DISK_SPACE_GB,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import MissingHosts from "./cards/MissingHosts";
-import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
-import HostsSummary from "./cards/HostsSummary";
+import PlatformHostCounts from "./sections/PlatformHostCounts";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
@@ -80,9 +82,6 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
-
-// Premium feature, Gb must be set between 1-100
-const LOW_DISK_SPACE_GB = 32;
 
 interface IDashboardProps {
   router: InjectedRouter; // v3
@@ -184,7 +183,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canEditActivityFeedAutomations =
-    (isGlobalAdmin || isGlobalMaintainer) && teamIdForApi === API_ALL_TEAMS_ID;
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
@@ -322,7 +321,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve="software"
+                customTooltipText={
+                  <>
+                    Fleet periodically queries all hosts to
+                    <br />
+                    retrieve software. Click to view
+                    <br />
+                    hosts for the most up-to-date lists.
+                  </>
+                }
               />
             );
           setShowSoftwareCard(true);
@@ -460,7 +467,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
+  // This is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
     pageIndex: newPageIndex,
@@ -477,6 +484,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+  };
+
+  let refetchActivities = () => {
+    /* noop */
+  };
+  const setRefetchActivities = (refetch: () => void) => {
+    refetchActivities = refetch;
   };
 
   const onSubmitActivityFeedAutomationsModal = useCallback(
@@ -512,6 +526,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       } finally {
         setUpdatingActivityFeedAutomations(false);
         refetchConfig();
+        refetchActivities();
       }
     },
     [
@@ -522,23 +537,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostsSummaryCard = useInfoCard({
-    title: "Hosts",
-    action:
-      selectedPlatform === "all"
-        ? {
-            type: "link",
-            text: "View all hosts",
-          }
-        : undefined,
-    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
-    total_host_count:
-      !isHostSummaryFetching && !errorHosts
-        ? hostSummaryData?.totals_hosts_count
-        : undefined,
-    showTitle: true,
-    children: (
-      <HostsSummary
+  const HostCountCards = (
+    <>
+      <PlatformHostCounts
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -546,42 +547,31 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
-        showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
       />
-    ),
-  });
-
-  const MissingHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <MissingHosts
+      <MetricsHostCounts
+        currentTeamId={teamIdForApi}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
+        isPremiumTier={isPremiumTier}
         missingCount={missingCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-      />
-    ),
-  });
-
-  const LowDiskSpaceHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <LowDiskSpaceHosts
-        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
         lowDiskSpaceCount={lowDiskSpaceCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-        notSupported={selectedPlatform === "chrome"}
       />
-    ),
-  });
+    </>
+  );
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
@@ -616,6 +606,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        setRefetchActivities={setRefetchActivities}
       />
     ),
   });
@@ -866,14 +857,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
-          <Dropdown
+          <DropdownWrapper
+            name="platform-filter"
             value={selectedPlatform || ""}
-            className={`${baseClass}__platform_dropdown`}
+            className={`${baseClass}__platform-filter`}
             options={PLATFORM_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={(value: PlatformValueOptions) => {
+            onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
-                (platform) => platform.value === value
+                (platform) => platform.value === option?.value
               );
               router.push(
                 (selectedPlatformOption?.path || paths.DASHBOARD)
@@ -883,22 +874,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
-        <div className="host-sections">
+        <div className={`${baseClass}__host-sections`}>
           <>
-            {isHostSummaryFetching && (
-              <div className="spinner">
-                <Spinner />
-              </div>
+            {isHostSummaryFetching ? (
+              <Card paddingSize="medium">
+                <Spinner includeContainer={false} verticalPadding="small" />
+              </Card>
+            ) : (
+              HostCountCards
             )}
-            <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier &&
-              selectedPlatform !== "ios" &&
-              selectedPlatform !== "ipados" && (
-                <div className={`${baseClass}__section`}>
-                  {MissingHostsCard}
-                  {LowDiskSpaceHostsCard}
-                </div>
-              )}
           </>
         </div>
         {renderCards()}

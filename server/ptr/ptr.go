@@ -67,3 +67,7 @@ func Float64Ptr(x float64) **float64 {
 func Int64(x int64) *int64 {
 	return &x
 }
+
+func Duration(x time.Duration) *time.Duration {
+	return &x
+}

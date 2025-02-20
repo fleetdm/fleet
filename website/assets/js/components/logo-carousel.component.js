@@ -33,7 +33,6 @@ parasails.registerComponent('logoCarousel', {
       <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
         <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
         <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">
-        <img alt="Epic Games logo" style="height: 32px" src="/images/logo-epic-games-28x32@2x.png">
         <img alt="Rivian logo" src="/images/logo-rivian-120x32@2x.png">
         <img alt="Deloitte logo" src="/images/logo-deloitte-97x32@2x.png">
         <img alt="Flywire logo" src="/images/logo-flywire-69x32@2x.png">
@@ -49,7 +48,6 @@ parasails.registerComponent('logoCarousel', {
       <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
         <img alt="Notion logo" src="/images/logo-notion-68x32@2x.png">
         <img alt="Gusto logo" src="/images/logo-gusto-64x32@2x.png">
-        <img alt="Epic Games logo" style="height: 32px" src="/images/logo-epic-games-28x32@2x.png">
         <img alt="Rivian logo" src="/images/logo-rivian-120x32@2x.png">
         <img alt="Deloitte logo" src="/images/logo-deloitte-97x32@2x.png">
         <img alt="Flywire logo" src="/images/logo-flywire-69x32@2x.png">

@@ -265,16 +265,6 @@ func mdmWipeCommand() *cli.Command {
 				return err
 			}
 
-			config, err := client.GetAppConfig()
-			if err != nil {
-				return err
-			}
-
-			// linux hosts need scripts to be enabled in the org settings to wipe.
-			if host.Platform == "linux" && config.ServerSettings.ScriptsDisabled {
-				return errors.New("Can't wipe host because running scripts is disabled in organization settings.")
-			}
-
 			if err := client.MDMWipeHost(host.ID); err != nil {
 				return fmt.Errorf("Failed to wipe host: %w", err)
 			}

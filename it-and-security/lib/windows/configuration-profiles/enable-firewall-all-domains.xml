@@ -1,0 +1,72 @@
+<Replace>
+  <!-- Enable Firewall for Domain Profile -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Disable ability for user to override at domain level  -->   
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/AllowLocalPolicyMerge</LocURI>
+    </Target>
+    <Data>false</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enable Firewall for Private Profile -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>  
+  <!-- Disable ability for user to override at private profile level  -->  
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/AllowLocalPolicyMerge</LocURI>
+    </Target>
+    <Data>false</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enable Firewall for Public Profile -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Disable ability for user to override at public profile level  -->    
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge</LocURI>
+    </Target>
+    <Data>false</Data>
+  </Item>
+</Replace>

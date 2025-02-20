@@ -1,0 +1,27 @@
+.tag {
+  display: flex;
+  height: 18px;
+  padding: 3px 6px;
+  align-items: center;
+  gap: $pad-xsmall;
+  border-radius: $border-radius;
+  border: 1px solid $ui-fleet-black-10;
+  color: $ui-fleet-black-75;
+  font-size: $xx-small;
+  font-weight: $bold;
+  white-space: nowrap;
+
+  // styles to override the default <button> element styles for the tag
+  // when it is clickable
+  &__clickable-tag {
+    background: none;
+    cursor: pointer;
+    outline: inherit;
+    box-sizing: inherit;
+
+    &:focus {
+      // this is defined in the Button component styles
+      @include button-focus-outline;
+    }
+  }
+}

@@ -39,7 +39,7 @@ func TestParser(t *testing.T) {
 	f.Close()
 	require.NoError(t, err)
 
-	// All the products we expect to see, grouped by their product name
+	// All the products we expect to see after marshaling, grouped by their product name.
 	expectedProducts := map[string]parsed.Products{
 		"Windows 10": {
 			"11568": parsed.NewProductFromFullName("Windows 10 Version 1809 for 32-bit Systems"),
@@ -109,6 +109,79 @@ func TestParser(t *testing.T) {
 		"Windows Server 2008 R2": {
 			"10051": parsed.NewProductFromFullName("Windows Server 2008 R2 for x64-based Systems Service Pack 1"),
 			"10049": parsed.NewProductFromFullName("Windows Server 2008 R2 for x64-based Systems Service Pack 1 (Server Core installation)"),
+		},
+	}
+
+	// All the products we expect to see in the parsed XML file, grouped by product name.
+	expectedXMLProducts := map[string]parsed.Products{
+		"Windows 10": {
+			"11568": parsed.Product("Windows 10 Version 1809 for 32-bit Systems"),
+			"11569": parsed.Product("Windows 10 Version 1809 for x64-based Systems"),
+			"11570": parsed.Product("Windows 10 Version 1809 for ARM64-based Systems"),
+			"11712": parsed.Product("Windows 10 Version 1909 for 32-bit Systems"),
+			"11713": parsed.Product("Windows 10 Version 1909 for x64-based Systems"),
+			"11714": parsed.Product("Windows 10 Version 1909 for ARM64-based Systems"),
+			"11896": parsed.Product("Windows 10 Version 21H1 for x64-based Systems"),
+			"11897": parsed.Product("Windows 10 Version 21H1 for ARM64-based Systems"),
+			"11898": parsed.Product("Windows 10 Version 21H1 for 32-bit Systems"),
+			"11800": parsed.Product("Windows 10 Version 20H2 for x64-based Systems"),
+			"11801": parsed.Product("Windows 10 Version 20H2 for 32-bit Systems"),
+			"11802": parsed.Product("Windows 10 Version 20H2 for ARM64-based Systems"),
+			"11929": parsed.Product("Windows 10 Version 21H2 for 32-bit Systems"),
+			"11930": parsed.Product("Windows 10 Version 21H2 for ARM64-based Systems"),
+			"11931": parsed.Product("Windows 10 Version 21H2 for x64-based Systems"),
+			"10729": parsed.Product("Windows 10 for 32-bit Systems"),
+			"10735": parsed.Product("Windows 10 for x64-based Systems"),
+			"10852": parsed.Product("Windows 10 Version 1607 for 32-bit Systems"),
+			"10853": parsed.Product("Windows 10 Version 1607 for x64-based Systems"),
+		},
+		"Windows Server 2019": {
+			"11571": parsed.Product("Windows Server 2019"),
+			"11572": parsed.Product("Windows Server 2019  (Server Core installation)"),
+		},
+		"Windows Server 2022": {
+			"11923": parsed.Product("Windows Server 2022"),
+			"11924": parsed.Product("Windows Server 2022 (Server Core installation)"),
+		},
+		"Windows Server": {
+			"11803": parsed.Product("Windows Server, version 20H2 (Server Core Installation)"),
+		},
+		"Windows 11": {
+			"11926": parsed.Product("Windows 11 for x64-based Systems"),
+			"11927": parsed.Product("Windows 11 for ARM64-based Systems"),
+		},
+		"Windows Server 2016": {
+			"10816": parsed.Product("Windows Server 2016"),
+			"10855": parsed.Product("Windows Server 2016  (Server Core installation)"),
+		},
+		"Windows 8.1": {
+			"10481": parsed.Product("Windows 8.1 for 32-bit systems"),
+			"10482": parsed.Product("Windows 8.1 for x64-based systems"),
+		},
+		"Windows RT 8.1": {
+			"10484": parsed.Product("Windows RT 8.1"),
+		},
+		"Windows Server 2012": {
+			"10378": parsed.Product("Windows Server 2012"),
+			"10379": parsed.Product("Windows Server 2012 (Server Core installation)"),
+		},
+		"Windows Server 2012 R2": {
+			"10483": parsed.Product("Windows Server 2012 R2"),
+			"10543": parsed.Product("Windows Server 2012 R2 (Server Core installation)"),
+		},
+		"Windows 7": {
+			"10047": parsed.Product("Windows 7 for 32-bit Systems Service Pack 1"),
+			"10048": parsed.Product("Windows 7 for x64-based Systems Service Pack 1"),
+		},
+		"Windows Server 2008": {
+			"9312":  parsed.Product("Windows Server 2008 for 32-bit Systems Service Pack 2"),
+			"10287": parsed.Product("Windows Server 2008 for 32-bit Systems Service Pack 2 (Server Core installation)"),
+			"9318":  parsed.Product("Windows Server 2008 for x64-based Systems Service Pack 2"),
+			"9344":  parsed.Product("Windows Server 2008 for x64-based Systems Service Pack 2 (Server Core installation)"),
+		},
+		"Windows Server 2008 R2": {
+			"10051": parsed.Product("Windows Server 2008 R2 for x64-based Systems Service Pack 1"),
+			"10049": parsed.Product("Windows Server 2008 R2 for x64-based Systems Service Pack 1 (Server Core installation)"),
 		},
 	}
 
@@ -1213,7 +1286,7 @@ func TestParser(t *testing.T) {
 	t.Run("parseXML", func(t *testing.T) {
 		t.Run("only windows products are included", func(t *testing.T) {
 			var expected []msrcxml.Product
-			for _, grp := range expectedProducts {
+			for _, grp := range expectedXMLProducts {
 				for pID, pFn := range grp {
 					expected = append(
 						expected,

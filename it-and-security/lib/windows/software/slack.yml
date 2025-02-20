@@ -1,0 +1,4 @@
+url: https://downloads.slack-edge.com/desktop-releases/windows/x64/4.42.120/SlackSetup.exe
+self_service: true
+labels_include_any:
+  - "x86-based Windows hosts"

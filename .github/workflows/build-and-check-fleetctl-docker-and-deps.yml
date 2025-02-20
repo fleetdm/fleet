@@ -15,6 +15,10 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
+env:
+  AWS_REGION: us-east-2
+  AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
+
 permissions:
   contents: read
 
@@ -23,7 +27,7 @@ jobs:
     runs-on: ubuntu-22.04
     environment: Docker Hub
     permissions:
-      contents: write
+      id-token: write # for aws-actions/configure-aws-credentials
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -32,6 +36,11 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{env.AWS_IAM_ROLE}}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
@@ -58,6 +67,9 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on fleetdm/wix
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         with:
           image-ref: "fleetdm/wix"
           format: "table"
@@ -68,6 +80,9 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on fleetdm/bomutils
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         with:
           image-ref: "fleetdm/bomutils"
           format: "table"
@@ -78,6 +93,9 @@ jobs:
 
       - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         with:
           image-ref: "fleetdm/fleetctl"
           format: "table"

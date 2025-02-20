@@ -8,6 +8,8 @@ import InputField from "components/forms/fields/InputField";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import Icon from "components/Icon";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -31,7 +33,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           className={`${baseClass}__back-to-automatic-enrollment`}
         />
         <h1>Azure Active Directory</h1>
-        <p>
+        <p className={`${baseClass}__description`}>
           The end user will see Microsoft&apos;s default initial setup. You can
           further simplify the initial device setup with Autopilot, which is
           similar to Apple&apos;s Automated Device Enrollment (DEP).{" "}
@@ -64,10 +66,25 @@ const WindowsAutomaticEnrollmentPage = () => {
           </li>
           <li>
             <span>3.</span>
-            <p>
-              Use the information presented in Azure AD to create a new TXT/MX
-              record with your domain registrar, then select <b>Verify</b>.
-            </p>
+            <div>
+              <p>
+                Use the information presented in Azure AD to create a new TXT/MX
+                record with your domain registrar, then select <b>Verify</b>.
+              </p>
+              <InfoBanner
+                className={`${baseClass}__cloud-customer-banner`}
+                color="purple"
+                icon="warning"
+              >
+                <div className={`${baseClass}__banner-content`}>
+                  <Icon name="error-outline" color="core-fleet-blue" />
+                  <p>
+                    If you&apos;re a managed-cloud customer, please reach out to
+                    Fleet to create a TXT/MX record for you.
+                  </p>
+                </div>
+              </InfoBanner>
+            </div>
           </li>
           <li>
             <span>4.</span>

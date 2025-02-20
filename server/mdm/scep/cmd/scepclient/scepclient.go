@@ -70,7 +70,7 @@ func run(cfg runCfg) error {
 	}
 	lginfo := level.Info(logger)
 
-	client, err := scepclient.New(cfg.serverURL, logger)
+	client, err := scepclient.New(cfg.serverURL, logger, nil)
 	if err != nil {
 		return err
 	}

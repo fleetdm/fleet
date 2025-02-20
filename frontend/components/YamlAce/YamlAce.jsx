@@ -17,6 +17,19 @@ class YamlAce extends Component {
     wrapperClassName: PropTypes.string,
   };
 
+  onLoadHandler = (editor) => {
+    // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
+    editor.commands.addCommand({
+      name: "escapeToBlur",
+      bindKey: { win: "Esc", mac: "Esc" },
+      exec: (aceEditor) => {
+        aceEditor.blur(); // Lose focus from the editor
+        return true;
+      },
+      readOnly: true,
+    });
+  };
+
   renderLabel = () => {
     const { name, error, label } = this.props;
 
@@ -45,7 +58,7 @@ class YamlAce extends Component {
       wrapperClassName,
     } = this.props;
 
-    const { renderLabel } = this;
+    const { renderLabel, onLoadHandler } = this;
 
     const wrapperClass = classnames(wrapperClassName, "form-field", {
       [`${baseClass}__wrapper--error`]: error,
@@ -67,6 +80,7 @@ class YamlAce extends Component {
           onChange={onChange}
           name={name}
           label={label}
+          onLoad={onLoadHandler}
         />
       </div>
     );

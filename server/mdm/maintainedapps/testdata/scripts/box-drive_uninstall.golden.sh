@@ -47,15 +47,15 @@ remove_launchctl_service() {
   local booleans=("true" "false")
   local plist_status
   local paths
-  local sudo
+  local should_sudo
 
   echo "Removing launchctl service ${service}"
 
-  for sudo in "${booleans[@]}"; do
+  for should_sudo in "${booleans[@]}"; do
     plist_status=$(launchctl list "${service}" 2>/dev/null)
 
     if [[ $plist_status == \{* ]]; then
-      if [[ $sudo == "true" ]]; then
+      if [[ $should_sudo == "true" ]]; then
         sudo launchctl remove "${service}"
       else
         launchctl remove "${service}"
@@ -69,7 +69,7 @@ remove_launchctl_service() {
     )
 
     # if not using sudo, prepend the home directory to the paths
-    if [[ $sudo == "false" ]]; then
+    if [[ $should_sudo == "false" ]]; then
       for i in "${!paths[@]}"; do
         paths[i]="${HOME}${paths[i]}"
       done
@@ -77,7 +77,7 @@ remove_launchctl_service() {
 
     for path in "${paths[@]}"; do
       if [[ -e "$path" ]]; then
-        if [[ $sudo == "true" ]]; then
+        if [[ $should_sudo == "true" ]]; then
           sudo rm -f -- "$path"
         else
           rm -f -- "$path"
@@ -91,6 +91,7 @@ trash() {
   local logged_in_user="$1"
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
 
   # replace ~ with /Users/$logged_in_user
   if [[ "$target_file" == ~* ]]; then
@@ -102,20 +103,26 @@ trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
   else
     echo "$target_file doesn't exist."
   fi
 }
 
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER fileproviderctl domain remove -A com.box.desktop.boxfileprovider)
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-archive-unsynced-content Box)
+(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-preserve-unsynced-content Box)
+(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)
+echo "${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\ Support/Box/uninstall_box_drive_r" >> /etc/sudoers.d/box_uninstall
 remove_launchctl_service 'com.box.desktop.helper'
 quit_application 'com.box.Box-Local-Com-Server'
 quit_application 'com.box.desktop'
 quit_application 'com.box.desktop.findersyncext'
 quit_application 'com.box.desktop.helper'
 quit_application 'com.box.desktop.ui'
-sudo -u "$LOGGED_IN_USER" '/Library/Application Support/Box/uninstall_box_drive'
+(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '/Library/Application Support/Box/uninstall_box_drive')
 sudo pkgutil --forget 'com.box.desktop.installer.*'
+rm /etc/sudoers.d/box_uninstall
 trash $LOGGED_IN_USER '~/.Box_*'
 trash $LOGGED_IN_USER '~/Library/Application Support/Box/Box'
 trash $LOGGED_IN_USER '~/Library/Application Support/FileProvider/com.box.desktop.boxfileprovider'

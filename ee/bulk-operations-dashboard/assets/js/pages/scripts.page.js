@@ -23,6 +23,8 @@ parasails.registerPage('scripts', {
     profileToEdit: {},
     cloudError: '',
     newScript: undefined,
+    syncingMessage: '',
+    overlaySyncing: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -110,10 +112,11 @@ parasails.registerPage('scripts', {
       await this._getScripts();
     },
     _getScripts: async function() {
-      this.syncing = true;
+      this.overlaySyncing = true;
+      this.syncingMessage = 'Gathering scripts';
       let newScriptsInformation = await Cloud.getScripts();
       this.scripts = newScriptsInformation;
-      this.syncing = false;
+      this.overlaySyncing = false;
       await this.changeTeamFilter();
     }
   }

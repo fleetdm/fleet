@@ -191,6 +191,7 @@ const QueryDetailsPage = ({
     [],
     () =>
       queryReportAPI.load({
+        teamId: currentTeamId,
         sortBy: serverSortBy,
         id: queryId,
       }),

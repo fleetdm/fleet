@@ -100,6 +100,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumSoftwareCVEs:                      105,
 			NumTeams:                             9,
 			NumPolicies:                          0,
+			NumQueries:                           200,
 			NumLabels:                            3,
 			SoftwareInventoryEnabled:             true,
 			VulnDetectionEnabled:                 true,
@@ -139,7 +140,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -352,21 +353,28 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	lg := kitlog.NewJSONLogger(os.Stdout)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
-	require.NoError(t, err)
-	s.Start()
+
+	go func() {
+		defer func() {
+			// this test may panic as we're ending it early, so we shouldn't fail our suite on this panic
+			// but depending on where we are in the cron call it may not panic, hence not checking the recover
+			// value either way
+			// nolint:errcheck
+			recover()
+		}()
+		_ = cronVulnerabilities(ctx, ds, lg, &config)
+	}()
 
 	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
-		if err != nil {
-			return false
-		}
-		if !info.IsDir() {
-			return false
-		}
-		return true
-	}, 5*time.Minute, 30*time.Second)
+		return err == nil && info.IsDir()
+	}, 10*time.Second, 1*time.Second)
+
+	t.Cleanup(func() {
+		cancel()
+	})
 
 	// at this point, the assertion has succeeded or failed, try to remove the
 	// temp dir and all content instead of leaving it to the testing package to
@@ -566,6 +574,9 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
@@ -585,6 +596,51 @@ func TestScanVulnerabilities(t *testing.T) {
 
 	// ensure that webhook was called
 	require.Equal(t, 1, webhookCount)
+}
+
+func TestUpdateVulnHostCounts(t *testing.T) {
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx := context.Background()
+
+	ds := new(mock.Store)
+
+	testCases := []struct {
+		desc                   string
+		maxConcurrency         int
+		expectedMaxConcurrency int
+	}{
+		{
+			desc:                   "invalid max concurrency count: 0",
+			maxConcurrency:         0,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "invalid max concurrency count: < 0",
+			maxConcurrency:         -1,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "valid max concurrency count",
+			maxConcurrency:         10,
+			expectedMaxConcurrency: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var gotMaxConcurrency int
+			ds.UpdateVulnerabilityHostCountsFunc = func(ctx context.Context, maxRoutines int) error {
+				gotMaxConcurrency = maxRoutines
+				return nil
+			}
+
+			err := updateVulnHostCounts(ctx, ds, logger, tc.maxConcurrency)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedMaxConcurrency, gotMaxConcurrency)
+		})
+	}
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
@@ -660,9 +716,14 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -1117,7 +1178,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

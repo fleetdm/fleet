@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"fyne.io/systray"
@@ -144,13 +146,13 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 
-		transparencyItem := systray.AddMenuItem("Transparency", "")
-		transparencyItem.Disable()
-		systray.AddSeparator()
-
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
 		selfServiceItem.Hide()
+		systray.AddSeparator()
+
+		transparencyItem := systray.AddMenuItem("About Fleet", "")
+		transparencyItem.Disable()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -246,16 +248,23 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.DesktopSummary(tokenReader.GetCached())
+					summary, err := client.DesktopSummary(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
+
 						// Hide Self-Service for Free tier
-						selfServiceItem.Disable()
-						selfServiceItem.Hide()
+						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
+							selfServiceItem.Disable()
+							selfServiceItem.Hide()
+						} else {
+							selfServiceItem.Enable()
+							selfServiceItem.Show()
+						}
+
 						return
 					}
 
@@ -438,16 +447,35 @@ func main() {
 	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
 	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
-		log.Info().Msg("exit")
+		log.Info().Msg("exiting")
 		if mdmMigrator != nil {
+			log.Debug().Err(err).Msg("exiting mdmMigrator")
 			mdmMigrator.Exit()
 		}
 		if swiftDialogCh != nil {
+			log.Debug().Err(err).Msg("exiting swiftDialogCh")
 			close(swiftDialogCh)
 		}
+		log.Debug().Msg("stopping ticker")
 		summaryTicker.Stop()
+		log.Debug().Msg("canceling offline watcher ctx")
 		cancelOfflineWatcherCtx()
 	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(
+		sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Catch signals and exit gracefully
+	go func() {
+		s := <-sigChan
+		log.Info().Stringer("signal", s).Msg("Caught signal, exiting")
+		systray.Quit()
+	}()
 
 	systray.Run(onReady, onExit)
 }
@@ -509,7 +537,7 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
-		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		log.Error().Err(err).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
 		return err
 	}
 	return nil

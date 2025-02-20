@@ -194,6 +194,19 @@ func (e *BadRequestError) Error() string {
 // StatusCode implements the kithttp StatusCoder interface
 func (e *BadRequestError) StatusCode() int { return http.StatusBadRequest }
 
+// TimeoutError is an error type that generates a 408 status code.
+type TimeoutError struct {
+	Message string
+}
+
+// Error returns the error message.
+func (e *TimeoutError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp StatusCoder interface
+func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
+
 // EncodeSCEPResponse writes a SCEP response back to the SCEP client.
 func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(SCEPResponse)

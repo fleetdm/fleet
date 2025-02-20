@@ -1,14 +1,25 @@
+// Similar to AddPolicyModal
 .select-query-modal {
   min-height: 400px;
-  height: 80%;
+  height: 90%;
   overflow: hidden;
+
+  .modal__content-wrapper {
+    height: 95%;
+  }
 
   .modal__content {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-    height: 80%;
-    overflow: auto;
+    height: 100%;
+  }
+
+  &__query-selection {
+    overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
   }
 
   &__no-queries {
@@ -29,12 +40,6 @@
 
     &__header {
       font-weight: $bold;
-    }
-  }
-
-  &__query-selection {
-    .children-wrapper {
-      width: 680px;
     }
   }
 }

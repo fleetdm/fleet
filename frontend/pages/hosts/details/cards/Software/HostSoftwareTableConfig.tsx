@@ -23,7 +23,7 @@ import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "components/ActionsDropdown";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
@@ -61,6 +61,7 @@ export interface generateActionsProps {
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
+  hostMDMEnrolled?: boolean;
 }
 
 export const generateActions = ({
@@ -69,11 +70,18 @@ export const generateActions = ({
   softwareIdActionPending,
   softwareId,
   status,
+  software_package,
   app_store_app,
+  hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+
+  // we want to hide the install/uninstall actions if (1) this item doesn't have a
+  // software_package or app_store_app or (2) the user doens't have write permission
+  const hideActions =
+    (!app_store_app && !software_package) || !userHasSWWritePermission;
 
   const indexInstallAction = actions.findIndex((a) => a.value === "install");
   if (indexInstallAction === -1) {
@@ -90,7 +98,13 @@ export const generateActions = ({
     throw new Error("Uninstall action not found in default actions");
   }
 
-  if (!userHasSWWritePermission) {
+  if (indexInstallAction > indexUninstallAction) {
+    // subsquent code depends on relative index order; this shouldn't change, but if it does we'll throw an
+    // error to fail loudly so that we know to update this function
+    throw new Error("Order of install/uninstall actions changed");
+  }
+
+  if (hideActions) {
     // Reverse order to not change index of subsequent array element before removal
     actions.splice(indexUninstallAction, 1);
     actions.splice(indexInstallAction, 1);
@@ -126,6 +140,12 @@ export const generateActions = ({
   if (app_store_app) {
     // remove uninstall for VPP apps
     actions.splice(indexUninstallAction, 1);
+
+    if (!hostMDMEnrolled) {
+      actions[indexInstallAction].disabled = true;
+      actions[indexInstallAction].tooltipContent =
+        "To install, turn on MDM for this host.";
+    }
   }
   return actions;
 };
@@ -138,6 +158,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
+  hostMDMEnrolled?: boolean;
 }
 
 // NOTE: cellProps come from react-table
@@ -150,6 +171,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onSelectAction,
+  hostMDMEnrolled,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -237,7 +259,7 @@ export const generateSoftwareTableHeaders = ({
         } = original;
 
         return (
-          <DropdownCell
+          <ActionsDropdown
             placeholder="Actions"
             options={generateActions({
               userHasSWWritePermission,
@@ -248,6 +270,7 @@ export const generateSoftwareTableHeaders = ({
               status,
               software_package,
               app_store_app,
+              hostMDMEnrolled,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />

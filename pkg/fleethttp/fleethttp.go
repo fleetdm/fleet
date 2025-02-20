@@ -97,7 +97,8 @@ func WithTLSConfig(conf *tls.Config) TransportOpt {
 // NewTransport creates an http transport (a type that implements
 // http.RoundTripper) with the provided optional options. The transport is
 // derived from Go's http.DefaultTransport and only overrides the specific
-// parts it needs to, so that it keeps its sane defaults for the rest.
+// parts it needs to, so that it keeps its sane defaults for the rest (such as
+// timeouts and proxy support).
 func NewTransport(opts ...TransportOpt) *http.Transport {
 	var to transportOpts
 	for _, opt := range opts {

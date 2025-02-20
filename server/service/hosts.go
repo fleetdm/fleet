@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/gocarina/gocsv"
@@ -87,9 +88,9 @@ type listHostsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r listHostsResponse) error() error { return r.Err }
+func (r listHostsResponse) Error() error { return r.Err }
 
-func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
@@ -143,7 +144,16 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	for i, host := range hosts {
 		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
+
+		if req.Opts.PopulateLabels {
+			labels, err := svc.ListLabelsForHost(ctx, h.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to list labels for host %d", h.ID))
+			}
+			hostResponses[i].Labels = labels
+		}
 	}
+
 	return listHostsResponse{
 		Hosts:         hostResponses,
 		Software:      software,
@@ -187,6 +197,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		opt.LowDiskSpaceFilter = nil
 		// the bootstrap package filter is premium-only
 		opt.MDMBootstrapPackageFilter = nil
+		// including vulnerability details on software is premium-only
+		opt.PopulateSoftwareVulnerabilityDetails = false
 	}
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
@@ -210,7 +222,7 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 
 	if opt.PopulateSoftware {
 		for _, host := range hosts {
-			if err = svc.ds.LoadHostSoftware(ctx, host, premiumLicense); err != nil {
+			if err = svc.ds.LoadHostSoftware(ctx, host, opt.PopulateSoftwareVulnerabilityDetails); err != nil {
 				return nil, err
 			}
 		}
@@ -223,6 +235,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
 			}
 			host.Policies = &hp
+		}
+	}
+
+	if opt.PopulateUsers {
+		for _, host := range hosts {
+			hu, err := svc.ds.ListHostUsers(ctx, host.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get users for host %d", host.ID))
+			}
+			host.Users = hu
 		}
 	}
 
@@ -250,12 +272,12 @@ type deleteHostsResponse struct {
 	StatusCode int   `json:"-"`
 }
 
-func (r deleteHostsResponse) error() error { return r.Err }
+func (r deleteHostsResponse) Error() error { return r.Err }
 
 // Status implements statuser interface to send out custom HTTP success codes.
 func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
-func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteHostsRequest)
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
@@ -372,9 +394,9 @@ type countHostsResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countHostsResponse) error() error { return r.Err }
+func (r countHostsResponse) Error() error { return r.Err }
 
-func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countHostsRequest)
 	count, err := svc.CountHosts(ctx, req.LabelID, req.Opts)
 	if err != nil {
@@ -437,9 +459,9 @@ type searchHostsResponse struct {
 	Err   error                 `json:"error,omitempty"`
 }
 
-func (r searchHostsResponse) error() error { return r.Err }
+func (r searchHostsResponse) Error() error { return r.Err }
 
-func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
 	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
@@ -505,9 +527,9 @@ type getHostResponse struct {
 	Err  error               `json:"error,omitempty"`
 }
 
-func (r getHostResponse) error() error { return r.Err }
+func (r getHostResponse) Error() error { return r.Err }
 
-func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -610,9 +632,9 @@ type getHostSummaryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getHostSummaryResponse) error() error { return r.Err }
+func (r getHostSummaryResponse) Error() error { return r.Err }
 
-func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSummaryRequest)
 	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
@@ -687,7 +709,7 @@ type hostByIdentifierRequest struct {
 	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*hostByIdentifierRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -744,9 +766,9 @@ type deleteHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteHostResponse) error() error { return r.Err }
+func (r deleteHostResponse) Error() error { return r.Err }
 
-func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteHostRequest)
 	err := svc.DeleteHost(ctx, req.ID)
 	if err != nil {
@@ -801,9 +823,9 @@ type addHostsToTeamResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addHostsToTeamResponse) error() error { return r.Err }
+func (r addHostsToTeamResponse) Error() error { return r.Err }
 
-func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamRequest)
 	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
@@ -920,9 +942,9 @@ type addHostsToTeamByFilterResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
+func (r addHostsToTeamByFilterResponse) Error() error { return r.Err }
 
-func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters)
 	if err != nil {
@@ -996,11 +1018,11 @@ type refetchHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r refetchHostResponse) error() error {
+func (r refetchHostResponse) Error() error {
 	return r.Err
 }
 
-func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*refetchHostRequest)
 	err := svc.RefetchHost(ctx, req.ID)
 	if err != nil {
@@ -1167,7 +1189,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
-	// disk encryption status, and macOS setup details.
+	// disk encryption status, and macOS setup details for non-linux hosts.
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm details")
@@ -1240,6 +1262,28 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
+	if host.IsLUKSSupported() {
+		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
+		// enabled for the host's team
+		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
+		}
+		if eDE {
+			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
+			}
+			host.MDM.OSSettings = &fleet.HostMDMOSSettings{
+				DiskEncryption: status,
+			}
+
+			if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
+				host.MDM.EncryptionKeyAvailable = true
+			}
+		}
+	}
+
 	var macOSSetup *fleet.HostMDMMacOSSetup
 	if ac.MDM.EnabledAndConfigured && license.IsPremium(ctx) {
 		macOSSetup, err = svc.ds.GetHostMDMMacOSSetup(ctx, host.ID)
@@ -1258,27 +1302,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
 
-	// unlocked with no pending action is the default state
-	// TODO(mna): make constants for those values
-	host.MDM.DeviceStatus = ptr.String("unlocked")
-	host.MDM.PendingAction = ptr.String("")
-	// device status
-	switch {
-	case mdmActions.IsWiped():
-		host.MDM.DeviceStatus = ptr.String("wiped")
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
-	}
-
-	// pending action, if any
-	switch {
-	case mdmActions.IsPendingLock():
-		host.MDM.PendingAction = ptr.String("lock")
-	case mdmActions.IsPendingUnlock():
-		host.MDM.PendingAction = ptr.String("unlock")
-	case mdmActions.IsPendingWipe():
-		host.MDM.PendingAction = ptr.String("wipe")
-	}
+	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
+	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 
 	host.Policies = policies
 
@@ -1310,9 +1335,9 @@ type getHostQueryReportResponse struct {
 	Err           error                         `json:"error,omitempty"`
 }
 
-func (r getHostQueryReportResponse) error() error { return r.Err }
+func (r getHostQueryReportResponse) Error() error { return r.Err }
 
-func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostQueryReportRequest)
 
 	// Need to return hostname in response even if there are no report results
@@ -1430,9 +1455,9 @@ type listHostDeviceMappingResponse struct {
 	Err           error                      `json:"error,omitempty"`
 }
 
-func (r listHostDeviceMappingResponse) error() error { return r.Err }
+func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
-func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
 	if err != nil {
@@ -1476,9 +1501,9 @@ type putHostDeviceMappingResponse struct {
 	Err           error                      `json:"error,omitempty"`
 }
 
-func (r putHostDeviceMappingResponse) error() error { return r.Err }
+func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
-func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
 	if err != nil {
@@ -1525,9 +1550,9 @@ type getHostMDMResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getHostMDMResponse) error() error { return r.Err }
+func (r getHostMDMResponse) Error() error { return r.Err }
 
-func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMRequest)
 	mdm, err := svc.MDMData(ctx, req.ID)
 	if err != nil {
@@ -1546,9 +1571,9 @@ type getHostMDMSummaryRequest struct {
 	Platform string `query:"platform,optional"`
 }
 
-func (r getHostMDMSummaryResponse) error() error { return r.Err }
+func (r getHostMDMSummaryResponse) Error() error { return r.Err }
 
-func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMSummaryRequest)
 	resp := getHostMDMSummaryResponse{}
 	var err error
@@ -1573,9 +1598,9 @@ type getMacadminsDataResponse struct {
 	Macadmins *fleet.MacadminsData `json:"macadmins"`
 }
 
-func (r getMacadminsDataResponse) error() error { return r.Err }
+func (r getMacadminsDataResponse) Error() error { return r.Err }
 
-func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMacadminsDataRequest)
 	data, err := svc.MacadminsData(ctx, req.ID)
 	if err != nil {
@@ -1650,9 +1675,9 @@ type getAggregatedMacadminsDataResponse struct {
 	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
 }
 
-func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
+func (r getAggregatedMacadminsDataResponse) Error() error { return r.Err }
 
-func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAggregatedMacadminsDataRequest)
 	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
 	if err != nil {
@@ -1773,14 +1798,14 @@ type hostsReportRequest struct {
 }
 
 type hostsReportResponse struct {
-	Columns []string              `json:"-"` // used to control the generated csv, see the hijackRender method
+	Columns []string              `json:"-"` // used to control the generated csv, see the HijackRender method
 	Hosts   []*fleet.HostResponse `json:"-"` // they get rendered explicitly, in csv
 	Err     error                 `json:"error,omitempty"`
 }
 
-func (r hostsReportResponse) error() error { return r.Err }
+func (r hostsReportResponse) Error() error { return r.Err }
 
-func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
 		if h.DeviceMapping != nil {
@@ -1808,7 +1833,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 		return
 	}
 
@@ -1820,7 +1845,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 		recs, err := csv.NewReader(&buf).ReadAll()
 		if err != nil {
 			logging.WithErr(ctx, err)
-			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+			endpoint_utils.EncodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 			return
 		}
 
@@ -1841,7 +1866,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 						// duplicating the list of columns from the Host's struct tags to a
 						// map and keep this in sync, for what is essentially a programmer
 						// mistake that should be caught and corrected early.
-						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						endpoint_utils.EncodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
 						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
@@ -1866,7 +1891,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*hostsReportRequest)
 
 	// for now, only csv format is allowed
@@ -1923,6 +1948,14 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 
+func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	return svc.ds.ListLabelsForHost(ctx, hostID)
+}
+
 type osVersionsRequest struct {
 	fleet.ListOptions
 	TeamID   *uint   `query:"team_id,optional"`
@@ -1939,9 +1972,9 @@ type osVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r osVersionsResponse) error() error { return r.Err }
+func (r osVersionsResponse) Error() error { return r.Err }
 
-func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*osVersionsRequest)
 
 	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
@@ -2069,9 +2102,9 @@ type getOSVersionResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r getOSVersionResponse) error() error { return r.Err }
+func (r getOSVersionResponse) Error() error { return r.Err }
 
-func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOSVersionRequest)
 
 	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
@@ -2171,9 +2204,9 @@ type getHostEncryptionKeyResponse struct {
 	HostID        uint                         `json:"host_id,omitempty"`
 }
 
-func (r getHostEncryptionKeyResponse) error() error { return r.Err }
+func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
-func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
 	key, err := svc.HostEncryptionKey(ctx, req.ID)
 	if err != nil {
@@ -2198,49 +2231,31 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
-	// The middleware checks that either Apple or Windows MDM are configured and
-	// enabled, but here we must check if the specific one is enabled for that
-	// particular host's platform.
-	var decryptCert *tls.Certificate
-	switch host.FleetPlatform() {
-	case "windows":
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+	var key *fleet.HostDiskEncryptionKey
+	if host.IsLUKSSupported() {
+		if svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.Wrap(ctx, errors.New("private key is unavailable"), "getting host encryption key")
+		}
+
+		key, err = svc.ds.GetHostDiskEncryptionKey(ctx, id)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+		}
+		if key.Base64Encrypted == "" {
+			return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
+		}
+
+		decryptedKey, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, svc.config.Server.PrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
+		}
+		key.DecryptedValue = decryptedKey
+	} else {
+		key, err = svc.decryptForMDMPlatform(ctx, host)
+		if err != nil {
 			return nil, err
 		}
-
-		// use Microsoft's WSTEP certificate for decrypting
-		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
-		}
-		decryptCert = cert
-
-	default:
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return nil, err
-		}
-
-		// use Apple's SCEP certificate for decrypting
-		cert, err := assets.CAKeyPair(ctx, svc.ds)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
-		}
-		decryptCert = cert
 	}
-
-	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
-	}
-
-	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
-	}
-	key.DecryptedValue = string(decryptedKey)
 
 	err = svc.NewActivity(
 		ctx,
@@ -2254,6 +2269,50 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, ctxerr.Wrap(ctx, err, "create read host disk encryption key activity")
 	}
 
+	return key, nil
+}
+
+func (svc *Service) decryptForMDMPlatform(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
+	// Here we must check if the appropriate MDM is enabled for that particular host's platform.
+	var decryptCert *tls.Certificate
+	if host.FleetPlatform() == "windows" {
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Microsoft's WSTEP certificate for decrypting
+		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		}
+		decryptCert = cert
+	} else {
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+
+		// use Apple's SCEP certificate for decrypting
+		cert, err := assets.CAKeyPair(ctx, svc.ds)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
+		}
+		decryptCert = cert
+	}
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+	if key.Decryptable == nil || !*key.Decryptable {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not decryptable")
+	}
+
+	decryptedKey, err := mdm.DecryptBase64CMS(key.Base64Encrypted, decryptCert.Leaf, decryptCert.PrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypt host encryption key")
+	}
+
+	key.DecryptedValue = string(decryptedKey)
 	return key, nil
 }
 
@@ -2271,9 +2330,9 @@ type getHostHealthResponse struct {
 	HostHealth *fleet.HostHealth `json:"health,omitempty"`
 }
 
-func (r getHostHealthResponse) error() error { return r.Err }
+func (r getHostHealthResponse) Error() error { return r.Err }
 
-func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostHealthRequest)
 	hh, err := svc.GetHostHealth(ctx, req.ID)
 	if err != nil {
@@ -2403,9 +2462,9 @@ type addLabelsToHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r addLabelsToHostResponse) error() error { return r.Err }
+func (r addLabelsToHostResponse) Error() error { return r.Err }
 
-func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addLabelsToHostRequest)
 	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
 		return addLabelsToHostResponse{Err: err}, nil
@@ -2448,9 +2507,9 @@ type removeLabelsFromHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r removeLabelsFromHostResponse) error() error { return r.Err }
+func (r removeLabelsFromHostResponse) Error() error { return r.Err }
 
-func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*removeLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
 		return removeLabelsFromHostResponse{Err: err}, nil
@@ -2580,9 +2639,9 @@ type getHostSoftwareResponse struct {
 	Err      error                              `json:"error,omitempty"`
 }
 
-func (r getHostSoftwareResponse) error() error { return r.Err }
+func (r getHostSoftwareResponse) Error() error { return r.Err }
 
-func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {
@@ -2627,6 +2686,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
+	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+	}
+
 	// cursor-based pagination is not supported
 	opts.ListOptions.After = ""
 	// custom ordering is not supported, always by name (but asc/desc is configurable)
@@ -2634,6 +2698,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	// always include metadata
 	opts.ListOptions.IncludeMetadata = true
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
+	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")

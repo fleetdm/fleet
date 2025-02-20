@@ -216,6 +216,9 @@ module.exports = {
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
+    // Prepend the user's reported organization to the questionnaireProgressAsAFormattedString
+    questionnaireProgressAsAFormattedString = `organization-according-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
+
     // Create a dictionary of values to send to the CRM for this user.
     let contactInformation = {
       emailAddress: this.req.me.emailAddress,
@@ -231,9 +234,9 @@ module.exports = {
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
-        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
         // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
-        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+        if(this.req.session.visitedSiteFromAdAt > sevenDaysAgoAt) {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
@@ -243,8 +246,19 @@ module.exports = {
     }//ﬁ
     // Update the CRM record for this user.
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
-      if(err){
-        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+      // Check to see if the error returned is related to duplicate records.
+      if(err && err.errorCode === 'DUPLICATES_DETECTED') {
+        // Because we create/update CRM records in the background, it is possible to complete the first steps of the get started questionnaire before any CRM records are created.
+        // If the CRM helper returns an error related to a duplicate record, we will log a message if it occured when a user submitted one of the first three steps of the questionnaire.
+        if(['start','what-are-you-using-fleet-for','have-you-ever-used-fleet'].includes(currentStep)){
+          sails.log.verbose(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM because a duplicate record was found.`, err);
+        } else {
+          // If this was not one of the first three steps, log a warning to alert us.
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM because a duplicate record was found.`, err);
+        }
+      } else if(err){
+        // If it is any other kind of error or t, log a warning.
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM.`, err);
       }
       return;
     });

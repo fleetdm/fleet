@@ -91,6 +91,7 @@ const EditQueryPage = ({
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
+    lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
@@ -101,6 +102,7 @@ const EditQueryPage = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
@@ -150,6 +152,7 @@ const EditQueryPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
         setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
         setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
         setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
@@ -228,6 +231,7 @@ const EditQueryPage = ({
       // Persist lastEditedQueryBody through live query flow instead of resetting to DEFAULT_QUERY.query
       setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
       setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
+      setLastEditedQueryAutomationsEnabled(DEFAULT_QUERY.automations_enabled);
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
       setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
       setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
@@ -298,6 +302,7 @@ const EditQueryPage = ({
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
       lastEditedQueryFrequency,
+      lastEditedQueryAutomationsEnabled,
       lastEditedQueryPlatforms,
       lastEditedQueryLoggingType,
       lastEditedQueryMinOsqueryVersion,

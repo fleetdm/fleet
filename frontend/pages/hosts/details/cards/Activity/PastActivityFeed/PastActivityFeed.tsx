@@ -7,9 +7,9 @@ import { IHostPastActivitiesResponse } from "services/entities/activities";
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 
 import { pastActivityComponentMap } from "../ActivityConfig";
 
@@ -18,7 +18,7 @@ const baseClass = "past-activity-feed";
 interface IPastActivityFeedProps {
   activities?: IHostPastActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -26,7 +26,7 @@ interface IPastActivityFeedProps {
 const PastActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
   onNextPage,
   onPreviousPage,
 }: IPastActivityFeedProps) => {
@@ -60,7 +60,8 @@ const PastActivityFeed = ({
               key={activity.id}
               tab="past"
               activity={activity}
-              onShowDetails={onDetailsClick}
+              hideCancel
+              onShowDetails={onShowDetails}
             />
           );
         })}

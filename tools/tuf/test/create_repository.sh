@@ -31,7 +31,7 @@ NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.12.2
+    OSQUERY_VERSION=5.14.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -75,6 +75,9 @@ for system in $SYSTEMS; do
         goose_value="darwin"
     fi
     if [[ $system == "linux" ]]; then
+        goarch_value="amd64"
+    fi
+    if [[ $system == "windows" ]]; then
         goarch_value="amd64"
     fi
     if [[ $system == "linux-arm64" ]]; then

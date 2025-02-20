@@ -2,7 +2,7 @@
 <div style="background-color: #F9FAFC; width: 100%; font-family: 'Inter','Helvetica','arial', sans-serif; box-sizing: border-box; padding: 8px; margin: 0; word-break: break-word;">
   <div style="border: 1px #e3e3e3 solid; background-color: #FFF ;color: #192147; font-size: 16px; box-sizing: border-box; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; padding: 24px;">
     <div style="background: transparent; text-align: left;">
-      <a href="https://fleetdm.com"><img style="display: inline-block; width: 162px; height: 92px; width: auto;" alt="Logo" src="https://fleetdm.com/images/logo-blue-162x92@2x.png"/></a>
+      <a href="https://fleetdm.com"><img style="display: inline-block; width: 162px; height: 92px; width: auto;" alt="Logo" src="https://fleetdm.com/images/logo-email-162x92@2x.png"/></a>
     </div>
     <%- body %>
     <hr style="margin-top: 40px; color: #E2E4EA;"/>
@@ -15,7 +15,7 @@
       <p>© <%= (new Date()).getFullYear() %> Fleet Device Management Inc. All trademarks, service marks, and company names are the property of their respective owners.</p>
     </div>
     <div>
-      <p style="font-size: 12px; color: #3E4771;">You received this email because you’re subscribed to the Fleet newsletter. <a href="<%= url.resolve(sails.config.custom.baseUrl, '/unsubscribe?emailAddress='+encodeURIComponent(emailAddress)) %>">Unsubscribe</a></p>
+      <p style="font-size: 12px; color: #3E4771;">You received this email because you’re subscribed to the Fleet newsletter. <a href="<%= url.resolve(sails.config.custom.baseUrl, '/unsubscribe-from-newsletter?emailAddress='+encodeURIComponent(emailAddress)) %>">Unsubscribe</a></p>
     </div>
   </div>
 </div>

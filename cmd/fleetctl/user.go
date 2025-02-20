@@ -23,6 +23,7 @@ const (
 	emailFlagName      = "email"
 	nameFlagName       = "name"
 	ssoFlagName        = "sso"
+	mfaFlagName        = "mfa"
 	apiOnlyFlagName    = "api-only"
 	csvFlagName        = "csv"
 )
@@ -67,6 +68,10 @@ func createUserCommand() *cli.Command {
 				Usage: "Enable user login via SSO",
 			},
 			&cli.BoolFlag{
+				Name:  mfaFlagName,
+				Usage: "Require email verification on login (not applicable to SSO users)",
+			},
+			&cli.BoolFlag{
 				Name:  apiOnlyFlagName,
 				Usage: "Make \"API-only\" user",
 			},
@@ -94,9 +99,14 @@ func createUserCommand() *cli.Command {
 			email := c.String(emailFlagName)
 			name := c.String(nameFlagName)
 			sso := c.Bool(ssoFlagName)
+			mfa := c.Bool(mfaFlagName)
 			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
 			teamStrings := c.StringSlice(teamFlagName)
+
+			if mfa && sso {
+				return errors.New("email verification on login is not applicable to SSO users")
+			}
 
 			var globalRole *string
 			var teams []fleet.UserTeam
@@ -165,6 +175,7 @@ func createUserCommand() *cli.Command {
 				Email:                    &email,
 				Name:                     &name,
 				SSOEnabled:               &sso,
+				MFAEnabled:               &mfa,
 				AdminForcedPasswordReset: &force_reset,
 				APIOnly:                  &apiOnly,
 				GlobalRole:               globalRole,

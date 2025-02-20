@@ -366,6 +366,7 @@ const ManageAutomationsModal = ({
             <Link
               to={PATHS.ADMIN_INTEGRATIONS}
               className={`${baseClass}__add-integration-link`}
+              tabIndex={softwareAutomationsEnabled ? 0 : -1}
             >
               Add integration
             </Link>
@@ -407,11 +408,13 @@ const ManageAutomationsModal = ({
           }
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
+          disabled={!softwareAutomationsEnabled}
         />
         <Button
           type="button"
           variant="text-link"
           onClick={togglePreviewPayloadModal}
+          disabled={!softwareAutomationsEnabled}
         >
           Preview payload
         </Button>
@@ -463,6 +466,7 @@ const ManageAutomationsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onRadioChange(true)}
+              disabled={!softwareAutomationsEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -472,13 +476,19 @@ const ManageAutomationsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onRadioChange(false)}
+              disabled={!softwareAutomationsEnabled}
             />
           </div>
           {integrationEnabled ? renderTicket() : renderWebhook()}
           <p>
             Vulnerability automations currently run for software
             vulnerabilities. Interested in automations for OS vulnerabilities?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            <CustomLink
+              url={SUPPORT_LINK}
+              text="Let us know"
+              newTab
+              disableKeyboardNavigation={!softwareAutomationsEnabled}
+            />
           </p>
         </div>
         <div className="modal-cta-wrap">

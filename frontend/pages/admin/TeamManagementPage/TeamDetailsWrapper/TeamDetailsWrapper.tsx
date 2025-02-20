@@ -97,6 +97,7 @@ const TeamDetailsWrapper = ({
     isGlobalAdmin,
     isPremiumTier,
     setAvailableTeams,
+    setUserSettings,
     setCurrentUser,
   } = useContext(AppContext);
 
@@ -140,9 +141,10 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -295,12 +297,11 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
-      return router.push(PATHS.ADMIN_TEAMS);
+      router.push(PATHS.ADMIN_TEAMS);
       renderFlash("success", "Team removed");
     } catch (response) {
       renderFlash("error", "Something went wrong removing the team");
       console.error(response);
-      return false;
     } finally {
       toggleDeleteTeamModal();
       setIsUpdatingTeams(false);

@@ -15,7 +15,7 @@ module.exports = {
       required: true,
     },
     newTeamIds: {
-      type: ['ref'],
+      type: ['number'],
       description: 'An array of teams that this script will be added to.'
     },
     newScript: {

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -354,7 +355,10 @@ func TestFeaturesCopy(t *testing.T) {
 		}
 		clone := f.Copy()
 		require.NotNil(t, clone.DetailQueryOverrides)
-		require.NotSame(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
+		require.NotEqual(t,
+			reflect.ValueOf(f.DetailQueryOverrides).Pointer(),
+			reflect.ValueOf(clone.DetailQueryOverrides).Pointer(),
+		)
 		// map values are pointers, check that they have been cloned
 		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
 		// the map content itself is equal

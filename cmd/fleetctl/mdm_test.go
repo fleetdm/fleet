@@ -149,23 +149,23 @@ func TestMDMRunCommand(t *testing.T) {
 
 	emptyAppleCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = emptyAppleCmdFilePath.WriteString(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	_, err = emptyAppleCmdFilePath.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-</plist>`))
+</plist>`)
 	require.NoError(t, err)
 	emptyAppleCmdFilePath.Close()
 
 	emptyWinCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = emptyWinCmdFilePath.WriteString(fmt.Sprintf(`<Exec>
-</Exec>`))
+	_, err = emptyWinCmdFilePath.WriteString(`<Exec>
+</Exec>`)
 	require.NoError(t, err)
 	emptyWinCmdFilePath.Close()
 
 	nonExecWinCmdFilePath, err := os.CreateTemp(t.TempDir(), "*.xml")
 	require.NoError(t, err)
-	_, err = nonExecWinCmdFilePath.WriteString(fmt.Sprintf(`<Get>
+	_, err = nonExecWinCmdFilePath.WriteString(`<Get>
 	<CmdID>22</CmdID>
 	<Item>
 		<Target>
@@ -177,7 +177,7 @@ func TestMDMRunCommand(t *testing.T) {
 		</Meta>
 		<Data>NamedValuesList=MinPasswordLength,8;</Data>
 	</Item>
-</Get>`))
+</Get>`)
 	require.NoError(t, err)
 	nonExecWinCmdFilePath.Close()
 
@@ -274,7 +274,7 @@ func TestMDMRunCommand(t *testing.T) {
 				return res, nil
 			}
 
-			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
 
@@ -1246,7 +1246,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
-		{appCfgScriptsDisabled, "valid linux but script are disabled", []string{"--host", linuxEnrolled.host.UUID}, "Can't wipe host because running scripts is disabled in organization settings."},
+		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
 	}
 
 	successfulOutput := func(ident string) string {

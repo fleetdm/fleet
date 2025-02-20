@@ -1,25 +1,3 @@
 name: No team
 policies:
-controls:
-  enable_disk_encryption: true
-  macos_migration:
-    enable: true
-    mode: voluntary
-    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
-  macos_settings:
-    custom_settings: null
-  macos_setup:
-    bootstrap_package: ""
-    enable_end_user_authentication: false
-    macos_setup_assistant: null
-  macos_updates:
-    deadline: "2023-06-13"
-    minimum_version: 13.4.1
-  windows_enabled_and_configured: true
-  windows_settings:
-    custom_settings: []
-  windows_updates:
-    deadline_days: 3
-    grace_period_days: 2
-  scripts: []
 software:

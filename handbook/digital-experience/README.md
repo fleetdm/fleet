@@ -15,8 +15,9 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Contracts and Compliance Engineer       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-
+| Marketing Apprentice            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
  
+
 
 ## Contact us
 
@@ -180,17 +181,6 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
 
-### Respond to a "Contact us" submission
-
-1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
-2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. Mark the Slack message as complete with the "✅" emoji.
-
-> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
-
-
 ### Update the host count of a premium subscription
 
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Marketing department](https://fleetdm.com/handbook/marketing) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
@@ -206,6 +196,11 @@ To update the host count on a user's subscription:
 7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 
+### Change customer credit card number
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+
 ### Cancel a Fleet Premium subscription
 
 Use the following steps to cancel a Fleet Premium subscription:
@@ -214,11 +209,31 @@ Use the following steps to cancel a Fleet Premium subscription:
 3. Reach out to the community member (using the [correct email template](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit#heading=h.vw9mkh5e9msx)) and let them know their subscription was canceled.
 
 
+### Register a domain for Fleet
+
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+
+### Track a Fleet applicant
+
+Use the following steps to track a Fleet applicant:
+1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
+2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
+  - **Full name**
+  - **LinkedIn URL**
+  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
+  - **Interest expressed on**: Date they messaged Fleet
+  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
+  - **Notes**: Copy the message the candidate sent and paste it into this cell.
+  - **Has previous relationship with fleetie?: (if so, who?)
+3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
@@ -237,27 +252,71 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 ### Process incoming equipment
 
 Upon receiving any device, follow these steps to process incoming equipment.
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
+2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+3. Remove any stickers and clean devices and components.
+4. Using the device's charger, plug in the device.
+5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
+6. Turn on the device and enter the unlock code.
+7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
+
+**If you need to manually recover a device or reinstall macOS**
+1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+2. Connect the device to WIFI.
+3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
+4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
 > If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
 
 Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
+1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user.
+4. Change the "host" info to reflect the new user.
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+
+
+### Fix a laptop that's not checking in
+
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
+
+If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/commands/macos-send-fleetd.xml to the device, which will reinstall fleetd.
+
+If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
+
+
+### Enroll a macOS host in dogfood
+
+When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
+You can confirm that the device has been ordered correctly by following these steps:
+- Log into ABM
+- Use the device serial number to find the device.
+  - Note: if the device cannot be found, you will need to manually enroll the device.
+- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
+
+On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
+- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you do not have physical access to the device, the user will need to undertake the following steps:
+  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
+  - In Fleet desktop, follow the instructions to turn on MDM.
+  - Once complete, follow instructions to reset disk encryption key.
+- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
+
+
+### Enroll a Windows or Ubuntu Linux device in dogfood
+
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
+
+
+### Enroll a ChromeOS device in dogfood
+
+ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
 
 
 ### Update personnel details
@@ -321,16 +380,8 @@ When Digital Experience receives notification of a Fleetie's manager changing, f
 
 At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
 
-1. On the 15th of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
-2. At-mention the Head of Digital Experience. Use the following template:
-
-   
-    ```
-    [Month]
-    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
-    ```
-
-   The Head of Digital Experience will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+1. On the 1st of every month, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the next month.
+2. List all team members in the ["✌️ All hands 🖐👋🤲👏🙌🤘" section of the e-group doc (confidential Google Doc)](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0#heading=h.gg4j9w7jg6g3) using the following format: `[workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]`.
 3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
 
 
@@ -349,23 +400,24 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 2. Copy the template text and paste at the end of the document.
 3. Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
-4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries and include all company assumptions. Add the direct link to the Pave benchmark.
 
 
 ### Update a team member's compensation
 
 To [change a teammate's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
 1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the teammate's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-2. Share the values assessment document with the manager and ask them to perform the values assessment.
-3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and notify the Head of Digital Experience so the compensation change can be added to the e-group agenda for discussion amongst Fleet leadership.
-   - If the teammate's manager is not part of the e-group, the Head of Digital Experience will ensure they're included in the discussion at e-group as well. 
-4. Once compensation decisions have been finalized, the Head of Digital Experience will post in slack to `#help-classified` to confirm the decisions have been recorded in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas). 
-5. Send the teammates manager a Slack DM to determine who will communicate the decision to the teammate.
-6. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
-8. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
+2. Share the values assessment document with the manager via Slack DM (include the Head of Digital Experience) and ask the manager to fill out the values assessment.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Head of Digital Experience in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
+4. Once compensation decisions have been finalized, the Head of Digital Experience will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
+5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell,
+  - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
+  - Update the "Last compensation change" column with the effective date from payroll platform.
+  - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
+  - If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
+7. Calculate the monthly burn rate increase percentage and notify the CEO via a Slack DM.
 
-> If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
 
 ### Grant equity
@@ -674,7 +726,9 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 ### Communicate Fleet's potential energy to stakeholders
 
 On the first business day of every month, the Head of Digital Experience will send an update to the stakeholders of Fleet using the following steps:
-1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
+1. Navigate to the "[🪴🌧️🦉 Investor updates](https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit?gid=0#gid=0)" spreadsheet and confirm the data in each column matches the header of that column (e.g. the "Headcount" column actually has headcount values in it). Do this by confirming the "Remote column" value corresponds to the correct column "letter" in the "Weekly updates" tab of the "[📈 OKRs (quarterly goals) + KPIs (everyday metrics)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0)" spreadsheet.
+2. Confirm KPI's are up-to-date. If any KPI's aren't completed, at mention the e-group member responsible and ask that the KPI's be completed ASAP in order to send the investor update. 
+3. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
 
 ```
 Hi investors and friends,
@@ -688,8 +742,8 @@ Mike and the Fleet team
 
 ```
 
-2. Address the email to the executive team's Gmail.
-3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
+4. Address the email to the executive team's Gmail.
+5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
 ### Schedule press release
@@ -781,6 +835,20 @@ To check for pending connect requests, perform the following steps:
   2. Bring all pending connect requests to the CEO during the daily roundup.
 
 
+
+### Add LinkedIn connections to CRM
+
+To add the most recent connections from Linkedin to our CRM, follow these steps:
+  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
+  2. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
+  3. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
+  4. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
+  5. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
+  8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+
+
 ### Schedule travel for the CEO
 
 The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
@@ -831,11 +899,18 @@ Agenda:
 
 ### Confirm CEO shadow dates
 
-After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next roundup as a "DISCUSS: CEO shadow dates". Use the following steps to confirm CEO shadow dates:
+Use the following steps to confirm CEO shadow dates:
 1. Create an "All day", "Free" event on the CEO's calendar that matches the CEO shadow dates and name the calendar event "CEO shadow - [NAME] (Job title)".
-3. Confirm the "shadowability" for external and nonrecurring internal meetings with the CEO during the next daily 🐈‍⬛🌪️ Roundup.
-4. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
+2. Go through the calendar and make sure all private meetings (e.g. 1:1's, E-Group, and quarterly board meetings) have "[no shadows]" in the event title.
+3. Add a "DISCUSS: CEO shadow YYYY-MM-DD to YYYY-MM-DD TEAM_MEMBER_NAME - POSITION" item to the meeting agenda
+4. Attend the next "🐈‍⬛🌪️ Roundup (~ceo)" meeting to make the CEO aware of the dates and confirm the "shadowability" of external and nonrecurring internal meetings.
 
+> After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next "🐈‍⬛🌪️ Roundup (~ceo)".
+
+
+### Check GitHub terms
+
+Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know. 
 
 
 ## Rituals

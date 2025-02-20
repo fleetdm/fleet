@@ -3,6 +3,7 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 const baseClass = "internal-link-cell";
 
@@ -10,6 +11,13 @@ interface IInternalLinkCellProps {
   value: string;
   onClick?: () => void;
   className?: string;
+  /** iconName is the name of the icon that will be dislayed to the right
+   * of the text.
+   *
+   * NOTE: This component has not been tested with all icons. Callers should
+   * ensure that the specified icon displays properly. Some issue were observed
+   * with icon clipping, sizing etc. */
+  iconName?: IconNames;
 }
 
 /** This cell is used when you want a clickable cell value that does not link
@@ -23,6 +31,7 @@ const InternalLinkCell = ({
   value,
   onClick = noop,
   className,
+  iconName,
 }: IInternalLinkCellProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -34,7 +43,7 @@ const InternalLinkCell = ({
        */}
       <div className={`${baseClass}__content`} onClick={onClick}>
         <span>{value}</span>
-        <Icon name="arrow-internal-link" />
+        {iconName && <Icon name={iconName} />}
       </div>
     </div>
   );

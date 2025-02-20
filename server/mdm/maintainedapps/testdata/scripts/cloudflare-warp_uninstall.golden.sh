@@ -47,15 +47,15 @@ remove_launchctl_service() {
   local booleans=("true" "false")
   local plist_status
   local paths
-  local sudo
+  local should_sudo
 
   echo "Removing launchctl service ${service}"
 
-  for sudo in "${booleans[@]}"; do
+  for should_sudo in "${booleans[@]}"; do
     plist_status=$(launchctl list "${service}" 2>/dev/null)
 
     if [[ $plist_status == \{* ]]; then
-      if [[ $sudo == "true" ]]; then
+      if [[ $should_sudo == "true" ]]; then
         sudo launchctl remove "${service}"
       else
         launchctl remove "${service}"
@@ -69,7 +69,7 @@ remove_launchctl_service() {
     )
 
     # if not using sudo, prepend the home directory to the paths
-    if [[ $sudo == "false" ]]; then
+    if [[ $should_sudo == "false" ]]; then
       for i in "${!paths[@]}"; do
         paths[i]="${HOME}${paths[i]}"
       done
@@ -77,7 +77,7 @@ remove_launchctl_service() {
 
     for path in "${paths[@]}"; do
       if [[ -e "$path" ]]; then
-        if [[ $sudo == "true" ]]; then
+        if [[ $should_sudo == "true" ]]; then
           sudo rm -f -- "$path"
         else
           rm -f -- "$path"
@@ -91,6 +91,7 @@ trash() {
   local logged_in_user="$1"
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
 
   # replace ~ with /Users/$logged_in_user
   if [[ "$target_file" == ~* ]]; then
@@ -102,7 +103,7 @@ trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
   else
     echo "$target_file doesn't exist."
   fi
@@ -112,6 +113,7 @@ remove_launchctl_service 'com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp'
 remove_launchctl_service 'com.cloudflare.1dot1dot1dot1.macos.warp.daemon'
 quit_application 'com.cloudflare.1dot1dot1dot1.macos'
 sudo pkgutil --forget 'com.cloudflare.1dot1dot1dot1.macos'
+/Applications/Cloudflare\ WARP.app/Contents/Resources/uninstall.sh
 trash $LOGGED_IN_USER '~/Library/Application Scripts/com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp'
 trash $LOGGED_IN_USER '~/Library/Application Support/com.cloudflare.1dot1dot1dot1.macos'
 trash $LOGGED_IN_USER '~/Library/Caches/com.cloudflare.1dot1dot1dot1.macos'

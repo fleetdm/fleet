@@ -28,6 +28,7 @@ import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
+import TotalHosts from "./TotalHosts";
 import Lightbulb from "./Lightbulb";
 
 import Apple from "./Apple";
@@ -64,6 +65,9 @@ import Refresh from "./Refresh";
 import Install from "./Install";
 import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
+import AutomaticSelfService from "./AutomaticSelfService";
+import User from "./User";
+import InfoOutline from "./InfoOutline";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -89,8 +93,10 @@ export const ICON_MAP = {
   "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  "total-hosts": TotalHosts,
   lightbulb: Lightbulb,
   info: Info,
+  "info-outline": InfoOutline,
   more: More,
   plus: Plus,
   policy: Policy,
@@ -134,6 +140,8 @@ export const ICON_MAP = {
   install: Install,
   "install-self-service": InstallSelfService,
   settings: Settings,
+  "automatic-self-service": AutomaticSelfService,
+  user: User,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

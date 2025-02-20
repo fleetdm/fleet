@@ -11,6 +11,12 @@ const formatFieldForCSV = (value: any): string => {
   if (typeof value === "object") {
     value = JSON.stringify(value);
   }
+
+  // Treat values with leading zeros as strings so csv file doesn't trim leading zeros
+  if (/^0\d+$/.test(value)) {
+    return `"=""${value}"""`;
+  }
+
   // Escape double quotes in the value by doubling them
   if (typeof value === "string") {
     value = value.replace(/"/g, '""');

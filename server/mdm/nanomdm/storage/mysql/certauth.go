@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -52,4 +54,17 @@ UPDATE
 		certNotValidAfter,
 	)
 	return err
+}
+
+func (s *MySQLStorage) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT id FROM cert_auth_associations WHERE sha256 = ? LIMIT 1;`,
+		hash,
+	).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }

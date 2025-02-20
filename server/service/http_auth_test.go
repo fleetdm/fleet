@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -162,7 +164,13 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
 		session := &fleet.Session{
 			UserID:     userID,
 			Key:        sessionKey,

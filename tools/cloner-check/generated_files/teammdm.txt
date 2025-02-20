@@ -18,6 +18,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MD
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSetup	fleet.MacOSSetup
@@ -28,6 +29,13 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Software	optjson.Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Value	[]*fleet.MacOSSetupSoftware
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	AppStoreID	string
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool

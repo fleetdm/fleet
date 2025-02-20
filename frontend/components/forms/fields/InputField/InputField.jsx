@@ -196,6 +196,9 @@ class InputField extends Component {
       "labelTooltipPosition",
     ]);
 
+    // FIXME: Why doesn't this pass onBlur and other props down if the type is textarea. Do we want
+    // to change that? What might break if we do?
+
     if (type === "textarea") {
       return (
         <FormField

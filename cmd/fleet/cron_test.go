@@ -23,14 +23,24 @@ import (
 	kitlog "github.com/go-kit/log"
 )
 
-func TestNewMDMProfileManagerWithoutConfig(t *testing.T) {
+func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := kitlog.NewNopLogger()
 
-	sch, err := newMDMProfileManager(ctx, "foo", ds, cmdr, logger)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger)
+	require.NotNil(t, sch)
+	require.NoError(t, err)
+}
+
+func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := kitlog.NewNopLogger()
+
+	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }

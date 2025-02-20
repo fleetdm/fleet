@@ -22,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/theupdateframework/go-tuf"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -30,23 +30,43 @@ const (
 	// these repositories.
 	consistentSnapshots = false
 
-	// ~10 years
-	keyExpirationDuration = 10 * 365 * 24 * time.Hour
-
-	// Expirations from
-	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
-	// ~10 years
-	rootExpirationDuration = 10 * 365 * 24 * time.Hour //nolint:unused,deadcode
-	// ~3 years
-	targetsExpirationDuration = 3 * 365 * 24 * time.Hour
-	// ~3 years
-	snapshotExpirationDuration = 3 * 365 * 24 * time.Hour
-	// 14 days
-	timestampExpirationDuration = 14 * 24 * time.Hour
-
 	decryptionFailedError = "encrypted: decryption failed"
 
 	backupDirectory = ".backup"
+)
+
+// The following are defined as string variables so that we can use/set them in tests and test tooling.
+var (
+	// keyExpirationDuration is used when generating new keys (repository init)
+	// or when rotating the root key.
+	// ~10 years (10 * 365 * 24 hours)
+	keyExpirationDuration = "87600h"
+
+	//
+	// Expirations from
+	// https://github.com/theupdateframework/notary/blob/e87b31f46cdc5041403c64b7536df236d5e35860/docs/best_practices.md#expiration-prevention
+	//
+	// They are defined as string so we can modify them at build time for testing purposes.
+	//
+
+	// rootExpirationDuration is used to set the expiration of root.json when revoking the current root key.
+	// ~10 years (10 * 365 * 24 hours)
+	rootExpirationDuration = "87600h"
+	// targetsExpirationDuration is used to set the expiration of the targets.json signature.
+	// ~3 years (3 * 365 * 24 hours)
+	targetsExpirationDuration = "26280h"
+	// snapshotExpirationDuration is used to set the expiration of the snapshot.json signature.
+	// ~3 years (3 * 365 * 24 hours)
+	snapshotExpirationDuration = "26280h"
+	// timestampExpirationDuration is used to set the expiration of the timestamp.json signature.
+	// 14 days (14 * 24 hours)
+	timestampExpirationDuration = "336h"
+
+	keyExpirationDuration_       = mustParseDuration(keyExpirationDuration)
+	rootExpirationDuration_      = mustParseDuration(rootExpirationDuration)
+	targetsExpirationDuration_   = mustParseDuration(targetsExpirationDuration)
+	snapshotExpirationDuration_  = mustParseDuration(snapshotExpirationDuration)
+	timestampExpirationDuration_ = mustParseDuration(timestampExpirationDuration)
 )
 
 var passHandler = newPassphraseHandler()
@@ -85,6 +105,14 @@ func updatesInitCommand() *cli.Command {
 		Flags:  updatesFlags(),
 		Action: updatesInitFunc,
 	}
+}
+
+func mustParseDuration(s string) time.Duration {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		panic(err)
+	}
+	return d
 }
 
 func updatesInitFunc(c *cli.Context) error {
@@ -134,14 +162,14 @@ func updatesInitFunc(c *cli.Context) error {
 	if err := repo.AddTargetsWithExpires(
 		nil,
 		nil,
-		time.Now().Add(targetsExpirationDuration),
+		time.Now().Add(targetsExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("initialize targets: %w", err)
 	}
-	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("make snapshot: %w", err)
 	}
-	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
 
@@ -256,10 +284,10 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath = filepath.Join(name, platform, tag, name)
 		}
 		switch {
-		case name == "desktop" && platform == "windows":
+		case name == constant.DesktopTUFTargetName && platform == "windows":
 			// This is a special case for the desktop target on Windows.
 			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
-		case name == "desktop" && (platform == "linux" || platform == "linux-arm64"):
+		case name == constant.DesktopTUFTargetName && (platform == "linux" || platform == "linux-arm64"):
 			// This is a special case for the desktop target on Linux.
 			dstPath += ".tar.gz"
 		// The convention for Windows extensions is to use the extension `.ext.exe`
@@ -294,16 +322,16 @@ func updatesAddFunc(c *cli.Context) error {
 	if err := repo.AddTargetsWithExpires(
 		paths,
 		meta,
-		time.Now().Add(targetsExpirationDuration),
+		time.Now().Add(targetsExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("add targets: %w", err)
 	}
 
-	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("make snapshot: %w", err)
 	}
 
-	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
 
@@ -336,7 +364,7 @@ func updatesTimestampFunc(c *cli.Context) error {
 	}
 
 	if err := repo.TimestampWithExpires(
-		time.Now().Add(timestampExpirationDuration),
+		time.Now().Add(timestampExpirationDuration_),
 	); err != nil {
 		return fmt.Errorf("make timestamp: %w", err)
 	}
@@ -415,7 +443,7 @@ func updatesRotateFunc(c *cli.Context) error {
 	// Delete old keys for role
 	for _, key := range keys {
 		id := key.PublicData().IDs()[0]
-		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
+		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration_))
 		if err != nil {
 			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
 			// tuf.ErrKeyNotFound as these represent keys that are not present in the manifest and
@@ -441,15 +469,15 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	// Generate new metadata for each role (technically some of these may not need regeneration
 	// depending on which key was rotated, but there should be no harm in generating new ones for each).
-	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(targetsExpirationDuration)); err != nil {
+	if err := repo.AddTargetsWithExpires(nil, nil, time.Now().Add(targetsExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate targets: %w", err)
 	}
 
-	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration)); err != nil {
+	if err := repo.SnapshotWithExpires(time.Now().Add(snapshotExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate snapshot: %w", err)
 	}
 
-	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration)); err != nil {
+	if err := repo.TimestampWithExpires(time.Now().Add(timestampExpirationDuration_)); err != nil {
 		return fmt.Errorf("generate timestamp: %w", err)
 	}
 
@@ -619,7 +647,7 @@ func copyTarget(srcPath, dstPath string) error {
 }
 
 func updatesGenKey(repo *tuf.Repo, role string) error {
-	keyids, err := repo.GenKeyWithExpires(role, time.Now().Add(keyExpirationDuration))
+	keyids, err := repo.GenKeyWithExpires(role, time.Now().Add(keyExpirationDuration_))
 	if err != nil {
 		return fmt.Errorf("generate %s key: %w", role, err)
 	}
@@ -715,7 +743,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 
 		fmt.Printf("Enter %s key passphrase: ", role)
 		// the int(...) conversion is required as on Windows syscall.Stdin is of type Handle.
-		passphrase, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
+		passphrase, err := term.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
 			return nil, fmt.Errorf("read password: %w", err)
@@ -727,7 +755,7 @@ func (p *passphraseHandler) readPassphrase(role string, confirm bool) ([]byte, e
 
 		fmt.Printf("Repeat %s key passphrase: ", role)
 		// the int(...) conversion is required as on Windows syscall.Stdin is of type Handle.
-		confirmation, err := terminal.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
+		confirmation, err := term.ReadPassword(int(syscall.Stdin)) //nolint:unconvert
 		fmt.Println()
 		if err != nil {
 			return nil, fmt.Errorf("read password confirmation: %w", err)

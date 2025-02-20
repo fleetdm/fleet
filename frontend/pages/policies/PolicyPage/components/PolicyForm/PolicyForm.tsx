@@ -15,11 +15,11 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -116,6 +116,7 @@ const PolicyForm = ({
 
   const {
     currentUser,
+    currentTeam,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -146,7 +147,9 @@ const PolicyForm = ({
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
     baseClass,
-    platformSelectorDisabled
+    platformSelectorDisabled,
+    storedPolicy?.install_software,
+    currentTeam?.id
   );
 
   const {
@@ -250,7 +253,7 @@ const PolicyForm = ({
 
     const newPlatformString = selectedPlatforms.join(
       ","
-    ) as SelectedPlatformString;
+    ) as CommaSeparatedPlatformString;
 
     if (!defaultPolicy) {
       setLastEditedQueryPlatform(newPlatformString);
@@ -530,7 +533,7 @@ const PolicyForm = ({
         onClick={() => setShowQueryEditor(!showQueryEditor)}
       />
       {showQueryEditor && (
-        <FleetAce
+        <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
@@ -575,7 +578,7 @@ const PolicyForm = ({
             </div>
             <div className="author">{isEditMode && renderAuthor()}</div>
           </div>
-          <FleetAce
+          <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"
@@ -589,7 +592,7 @@ const PolicyForm = ({
             focus={!isEditMode}
           />
           {renderPlatformCompatibility()}
-          {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {isEditMode && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
@@ -618,7 +621,7 @@ const PolicyForm = ({
                   id="save-policy-button"
                   backgroundColor={COLORS["tooltip-bg"]}
                 >
-                  Select the platform(s) this
+                  Select the platforms this
                   <br />
                   policy will be checked on
                   <br />
@@ -657,7 +660,7 @@ const PolicyForm = ({
                 <>Live queries are disabled in organization settings</>
               ) : (
                 <>
-                  Select the platform(s) this <br />
+                  Select the platforms this <br />
                   policy will be checked on <br />
                   to save or run the policy.
                 </>

@@ -8,6 +8,7 @@ There are three steps to perform a typical Fleet upgrade:
 2. [Preparing the database](#prepare-the-database)
 3. [Serving the new Fleet instance](#serve-the-new-version)
 
+
 ## Install the latest version of Fleet
 
 Fleet may be installed locally, or used in a Docker container. Follow the appropriate method for your environment. 
@@ -56,6 +57,19 @@ Once Fleet has been replaced with the newest version and the database migrations
 ```sh
 fleet serve
 ```
+
+## AWS with Terraform
+
+If you are using Fleet's Terraform modules to manage your Fleet deployment to AWS, update the version in `main.tf`:
+
+```tf
+  fleet_config = {
+    image = "fleetdm/fleet:<version>" 
+    [...]
+  }
+```
+
+Run `terraform apply` to apply the changes.
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to upgrade your Fleet instance to the latest version.">

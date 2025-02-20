@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 type HostStatus string
@@ -200,8 +200,18 @@ type HostListOptions struct {
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 
+	// PopulateSoftwareVulnerabilityDetails adds description, fix version, etc. fields to software vulnerabilities
+	// (this is a Premium feature that gets forced to false on Fleet Free)
+	PopulateSoftwareVulnerabilityDetails bool
+
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
+
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all host responses returned
+	PopulateLabels bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
@@ -214,7 +224,7 @@ type HostListOptions struct {
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() &&
-		h.DeviceMapping == false &&
+		!h.DeviceMapping &&
 		len(h.AdditionalFilters) == 0 &&
 		h.StatusFilter == "" &&
 		h.TeamFilter == nil &&
@@ -227,7 +237,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableIssues == false &&
+		!h.DisableIssues &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -318,7 +328,7 @@ type Host struct {
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for Linux we set it to NULL and omit it from the JSON
+	// a *bool because for some Linux we set it to NULL and omit it from the JSON
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
@@ -340,7 +350,7 @@ type Host struct {
 	// is that the latter is a one-time request, while this one is a persistent
 	// until the timestamp expires. The initial use-case is to check for a host
 	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
-	// workflow.
+	// workflow (both Apple and Windows).
 	//
 	// In the future, if we want to use it for more than one use-case, we could
 	// add a "reason" field with well-known labels so we know what condition(s)
@@ -433,7 +443,7 @@ type MDMHostData struct {
 	rawDecryptable *int
 
 	// OSSettings contains information related to operating systems settings that are managed for
-	// MDM-enrolled hosts.
+	// MDM-enrolled hosts and/or Linux hosts with disk encryption enabled, which don't require MDM.
 	//
 	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
 	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
@@ -676,6 +686,12 @@ func (h *Host) IsOsqueryEnrolled() bool {
 // server in ABM.
 func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
+}
+
+// IsLUKSSupported returns true if the host's platform is Linux and running
+// one of the supported OS versions.
+func (h *Host) IsLUKSSupported() bool {
+	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -1169,6 +1185,7 @@ type HostDiskEncryptionKey struct {
 	Decryptable     *bool     `json:"-" db:"decryptable"`
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
+	ClientError     string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
@@ -1181,6 +1198,9 @@ type HostSoftwareInstalledPath struct {
 	SoftwareID uint `db:"software_id"`
 	// InstalledPath is the file system path where the software is installed
 	InstalledPath string `db:"installed_path"`
+	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
+	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
+	TeamIdentifier string `db:"team_identifier"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1257,7 +1277,7 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(parts[1])
+	version, err := VersionToSemverVersion(parts[1])
 	if err != nil {
 		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
 	}

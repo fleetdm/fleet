@@ -20,6 +20,8 @@ spec:
         enable_end_user_authentication: false
         macos_setup_assistant: null
         enable_release_device_manually: false
+        script: null
+        software: null
       macos_updates:
         deadline: null
         minimum_version: null
@@ -38,4 +40,5 @@ spec:
     secrets: null
     webhook_settings:
       host_status_webhook: null
+      failing_policies_webhook: null
     name: tm1

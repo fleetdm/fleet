@@ -1,15 +1,12 @@
 .manage-hosts {
-  .header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  &__header-wrap {
+    @include normalize-team-header;
     margin-bottom: $pad-medium;
-    height: 38px;
 
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      white-space: nowrap;
     }
   }
 
@@ -20,7 +17,6 @@
   &__header {
     display: flex;
     align-items: center;
-    min-width: 125px;
 
     .form-field {
       margin-bottom: 0;
@@ -110,15 +106,16 @@
           display: flex;
           flex-direction: row;
           margin-left: $pad-medium;
+          align-items: center;
 
           // Dropdown height matches search bar height
-          .manage-hosts__status_dropdown {
+          .manage-hosts__status-filter {
             .Select-control,
             .Select-input {
               height: 33px;
             }
             .Select-value {
-              line-height: 38px;
+              line-height: 40px;
             }
           }
         }
@@ -173,7 +170,7 @@
               flex: 1;
             }
 
-            .manage-hosts__status_dropdown {
+            .manage-hosts__status-filter {
               width: auto;
             }
           }
@@ -224,7 +221,7 @@
     margin: 0;
   }
 
-  &__status_dropdown {
+  &__status-filter {
     width: 175px;
 
     @media (min-width: $table-controls-break) {

@@ -54,7 +54,7 @@ func testPacksDelete(t *testing.T, ds *Datastore) {
 	assert.Nil(t, err)
 
 	assert.NotEqual(t, uint(0), pack.ID)
-	pack, err = ds.Pack(context.Background(), pack.ID)
+	_, err = ds.Pack(context.Background(), pack.ID)
 	assert.NotNil(t, err)
 }
 

@@ -132,6 +132,7 @@ The only exceptions are:
 4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
+5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
@@ -140,6 +141,33 @@ Besides the exceptions above, Fleet does not use any other repositories.  Other 
 > _**Tip:** Did you know that you can [search through issues from all public and non-public Fleet repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?_
 > 
 > _**Tip:** In addition to the built-in search available for the public handbook on fleetdm.com, you can also [search any public AND non-public content, including issue templates, at the same time](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code)._
+
+
+## Why be intentional about infrastructure? 
+
+Our infrastructure is simple to prioritize [results](https://fleetdm.com/handbook/company#results), spend less, avoid preemptive structure, choose "boring" solutions, and reuse systems whenever possible. Adding infrastructure slows us down by adding complexity and surface area to maintain.
+
+All new infrastructure at Fleet is first approved by the E-group. Currently approved infrastructure dependencies when deploying Fleet are maintained in the [references architecture documentation](https://fleetdm.com/docs/deploy/reference-architectures).
+
+Additional infrastructure:
+
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
+
+2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
+
+3. **Dashboards**. Additional product dashboards such as the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard) and [bulk operations dashboard](https://github.com/fleetdm/fleet/tree/main/ee/bulk-operations-dashboard) are deployed to [Heroku](https://heroku.com) on an as-needed basis per customer.
+
+4. **Development and QA instances**. Long-lived Fleet instances used to support CI/CD pipelines and quality assurance processes are hosted at [Render](https://render.com/).
+
+5. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
+
+6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
+
+7. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
+
+8. **DNS**. All domain DNS records and caching rules are hosted with [Cloudflare](https://www.cloudflare.com/).
+
+9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
@@ -242,6 +270,11 @@ Why bother with all that?  And why do it in this particular order?
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
 
+## Why fix small inconsistencies quickly?
+
+Fixing small inconsistencies quickly is worth it. When we tolerate and overlook little things, we send contributors mixed messages, like "[broken windows](https://en.wikipedia.org/wiki/Broken_windows_theory)". (Are these things actually important?) Since new contributors join the team all the time, we also prevent learning the right way to do things through osmosis, since pattern matching from a bad pattern creates even more inconsistencies. Plus these things add up over time, creating problems for both users and contributors.
+
+
 ## Why make it obvious when stuff breaks?
 
 At Fleet, we detect and fix bugs as quickly as possible.  
@@ -278,7 +311,7 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
-- **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
+- **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://docs.google.com/document/d/1IbucpsZZ0qbJQRPRtm9e2kMcSBDTXjixAMVOWyTu_pA/edit?tab=t.0).
 - **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
@@ -308,7 +341,7 @@ In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized. User roles (e.g., "observer" or "maintainer") and features (e.g. "automations") in the Fleet product aren't treated as proper nouns and shouldn't be capitalized. However, words/phrases that follow step numbers in the documentation _should_ be capitalized (e.g. "Step 1: Create"), since the step number is merely acting as a label for the phrase that follows.
 
 The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
 

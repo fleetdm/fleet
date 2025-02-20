@@ -1,4 +1,8 @@
-.Select > .Select-menu-outer {
+// Used with old react-select dropdown and
+// New react-select-5: ActionsDropdown.tsx, DropdownWrapper.tsx
+.Select > .Select-menu-outer,
+.actions-dropdown,
+.react-select__option {
   .is-disabled * {
     color: $ui-fleet-black-50;
   }

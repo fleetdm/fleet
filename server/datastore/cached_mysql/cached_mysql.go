@@ -414,7 +414,6 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 
 	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
 	var missingAssets []fleet.MDMAssetName
-	var missingKeys []string
 
 	for _, name := range assetNames {
 		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
@@ -428,7 +427,6 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		}
 
 		missingAssets = append(missingAssets, name)
-		missingKeys = append(missingKeys, key)
 	}
 
 	if len(missingAssets) == 0 {

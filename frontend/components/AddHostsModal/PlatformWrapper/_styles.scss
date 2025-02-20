@@ -106,8 +106,13 @@
   &__chromeos-policy-for-extension {
     height: 230px;
 
-    .input-field--disabled {
-      height: 190px;
+    .input-field {
+      &__textarea {
+        height: 190px;
+      }
+      &--disabled {
+        height: 190px;
+      }
     }
   }
 

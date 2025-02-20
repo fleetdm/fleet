@@ -86,6 +86,9 @@ func NewService(
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
+		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
+		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
+		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
 	})
 
 	return eeservice, nil

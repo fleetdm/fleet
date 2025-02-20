@@ -1,16 +1,16 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
-  DiskEncryptionStatus,
   IHostMdmProfile,
   IMdmCommandResult,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { ISoftwareTitle } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -19,16 +19,6 @@ export interface IEulaMetadataResponse {
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
-
-export interface IDiskEncryptionStatusAggregate {
-  macos: number;
-  windows: number;
-}
-
-export type IDiskEncryptionSummaryResponse = Record<
-  DiskEncryptionStatus,
-  IDiskEncryptionStatusAggregate
->;
 
 export interface IGetProfilesApiParams {
   page?: number;
@@ -48,6 +38,7 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
 }
 
@@ -82,6 +73,23 @@ export interface IGetMdmCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 
+export interface IGetSetupExperienceScriptResponse {
+  id: number;
+  team_id: number | null; // The API return null for no team in this case.
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface IGetSetupExperienceSoftwareParams {
+  team_id: number;
+  per_page: number;
+}
+
+export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
+  software_titles: ISoftwareTitle[] | null;
+};
+
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
@@ -114,6 +122,7 @@ const mdmService = {
     file,
     teamId,
     labelsIncludeAll,
+    labelsIncludeAny,
     labelsExcludeAny,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
@@ -125,11 +134,18 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsExcludeAny;
-      const labelKey = labelsIncludeAll
-        ? "labels_include_all"
-        : "labels_exclude_any";
+    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+
+      let labelKey = "";
+      if (labelsIncludeAll) {
+        labelKey = "labels_include_all";
+      } else if (labelsIncludeAny) {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+
       labels?.forEach((label) => {
         formData.append(labelKey, label);
       });
@@ -152,44 +168,13 @@ const mdmService = {
   },
 
   getProfilesStatusSummary: (teamId: number) => {
-    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
+    let { PROFILES_STATUS_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
 
     return sendRequest("GET", path);
-  },
-
-  getDiskEncryptionSummary: (teamId?: number) => {
-    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
-
-    if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
-    return sendRequest("GET", path);
-  },
-
-  // TODO: API INTEGRATION: change when API is implemented that works for windows
-  // disk encryption too.
-  updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
-    const {
-      MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
-      CONFIG: noTeamsEndpoint,
-    } = endpoints;
-    if (teamId === 0) {
-      return sendRequest("PATCH", noTeamsEndpoint, {
-        mdm: {
-          // TODO: API INTEGRATION: remove macos_settings when API change is merged in.
-          macos_settings: { enable_disk_encryption: enableDiskEncryption },
-          // enable_disk_encryption: enableDiskEncryption,
-        },
-      });
-    }
-    return sendRequest("PATCH", teamsEndpoint, {
-      enable_disk_encryption: enableDiskEncryption,
-      team_id: teamId,
-    });
   },
 
   initiateMDMAppleSSO: () => {
@@ -276,6 +261,7 @@ const mdmService = {
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
   },
+
   getSetupEnrollmentProfile: (teamId?: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
     if (!teamId || teamId === API_NO_TEAM_ID) {
@@ -287,6 +273,7 @@ const mdmService = {
     )}`;
     return sendRequest("GET", path);
   },
+
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
 
@@ -313,6 +300,7 @@ const mdmService = {
       });
     });
   },
+
   deleteSetupEnrollmentProfile: (teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
     if (teamId === API_NO_TEAM_ID) {
@@ -324,6 +312,7 @@ const mdmService = {
     )}`;
     return sendRequest("DELETE", path);
   },
+
   getCommandResults: (
     command_uuid: string
   ): Promise<IGetMdmCommandResultsResponse> => {
@@ -334,7 +323,89 @@ const mdmService = {
 
   downloadManualEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+    return sendRequest(
+      "GET",
+      DEVICE_USER_MDM_ENROLLMENT_PROFILE(token),
+      undefined,
+      "blob"
+    );
+  },
+
+  getSetupExperienceSoftware: (
+    params: IGetSetupExperienceSoftwareParams
+  ): Promise<IGetSetupExperienceSoftwareResponse> => {
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        ...params,
+      }
+    )}`;
+
+    return sendRequest("GET", path);
+  },
+
+  updateSetupExperienceSoftware: (
+    teamId: number,
+    softwareTitlesIds: number[]
+  ) => {
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
+
+    return sendRequest("PUT", path, {
+      team_id: teamId,
+      software_title_ids: softwareTitlesIds,
+    });
+  },
+
+  getSetupExperienceScript: (
+    teamId: number
+  ): Promise<IGetSetupExperienceScriptResponse> => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    if (teamId) {
+      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
+
+  downloadSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    path += `?${buildQueryStringFromParams({ team_id: teamId, alt: "media" })}`;
+
+    return sendRequest("GET", path);
+  },
+
+  uploadSetupExperienceScript: (file: File, teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const formData = new FormData();
+    formData.append("script", file);
+
+    if (teamId) {
+      formData.append("team_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
+  },
+
+  deleteSetupExperienceScript: (teamId: number) => {
+    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+
+    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
+
+    return sendRequest("DELETE", path);
   },
 };
 

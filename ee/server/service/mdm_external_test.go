@@ -45,6 +45,9 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 			AppleSCEPCertBytes: eeservice.TestCert,
 			AppleSCEPKeyBytes:  eeservice.TestKey,
 		},
+		Server: config.ServerConfig{
+			PrivateKey: "foo",
+		},
 	}
 	depStorage := &nanodep_mock.Storage{}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

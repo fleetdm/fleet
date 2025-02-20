@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -63,6 +64,23 @@ var userRoleList = []*fleet.User{
 			},
 		},
 	},
+}
+
+var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User) {
+	user, err := ds.NewUser(context.Background(), user)
+	require.NoError(t, err)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			ID:              1,
+			AccessedAt:      time.Now(),
+			UserID:          user.ID,
+			Key:             key,
+		}, nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
 }
 
 func TestGetUserRoles(t *testing.T) {
@@ -626,6 +644,70 @@ func TestGetConfig(t *testing.T) {
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
 		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+	})
+
+	t.Run("AppConfigAsTeamUsers", func(t *testing.T) {
+		// test as team admin
+		setCurrentUserSession(t, ds, &fleet.User{
+			ID:         5,
+			Name:       "Admin of team 1",
+			Password:   []byte("p4ssw0rd.123"),
+			Email:      "omt2@example.com",
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleAdmin,
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleMaintainer,
+				},
+			},
+		})
+
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigJson.json"))
+		require.NoError(t, err)
+		expectedJson := string(b)
+
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+
+		// test as team maintainer
+		setCurrentUserSession(t, ds, &fleet.User{
+			ID:         6,
+			Name:       "Maintainer of team 1",
+			Password:   []byte("p4ssw0rd.123"),
+			Email:      "omt3@example.com",
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleMaintainer,
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleMaintainer,
+				},
+			},
+		})
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamMaintainerYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml = string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamMaintainerJson.json"))
+		require.NoError(t, err)
+		expectedJson = string(b)
+
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 }
 
@@ -1250,7 +1332,7 @@ func TestGetQueries(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
@@ -1282,7 +1364,7 @@ func TestGetQueries(t *testing.T) {
 					Saved:              true, // ListQueries always returns the saved ones.
 					ObserverCanRun:     true,
 				},
-			}, nil
+			}, 3, nil, nil
 		} else if *opt.TeamID == 1 {
 			return []*fleet.Query{
 				{
@@ -1299,11 +1381,11 @@ func TestGetQueries(t *testing.T) {
 					TeamID:             ptr.Uint(1),
 					ObserverCanRun:     true,
 				},
-			}, nil
+			}, 1, nil, nil
 		} else if *opt.TeamID == 2 {
-			return []*fleet.Query{}, nil
+			return []*fleet.Query{}, 0, nil, nil
 		}
-		return nil, errors.New("invalid team ID")
+		return nil, 0, nil, errors.New("invalid team ID")
 	}
 
 	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
@@ -1546,24 +1628,7 @@ spec:
 func TestGetQueriesAsObserver(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
-	setCurrentUserSession := func(user *fleet.User) {
-		user, err := ds.NewUser(context.Background(), user)
-		require.NoError(t, err)
-		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
-			return &fleet.Session{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-				ID:              1,
-				AccessedAt:      time.Now(),
-				UserID:          user.ID,
-				Key:             key,
-			}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return user, nil
-		}
-	}
-
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1586,7 +1651,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 				Query:          "select 3;",
 				ObserverCanRun: false,
 			},
-		}, nil
+		}, 3, nil, nil
 	}
 
 	for _, tc := range []struct {
@@ -1636,7 +1701,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			setCurrentUserSession(tc.user)
+			setCurrentUserSession(t, ds, tc.user)
 
 			expected := `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
@@ -1678,7 +1743,7 @@ spec:
 	}
 
 	// Test with a user that is observer of a team, but maintainer of another team (should not filter the queries).
-	setCurrentUserSession(&fleet.User{
+	setCurrentUserSession(t, ds, &fleet.User{
 		ID:         4,
 		Name:       "Not observer of all teams",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1786,7 +1851,7 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
 
 	// No queries are returned if none is observer_can_run.
-	setCurrentUserSession(&fleet.User{
+	setCurrentUserSession(t, ds, &fleet.User{
 		ID:         2,
 		Name:       "Team observer",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1794,7 +1859,7 @@ spec:
 		GlobalRole: nil,
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
 	})
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1810,12 +1875,12 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: false,
 			},
-		}, nil
+		}, 2, nil, nil
 	}
 	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries"}))
 
 	// No filtering is performed if all are observer_can_run.
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1831,7 +1896,7 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: true,
 			},
-		}, nil
+		}, 2, nil, nil
 	}
 	expected = `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
@@ -2948,23 +3013,6 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 		}, nil
 	}
 
-	setCurrentUserSession := func(user *fleet.User) {
-		user, err := ds.NewUser(context.Background(), user)
-		require.NoError(t, err)
-		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
-			return &fleet.Session{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-				ID:              1,
-				AccessedAt:      time.Now(),
-				UserID:          user.ID,
-				Key:             key,
-			}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return user, nil
-		}
-	}
-
 	for _, tc := range []struct {
 		name        string
 		user        *fleet.User
@@ -3012,7 +3060,7 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			setCurrentUserSession(tc.user)
+			setCurrentUserSession(t, ds, tc.user)
 
 			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
 			require.True(t, ok)

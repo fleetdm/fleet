@@ -119,8 +119,7 @@ func (q *Query) Copy() *Query {
 		return nil
 	}
 
-	var clone Query
-	clone = *q
+	clone := *q
 
 	if q.TeamID != nil {
 		clone.TeamID = ptr.Uint(*q.TeamID)
@@ -490,6 +489,13 @@ type ScheduledQueryResult struct {
 	Snapshot []*json.RawMessage `json:"snapshot"`
 	// LastFetched is the time this result was received.
 	UnixTime uint `json:"unixTime"`
+
+	// Action is used to detect snapshot results in "event format"
+	// (hosts configured with `--logger_snapshot_event_type=false`).
+	Action string `json:"action,omitempty"`
+	// Columns holds a single result row when snapshot results are in "event format"
+	// (hosts configured with `--logger_snapshot_event_type=false`).
+	Columns json.RawMessage `json:"columns,omitempty"`
 }
 
 // ScheduledQueryResultRow is a scheduled query result row.

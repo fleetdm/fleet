@@ -2,7 +2,7 @@
 *.exe
 
 # output directories
-build
+/build
 vendor
 node_modules
 dist
@@ -41,6 +41,7 @@ charts/fleet/charts
 
 #editors
 .idea
+.swp
 
 # Fleet local development DB backups
 backup.sql.gz
@@ -87,9 +88,9 @@ macoffice_rel_notes/
 
 # residual files when running the build-windows tool
 orbit/cmd/desktop/manifest.xml
-orbit/cmd/desktop/resource.syso
+orbit/cmd/desktop/resource_windows.syso
 orbit/cmd/orbit/manifest.xml
-orbit/cmd/orbit/resource.syso
+orbit/cmd/orbit/resource_windows.syso
 
 # Residual files from osqueryd loadtests.
 osquery_worker_*.jpg

@@ -1,10 +1,11 @@
 # Single sign-on (SSO)
 
-Fleet supports SSO and just-in-time (JIT) user provisioning using any identity provider (IdP) that supports SAML.
-
-Fleet supports both service (SP) initiated login and IdP initiated login.
+Fleet supports [Okta](#okta), [Authentik](https://github.com/goauthentik/authentik), [Google Workspace](#google-workspace), and [Microsoft Active Directory (AD) / Entra ID](https://learn.microsoft.com/en-us/entra/architecture/auth-saml), as well as any other identity provider (IdP) that supports the SAML standard.
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
+
+> JIT? SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
+
 
 ## Okta
 
@@ -90,7 +91,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
   issue authorization requests to the IdP.
 
 - **Metadata** - If the IdP does not provide a metadata URL, the metadata must
-  be obtained from the IdP and entered. Coming soon to end user authentication.
+  be obtained from the IdP and entered.
 
 ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
@@ -189,6 +190,16 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
 ```
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
+
+## Email two-factor authentication (2FA)
+
+If you have a "break glass" Fleet user account that's used to login to Fleet when your identify provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
+
+Users with email 2FA enabled will get this email when they login to Fleet:
+
+![Example two-factor authentication (2FA) email](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/email-two-factor-authentication-576x638@2x.png)
+
+You can't edit the authentication method for your currently logged-in user. To enable email 2FA for a user, login with a different user who has the admin role and head to **Settings > Users**.
 
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">

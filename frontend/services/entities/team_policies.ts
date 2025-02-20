@@ -64,6 +64,7 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -76,6 +77,7 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
     });
   },
   update: (id: number, data: IPolicyFormData) => {

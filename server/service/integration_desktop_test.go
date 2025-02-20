@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -307,9 +309,13 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusOK)
 	res.Body.Close()
 
+	// Clear errors in error store
+	s.Do("GET", "/debug/errors", nil, http.StatusOK, "flush", "true")
+
 	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
 	require.NoError(t, err)
 	ferr := fleet.FleetdError{
+		Vital:               true,
 		ErrorSource:         "orbit",
 		ErrorSourceVersion:  "1.1.1",
 		ErrorTimestamp:      testTime,
@@ -320,4 +326,119 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	require.NoError(t, err)
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
+	time.Sleep(100 * time.Millisecond) // give time for the error to be saved
+
+	// Check that error was logged.
+	var errors []map[string]interface{}
+	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
+	require.Len(t, errors, 1)
+	expectedCount := 1
+
+	checkError := func(errorItem map[string]interface{}, expectedCount int) {
+		assert.EqualValues(t, expectedCount, errorItem["count"])
+		errChain, ok := errorItem["chain"].([]interface{})
+		require.True(t, ok, fmt.Sprintf("%T", errorItem["chain"]))
+		require.Len(t, errChain, 2)
+		errChain0, ok := errChain[0].(map[string]interface{})
+		require.True(t, ok, fmt.Sprintf("%T", errChain[0]))
+		assert.EqualValues(t, "test message", errChain0["message"])
+		errChain1, ok := errChain[1].(map[string]interface{})
+		require.True(t, ok, fmt.Sprintf("%T", errChain[1]))
+
+		// Check that the exact fleetd error can be retrieved.
+		b, err := json.Marshal(errChain1["data"])
+		require.NoError(t, err)
+		var receivedErr fleet.FleetdError
+		require.NoError(t, json.Unmarshal(b, &receivedErr))
+		assert.EqualValues(t, ferr, receivedErr)
+	}
+	checkError(errors[0], expectedCount)
+
+	// Make sure metadata is present when error is aggregated.
+	srvCtx := s.server.Config.BaseContext(nil)
+	aggRaw, err := ctxerr.Aggregate(srvCtx)
+	require.NoError(t, err)
+	var errorAgg []ctxerr.ErrorAgg
+	require.NoError(t, json.Unmarshal(aggRaw, &errorAgg))
+	require.Len(t, errorAgg, 1)
+	assert.EqualValues(t, expectedCount, errorAgg[0].Count)
+	var receivedErr fleet.FleetdError
+	require.NoError(t, json.Unmarshal(errorAgg[0].Metadata, &receivedErr))
+	assert.EqualValues(t, ferr.ErrorSource, receivedErr.ErrorSource)
+	assert.EqualValues(t, ferr.ErrorSourceVersion, receivedErr.ErrorSourceVersion)
+	assert.EqualValues(t, ferr.ErrorMessage, receivedErr.ErrorMessage)
+	assert.EqualValues(t, ferr.ErrorAdditionalInfo, receivedErr.ErrorAdditionalInfo)
+	assert.NotEqual(t, ferr.ErrorTimestamp, receivedErr.ErrorTimestamp) // not included
+
+	// Sending error again should increment the count.
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
+	res.Body.Close()
+	expectedCount++
+
+	// Changing the timestamp should only increment the count.
+	testTime2, err := time.Parse(time.RFC3339, "2024-10-30T09:44:05Z")
+	require.NoError(t, err)
+	ferr = fleet.FleetdError{
+		Vital:               true,
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime2,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar"},
+	}
+	errBytes, err = json.Marshal(ferr)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
+	res.Body.Close()
+	expectedCount++
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
+
+	// Check that error was logged.
+	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
+	require.Len(t, errors, 1)
+	checkError(errors[0], expectedCount)
+
+	// Changing vital flag should NOT create a new error, but will overwrite the existing one.
+	ferr = fleet.FleetdError{
+		Vital:               false,
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar"},
+	}
+	errBytes, err = json.Marshal(ferr)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
+	res.Body.Close()
+	expectedCount++
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
+
+	aggRaw, err = ctxerr.Aggregate(srvCtx)
+	require.NoError(t, err)
+	errorAgg = nil
+	require.NoError(t, json.Unmarshal(aggRaw, &errorAgg))
+	require.Len(t, errorAgg, 1)
+	assert.EqualValues(t, expectedCount, errorAgg[0].Count)
+	// Since the error is not vital, the metadata should be empty.
+	assert.Empty(t, string(errorAgg[0].Metadata))
+
+	// Changing additional info should create a new error
+	ferr = fleet.FleetdError{
+		Vital:               true,
+		ErrorSource:         "orbit",
+		ErrorSourceVersion:  "1.1.1",
+		ErrorTimestamp:      testTime,
+		ErrorMessage:        "test message",
+		ErrorAdditionalInfo: map[string]any{"foo": "bar2"},
+	}
+	errBytes, err = json.Marshal(ferr)
+	require.NoError(t, err)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
+	res.Body.Close()
+	time.Sleep(100 * time.Millisecond) // give time for the error(s) to be saved
+
+	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
+	require.Len(t, errors, 2)
+
 }

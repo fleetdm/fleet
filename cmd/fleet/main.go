@@ -104,24 +104,25 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.Prometheus.BasicAuth.Password = "insecure"
 	}
 
-	cfg.S3 = config.S3Config{
-		CarvesBucket:           "carves-dev",
-		CarvesRegion:           "minio",
-		CarvesPrefix:           "dev-prefix",
-		CarvesEndpointURL:      "localhost:9000",
-		CarvesAccessKeyID:      "minio",
-		CarvesSecretAccessKey:  "minio123!",
-		CarvesDisableSSL:       true,
-		CarvesForceS3PathStyle: true,
+	cfg.S3.CarvesBucket = "carves-dev"
+	cfg.S3.CarvesRegion = "minio"
+	cfg.S3.CarvesPrefix = "dev-prefix"
+	cfg.S3.CarvesEndpointURL = "localhost:9000"
+	cfg.S3.CarvesAccessKeyID = "minio"
+	cfg.S3.CarvesSecretAccessKey = "minio123!"
+	cfg.S3.CarvesDisableSSL = true
+	cfg.S3.CarvesForceS3PathStyle = true
 
-		SoftwareInstallersBucket:           "software-installers-dev",
-		SoftwareInstallersRegion:           "minio",
-		SoftwareInstallersPrefix:           "dev-prefix",
-		SoftwareInstallersEndpointURL:      "localhost:9000",
-		SoftwareInstallersAccessKeyID:      "minio",
-		SoftwareInstallersSecretAccessKey:  "minio123!",
-		SoftwareInstallersDisableSSL:       true,
-		SoftwareInstallersForceS3PathStyle: true,
+	// Allow the software installers bucket to be overridden in dev mode
+	if cfg.S3.SoftwareInstallersBucket == "" {
+		cfg.S3.SoftwareInstallersBucket = "software-installers-dev"
+		cfg.S3.SoftwareInstallersRegion = "minio"
+		cfg.S3.SoftwareInstallersPrefix = "dev-prefix"
+		cfg.S3.SoftwareInstallersEndpointURL = "localhost:9000"
+		cfg.S3.SoftwareInstallersAccessKeyID = "minio"
+		cfg.S3.SoftwareInstallersSecretAccessKey = "minio123!"
+		cfg.S3.SoftwareInstallersDisableSSL = true
+		cfg.S3.SoftwareInstallersForceS3PathStyle = true
 	}
 
 	cfg.Packaging.S3 = config.S3Config{

@@ -108,8 +108,10 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedName:     "Microsoft Teams.app",
 			expectedVersion:  "24124.1412.2911.3341",
 			expectedBundleID: "com.microsoft.teams2",
-			expectedPackageIDs: []string{"com.microsoft.teams2", "com.microsoft.package.Microsoft_AutoUpdate.app",
-				"com.microsoft.MSTeamsAudioDevice"},
+			expectedPackageIDs: []string{
+				"com.microsoft.teams2", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.MSTeamsAudioDevice",
+			},
 		},
 		{
 			file:               "distribution-zoom.xml",
@@ -123,8 +125,10 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedName:     "Adobe Acrobat Reader.app",
 			expectedVersion:  "24.002.20857",
 			expectedBundleID: "com.adobe.Reader",
-			expectedPackageIDs: []string{"com.adobe.acrobat.DC.reader.app.pkg.MUI", "com.adobe.acrobat.DC.reader.appsupport.pkg.MUI",
-				"com.adobe.acrobat.reader.DC.reader.app.pkg.MUI", "com.adobe.armdc.app.pkg"},
+			expectedPackageIDs: []string{
+				"com.adobe.acrobat.DC.reader.app.pkg.MUI", "com.adobe.acrobat.DC.reader.appsupport.pkg.MUI",
+				"com.adobe.acrobat.reader.DC.reader.app.pkg.MUI", "com.adobe.armdc.app.pkg",
+			},
 		},
 		{
 			file:               "distribution-airtame.xml",
@@ -138,8 +142,10 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedName:     "Box.app",
 			expectedVersion:  "2.38.173",
 			expectedBundleID: "com.box.desktop",
-			expectedPackageIDs: []string{"com.box.desktop.installer.desktop", "com.box.desktop.installer.local.appsupport",
-				"com.box.desktop.installer.autoupdater", "com.box.desktop.installer.osxfuse"},
+			expectedPackageIDs: []string{
+				"com.box.desktop.installer.desktop", "com.box.desktop.installer.local.appsupport",
+				"com.box.desktop.installer.autoupdater", "com.box.desktop.installer.osxfuse",
+			},
 		},
 		{
 			file:             "distribution-iriunwebcam.xml",
@@ -155,24 +161,30 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedName:     "Microsoft Excel.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Excel",
-			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_Excel.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
-				"com.microsoft.pkg.licensing"},
+			expectedPackageIDs: []string{
+				"com.microsoft.package.Microsoft_Excel.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing",
+			},
 		},
 		{
 			file:             "distribution-microsoftword.xml",
 			expectedName:     "Microsoft Word.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Word",
-			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_Word.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
-				"com.microsoft.pkg.licensing"},
+			expectedPackageIDs: []string{
+				"com.microsoft.package.Microsoft_Word.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing",
+			},
 		},
 		{
 			file:             "distribution-miscrosoftpowerpoint.xml",
 			expectedName:     "Microsoft PowerPoint.app",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Powerpoint",
-			expectedPackageIDs: []string{"com.microsoft.package.Microsoft_PowerPoint.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
-				"com.microsoft.pkg.licensing"},
+			expectedPackageIDs: []string{
+				"com.microsoft.package.Microsoft_PowerPoint.app", "com.microsoft.package.Microsoft_AutoUpdate.app",
+				"com.microsoft.pkg.licensing",
+			},
 		},
 		{
 			file:               "distribution-ringcentral.xml",
@@ -195,6 +207,20 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedBundleID:   "com.bozo.zeroinstallsize",
 			expectedPackageIDs: []string{"com.bozo.zeroinstallsize.app"},
 		},
+		{
+			file:               "distribution-sentinelone.xml",
+			expectedName:       "SentinelOne",
+			expectedVersion:    "24.3.2.7753",
+			expectedBundleID:   "com.sentinelone.pkg.sentinel-agent",
+			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent"},
+		},
+		{
+			file:               "distribution-cold-turkey.xml",
+			expectedName:       "Cold Turkey Blocker",
+			expectedVersion:    "4.5",
+			expectedBundleID:   "com.getcoldturkey.coldturkeyblocker",
+			expectedPackageIDs: []string{"com.getcoldturkey.coldturkeyblocker", "com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.blocker-edge-ext", "com.getcoldturkey.blocker-chrome-ext"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -207,6 +233,69 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			require.Equal(t, tt.expectedName, metadata.Name)
 			require.Equal(t, tt.expectedVersion, metadata.Version)
 			require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
+		})
+	}
+}
+
+func TestParsePackageInfoFiles(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		file               string
+		expectedName       string
+		expectedVersion    string
+		expectedBundleID   string
+		expectedPackageIDs []string
+	}{
+		{
+			file:               "packageInfo-oktaVerify.xml",
+			expectedName:       "Okta Verify.app",
+			expectedVersion:    "9.27.0",
+			expectedBundleID:   "com.okta.mobile",
+			expectedPackageIDs: []string{"com.okta.mobile"},
+		},
+		{
+			file:             "packageInfo-iriunWebcam.xml",
+			expectedName:     "IriunWebcam.app",
+			expectedVersion:  "2.8.10",
+			expectedBundleID: "com.iriun.macwebcam",
+			expectedPackageIDs: []string{
+				"com.iriun.macwebcam", "com.iriun.macwebcam.extension4", "com.iriun.macwebcam.extension",
+				"com.iriun.mic",
+			},
+		},
+		{
+			file:               "packageInfo-scriptOnly.xml",
+			expectedName:       "HelloWorld",
+			expectedVersion:    "1.2.3",
+			expectedBundleID:   "com.mygreatcompany.pkg.HelloWorld",
+			expectedPackageIDs: []string{"com.mygreatcompany.pkg.HelloWorld"},
+		},
+		{
+			file:               "packageInfo-empty.xml",
+			expectedName:       "",
+			expectedVersion:    "",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
+		},
+		{
+			file:               "packageInfo-versionOnly.xml",
+			expectedName:       "",
+			expectedVersion:    "test-version",
+			expectedBundleID:   "",
+			expectedPackageIDs: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			rawXML, err := os.ReadFile(filepath.Join("testdata", "packageInfo", tt.file))
+			require.NoError(t, err)
+			metadata, err := parsePackageInfoFile(rawXML)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.expectedPackageIDs, metadata.PackageIDs)
+			assert.Equal(t, tt.expectedName, metadata.Name)
+			assert.Equal(t, tt.expectedVersion, metadata.Version)
+			assert.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
 		})
 	}
 }

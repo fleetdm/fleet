@@ -33,10 +33,16 @@ spec:
         release: {{ .Release.Name }}
     spec:
       restartPolicy: Never
+      shareProcessNamespace: true
       containers:
       - name: fleet-migration
-        command: [/usr/bin/fleet]
-        args: ["prepare","db","--no-prompt"]
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /usr/bin/fleet prepare db --no-prompt;
+            {{- if .Values.gke.cloudSQL.enableProxy }}
+            sql_proxy_pid=$(pgrep cloud_sql_proxy) && kill -INT $sql_proxy_pid;
+            {{- end }}
         image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
         resources:
           limits:
@@ -117,7 +123,12 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
+            {{- if .Values.gke.cloudSQL.enableProxy }}
+            add:
+              - SYS_PTRACE
+            {{- else }}
             drop: [ALL]
+            {{- end }}
           privileged: false
           readOnlyRootFilesystem: true
           runAsGroup: 3333
@@ -129,6 +140,31 @@ spec:
             readOnly: true
             mountPath: /secrets/mysql
           {{- end }}
+      {{- if .Values.gke.cloudSQL.enableProxy }}
+      - name: cloudsql-proxy
+        image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
+        command:
+        - "/cloud_sql_proxy"
+        - "-verbose={{ .Values.gke.cloudSQL.verbose}}"
+        - "-instances={{ .Values.gke.cloudSQL.instanceName }}=tcp:3306"
+        resources:
+          limits:
+            cpu: 0.5 # 500Mhz
+            memory: 150Mi
+          requests:
+            cpu: 0.1 # 100Mhz
+            memory: 50Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 3333
+          runAsUser: 3333
+          runAsNonRoot: true
+      {{- end }}
+      serviceAccountName: fleet
       volumes:
         {{- if .Values.database.tls.enabled }}
         - name: mysql-tls

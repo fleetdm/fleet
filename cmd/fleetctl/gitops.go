@@ -81,22 +81,10 @@ func gitopsCommand() *cli.Command {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
-			// We need to extract the controls from no-team.yml to be able to apply them when applying the global app config.
-			var (
-				noTeamControls spec.Controls
-				noTeamPresent  bool
-			)
-			for _, flFilename := range flFilenames.Value() {
-				if filepath.Base(flFilename) == "no-team.yml" {
-					baseDir := filepath.Dir(flFilename)
-					config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
-					if err != nil {
-						return err
-					}
-					noTeamControls = config.Controls
-					noTeamPresent = true
-					break
-				}
+			// We need the controls from no-team.yml to apply them when applying the global app config.
+			noTeamControls, noTeamPresent, err := extractControlsForNoTeam(flFilenames, appConfig)
+			if err != nil {
+				return fmt.Errorf("extracting controls from no-team.yml: %w", err)
 			}
 
 			var originalABMConfig []any
@@ -112,10 +100,13 @@ func gitopsCommand() *cli.Command {
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
+			// We keep track of the environment FLEET_SECRET_* variables
+			allFleetSecrets := make(map[string]string)
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -148,13 +139,17 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+				} else if !appConfig.License.IsPremium() {
+					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					continue
 				}
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
 				// when to perform the associations.
-				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) {
+
+				if isGlobalConfig && totalFilenames > 1 && !(totalFilenames == 2 && noTeamPresent) && appConfig.License.IsPremium() {
 					abmTeams, hasMissingABMTeam, usesLegacyABMConfig, err = checkABMTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
@@ -212,7 +207,12 @@ func gitopsCommand() *cli.Command {
 					}
 				}
 
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig, teamsSoftwareInstallers, teamsScripts)
+				err = fleetClient.SaveEnvSecrets(allFleetSecrets, config.FleetSecrets, flDryRun)
+				if err != nil {
+					return err
+				}
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 				if err != nil {
 					return err
 				}
@@ -225,7 +225,8 @@ func gitopsCommand() *cli.Command {
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
 			if len(abmTeams) > 0 && hasMissingABMTeam {
-				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalABMConfig, usesLegacyABMConfig, flDryRun, fleetClient); err != nil {
+				if err = applyABMTokenAssignmentIfNeeded(c, teamNames, abmTeams, originalABMConfig, usesLegacyABMConfig, flDryRun,
+					fleetClient); err != nil {
 					return err
 				}
 			}
@@ -272,6 +273,24 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
+func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, error) {
+	for _, flFilename := range flFilenames.Value() {
+		if filepath.Base(flFilename) == "no-team.yml" {
+			if !appConfig.License.IsPremium() {
+				// Message is printed in the next flFilenames loop to avoid printing it multiple times
+				break
+			}
+			baseDir := filepath.Dir(flFilename)
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
+			if err != nil {
+				return spec.GitOpsControls{}, false, err
+			}
+			return config.Controls, true, nil
+		}
+	}
+	return spec.GitOpsControls{}, false, nil
+}
+
 // checkABMTeamAssignments validates the spec, and finds if:
 //
 // 1. The user is using the legacy apple_bm_default_team config.
@@ -287,6 +306,15 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 			appleBM, hasNewConfig := mdmMap["apple_business_manager"]
 
 			if hasLegacyConfig && hasNewConfig {
+				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
+			}
+
+			abmToks, err := fleetClient.CountABMTokens()
+			if err != nil {
+				return nil, false, false, err
+			}
+
+			if hasLegacyConfig && abmToks > 1 {
 				return nil, false, false, errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
 			}
 

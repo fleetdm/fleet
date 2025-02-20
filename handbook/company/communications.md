@@ -40,7 +40,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
 | Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
 
-> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Fleeties can find Fleet general contact information [here](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit).
+> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
 **Emergency (P0) request communications:**
 
@@ -62,9 +62,10 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Blog                                 | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Head of Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
+| Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Finance Engineer](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Legal contracts                      | <sup><sub>_See [🌐 Digital Experience team](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 | Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Customer deployments                 | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
@@ -84,21 +85,6 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
-## Tech stack admins
-
-| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
-|:-----|-----------------:|------:|-------:|------:|------:|------:|----------:|
-| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Owner |✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
-| Head of Finance | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin | ✅ Admin | ❌ |
-| Finance Engineer | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin |✅ Admin | ❌ |
-| Head of Digital Experience | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
-| Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
-| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin |
-| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
-| CX Sr. Suppoert Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 
@@ -134,6 +120,16 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
 The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
+
+
+## Go-To-Market outreach 
+
+Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
+
+When you reach out to a prospect or customer, make sure you're the right person:
+- **🐋 "Sales-ready" prospect**: The rep (AE) determines the best way to contact the prospective customer, which is often the Solutions Consultant reaching help.
+- **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
+- **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
 
 ## Marketing programs
@@ -176,7 +172,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
-1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
+1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
 
 
@@ -199,6 +195,13 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+
+> 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
+
+Videos are transcribed, and this makes it easier to find required redactions during the editing process before [upload](https://fleetdm.com/handbook/demand#upload-to-youtube).
+  - **When sharing your screen** during a public meeting, refrain from displaying sensitive information such as customer names, private messages, or other confidential information.
+  - **[OpenBlur]([OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1))** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor).
 - **Take notes.** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
   - The agenda creation and/or prep beforehand. 
   - There is a designated notetaker during the meeting. 
@@ -287,7 +290,7 @@ Settings that have a lock icon next to them have been locked by an administrator
 ### Recording meetings
 
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
-  - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
+  - While some fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
 To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
@@ -381,7 +384,7 @@ We use these prefixes to organize the Fleet Slack:
 - We use [channels over DMs](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels).
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
-- In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 
 ### Create a GitHub issue from a Slack thread
@@ -498,7 +501,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-> Note: Pages in the `./docs/Contributing/` folder and folders with a underscore prefix (e.g., `./docs/Deploy/_kubernetes/`) are not included in the documentation on the Fleet website.
+> Note: Pages in the `./docs/Contributing/` folder are not included in the documentation on [fleetdm.com](https://fleetdm.com/).
 
 
 ### Merging changes
@@ -546,7 +549,7 @@ An example of a link that lives outside of `/docs` is:
 If the link lives outside `/docs`, head to the file's location (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and copy the full URL  into its canonical form (a version of the link that will always point to the same location) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with full URL.
 
 
-### Meta tags
+### Documentation meta tags
 
 - **Page order:** The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
@@ -554,8 +557,42 @@ We leave large gaps between values to make future changes easier. For example, t
 
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
 
-- **Page description:** TODO: Document.
+- 
 
+### Article meta tags:
+
+We use `<meta>` tags in Markdown articles to set metadata information about the article on the Fleet website. The values of these tags determine where the article will live, and how the article will be displayed on the website.
+
+- Required `<meta>` tags - If any of these tags are missing, the website's build script will fail with an error.
+    - `articleTitle`: The title of the article.
+    - `authorFullName`:  The full name of the author of the article.
+    - `authorGithubUsername`: The Github username of the author.
+    - `category`: The category of the article. determines the article category page the article will be shown on. 
+      > Note: All markdown articles can be found at fleetdm.com/articles
+        - Supported values: 
+            - `releases` - For Fleet release notes. Articles in this category are available at fleetdm.com/releases
+            - `security` - For security-related articles. Articles in this category are available at fleetdm.com/securing
+            - `engineering` - For engineering-related articles. Articles in this category are available at fleetdm.com/engineering
+            - `success stories` - Articles about how/why Fleet is being used by our customers. Articles in this category are available at fleetdm.com/success-stories
+            - `announcements` - News and announcements about new features and changes to Fleet. Articles in this category are available at fleeetdm.com/announcements
+            - `guides` - Non-reference documentation and how-to guides. Articles in this category are available at fleetdm.com/guides
+            - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at fleetdm.com/podcasts
+    - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
+- Optional meta tags:
+    - `articleImageUrl`: A relative link to a cover image for the article. If provided, the image needs to live in the /website/assets/images/articles folder. The image will be added to the card for this article on it's category page, as well as a cover image on the article page. If this value is not provided, the card for the article will display the Fleet logo and the article will have no cover image.
+    - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+
+**Example meta tag section:**
+
+```html
+<meta name="articleTitle" value="Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide">
+<meta name="authorFullName" value="Dave Herder">
+<meta name="authorGitHubUsername" value="dherder">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2023-05-22">
+<meta name="articleImageUrl" value="../website/assets/images/articles/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly@2x.jpg">
+<meta name="description" value="Step-by-step guide on building a dynamic dashboard with Fleet's REST API, Flask, and Plotly. Master data visualization with open-source tools!">
+```
 
 ### Images
 
@@ -671,7 +708,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 | Card title  | Purpose | Card owner |
 | ---------- |----------- | --------- |
 | Business spend | Business tax, insurance, IT, SaaS, other | CEO |
-| Individualized spend | Flowers, swag, and other internal gifting for Fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Head of Finance |
+| Individualized spend | Flowers, swag, and other internal gifting for fleeties, coaching/training, coworking, and other large [individualized expenses](https://fleetdm.com/handbook/company/communications#individualized-expenses) | Finance Engineer |
 | Infrastructure spend | AWS and other production/cloud infrastructure related to hosting Fleet for customers or load testing customer scale | CTO |
 | Marketing program spend | Ads, events, sponsorship, etc. | Head of Marketing | 
 
@@ -759,43 +796,34 @@ You can learn more about how Fleet approaches security in the [security handbook
 
 ## Vendor questionnaires 
 
-In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
-
-
-## Getting a contract signed
-
-If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
-
-When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
-
-The SLA for contract signature is **2 business days**. Please do not follow up on signature unless this time has elapsed.
-
-_**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
-
-> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
-
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
+In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/digital-experience/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/digital-experience//security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 ## Getting a contract reviewed
 
-> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and use the signature process documented above.
+The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
 
-To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
+> If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
-Complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+To get a contract reviewed, complete the [contract review issue template in GitHub](https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn&labels=%23g-digital-experience&projects=&template=contract-review.md&title=Review%3A++%F0%9F%96%8B%EF%B8%8F+__________________________). Upload the docx version whenever possible and be sure to include the link to the document in the issue. Follow-up comments should be made in the GitHub issue and in the document itself to avoid losing context.
 
-Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
+If an agreement requires additional review during the negotiation process, the requestor will need to upload the new draft agreement and repeat the process. When no further review or action is required, the requestor is responsible for [routing the document](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed) for signature.
 
-The SLA for contract review is **2 business days**.
 
-Once the review is complete, the issue will be closed.
+## Getting a contract signed
 
-If an agreement requires an additional review during the negotiation process, the requestor will need to follow these steps again. Uploading the new draft and creating a new issue in GitHub. 
+The SLA for contract signature is **2 business days**. Please do not follow up on signatures unless this time has elapsed. If a contract is ready for signature and **DOES NOT** require [review or revision](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) (i.e. no contract review issue necessary), follow the steps below:
 
-When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
+First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
-> **Note:** Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+Then, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the appropriate internal Slack channel (e.g. op channel, #g-digital-experience) with the following template:
+
+```
+@Sam Pfluger - :writing_hand Signature request
+The following contract is ready to sign and has been routed to the CEO for signature: CONTRACT_DOC_URL_FROM_GOOGLE_DRIVE
+```
+
+Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, please remove them before routing the agreement to the CEO for signature.
 
 
 ## Trust
@@ -877,9 +905,9 @@ Compensation at Fleet is determined by benchmarking using [Pave](https://pave.co
 
 ### Payroll dates
 
-US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
+US based fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
 
-Variable compensation (i.e. commission) is reviewed and submitted for processing by RevOps by the 7th of each month for the previous month or quarter's contributions. US based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by RevOps by the 7th of each month for the previous month or quarter's contributions. US based fleeties that receive variable compensation will be paid by the 10th. International fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
 
 
 ### Workiversaries
@@ -889,12 +917,12 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#updating-compensation)
+Fleet benchmarks all team members based on the United States Dollar (USD) and if applicable, conversion rates at the time of offer for international fleeties.  Conversion rates and compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
 
 
 ### Relocating
 
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#contact-us) by following the directions listed in the relevant issue template ("Moving").
+When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#contact-us) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
@@ -934,9 +962,9 @@ Expectations during onboarding:
 
 ### Sightseeing tour
 
-During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
+During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
 
-In this meeting, we'll take a look at:
+In this meeting, we'll [use this agenda](https://docs.google.com/document/d/1_gAy_ndrRQ-RwHAm4xhZ8rbY8XJZl9QqZBMS7YU2aMY/edit?tab=t.0#heading=h.7en766pueek4) to walk through the following:
 - Handbook: values, purpose, key pages to pay special attention to
 - GitHub issues: the living bloodstream of the company.
 - Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
@@ -993,13 +1021,15 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 - Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
 - Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
 - Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
-- Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
+- Feedback is how we improve. We encourage all fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
 
 When _giving_ feedback:
+
 1. **Aim to assist**: Feedback must be given with positive intent. Feedback must be framed around how it can help the individual or the company.
 2. **Actionable**: Feedback must be actionable and focus on what the recipient can do differently.
 
 When _receiving_ feedback:
+
 3. **Appreciate**: It is natural to feel defensive when hearing criticism. Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
 4. **Accept or discard**: Listen and consider all feedback, then decide to accept or discard. The decision to react to the feedback is entirely up to the recipient.
 
@@ -1015,13 +1045,13 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
-If you are in need of additional equipment for any reason, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
-- **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+- **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
-- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
-- **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
+- **Equipment retention and replacement:** Older equipment results in lost productivity of fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
@@ -1276,7 +1306,7 @@ Use numerals and am or pm without a space in between:
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
-We have users and Fleeties all over the world.🌎 Specify time zones when scheduling events or meetings.
+We have users and fleeties all over the world.🌎 Specify time zones when scheduling events or meetings.
 
 Abbreviate time zones within the continental United States as follows:
 - Eastern time: ET
@@ -1369,11 +1399,13 @@ Related content...
 Wherever possible, avoid creating nested headings. For example:
 
 ```
-## Things
 
-### Thing 1
+### Things
+
+#### Thing 1
 
 Hi my name is Thing 1
+
 ```
 
 
@@ -1400,7 +1432,7 @@ Try to stay within three or four heading levels. Complicated documents may use m
 
 ### Line breaks and new lines
 
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
+Any time you need to add a line break in Markdown, add an extra line break.
 
 For example, if you were adding this section:
 
@@ -1665,7 +1697,6 @@ This glossary provides definitions to commonly used terms within our space.
 | **Internet Engineering Task Force (IETF)** | See: IETF |
 | **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
 | **Linux** | An open source operating system. |
-| **Logica** | An IT and management consultancy company based in the United Kingdom. |
 | **macOS** | The operating system used in all of Apple's Mac computers. |
 | **Munki** | Open-source software deployment tool for macOS. |
 | **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |

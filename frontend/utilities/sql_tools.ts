@@ -4,7 +4,7 @@ import { intersection, isPlainObject } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   MACADMINS_EXTENSION_TABLES,
-  SUPPORTED_PLATFORMS,
+  QUERYABLE_PLATFORMS,
   QueryablePlatform,
 } from "interfaces/platform";
 import { TableSchemaPlatform } from "interfaces/osquery_table";
@@ -59,7 +59,7 @@ const filterCompatiblePlatforms = (
   sqlTables: string[]
 ): QueryablePlatform[] => {
   if (!sqlTables.length) {
-    return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
+    return [...QUERYABLE_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
 
   const compatiblePlatforms = intersection(
@@ -68,7 +68,7 @@ const filterCompatiblePlatforms = (
     )
   );
 
-  return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
+  return QUERYABLE_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
 export const parseSqlTables = (

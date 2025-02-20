@@ -9,7 +9,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
@@ -51,8 +50,8 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	}
 
 	ds := new(mock.DataStore)
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return []*fleet.User{{}}, nil
+	ds.HasUsersFunc = func(ctx context.Context) (bool, error) {
+		return true, nil
 	}
 	svc, _ := newTestService(t, ds, nil, nil)
 

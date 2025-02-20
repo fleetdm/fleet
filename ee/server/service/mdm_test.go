@@ -6,12 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,3 +151,46 @@ b1xn1jGQd/o0xFf9ojpDNy6vNojidQGHh6E3h0GYvxbnQmVNq5U=
 // prevent static analysis tools from raising issues due to detection of
 // private key in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestCountABMTokensAuth(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ctx := context.Background()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := Service{ds: ds, authz: authorizer}
+
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 5, nil
+	}
+
+	t.Run("CountABMTokens", func(t *testing.T) {
+		cases := []struct {
+			desc              string
+			user              *fleet.User
+			shoudFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"gitops can read", test.UserGitOps, false},
+			{"maintainer can read", test.UserMaintainer, false},
+			{"observer can read", test.UserObserver, false},
+			{"observer+ can read", test.UserObserverPlus, false},
+			{"admin can read", test.UserAdmin, false},
+			{"tm1 gitops cannot read", test.UserTeamGitOpsTeam1, true},
+			{"tm1 maintainer can read", test.UserTeamMaintainerTeam1, false},
+			{"tm1 observer can read", test.UserTeamObserverTeam1, false},
+			{"tm1 observer+ can read", test.UserTeamObserverPlusTeam1, false},
+			{"tm1 admin can read", test.UserTeamAdminTeam1, false},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx = test.UserContext(ctx, c.user)
+				count, err := svc.CountABMTokens(ctx)
+				checkAuthErr(t, c.shoudFailWithAuth, err)
+				if !c.shoudFailWithAuth {
+					assert.EqualValues(t, 5, count)
+				}
+			})
+		}
+	})
+}

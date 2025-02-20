@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.9.0"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.12.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -88,7 +88,7 @@ module "free" {
       prefix  = local.customer_free
       enabled = true
     }
-    idle_timeout = 605
+    idle_timeout = 905
   }
 }
 
@@ -119,7 +119,7 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
   zone_id = aws_route53_zone.free.zone_id
   domain  = "free.fleetdm.com"
 }
@@ -128,7 +128,7 @@ module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision

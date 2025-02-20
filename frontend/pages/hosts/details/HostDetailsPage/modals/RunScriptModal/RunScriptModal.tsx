@@ -1,18 +1,14 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useContext, useMemo } from "react";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { getErrorReason, IApiError } from "interfaces/errors";
+import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
-import scriptsAPI, {
-  IHostScriptsQueryKey,
-  IHostScriptsResponse,
-} from "services/entities/scripts";
+import scriptsAPI, { IHostScriptsResponse } from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
@@ -28,11 +24,22 @@ import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
 const baseClass = "run-script-modal";
 
-interface IScriptsProps {
+interface IRunScriptModalProps {
   currentUser: IUser | null;
   host: IHost;
-  setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
   onClose: () => void;
+  runScriptRequested: boolean;
+  refetchHostScripts: () => void;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  hostScriptResponse?: IHostScriptsResponse;
+  isFetching: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
+  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void;
+  onClickRunDetails: (scriptExecutionId: string) => void;
+  isHidden: boolean;
 }
 
 const EmptyComponent = () => <></>;
@@ -40,44 +47,29 @@ const EmptyComponent = () => <></>;
 const RunScriptModal = ({
   currentUser,
   host,
-  setScriptDetailsId,
   onClose,
-}: IScriptsProps) => {
-  const [page, setPage] = useState<number>(0);
-  const [runScriptRequested, setRunScriptRequested] = useState(false);
-
+  runScriptRequested,
+  refetchHostScripts,
+  page,
+  setPage,
+  setRunScriptRequested,
+  hostScriptResponse,
+  isFetching,
+  isLoading,
+  isError,
+  onClickViewScript,
+  onClickRunDetails,
+  isHidden = false,
+}: IRunScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
-
-  const {
-    data: hostScriptResponse,
-    isError,
-    isLoading,
-    isFetching,
-    refetch: refetchHostScripts,
-  } = useQuery<
-    IHostScriptsResponse,
-    IApiError,
-    IHostScriptsResponse,
-    IHostScriptsQueryKey[]
-  >(
-    [{ scope: "host_scripts", host_id: host.id, page, per_page: 10 }],
-    ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 3000,
-      onSuccess: () => {
-        setRunScriptRequested(false);
-      },
-    }
-  );
 
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
       switch (action) {
-        case "showDetails": {
-          setScriptDetailsId(script.last_execution?.execution_id || "");
+        case "showRunDetails": {
+          script.last_execution?.execution_id &&
+            onClickRunDetails(script.last_execution?.execution_id);
           break;
         }
         case "run": {
@@ -101,7 +93,13 @@ const RunScriptModal = ({
         default: // do nothing
       }
     },
-    [host.id, refetchHostScripts, renderFlash, setScriptDetailsId]
+    [
+      host.id,
+      onClickRunDetails,
+      refetchHostScripts,
+      renderFlash,
+      setRunScriptRequested,
+    ]
   );
 
   const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
@@ -114,9 +112,10 @@ const RunScriptModal = ({
         currentUser,
         host.team_id,
         !!config?.server_settings?.scripts_disabled,
+        onClickViewScript,
         onSelectAction
       ),
-    [currentUser, host.team_id, config, onSelectAction]
+    [currentUser, host.team_id, config, onClickViewScript, onSelectAction]
   );
 
   if (!config) return null;
@@ -130,6 +129,7 @@ const RunScriptModal = ({
       onEnter={onClose}
       className={`${baseClass}`}
       isLoading={runScriptRequested || isFetching || isLoading}
+      isHidden={isHidden}
     >
       <>
         <div className={`${baseClass}__modal-content`}>

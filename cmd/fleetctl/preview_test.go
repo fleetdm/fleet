@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
+	_, err := runAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
+	require.ErrorContains(t, err, "--license-key")
+}
+
 func TestIntegrationsPreview(t *testing.T) {
 	nettest.Run(t)
 

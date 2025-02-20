@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -20,6 +19,7 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/nanolib/log/stdlogfmt"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
@@ -44,9 +44,9 @@ func TestMDMAppleCommander(t *testing.T) {
 	payloadIdentifier := "com-foo-bar"
 	mc := mobileconfigForTest(payloadName, payloadIdentifier)
 
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
+		require.Equal(t, cmd.Command.Command.RequestType, "InstallProfile")
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 		p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
@@ -96,9 +96,9 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		require.Equal(t, "RemoveProfile", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), payloadIdentifier)
 		return nil, nil
 	}
@@ -111,9 +111,9 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.NoError(t, err)
 
 	cmdUUID = uuid.New().String()
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), "http://test.example.com")
 		require.Contains(t, string(cmd.Raw), cmdUUID)
 		return nil, nil
@@ -172,7 +172,7 @@ func newMockAPNSPushProviderFactory() (*svcmock.APNSPushProviderFactory, *svcmoc
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{

@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
@@ -92,6 +93,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.PlistType), // table name is "parse_plist"
+
+		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
 	}
 
 	// append platform specific tables

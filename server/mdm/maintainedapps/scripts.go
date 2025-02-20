@@ -2,6 +2,7 @@ package maintainedapps
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -19,11 +20,18 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 	formats := strings.Split(app.InstallerFormat, ":")
 	sb.Extract(formats[0])
 
+	var includeQuitFunc bool
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
+			sb.Writef("quit_application '%s'", app.BundleIdentifier)
+			if cask.Token == "docker" {
+				sb.Writef("quit_application 'com.electron.dockerdesktop'")
+			}
+			includeQuitFunc = true
 			for _, appPath := range artifact.App {
+				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
 
@@ -55,6 +63,10 @@ func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {
 		}
 	}
 
+	if includeQuitFunc {
+		sb.AddFunction("quit_application", quitApplicationFunc)
+	}
+
 	return sb.String(), nil
 }
 
@@ -77,8 +89,14 @@ func uninstallScriptForApp(cask *brewCask) string {
 			}
 		case len(artifact.Uninstall) > 0:
 			sortUninstall(artifact.Uninstall)
+			if len(cask.PreUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
+			}
 			for _, u := range artifact.Uninstall {
 				processUninstallArtifact(u, sb)
+			}
+			if len(cask.PostUninstallScripts) > 0 {
+				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
 			}
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
@@ -166,6 +184,9 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		sb.Writef("quit_application '%s'", appName)
+		if appName == "com.docker.docker" {
+			sb.Writef("quit_application 'com.electron.dockerdesktop'")
+		}
 	})
 
 	// per the spec, signals can't have a different format. In the homebrew
@@ -179,11 +200,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	if u.Script.IsOther {
 		addUserVar()
 		for _, path := range u.Script.Other {
-			sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, path)
+			sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, path)
 		}
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
-		sb.Writef(`sudo -u "$LOGGED_IN_USER" '%s'`, u.Script.String)
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
@@ -246,7 +267,6 @@ func (s *scriptBuilder) Writef(format string, args ...any) {
 // Supported formats are "dmg" and "zip". It adds the necessary extraction
 // commands to the script.
 func (s *scriptBuilder) Extract(format string) {
-
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
@@ -306,7 +326,8 @@ sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
-	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
+	pathname := filepath.Dir(target)
+	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
 }
 
 // String generates the final script as a string.
@@ -365,15 +386,15 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   local booleans=("true" "false")
   local plist_status
   local paths
-  local sudo
+  local should_sudo
 
   echo "Removing launchctl service ${service}"
 
-  for sudo in "${booleans[@]}"; do
+  for should_sudo in "${booleans[@]}"; do
     plist_status=$(launchctl list "${service}" 2>/dev/null)
 
     if [[ $plist_status == \{* ]]; then
-      if [[ $sudo == "true" ]]; then
+      if [[ $should_sudo == "true" ]]; then
         sudo launchctl remove "${service}"
       else
         launchctl remove "${service}"
@@ -387,7 +408,7 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
     )
 
     # if not using sudo, prepend the home directory to the paths
-    if [[ $sudo == "false" ]]; then
+    if [[ $should_sudo == "false" ]]; then
       for i in "${!paths[@]}"; do
         paths[i]="${HOME}${paths[i]}"
       done
@@ -395,7 +416,7 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
     for path in "${paths[@]}"; do
       if [[ -e "$path" ]]; then
-        if [[ $sudo == "true" ]]; then
+        if [[ $should_sudo == "true" ]]; then
           sudo rm -f -- "$path"
         else
           rm -f -- "$path"
@@ -450,6 +471,7 @@ const trashFunc = `trash() {
   local logged_in_user="$1"
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
 
   # replace ~ with /Users/$logged_in_user
   if [[ "$target_file" == ~* ]]; then
@@ -461,7 +483,7 @@ const trashFunc = `trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}"
+    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
   else
     echo "$target_file doesn't exist."
   fi

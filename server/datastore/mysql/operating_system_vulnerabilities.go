@@ -36,7 +36,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 
 	var sqlstmt string
 
-	if includeCVSS == true {
+	if includeCVSS {
 		sqlstmt = `
 			SELECT DISTINCT
 				osv.cve,

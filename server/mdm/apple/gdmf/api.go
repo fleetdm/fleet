@@ -15,7 +15,6 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
@@ -91,7 +90,7 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 					latestIdx = i // first match found, update the index
 					continue
 				}
-				if apple_mdm.CompareVersions(assetSet[latestIdx].ProductVersion, s.ProductVersion) < 0 {
+				if fleet.CompareVersions(assetSet[latestIdx].ProductVersion, s.ProductVersion) < 0 {
 					latestIdx = i // found a later version, update the index
 				}
 			}

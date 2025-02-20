@@ -530,9 +530,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "uuid",
     id: "uuid",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} />
-    ),
+    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
+      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
   },
   {
     title: "Last restarted",
@@ -675,15 +674,14 @@ const generateAvailableTableHeaders = ({
   return allHostTableHeaders.reduce(
     (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
       // skip over column headers that are not shown in free observer tier
-      if (isFreeTier && isOnlyObserver) {
+      if (isFreeTier) {
         if (
-          currentColumn.id === "team_name" ||
-          currentColumn.id === "selection"
+          isOnlyObserver &&
+          ["selection", "team_name"].includes(currentColumn.id || "")
         ) {
           return columns;
+          // skip over column headers that are not shown in free admin/maintainer
         }
-        // skip over column headers that are not shown in free admin/maintainer
-      } else if (isFreeTier) {
         if (
           currentColumn.id === "team_name" ||
           currentColumn.id === "mdm.server_url" ||
@@ -691,11 +689,9 @@ const generateAvailableTableHeaders = ({
         ) {
           return columns;
         }
-      } else if (isOnlyObserver) {
+      } else if (isOnlyObserver && currentColumn.id === "selection") {
         // In premium tier, we want to check user role to enable/disable select column
-        if (currentColumn.id === "selection") {
-          return columns;
-        }
+        return columns;
       }
 
       columns.push(currentColumn);

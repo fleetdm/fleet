@@ -27,7 +27,7 @@ const EmptyFleetAppsTable = () => (
         Can&apos;t find app?{" "}
         <CustomLink
           newTab
-          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          url="https://fleetdm.com/feature-request"
           text="File an issue on GitHub"
         />
       </>
@@ -45,6 +45,10 @@ interface IFleetMaintainedAppsTableProps {
   currentPage: number;
   router: InjectedRouter;
   data?: ISoftwareFleetMaintainedAppsResponse;
+}
+
+interface IRowProps {
+  original: IFleetMaintainedApp;
 }
 
 const FleetMaintainedAppsTable = ({
@@ -118,9 +122,9 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = (row: IFleetMaintainedApp) => {
+  const handleRowClick = (row: IRowProps) => {
     const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
-      row.id
+      row.original.id
     )}?${buildQueryStringFromParams({
       team_id: teamId,
     })}`;
@@ -156,7 +160,7 @@ const FleetMaintainedAppsTable = ({
   };
 
   return (
-    <TableContainer<IFleetMaintainedApp>
+    <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
       data={data?.fleet_maintained_apps ?? []}

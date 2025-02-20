@@ -72,6 +72,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumTeams)
 	assert.Equal(t, 0, stats.NumPolicies)
+	assert.Equal(t, 0, stats.NumQueries)
 	assert.Equal(t, builtinLabels, stats.NumLabels)
 	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
 	assert.Equal(t, true, stats.SystemUsersEnabled)
@@ -138,7 +139,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Create a session for user baz, but not qux (so only 1 is active)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
 
 	// Create new team for test
@@ -220,6 +221,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumTeams)
 	assert.Equal(t, 1, stats.NumPolicies)
+	assert.Equal(t, 0, stats.NumQueries)
 	assert.Equal(t, builtinLabels+1, stats.NumLabels)
 	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
 	assert.Equal(t, false, stats.SystemUsersEnabled)
@@ -320,6 +322,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumQueries)
 	assert.Equal(t, 0, stats.NumSoftwareVersions)
 	assert.Equal(t, 0, stats.NumHostSoftwares)
 	assert.Equal(t, 0, stats.NumSoftwareTitles)
@@ -346,11 +349,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
 
 	// Create multiple new sessions for a single user
-	_, err = ds.NewSession(ctx, u1.ID, "session_key2")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key3")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
-	_, err = ds.NewSession(ctx, u1.ID, "session_key4")
+	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
 
 	// CleanupStatistics resets policy violation days
@@ -368,6 +371,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumQueries)
 	assert.Equal(t, 0, stats.NumSoftwareVersions)
 	assert.Equal(t, 0, stats.NumHostSoftwares)
 	assert.Equal(t, 0, stats.NumSoftwareTitles)

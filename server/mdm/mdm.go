@@ -3,8 +3,13 @@ package mdm
 import (
 	"bytes"
 	"crypto"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
+	"fmt"
+	"io"
 
 	"github.com/smallstep/pkcs7"
 )
@@ -79,6 +84,55 @@ func GuessProfileExtension(profile []byte) string {
 	default:
 		return ""
 	}
+}
+
+func EncryptAndEncode(plainText string, symmetricKey string) (string, error) {
+	block, err := aes.NewCipher([]byte(symmetricKey))
+	if err != nil {
+		return "", fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("create new gcm: %w", err)
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", fmt.Errorf("generate nonce: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(aesGCM.Seal(nonce, nonce, []byte(plainText), nil)), nil
+}
+
+func DecodeAndDecrypt(base64CipherText string, symmetricKey string) (string, error) {
+	encrypted, err := base64.StdEncoding.DecodeString(base64CipherText)
+	if err != nil {
+		return "", fmt.Errorf("base64 decode: %w", err)
+	}
+
+	block, err := aes.NewCipher([]byte(symmetricKey))
+	if err != nil {
+		return "", fmt.Errorf("create new cipher: %w", err)
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("create new gcm: %w", err)
+	}
+
+	// Get the nonce size
+	nonceSize := aesGCM.NonceSize()
+
+	// Extract the nonce from the encrypted data
+	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
+
+	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", fmt.Errorf("decrypting: %w", err)
+	}
+
+	return string(decrypted), nil
 }
 
 const (

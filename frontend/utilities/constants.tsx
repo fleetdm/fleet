@@ -84,15 +84,23 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.16.0 +", value: "5.16.0" },
+  { label: "5.15.0 +", value: "5.15.0" },
+  { label: "5.14.1 +", value: "5.14.1" },
+  { label: "5.13.1 +", value: "5.13.1" },
+  { label: "5.12.2 +", value: "5.12.2" },
+  { label: "5.12.1 +", value: "5.12.1" },
+  { label: "5.11.0 +", value: "5.11.0" },
   { label: "5.10.2 +", value: "5.10.2" },
   { label: "5.9.1 +", value: "5.9.1" },
   { label: "5.8.2 +", value: "5.8.2" },
   { label: "5.8.1 +", value: "5.8.1" },
   { label: "5.7.0 +", value: "5.7.0" },
   { label: "5.6.0 +", value: "5.6.0" },
+  { label: "5.5.1 +", value: "5.5.1" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
-  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.3 +", value: "5.2.3" },
   { label: "5.2.2 +", value: "5.2.2" },
   { label: "5.2.1 +", value: "5.2.1" },
   { label: "5.2.0 +", value: "5.2.0" },
@@ -334,7 +342,10 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      MDM was turned on manually (macOS), or hosts were automatically migrated
+      with fleetd (Windows). End users can turn MDM off.
+    </span>
   ),
   Off: undefined, // no tooltip specified
   Pending: (
@@ -365,13 +376,6 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
       or the cycle count has reached 1000.
     </span>
   ),
-};
-
-export const DEFAULT_CREATE_USER_ERRORS = {
-  email: "",
-  name: "",
-  password: "",
-  sso_enabled: null,
 };
 
 /** Must pass agent options config as empty object */
@@ -426,8 +430,15 @@ export const HOST_OSQUERY_DATA = [
 ];
 
 export const DEFAULT_USE_QUERY_OPTIONS = {
-  retry: 3,
   refetchOnWindowFocus: false,
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
+    let isBadRequestErr = false;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
+    }
+    return failureCount < 4 && !isBadRequestErr;
+  },
 };
 
 export const INVALID_PLATFORMS_REASON =

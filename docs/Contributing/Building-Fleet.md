@@ -38,7 +38,7 @@ sudo npm install -g yarn
 # Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 # refresh your session before continuing
-nvm install v20.11.1
+nvm install v20.18.1
 ```
 
 #### Windows
@@ -72,7 +72,7 @@ The binaries are now available in `./build/`.
 To set up a working local development environment, you must install the following minimum toolset:
 
 * [Go](https://golang.org/doc/install)
-* [Node.js v20.11.1](https://nodejs.org/en/download/) and [Yarn](https://yarnpkg.com/en/docs/install)
+* [Node.js v20.18.1](https://nodejs.org/en/download/) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 
 Once you have those minimum requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.

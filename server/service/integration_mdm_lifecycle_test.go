@@ -46,6 +46,7 @@ type mdmLifecycleAssertion[T any] func(t *testing.T, host *fleet.Host, device T)
 
 func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	s.setupLifecycleSettings()
 
 	testCases := []struct {
@@ -59,7 +60,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
@@ -79,7 +80,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				cmd, err := device.Idle()
@@ -104,8 +105,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				originalPushMock := s.pushProvider.PushFunc
 				defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-				s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-					res, err := mockSuccessfulPush(pushes)
+				s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+					res, err := mockSuccessfulPush(ctx, pushes)
 					require.NoError(t, err)
 					err = device.Checkout()
 					require.NoError(t, err)
@@ -287,7 +288,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
@@ -332,7 +333,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusNoContent,
+					http.StatusOK,
 				)
 
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
@@ -591,6 +592,8 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
 	// ensure there's a token for automatic enrollments
 	s.enableABM(t.Name())
 	s.runDEPSchedule()

@@ -108,8 +108,7 @@ func GetSecret() (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	var query C.CFMutableDictionaryRef
-	query = C.CFDictionaryCreateMutable(
+	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,

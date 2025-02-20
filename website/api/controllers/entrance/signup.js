@@ -138,13 +138,21 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
-
+    let psychologicalStageChangeReason;
+    if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+      let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
+      // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
+      if(this.req.session.visitedSiteFromAdAt > sevenDaysAgoAt) {
+        psychologicalStageChangeReason = this.req.session.adAttributionString;
+      }
+    }
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
       organization: organization,
-      contactSource: 'Website - Sign up'
+      contactSource: 'Website - Sign up',
+      psychologicalStageChangeReason,
     }).exec((err)=>{
       if(err){
         sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
