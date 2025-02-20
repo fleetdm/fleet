@@ -58,10 +58,10 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Blog                                 | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Payroll, bookkeeping, AR/AP          | <sup><sub>_See [💸 Head of Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
@@ -145,7 +145,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
@@ -159,7 +159,7 @@ Here are some topics for social media posts:
 
 #### Fleet on LinkedIn
 
-Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
 
 
 ### Ads
@@ -174,7 +174,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
 1. Once a list of badge scans is available, Fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
