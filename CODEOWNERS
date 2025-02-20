@@ -99,7 +99,7 @@ go.mod @fleetdm/go
 /handbook/digital-experience/vendor-questionnaires.md           @lukeheath
 /handbook/digital-experience                             		@sampfluger88
 /handbook/customer-success                                		@sampfluger88
-/handbook/demand                                          		@sampfluger88
+/handbook/marketing                                        		@sampfluger88
 #/handbook/engineering                                     		@sampfluger88 @lukeheath Covered in custom.js
 /handbook/sales                                           		@sampfluger88
 #/handbook/product-design                                  		@sampfluger88 Covered in custom.js
