@@ -199,6 +199,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		}
 	}()
 
+	log.Debug().Msg("generating random disk encryption passphrase")
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
@@ -208,14 +209,17 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	if err != nil {
 		return nil, nil, fmt.Errorf("finding available keyslot: %w", err)
 	}
+	log.Debug().Msgf("found available keyslot: %d", keySlot)
 
 	userKey := encryption.NewKey(userKeySlot, passphrase)
 	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
+	log.Debug().Msgf("adding new key to keyslot %d", keySlot)
 	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
 		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
 	}
 
+	log.Debug().Msg("validating newly inserted key")
 	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
@@ -262,7 +266,7 @@ func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, erro
 	})
 
 	// Check for gaps in keys in case one was deleted
-	var unusedKey uint32 = 0
+	var unusedKey uint32
 	for _, keySlot := range keysTaken {
 		if unusedKey == keySlot {
 			unusedKey++
