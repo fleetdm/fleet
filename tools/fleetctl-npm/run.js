@@ -28,7 +28,7 @@ const installDir = join(binDir, strippedVersion);
 const platform = (() => {
   switch (type()) {
     case "Windows_NT":
-      return `windows_${arch}`;
+      return `windows_${arch === "arm64" ? "arm64" : "amd64"}`;
     case "Linux":
       return `linux_${arch === "arm64" ? "arm64" : "amd64"}`;
     case "Darwin":
