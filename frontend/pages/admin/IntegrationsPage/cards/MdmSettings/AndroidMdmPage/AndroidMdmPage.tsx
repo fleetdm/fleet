@@ -3,6 +3,8 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import mdmAndroidAPI from "services/entities/mdm_android";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
@@ -20,6 +22,19 @@ interface ITurnOnAndroidMdmProps {
 }
 
 const TurnOnAndroidMdm = ({ onClickConnect }: ITurnOnAndroidMdmProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
+
+  const onConnectMdm = async () => {
+    setFetchingSignupUrl(true);
+    try {
+      await mdmAndroidAPI.getSignupUrl();
+    } catch (e) {
+      renderFlash("error", "Couldn't connect. Please try again");
+    }
+    setFetchingSignupUrl(false);
+  };
+
   return (
     <>
       <div className={`${baseClass}__turn-on-description`}>
@@ -30,7 +45,9 @@ const TurnOnAndroidMdm = ({ onClickConnect }: ITurnOnAndroidMdmProps) => {
           url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
         />
       </div>
-      <Button onClick={onClickConnect}>Connect</Button>
+      <Button isLoading={fetchingSignupUrl} onClick={onConnectMdm}>
+        Connect
+      </Button>
     </>
   );
 };
@@ -73,14 +90,18 @@ interface IAndroidMdmPageProps {
 }
 
 const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
-  let { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
-
-  isAndroidMdmEnabledAndConfigured = true;
+  const { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
+  const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
 
   const [showTurnOffMdmModal, setShowTurnOffMdmModal] = useState(false);
 
-  const onConnectMdm = () => {
-    return false;
+  const onConnectMdm = async () => {
+    try {
+      await mdmAndroidAPI.getSignupUrl();
+    } catch (e) {
+      renderFlash("error", "Couldn't connect. Please try again");
+    }
   };
 
   return (
