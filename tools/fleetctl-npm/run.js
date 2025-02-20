@@ -30,7 +30,7 @@ const platform = (() => {
     case "Windows_NT":
       return `windows_${arch}`;
     case "Linux":
-      return `linux_${arch}`;
+      return `linux_${arch === "arm64" ? "arm64" : "amd64"}`;
     case "Darwin":
       return "macos";
     default:

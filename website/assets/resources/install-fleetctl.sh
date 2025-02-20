@@ -26,8 +26,13 @@ version_gt() {
 
 # Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
-ARCH="$(uname -m)"
 
+# Determine architecture (x86_64 or arm64)
+ARCH="$(uname -m)"
+# Standardize x86_64 to amd64
+if [ $ARCH != "arm64" ]; then ARCH="amd64"; fi
+
+# Standardize OS name for file download
 case "${OS}" in
     Linux*)     OS="linux_${ARCH}" OS_DISPLAY_NAME='Linux';;
     Darwin*)    OS='macos' OS_DISPLAY_NAME='macOS';;
