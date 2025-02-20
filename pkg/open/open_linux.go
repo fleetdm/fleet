@@ -41,7 +41,7 @@ func browser(url string) error {
 // getXWaylandAuthority retrieves the X authority file path from
 // the running XWayland process environment.
 func getXWaylandAuthority() (xAuthorityPath string, err error) {
-	xWaylandProcess, err := platform.GetProcessByName("Xwayland")
+	xWaylandProcess, err := platform.GetProcessesByName("Xwayland")
 	if err != nil {
 		return "", fmt.Errorf("get process by name: %w", err)
 	}

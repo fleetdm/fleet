@@ -27,7 +27,7 @@ func killProcessByName(name string) error {
 		return errors.New("process name should not be empty")
 	}
 
-	foundProcesses, err := GetProcessByName(name)
+	foundProcesses, err := GetProcessesByName(name)
 	if err != nil {
 		return fmt.Errorf("get process: %w", err)
 	}

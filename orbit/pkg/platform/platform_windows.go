@@ -131,7 +131,7 @@ func SignalProcessBeforeTerminate(processName string) error {
 		return ErrComChannelNotFound
 	}
 
-	foundProcess, err := GetProcessByName(processName)
+	foundProcess, err := GetProcessesByName(processName)
 	if err != nil {
 		return fmt.Errorf("get process: %w", err)
 	}
@@ -142,9 +142,9 @@ func SignalProcessBeforeTerminate(processName string) error {
 	return nil
 }
 
-// GetProcessByName gets a single running process object by its name.
+// GetProcessesByName gets a single running process object by its name.
 // Returns ErrProcessNotFound if the process was not found running.
-func GetProcessByName(name string) (*gopsutil_process.Process, error) {
+func GetProcessesByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {
 		return nil, errors.New("process name should not be empty")
 	}
