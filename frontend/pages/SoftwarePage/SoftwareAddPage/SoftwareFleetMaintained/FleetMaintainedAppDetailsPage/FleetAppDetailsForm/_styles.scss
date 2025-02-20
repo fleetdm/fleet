@@ -18,9 +18,10 @@
     }
   }
 
+  // Design spec that switches to stacked if the parent is < 990px, not including query side panel
   @container (min-width: 926px) {
     // 990px $break-md - 64px padding = 926px
-    // Don't have access to variables outside their scope
+    // @container does not have access to variables outside their scope
     &__form-frame {
       flex-direction: row;
     }
