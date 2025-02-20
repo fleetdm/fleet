@@ -70,7 +70,7 @@ go.mod @fleetdm/go
 /docs/REST\ API/rest-api.md                     @rachaelshaw @lukeheath # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
+/docs/Deploy/_kubernetes/ @lukeheath # « Kubernetes best practice
 /render.yaml                                    @edwardsb
 
 ##############################################################################################
