@@ -85,9 +85,9 @@ const EnrollSecretModal = ({
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={8}
-            renderChildren={(disableChildren) => (
+            renderChildren={(dC) => (
               <Button
-                disabled={disableChildren}
+                disabled={dC}
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
                 variant="text-icon"

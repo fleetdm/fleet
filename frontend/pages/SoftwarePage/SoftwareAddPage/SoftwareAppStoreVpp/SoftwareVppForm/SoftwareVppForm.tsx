@@ -303,11 +303,11 @@ const SoftwareVppForm = ({
           <GitOpsModeTooltipWrapper
             position="bottom"
             tipOffset={8}
-            renderChildren={(disableChildren) => (
+            renderChildren={(dC) => (
               <Button
                 type="submit"
                 variant="brand"
-                disabled={disableChildren || isSubmitDisabled}
+                disabled={dC || isSubmitDisabled}
                 isLoading={isLoading}
                 className={`${baseClass}__add-secret-btn`}
               >

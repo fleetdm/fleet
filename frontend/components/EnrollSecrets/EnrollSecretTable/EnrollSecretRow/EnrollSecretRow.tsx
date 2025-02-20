@@ -96,10 +96,10 @@ const EnrollSecretRow = ({
   const renderEditDeleteButtons = () => (
     <GitOpsModeTooltipWrapper
       tipOffset={8}
-      renderChildren={(disableChildren) => (
+      renderChildren={(dC) => (
         <div className="buttons">
           <Button
-            disabled={disableChildren}
+            disabled={dC}
             onClick={onEditSecretClick}
             className={`${baseClass}__edit-secret-icon`}
             variant="text-icon"
@@ -108,7 +108,7 @@ const EnrollSecretRow = ({
           </Button>
           <Button
             onClick={onDeleteSecretClick}
-            disabled={disableChildren}
+            disabled={dC}
             className={`${baseClass}__delete-secret-icon`}
             variant="text-icon"
           >

@@ -17,9 +17,9 @@ const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
       <ProfileGraphic baseClass={baseClass} showMessage />
       <GitOpsModeTooltipWrapper
         tipOffset={8}
-        renderChildren={(disableChildren) => (
+        renderChildren={(dC) => (
           <Button
-            disabled={disableChildren}
+            disabled={dC}
             className={`${baseClass}__card--add-button`}
             variant="brand"
             type="button"

@@ -129,12 +129,12 @@ export const FileUploader = ({
         {gitopsCompatible ? (
           <GitOpsModeTooltipWrapper
             tipOffset={8}
-            renderChildren={(disableChildren) => (
+            renderChildren={(dC) => (
               <Button
                 className={`${baseClass}__upload-button`}
                 variant={buttonVariant}
                 isLoading={isLoading}
-                disabled={disabled || disableChildren}
+                disabled={disabled || dC}
                 customOnKeyDown={handleKeyDown}
                 tabIndex={0}
               >
