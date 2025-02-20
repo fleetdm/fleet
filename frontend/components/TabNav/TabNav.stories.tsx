@@ -33,9 +33,21 @@ export const Default: Story = {
     const [selectedTabIndex, setSelectedTabIndex] = useState(0);
 
     const platformSubNav = [
-      { name: "Tab 1", type: "type1" },
-      { name: "Tab 2", type: "type2" },
-      { name: "Tab 3", type: "type3" },
+      { name: <TabText>Basic tab</TabText>, type: "type1" },
+      {
+        name: <TabText>Disabled tab</TabText>,
+        type: "type2",
+        disabled: true,
+      },
+      { name: <TabText count={3}>Tab with count</TabText>, type: "type3" },
+      {
+        name: (
+          <TabText count={20} isErrorCount>
+            Tab with error count
+          </TabText>
+        ),
+        type: "type4",
+      },
     ];
 
     const renderPanel = (type: string) => {
@@ -46,6 +58,8 @@ export const Default: Story = {
           return <div>Content for Tab 2</div>;
         case "type3":
           return <div>Content for Tab 3</div>;
+        case "type4":
+          return <div>Content for Tab 4</div>;
         default:
           return null;
       }
@@ -59,7 +73,7 @@ export const Default: Story = {
         >
           <TabList>
             {platformSubNav.map((navItem) => (
-              <Tab key={navItem.name} data-text={navItem.name}>
+              <Tab disabled={navItem.disabled}>
                 <TabText>{navItem.name}</TabText>
               </Tab>
             ))}
