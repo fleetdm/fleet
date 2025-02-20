@@ -258,6 +258,9 @@ html, body {
     border-radius: 4px;
     background-color: @core-vibrant-red;
     overflow: hidden;
+    &:hover {
+      color: #FFF;
+    }
   }
 
   [purpose='glass-header-btn']::before {
@@ -341,6 +344,7 @@ html, body {
       display: flex;
       flex-direction: row;
       align-items: center;
+      text-decoration: none;
       &:hover {
         color: @core-vibrant-blue;
         text-decoration: none;
@@ -353,6 +357,7 @@ html, body {
       font-weight: 700;
       cursor: pointer;
       color: @core-fleet-black;
+      text-decoration: none;
       &[aria-expanded='true'] {
         color: #6a67fe;
         outline: none;
@@ -396,9 +401,9 @@ html, body {
         color: #212529;
         white-space: nowrap;
         background-color: transparent;
+        text-decoration: none;
       }
       a:hover {
-        color: #6a67fe;
         text-decoration: none;
       }
       [purpose='indented-mobile-links'] {
@@ -440,6 +445,7 @@ html, body {
       color: @core-fleet-black-75;
       font-size: 14px;
       white-space: nowrap;
+      text-decoration: none;
       &:hover {
         color: @core-fleet-black-75;
         font-weight: 700;
@@ -477,15 +483,14 @@ html, body {
       box-shadow: 0px 4px 40px rgba(0, 0, 0, 0.4);
       border-radius: 8px;
       a {
-        color: @core-fleet-black;
         font-weight: 400;
         line-height: 20px;
+        text-decoration: none;
         &:not(:last-of-type) {
           margin-bottom: 4px;
         }
       }
       a:hover {
-        color: #6a67fe;
         text-decoration: none;
       }
     }
