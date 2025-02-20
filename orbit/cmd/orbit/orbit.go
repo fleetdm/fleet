@@ -1594,14 +1594,6 @@ func newDesktopRunner(
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
-	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-
-	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
-		!errors.Is(err, platform.ErrProcessNotFound) &&
-		!errors.Is(err, platform.ErrComChannelNotFound) {
-		log.Error().Err(err).Msg("desktop early terminate")
-	}
-
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -1647,6 +1639,13 @@ func (d *desktopRunner) Execute() error {
 
 			if !loggedInGui {
 				return true
+			}
+
+			log.Info().Msg("killing any pre-existing fleet-desktop instances")
+			if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+				!errors.Is(err, platform.ErrProcessNotFound) &&
+				!errors.Is(err, platform.ErrComChannelNotFound) {
+				log.Error().Err(err).Msg("desktop early terminate")
 			}
 
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
