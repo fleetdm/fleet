@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		PolicyID:             nil,
 		LastPolicySyncTime:   nil,
 	}
-	result1, err := ds.CreateDevice(testCtx(), device1)
+	result1, err := ds.createDevice(testCtx(), device1)
 	require.NoError(t, err)
 	assert.NotZero(t, result1.ID)
 	device1.ID = result1.ID
@@ -54,7 +55,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		PolicyID:             ptr.Uint(1),
 		LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 	}
-	result2, err := ds.CreateDevice(testCtx(), device2)
+	result2, err := ds.createDevice(testCtx(), device2)
 	require.NoError(t, err)
 	assert.NotZero(t, result2.ID)
 	device2.ID = result2.ID
@@ -66,4 +67,8 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 	result2, err = ds.GetDeviceByDeviceID(testCtx(), device2.DeviceID)
 	require.NoError(t, err)
 	assert.EqualValues(t, device2, result2)
+}
+
+func (ds *Datastore) createDevice(ctx context.Context, device *android.Device) (*android.Device, error) {
+	return ds.CreateDeviceTx(ctx, device, ds.Writer(ctx))
 }

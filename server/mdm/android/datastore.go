@@ -2,6 +2,8 @@ package android
 
 import (
 	"context"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Datastore interface {
@@ -12,6 +14,6 @@ type Datastore interface {
 	DeleteEnterprises(ctx context.Context) error
 	DeleteOtherEnterprises(ctx context.Context, ID uint) error
 
-	CreateDevice(ctx context.Context, device *Device) (*Device, error)
+	CreateDeviceTx(ctx context.Context, device *Device, tx sqlx.ExtContext) (*Device, error)
 	GetDeviceByDeviceID(ctx context.Context, deviceID string) (*Device, error)
 }

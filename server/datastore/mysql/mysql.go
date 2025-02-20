@@ -51,10 +51,11 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger log.Logger
-	clock  clock.Clock
-	config config.MysqlConfig
-	pusher nano_push.Pusher
+	logger    log.Logger
+	clock     clock.Clock
+	config    config.MysqlConfig
+	pusher    nano_push.Pusher
+	androidDS android.Datastore
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig

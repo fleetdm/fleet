@@ -85,10 +85,15 @@ func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
 		// TODO: Do EnrollHost and androidDS.AddHost inside a transaction so we don't add duplicate hosts
-		_, err = svc.fleetDS.EnrollHost(ctx, true, device.HardwareInfo.SerialNumber, device.HardwareInfo.SerialNumber,
-			device.HardwareInfo.SerialNumber, "", enrollSecret.GetTeamID(), 0)
+		host := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				TeamID: enrollSecret.GetTeamID(),
+			},
+			Device: &android.Device{},
+		}
+		_, err = svc.fleetDS.NewAndroidHost(ctx, host)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enrolling host")
+			return ctxerr.Wrap(ctx, err, "enrolling Android host")
 		}
 	}
 

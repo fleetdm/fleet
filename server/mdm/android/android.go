@@ -2,8 +2,6 @@ package android
 
 import (
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type SignupDetails struct {
@@ -47,9 +45,4 @@ type Device struct {
 	EnterpriseSpecificID string     `db:"enterprise_specific_id"`
 	PolicyID             *uint      `db:"policy_id"`
 	LastPolicySyncTime   *time.Time `db:"last_policy_sync_time"`
-}
-
-type Host struct {
-	*fleet.Host
-	*Device
 }

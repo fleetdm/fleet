@@ -1276,6 +1276,25 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return upsertHostDisplayNames(ctx, tx, hosts...)
 }
 
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
+	for _, h := range hosts {
+		args = append(args, h.ID, h.DisplayName())
+		parts = append(parts, "(?, ?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_display_names (host_id, display_name) VALUES %s
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host display names")
+	}
+
+	return nil
+}
+
 func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil

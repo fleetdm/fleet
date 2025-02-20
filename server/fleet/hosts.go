@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 type HostStatus string
@@ -372,6 +373,11 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+}
+
+type AndroidHost struct {
+	*Host
+	*android.Device
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
