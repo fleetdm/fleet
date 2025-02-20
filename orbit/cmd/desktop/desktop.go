@@ -563,7 +563,7 @@ func getLockfile() (*flock.Flock, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get logdir for lock: %w", err)
 	}
-	// Same as the log dir in seupLogs()
+	// Same as the log dir in setupLogs()
 	dir = filepath.Join(dir, "Fleet")
 
 	lockFilePath := filepath.Join(dir, "fleet-desktop.lock")
