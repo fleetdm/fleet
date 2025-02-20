@@ -8,6 +8,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
+  android_enabled_and_configured: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
