@@ -381,6 +381,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
 		},
+		"cpe:2.3:a:python:python:3.12.0-alpha0:*:*:*:*:*:*:*": {
+			includedCVEs: []cve{{ID: "CVE-2024-12254", resolvedInVersion: "3.14.0a3"}},
+		},
 	}
 
 	cveOSTests := []struct {

@@ -72,7 +72,7 @@
   },
   {
     "software": {
-      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "name": ["/^Python 3\\.\\d{1,2}ad{3}/"],
       "source": ["programs"]
     },
     "filter": {
