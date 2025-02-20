@@ -17,11 +17,9 @@ import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
 const baseClass = "android-mdm-page";
 
-interface ITurnOnAndroidMdmProps {
-  onClickConnect: () => void;
-}
+interface ITurnOnAndroidMdmProps {}
 
-const TurnOnAndroidMdm = ({ onClickConnect }: ITurnOnAndroidMdmProps) => {
+const TurnOnAndroidMdm = ({}: ITurnOnAndroidMdmProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
 
@@ -90,19 +88,12 @@ interface IAndroidMdmPageProps {
 }
 
 const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
-  const { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
+  let { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
+  isAndroidMdmEnabledAndConfigured = true;
+
   const { renderFlash } = useContext(NotificationContext);
-  const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
 
   const [showTurnOffMdmModal, setShowTurnOffMdmModal] = useState(false);
-
-  const onConnectMdm = async () => {
-    try {
-      await mdmAndroidAPI.getSignupUrl();
-    } catch (e) {
-      renderFlash("error", "Couldn't connect. Please try again");
-    }
-  };
 
   return (
     <MainContent className={baseClass}>
@@ -115,7 +106,7 @@ const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
 
       <div className={`${baseClass}__content`}>
         {!isAndroidMdmEnabledAndConfigured ? (
-          <TurnOnAndroidMdm onClickConnect={onConnectMdm} />
+          <TurnOnAndroidMdm />
         ) : (
           <TurnOffAndroidMdm
             onClickTurnOff={() => setShowTurnOffMdmModal(true)}
@@ -123,7 +114,10 @@ const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
         )}
       </div>
       {showTurnOffMdmModal && (
-        <TurnOffAndroidMdmModal onExit={() => setShowTurnOffMdmModal(false)} />
+        <TurnOffAndroidMdmModal
+          router={router}
+          onExit={() => setShowTurnOffMdmModal(false)}
+        />
       )}
     </MainContent>
   );

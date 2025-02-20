@@ -10,4 +10,9 @@ export default {
     const { MDM_ANDROID_SIGNUP_URL } = endpoints;
     return sendRequest("GET", MDM_ANDROID_SIGNUP_URL);
   },
+
+  turnOffAndroidMdm: (): Promise<void> => {
+    const { MDM_ANDROID_ENTERPRISE } = endpoints;
+    return sendRequest("DELETE", MDM_ANDROID_ENTERPRISE);
+  },
 };
