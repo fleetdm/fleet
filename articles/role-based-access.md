@@ -154,7 +154,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
-| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |
+| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
