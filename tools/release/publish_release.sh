@@ -331,7 +331,7 @@ print_announce_info() {
 
 general_announce_info() {
     if [[ "$minor" == "true" ]]; then
-        article_url="https://fleetdm.com/releases/fleet-$target_milestone"
+        article_url="https://fleetdm.com/releases/fleet-${target_milestone//./-}"
         article_published=$(curl -is "$article_url" | head -n 1 | awk '{print $2}')
         if [[ "$article_published" != "200" ]]; then
             echo "Could't find article at '$article_url'"
@@ -339,7 +339,7 @@ general_announce_info() {
         fi
 
         # TODO Publish Linkedin post about release article here and save url
-        linkedin_post_url="https://www.linkedin.com/feed/update/urn:li:activity:7274913563989721088"
+        linkedin_post_url="https://www.linkedin.com/feed/update/urn:li:activity:7297754335520665601"
     fi
     echo "========================================================================="
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
