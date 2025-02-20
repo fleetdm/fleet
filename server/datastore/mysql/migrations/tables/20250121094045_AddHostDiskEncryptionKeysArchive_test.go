@@ -32,7 +32,7 @@ func TestUp_20250121094045(t *testing.T) {
 			hostID, fmt.Sprintf("encrypted-%d", hostID), "salt", 1,
 		)
 	}
-	timeBeforeMigration := time.Now()
+	timeBeforeMigration := time.Now().Add(-1 * time.Second) // allow for the server and DB time to be off by 1 second
 
 	// Apply current migration.
 	applyNext(t, db)

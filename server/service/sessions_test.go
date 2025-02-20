@@ -178,7 +178,7 @@ func TestMFA(t *testing.T) {
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
-	require.NotNil(t, resp.error())
+	require.NotNil(t, resp.Error())
 
 	session = &fleet.Session{}
 	mfaUser = user
@@ -189,7 +189,7 @@ func TestMFA(t *testing.T) {
 	}
 	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
-	require.Nil(t, resp.error())
+	require.Nil(t, resp.Error())
 	require.True(t, ds.NewActivityFuncInvoked)
 }
 

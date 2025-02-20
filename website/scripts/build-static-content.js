@@ -39,7 +39,7 @@ module.exports = {
       async()=>{// Parse queries.yml library (Informational queries and host vital queries) from YAML and prepare to bake them into the Sails app's configuration.
         let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-
+        let linesInYamlFile = yaml.split('\n');
         let queriesWithProblematicDiscovery = [];
         let queriesWithProblematicContributors = [];
         let queriesWithProblematicTags = [];
@@ -47,8 +47,19 @@ module.exports = {
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)|\(Chrome\)|\(macOS\/Linux\)$/, '');
+
+
           if ((query.discovery !== undefined && !_.isString(query.discovery)) || (query.kind !== 'built-in' && _.isString(query.discovery))) {
             queriesWithProblematicDiscovery.push(query);
           }
@@ -155,7 +166,7 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }//ﬁ
+        }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.queries = queries;
@@ -167,6 +178,7 @@ module.exports = {
         let RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
         // let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
         let queriesWithProblematicResolutions = [];
         let queriesWithProblematicContributors = [];
         let queriesWithProblematicTags = [];
@@ -177,6 +189,15 @@ module.exports = {
           if(query.kind === 'query'){
             return undefined;
           }
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
+
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
@@ -289,7 +310,7 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }//ﬁ
+        }
 
         // Attach to what will become configuration for the Sails app.
         builtStaticContent.policies = policies;

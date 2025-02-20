@@ -50,6 +50,7 @@
     "Chart": true,
     "gtag": true,
     "analytics": true,
+    "ace": true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

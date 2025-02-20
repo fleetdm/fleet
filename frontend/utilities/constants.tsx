@@ -60,13 +60,12 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
 
+/** website links */
 export const FLEET_WEBSITE_URL = "https://fleetdm.com";
-
 export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
-
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
-
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
+export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -84,6 +83,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.16.0 +", value: "5.16.0" },
   { label: "5.15.0 +", value: "5.15.0" },
   { label: "5.14.1 +", value: "5.14.1" },
   { label: "5.13.1 +", value: "5.13.1" },
@@ -377,13 +377,6 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_USER_FORM_ERRORS = {
-  email: null,
-  name: null,
-  password: null,
-  sso_enabled: null,
-};
-
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
@@ -436,8 +429,15 @@ export const HOST_OSQUERY_DATA = [
 ];
 
 export const DEFAULT_USE_QUERY_OPTIONS = {
-  retry: 3,
   refetchOnWindowFocus: false,
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
+    let isBadRequestErr = false;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
+    }
+    return failureCount < 4 && !isBadRequestErr;
+  },
 };
 
 export const INVALID_PLATFORMS_REASON =

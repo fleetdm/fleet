@@ -1,12 +1,12 @@
-import React from "react";
 import { find, lowerCase, noop, trimEnd } from "lodash";
+import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
-import { getInstallStatusPredicate } from "interfaces/software";
 import {
   AppleDisplayPlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
+import { getInstallStatusPredicate } from "interfaces/software";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -38,6 +38,9 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
   ActivityType.DeletedSoftware,
+  ActivityType.AddedAppStoreApp,
+  ActivityType.EditedAppStoreApp,
+  ActivityType.DeletedAppStoreApp,
   ActivityType.InstalledSoftware,
   ActivityType.UninstalledSoftware,
   ActivityType.EnabledActivityAutomations,
@@ -698,6 +701,31 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  updatedScript: (activity: IActivity) => {
+    const scriptName = activity.details?.script_name;
+    return (
+      <>
+        {" "}
+        edited{" "}
+        {scriptName ? (
+          <>
+            script <b>{scriptName}</b>{" "}
+          </>
+        ) : (
+          "a script "
+        )}
+        for{" "}
+        {activity.details?.team_name ? (
+          <>
+            the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
   deletedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -999,6 +1027,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        edited <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}on{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
   deletedAppStoreApp: (activity: IActivity) => {
     const { software_title: swTitle, platform: swPlatform } =
       activity.details || {};
@@ -1175,6 +1222,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
+    case ActivityType.UpdatedScript: {
+      return TAGGED_TEMPLATES.updatedScript(activity);
+    }
     case ActivityType.DeletedScript: {
       return TAGGED_TEMPLATES.deletedScript(activity);
     }
@@ -1232,6 +1282,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AddedAppStoreApp: {
       return TAGGED_TEMPLATES.addedAppStoreApp(activity);
     }
+    case ActivityType.EditedAppStoreApp: {
+      return TAGGED_TEMPLATES.editedAppStoreApp(activity);
+    }
     case ActivityType.DeletedAppStoreApp: {
       return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
     }
@@ -1277,18 +1330,6 @@ const GlobalActivityItem = ({
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
-
-  // Add the "Fleet" name to the activity if needed.
-  // TODO: remove/refactor this once we have "fleet-initiated" activities.
-  if (
-    !activity.actor_email &&
-    !activity.actor_full_name &&
-    (activity.type === ActivityType.InstalledSoftware ||
-      activity.type === ActivityType.InstalledAppStoreApp ||
-      activity.type === ActivityType.RanScript)
-  ) {
-    activity.actor_full_name = "Fleet";
-  }
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;

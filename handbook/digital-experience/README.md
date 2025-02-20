@@ -183,7 +183,7 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 
 ### Update the host count of a premium subscription
 
-When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Marketing department](https://fleetdm.com/handbook/marketing) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
 To update the host count on a user's subscription:
 
@@ -214,11 +214,26 @@ Use the following steps to cancel a Fleet Premium subscription:
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 
+### Track a Fleet applicant
+
+Use the following steps to track a Fleet applicant:
+1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
+2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
+  - **Full name**
+  - **LinkedIn URL**
+  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
+  - **Interest expressed on**: Date they messaged Fleet
+  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
+  - **Notes**: Copy the message the candidate sent and paste it into this cell.
+  - **Has previous relationship with fleetie?: (if so, who?)
+3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
+
+
 ### Secure company-issued equipment for a team member
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
@@ -237,24 +252,29 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 ### Process incoming equipment
 
 Upon receiving any device, follow these steps to process incoming equipment.
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
+2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+3. Remove any stickers and clean devices and components.
+4. Using the device's charger, plug in the device.
+5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
+6. Turn on the device and enter the unlock code.
+7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
+
+**If you need to manually recover a device or reinstall macOS**
+1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+2. Connect the device to WIFI.
+3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
+4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
 > If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
 
 Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
+1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user.
+4. Change the "host" info to reflect the new user.
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.

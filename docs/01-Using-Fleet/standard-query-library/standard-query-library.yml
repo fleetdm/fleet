@@ -158,6 +158,17 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password length'
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
+  powershell: |
+    $netAccountsOutput = net accounts
+
+    $minPwdLine = $netAccountsOutput | Where-Object {$_ -match "Minimum password length"}
+
+    if ($minPwdLine -match "Minimum password length:\s*(\d+)") {
+        $minPasswordLength = [int]$matches[1]
+        if ($minPasswordLength -ge 14) {
+            Write-Output "1"
+        }
+    }
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, premium
   contributors: marcosd4h
@@ -698,6 +709,11 @@ spec:
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
   platform: windows
+  powershell: |
+    $bitlockerInfo = Get-BitLockerVolume -MountPoint "C:"
+    if ($bitlockerInfo.ProtectionStatus -eq 1) {
+        Write-Output 1
+    }
   tags: compliance, hardening, built-in, critical
   contributors: defensivedepth
 ---
@@ -738,8 +754,8 @@ apiVersion: v1
 kind: policy
 spec:
   name: Automatic login disabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableFDEAutoLogin' AND value = 1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password. Note: This policy will not report a value if FileVault is disabled."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
   tags: MDM required, compliance, hardening, built-in, critical
   platform: darwin
@@ -762,6 +778,8 @@ spec:
           <string>CE506065-7C0E-434E-8B8C-12E164116C94</string>
           <key>PayloadVersion</key>
           <integer>1</integer>
+          <key>DisableFDEAutoLogin</key>
+          <true/>
           <key>com.apple.login.mcx.DisableAutoLoginClient</key>
           <true/>
         </dict>
@@ -915,6 +933,19 @@ spec:
   description: Checks the status of antivirus and signature updates from the Windows Security Center.
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
   tags: compliance, malware, hardening, built-in
+  powershell: |
+    $avProducts = Get-CimInstance -Namespace "root/SecurityCenter2" -ClassName
+    AntiVirusProduct -ErrorAction SilentlyContinue
+
+    if ($avProducts) {
+        $goodProducts = $avProducts | Where-Object {
+            # Check that the antivirus appears enabled (bit 0x10) and definitions are up‐to‐date (bit 0x100)
+            ($_.productState -band 0x10) -eq 0x10 -and ($_.productState -band 0x100) -eq 0x100
+        }
+        if ($goodProducts) {
+            Write-Output "1"
+        }
+    }
   platform: windows
   contributors: GuillaumeRoss
 ---
@@ -969,6 +1000,86 @@ spec:
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
   description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
   resolution: "Remove the suspicious startup entry."
+  powershell: |
+    $found = $false
+
+        $startupItems = @()
+
+
+        function Get-RegistryStartupItems {
+            $regPaths = @(
+                "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run",
+                "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
+                "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+            )
+            foreach ($regPath in $regPaths) {
+                if (Test-Path $regPath) {
+                    try {
+                        $props = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+                        foreach ($prop in $props.PSObject.Properties) {
+                            if ($prop.Name -notmatch "^PS(Remote)?$" -and $prop.Value -and ($prop.Name -ne "PSPath" -and $prop.Name -ne "PSParentPath" -and $prop.Name -ne "PSChildName" -and $prop.Name -ne "PSDrive" -and $prop.Name -ne "PSProvider")) {
+                                $startupItems += $prop.Value
+                            }
+                        }
+                    } catch {
+                        continue
+                    }
+                }
+            }
+        }
+
+
+        function Get-StartupFolderItems {
+            $folders = @(
+                "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup",
+                "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Startup"
+            )
+            $wscript = New-Object -ComObject WScript.Shell
+            foreach ($folder in $folders) {
+                if (Test-Path $folder) {
+                    Get-ChildItem -Path $folder -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
+                        try {
+                            $shortcut = $wscript.CreateShortcut($_.FullName)
+                            $command = $shortcut.TargetPath
+                            if ($shortcut.Arguments) {
+                                $command += " " + $shortcut.Arguments
+                            }
+                            $startupItems += $command
+                        } catch {
+                            continue
+                        }
+                    }
+                }
+            }
+        }
+
+
+        Get-RegistryStartupItems
+
+        Get-StartupFolderItems
+
+
+        foreach ($item in $startupItems) {
+            if (-not $item) { continue }
+            # Remove any surrounding quotes and trim whitespace.
+            $item = $item.Trim('"').Trim()
+            if ($item.Length -eq 0) { continue }
+            # Split into tokens by whitespace.
+            $tokens = $item -split "\s+"
+            if ($tokens.Count -eq 0) { continue }
+            # Get the executable portion and extract the file name without extension.
+            $exePath = $tokens[0]
+            $exeName = [System.IO.Path]::GetFileNameWithoutExtension($exePath)
+            if ($exeName -ieq "regsvr32" -and $item -imatch "http") {
+                $found = $true
+                break
+            }
+        }
+
+
+        if (-not $found) {
+            Write-Output "1"
+        }
   tags: malware, hunting
   platform: windows
   contributors: kswagler-rh
@@ -1072,6 +1183,14 @@ spec:
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;
   description: "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less."
   resolution: "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower."
+  powershell: |
+    $regPath = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System'
+    $value = (Get-ItemProperty -Path $regPath -Name 'InactivityTimeoutSecs' -ErrorAction SilentlyContinue).InactivityTimeoutSecs
+    if ($value -and ([int]$value) -le 1800) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   tags: compliance, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
@@ -1784,6 +1903,14 @@ kind: policy
 spec:
   name: Firewall enabled, domain profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  powershell: |
+    $regPath = 'HKLM:\Software\Policies\Microsoft\WindowsFirewall\DomainProfile'
+    $value = (Get-ItemProperty -Path $regPath -Name 'EnableFirewall' -ErrorAction SilentlyContinue).EnableFirewall
+    if ($value -eq 1) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall."
   platforms: Windows
@@ -1796,6 +1923,14 @@ kind: policy
 spec:
   name: Firewall enabled, private profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  powershell: |
+    $regPath = 'HKLM:\Software\Policies\Microsoft\WindowsFirewall\PrivateProfile'
+    $value = (Get-ItemProperty -Path $regPath -Name 'EnableFirewall' -ErrorAction SilentlyContinue).EnableFirewall
+    if ($value -eq 1) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall."
   platforms: Windows
@@ -1808,6 +1943,14 @@ kind: policy
 spec:
   name: Firewall enabled, public profile (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\WindowsFirewall\PublicProfile\EnableFirewall' AND CAST(data as integer) = 1;
+  powershell: |
+    $regPath = 'HKLM:\Software\Policies\Microsoft\WindowsFirewall\PublicProfile'
+    $value = (Get-ItemProperty -Path $regPath -Name 'EnableFirewall' -ErrorAction SilentlyContinue).EnableFirewall
+    if ($value -eq 1) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors requires that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall."
   platforms: Windows
@@ -1820,6 +1963,13 @@ kind: policy
 spec:
   name: SMBv1 client driver disabled (Windows)
   query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
+  powershell: |
+    $feature = Get-WindowsOptionalFeature -FeatureName 'SMB1Protocol-Client' -Online -ErrorAction SilentlyContinue
+    if ($feature -and $feature.State -ne 'Enabled') {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks that the SMBv1 client is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
@@ -1832,6 +1982,13 @@ kind: policy
 spec:
   name: SMBv1 server disabled (Windows)
   query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1
+  powershell: |
+    $feature = Get-WindowsOptionalFeature -FeatureName 'SMB1Protocol-Server' -Online -ErrorAction SilentlyContinue
+    if ($feature -and $feature.State -ne 'Enabled') {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks that the SMBv1 server is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platforms: Windows
@@ -1844,6 +2001,14 @@ kind: policy
 spec:
   name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
+  powershell: |
+    $regPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient'
+    $value = (Get-ItemProperty -Path $regPath -Name 'EnableMulticast' -ErrorAction SilentlyContinue).EnableMulticast
+    if ($value -eq 0) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
   platforms: Windows
@@ -1856,6 +2021,14 @@ kind: policy
 spec:
   name: Automatic updates enabled (Windows)
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\WindowsUpdate\AU\NoAutoUpdate' AND CAST(data as integer) = 0;
+  powershell: |
+    $regPath = 'HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU'
+    $value = (Get-ItemProperty -Path $regPath -Name 'NoAutoUpdate' -ErrorAction SilentlyContinue).NoAutoUpdate
+    if ($value -eq 0) {
+        Write-Output 1
+    } else {
+        Write-Output 0
+    }
   description: "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors require that this setting is configured by a Group Policy."
   resolution: "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates."
   platforms: Windows

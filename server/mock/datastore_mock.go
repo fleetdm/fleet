@@ -43,6 +43,8 @@ type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, er
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
+type HasUsersFunc func(ctx context.Context) (bool, error)
+
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
 type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error)
@@ -129,8 +131,6 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIDs []uint) (err error)
-
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -138,6 +138,8 @@ type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, 
 type AddLabelsToHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
 
 type RemoveLabelsFromHostFunc func(ctx context.Context, hostID uint, labelIDs []uint) error
+
+type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
 type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
@@ -415,7 +417,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error)
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
 
@@ -459,6 +461,8 @@ type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet
 
 type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
 
+type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
+
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -481,7 +485,7 @@ type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOption
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
-type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -1039,15 +1043,17 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type NewInternalScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
-
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
+type ListReadyToExecuteScriptsForHostFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
+
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
+
+type UpdateScriptContentsFunc func(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error)
 
 type ScriptFunc func(ctx context.Context, id uint) (*fleet.Script, error)
 
@@ -1089,11 +1095,13 @@ type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, inst
 
 type GetExcludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
-type ClearAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
+type ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, installerID uint, hostIDs []uint) error
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
+
+type ListReadyToExecuteSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
@@ -1123,7 +1131,7 @@ type MapAdamIDsPendingInstallFunc func(ctx context.Context, hostID uint) (map[st
 
 type GetTitleInfoFromVPPAppsTeamsIDFunc func(ctx context.Context, vppAppsTeamsID uint) (*fleet.PolicySoftwareTitle, error)
 
-type GetVPPAppMetadataByAdamIDAndPlatformFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error)
+type GetVPPAppMetadataByAdamIDPlatformTeamIDFunc func(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error)
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
@@ -1153,11 +1161,21 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error
+type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
+
+type InsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPPTokenDB, error)
+
+type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+type GetExcludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+type ClearVPPAppAutoInstallPolicyStatusForHostsFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
 
 type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, teamID uint, titleIDs []uint) error
 
@@ -1209,6 +1227,8 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1242,6 +1262,9 @@ type DataStore struct {
 
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
+
+	HasUsersFunc        HasUsersFunc
+	HasUsersFuncInvoked bool
 
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
@@ -1372,9 +1395,6 @@ type DataStore struct {
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
-	UpdateLabelMembershipByHostIDsFunc				UpdateLabelMembershipByHostIDsFunc
-	UpdateLabelMembershipByHostIDsFuncInvoked bool
-
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
 
@@ -1386,6 +1406,9 @@ type DataStore struct {
 
 	RemoveLabelsFromHostFunc        RemoveLabelsFromHostFunc
 	RemoveLabelsFromHostFuncInvoked bool
+
+	UpdateLabelMembershipByHostIDsFunc        UpdateLabelMembershipByHostIDsFunc
+	UpdateLabelMembershipByHostIDsFuncInvoked bool
 
 	NewLabelFunc        NewLabelFunc
 	NewLabelFuncInvoked bool
@@ -1866,6 +1889,9 @@ type DataStore struct {
 
 	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
 	IsSoftwareInstallerLabelScopedFuncInvoked bool
+
+	IsVPPAppLabelScopedFunc        IsVPPAppLabelScopedFunc
+	IsVPPAppLabelScopedFuncInvoked bool
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
@@ -2737,9 +2763,6 @@ type DataStore struct {
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
 
-	NewInternalScriptExecutionRequestFunc        NewInternalScriptExecutionRequestFunc
-	NewInternalScriptExecutionRequestFuncInvoked bool
-
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
 
@@ -2749,8 +2772,14 @@ type DataStore struct {
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
 
+	ListReadyToExecuteScriptsForHostFunc        ListReadyToExecuteScriptsForHostFunc
+	ListReadyToExecuteScriptsForHostFuncInvoked bool
+
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
+
+	UpdateScriptContentsFunc        UpdateScriptContentsFunc
+	UpdateScriptContentsFuncInvoked bool
 
 	ScriptFunc        ScriptFunc
 	ScriptFuncInvoked bool
@@ -2812,14 +2841,17 @@ type DataStore struct {
 	GetExcludedHostIDMapForSoftwareInstallerFunc        GetExcludedHostIDMapForSoftwareInstallerFunc
 	GetExcludedHostIDMapForSoftwareInstallerFuncInvoked bool
 
-	ClearAutoInstallPolicyStatusForHostsFunc        ClearAutoInstallPolicyStatusForHostsFunc
-	ClearAutoInstallPolicyStatusForHostsFuncInvoked bool
+	ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc        ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc
+	ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFuncInvoked bool
 
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
+
+	ListReadyToExecuteSoftwareInstallsFunc        ListReadyToExecuteSoftwareInstallsFunc
+	ListReadyToExecuteSoftwareInstallsFuncInvoked bool
 
 	GetHostLastInstallDataFunc        GetHostLastInstallDataFunc
 	GetHostLastInstallDataFuncInvoked bool
@@ -2863,8 +2895,8 @@ type DataStore struct {
 	GetTitleInfoFromVPPAppsTeamsIDFunc        GetTitleInfoFromVPPAppsTeamsIDFunc
 	GetTitleInfoFromVPPAppsTeamsIDFuncInvoked bool
 
-	GetVPPAppMetadataByAdamIDAndPlatformFunc        GetVPPAppMetadataByAdamIDAndPlatformFunc
-	GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked bool
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFunc        GetVPPAppMetadataByAdamIDPlatformTeamIDFunc
+	GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked bool
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
@@ -2908,6 +2940,12 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
+	GetAllVPPAppsFunc        GetAllVPPAppsFunc
+	GetAllVPPAppsFuncInvoked bool
+
+	InsertVPPAppsFunc        InsertVPPAppsFunc
+	InsertVPPAppsFuncInvoked bool
+
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
 
@@ -2916,6 +2954,15 @@ type DataStore struct {
 
 	GetVPPTokenByLocationFunc        GetVPPTokenByLocationFunc
 	GetVPPTokenByLocationFuncInvoked bool
+
+	GetIncludedHostIDMapForVPPAppFunc        GetIncludedHostIDMapForVPPAppFunc
+	GetIncludedHostIDMapForVPPAppFuncInvoked bool
+
+	GetExcludedHostIDMapForVPPAppFunc        GetExcludedHostIDMapForVPPAppFunc
+	GetExcludedHostIDMapForVPPAppFuncInvoked bool
+
+	ClearVPPAppAutoInstallPolicyStatusForHostsFunc        ClearVPPAppAutoInstallPolicyStatusForHostsFunc
+	ClearVPPAppAutoInstallPolicyStatusForHostsFuncInvoked bool
 
 	SetSetupExperienceSoftwareTitlesFunc        SetSetupExperienceSoftwareTitlesFunc
 	SetSetupExperienceSoftwareTitlesFuncInvoked bool
@@ -2991,6 +3038,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
+
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3070,6 +3120,13 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	s.NewUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewUserFunc(ctx, user)
+}
+
+func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {
+	s.mu.Lock()
+	s.HasUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasUsersFunc(ctx)
 }
 
 func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -3373,13 +3430,6 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIDs []uint) (err error) {
-	s.mu.Lock()
-	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIDs)
-}
-
 func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecsFuncInvoked = true
@@ -3406,6 +3456,13 @@ func (s *DataStore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 	s.RemoveLabelsFromHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.RemoveLabelsFromHostFunc(ctx, hostID, labelIDs)
+}
+
+func (s *DataStore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	s.mu.Lock()
+	s.UpdateLabelMembershipByHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateLabelMembershipByHostIDsFunc(ctx, labelID, hostIds, teamFilter)
 }
 
 func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
@@ -4374,11 +4431,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, selfService, policyID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, opts)
 }
 
 func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
@@ -4528,6 +4585,13 @@ func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installe
 	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
 }
 
+func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.IsVPPAppLabelScopedFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
+}
+
 func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
@@ -4605,7 +4669,7 @@ func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []
 	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
 }
 
-func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
@@ -6558,13 +6622,6 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
-func (s *DataStore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	s.mu.Lock()
-	s.NewInternalScriptExecutionRequestFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewInternalScriptExecutionRequestFunc(ctx, request)
-}
-
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
@@ -6586,11 +6643,25 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
 }
 
+func (s *DataStore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.ListReadyToExecuteScriptsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListReadyToExecuteScriptsForHostFunc(ctx, hostID, onlyShowInternal)
+}
+
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
 	s.mu.Lock()
 	s.NewScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewScriptFunc(ctx, script)
+}
+
+func (s *DataStore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	s.mu.Lock()
+	s.UpdateScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateScriptContentsFunc(ctx, scriptID, scriptContents)
 }
 
 func (s *DataStore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
@@ -6733,11 +6804,11 @@ func (s *DataStore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context
 	return s.GetExcludedHostIDMapForSoftwareInstallerFunc(ctx, installerID)
 }
 
-func (s *DataStore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+func (s *DataStore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
 	s.mu.Lock()
-	s.ClearAutoInstallPolicyStatusForHostsFuncInvoked = true
+	s.ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ClearAutoInstallPolicyStatusForHostsFunc(ctx, installerID, hostIDs)
+	return s.ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc(ctx, installerID, hostIDs)
 }
 
 func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error) {
@@ -6752,6 +6823,13 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	s.mu.Lock()
+	s.ListReadyToExecuteSoftwareInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListReadyToExecuteSoftwareInstallsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
@@ -6852,11 +6930,11 @@ func (s *DataStore) GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsT
 	return s.GetTitleInfoFromVPPAppsTeamsIDFunc(ctx, vppAppsTeamsID)
 }
 
-func (s *DataStore) GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform) (*fleet.VPPApp, error) {
+func (s *DataStore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform fleet.AppleDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
-	s.GetVPPAppMetadataByAdamIDAndPlatformFuncInvoked = true
+	s.GetVPPAppMetadataByAdamIDPlatformTeamIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPAppMetadataByAdamIDAndPlatformFunc(ctx, adamID, platform)
+	return s.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc(ctx, adamID, platform, teamID)
 }
 
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
@@ -6957,11 +7035,25 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error {
+func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetAllVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllVPPAppsFunc(ctx)
+}
+
+func (s *DataStore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.InsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppsFunc(ctx, apps)
+}
+
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, selfService, policyID)
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, opts)
 }
 
 func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -6976,6 +7068,27 @@ func (s *DataStore) GetVPPTokenByLocation(ctx context.Context, loc string) (*fle
 	s.GetVPPTokenByLocationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByLocationFunc(ctx, loc)
+}
+
+func (s *DataStore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetIncludedHostIDMapForVPPAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetIncludedHostIDMapForVPPAppFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.GetExcludedHostIDMapForVPPAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetExcludedHostIDMapForVPPAppFunc(ctx, vppAppTeamID)
+}
+
+func (s *DataStore) ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ClearVPPAppAutoInstallPolicyStatusForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearVPPAppAutoInstallPolicyStatusForHostsFunc(ctx, vppAppTeamID, hostIDs)
 }
 
 func (s *DataStore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
@@ -7151,4 +7264,11 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }

@@ -372,8 +372,8 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			}
 
 			// check for duplicate names across all profiles
-			if e, isDuplicate := extByName[name]; isDuplicate {
-				return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
+			if _, isDuplicate := extByName[name]; isDuplicate {
+				return nil, errors.New(fmtDuplicateNameErrMsg(name))
 			}
 			extByName[name] = ext
 
@@ -498,19 +498,26 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
-			if macosSetup.BootstrapPackage.Value != "" {
+			switch {
+			case macosSetup.BootstrapPackage.Value != "":
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
-
 				if !opts.DryRun {
-					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
+					if err := c.UploadBootstrapPackageIfNeeded(pkg, uint(0)); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
+			case macosSetup.BootstrapPackage.Valid && !opts.DryRun &&
+				appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
+				// bootstrap package is explicitly empty (only for GitOps)
+				if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
+				}
 			}
-			if macosSetup.MacOSSetupAssistant.Value != "" {
+			switch {
+			case macosSetup.MacOSSetupAssistant.Value != "":
 				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -519,6 +526,12 @@ func (c *Client) ApplyGroup(
 					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 					}
+				}
+			case macosSetup.MacOSSetupAssistant.Valid && !opts.DryRun &&
+				appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
+				// setup assistant is explicitly empty (only for GitOps)
+				if err := c.deleteMacOSSetupAssistant(nil); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("deleting macOS enrollment profile: %w", err)
 				}
 			}
 		}
@@ -611,19 +624,25 @@ func (c *Client) ApplyGroup(
 		tmSoftwareMacOSSetup := make(map[string]map[fleet.MacOSSetupSoftware]struct{}, len(tmMacSetup))
 
 		for k, setup := range tmMacSetup {
-			if setup.BootstrapPackage.Value != "" {
+			switch {
+			case setup.BootstrapPackage.Value != "":
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
+			case setup.BootstrapPackage.Valid: // explicitly empty
+				tmBootstrapPackages[k] = nil
 			}
-			if setup.MacOSSetupAssistant.Value != "" {
+			switch {
+			case setup.MacOSSetupAssistant.Value != "":
 				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmMacSetupAssistants[k] = b
+			case setup.MacOSSetupAssistant.Valid: // explicitly empty
+				tmMacSetupAssistants[k] = nil
 			}
 			if setup.Script.Value != "" {
 				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
@@ -696,6 +715,8 @@ func (c *Client) ApplyGroup(
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
 					InstallDuringSetup: installDuringSetup,
+					LabelsExcludeAny:   app.LabelsExcludeAny,
+					LabelsIncludeAny:   app.LabelsIncludeAny,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -759,24 +780,40 @@ func (c *Client) ApplyGroup(
 		if len(tmBootstrapPackages)+len(tmMacSetupAssistants) > 0 && !opts.DryRun {
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
-					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+					switch {
+					case bp != nil:
+						if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+						}
+					case appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
+						if err := c.DeleteBootstrapPackageIfNeeded(tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("deleting bootstrap package for team %q: %w", tmName, err)
+						}
 					}
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
-					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
-						if strings.Contains(err.Error(), "Couldn't upload") {
-							// Then the error should look something like this:
-							// "Couldn't upload. CONFIG_NAME_INVALID"
-							// We want the part after the period (this is the error name from Apple)
-							// to render a more helpful error message.
-							parts := strings.Split(err.Error(), ".")
-							if len(parts) < 2 {
-								return nil, nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w", tmName, err)
+					switch {
+					case b != nil:
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
+							if strings.Contains(err.Error(), "Couldn't upload") {
+								// Then the error should look something like this:
+								// "Couldn't upload. CONFIG_NAME_INVALID"
+								// We want the part after the period (this is the error name from Apple)
+								// to render a more helpful error message.
+								parts := strings.Split(err.Error(), ".")
+								if len(parts) < 2 {
+									return nil, nil, nil, nil, fmt.Errorf("unexpected error while uploading macOS setup assistant for team %q: %w",
+										tmName, err)
+								}
+								return nil, nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s",
+									strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
 							}
-							return nil, nil, nil, nil, fmt.Errorf("Couldn't edit macos_setup_assistant. Response from Apple: %s. Learn more at %s", strings.Trim(parts[1], " "), "https://fleetdm.com/learn-more-about/dep-profile")
+							return nil, nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 						}
-						return nil, nil, nil, nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+					case appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
+						if err := c.deleteMacOSSetupAssistant(&tmID); err != nil {
+							return nil, nil, nil, nil, fmt.Errorf("deleting macOS enrollment profile for team %q: %w", tmName, err)
+						}
 					}
 				}
 			}
@@ -1028,6 +1065,14 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	if !ok {
 		return nil
 	}
+
+	// GitOps
+	mosGitOps, ok := mmdm["macos_setup"].(*fleet.MacOSSetup)
+	if ok {
+		return mosGitOps
+	}
+
+	// Legacy fleetctl apply
 	mos, ok := mmdm["macos_setup"].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
@@ -1071,11 +1116,19 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 	if !ok {
 		return nil
 	}
+	mos, ok := mmdm[platformKey].(fleet.WithMDMProfileSpecs)
+	if !ok || mos == nil {
+		return legacyExtractAppCfgCustomSettings(mmdm, platformKey)
+	}
+	return mos.GetMDMProfileSpecs()
+}
+
+// legacyExtractAppCfgCustomSettings is used to extract custom settings for legacy fleetctl apply use case
+func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey string) []fleet.MDMProfileSpec {
 	mos, ok := mmdm[platformKey].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
 	}
-
 	cs, ok := mos["custom_settings"]
 	if !ok {
 		// custom settings is not present
@@ -1560,6 +1613,12 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
+		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
+			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
+				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			}
+		}
+
 		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.
 		if v, ok := mdmAppConfig["volume_purchasing_program"]; !ok || v == nil {
 			mdmAppConfig["volume_purchasing_program"] = []interface{}{}
@@ -1608,25 +1667,35 @@ func (c *Client) DoGitOps(
 		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
 		team["software"].(map[string]any)["packages"] = config.Software.Packages
 		team["secrets"] = config.TeamSettings["secrets"]
-		team["webhook_settings"] = map[string]interface{}{}
-		clearHostStatusWebhook := true
-		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
-			if _, ok := webhookSettings.(map[string]interface{}); ok {
-				if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
-					clearHostStatusWebhook = false
-					team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
-				}
-			} else if webhookSettings != nil {
-				return nil, fmt.Errorf("team_settings.webhook_settings config is not a map but a %T", webhookSettings)
-			}
+
+		// Ensure webhooks settings exists
+		webhookSettings, ok := config.TeamSettings["webhook_settings"]
+		if !ok || webhookSettings == nil {
+			webhookSettings = map[string]any{}
 		}
-		if clearHostStatusWebhook {
-			// Clear out any existing host_status_webhook settings
-			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
+
+		hostStatusWebhook, ok := webhookSettings.(map[string]any)["host_status_webhook"]
+		if !ok || hostStatusWebhook == nil {
+			hostStatusWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["host_status_webhook"] = hostStatusWebhook
 		}
+		if _, ok := hostStatusWebhook.(map[string]any)["enable_host_status_webhook"]; !ok {
+			hostStatusWebhook.(map[string]any)["enable_host_status_webhook"] = false
+		}
+
+		failingPoliciesWebhook, ok := webhookSettings.(map[string]any)["failing_policies_webhook"]
+		if !ok || failingPoliciesWebhook == nil {
+			failingPoliciesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["failing_policies_webhook"] = failingPoliciesWebhook
+		}
+		if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
+			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
+		}
+
+		team["webhook_settings"] = webhookSettings
+
 		// Integrations
 		var integrations interface{}
-		var ok bool
 		if integrations, ok = config.TeamSettings["integrations"]; !ok || integrations == nil {
 			integrations = map[string]interface{}{}
 		}
@@ -1654,11 +1723,7 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSSettings != nil {
 			mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
 		} else {
-			mdmAppConfig["macos_settings"] = map[string]interface{}{}
-		}
-		macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
-		if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
-			macOSSettings["custom_settings"] = []interface{}{}
+			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{}
 		}
 		// Put in default values for macos_updates
 		if config.Controls.MacOSUpdates != nil {
@@ -1701,29 +1766,16 @@ func (c *Client) DoGitOps(
 		}
 		// Put in default values for macos_setup
 		if config.Controls.MacOSSetup != nil {
+			config.Controls.MacOSSetup.SetDefaultsIfNeeded()
 			mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
 		} else {
-			mdmAppConfig["macos_setup"] = map[string]interface{}{}
-		}
-		macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
-		if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
-			macOSSetup["bootstrap_package"] = ""
-		}
-		if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
-			macOSSetup["enable_end_user_authentication"] = false
-		}
-		if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
-			macOSSetup["macos_setup_assistant"] = ""
+			mdmAppConfig["macos_setup"] = fleet.NewMacOSSetupWithDefaults()
 		}
 		// Put in default values for windows_settings
 		if config.Controls.WindowsSettings != nil {
 			mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
 		} else {
-			mdmAppConfig["windows_settings"] = map[string]interface{}{}
-		}
-		windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
-		if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
-			windowsSettings["custom_settings"] = []interface{}{}
+			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{}
 		}
 		// Put in default values for windows_updates
 		if config.Controls.WindowsUpdates != nil {
@@ -1793,7 +1845,7 @@ func (c *Client) DoGitOps(
 			teamVPPApps = teamsVPPApps[*config.TeamName]
 			teamScripts = teamsScripts[*config.TeamName]
 		} else {
-			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSoftware(config, baseDir, appConfig, logFn, dryRun)
+			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(config, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
 				return nil, err
 			}
@@ -1820,7 +1872,7 @@ func (c *Client) DoGitOps(
 	return teamAssumptions, nil
 }
 
-func (c *Client) doGitOpsNoTeamSoftware(
+func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	config *spec.GitOps,
 	baseDir string,
 	appconfig *fleet.EnrichedAppConfig,
@@ -1831,19 +1883,11 @@ func (c *Client) doGitOpsNoTeamSoftware(
 		return nil, nil, nil
 	}
 
-	// marshaling dance to get the macos_setup data - config.Controls.MacOSSetup
-	// is of type any and contains a generic map[string]any. By
-	// marshal-unmarshaling it into a properly typed struct, we avoid having to
-	// do a bunch of error-prone and unmaintainable type-assertions to walk down
-	// the untyped map.
-	b, err := json.Marshal(config.Controls.MacOSSetup)
-	if err != nil {
-		return nil, nil, fmt.Errorf("applying software installers: json-encode controls.macos_setup: %w", err)
-	}
 	var macOSSetup fleet.MacOSSetup
-	if err := json.Unmarshal(b, &macOSSetup); err != nil {
-		return nil, nil, fmt.Errorf("applying software installers: json-decode controls.macos_setup: %w", err)
+	if config.Controls.MacOSSetup == nil {
+		config.Controls.MacOSSetup = &macOSSetup
 	}
+	macOSSetup = *config.Controls.MacOSSetup
 
 	// load the no-team macos_setup.script if any
 	var macosSetupScript *fileContent

@@ -141,7 +141,7 @@ type SoftwareInstaller struct {
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
-	// LablesIncludeAny is the list of "include any" labels for this software installer (if not nil).
+	// LabelsIncludeAny is the list of "include any" labels for this software installer (if not nil).
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
@@ -459,6 +459,14 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
+func (h *HostSoftwareWithInstaller) IsPackage() bool {
+	return h.SoftwarePackage != nil
+}
+
+func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
+	return h.AppStoreApp != nil
+}
+
 type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`
@@ -674,4 +682,29 @@ type SoftwareScopeLabel struct {
 	LabelID   uint   `db:"label_id" json:"id"` // label id in database, which may be the empty value in some cases where id is not known in advance (e.g., if labels are created during gitops processing)
 	Exclude   bool   `db:"exclude" json:"-"`   // not rendered in JSON, used when processing LabelsIncludeAny and LabelsExcludeAny on parent title (may be the empty value in some cases)
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
+}
+
+// HostSoftwareInstallOptions contains options that apply to a software or VPP
+// app install request.
+type HostSoftwareInstallOptions struct {
+	SelfService        bool
+	PolicyID           *uint
+	ForSetupExperience bool
+}
+
+// IsFleetInitiated returns true if the software install is initiated by Fleet.
+// Software installs initiated via a policy are fleet-initiated (and we also
+// make sure SelfService is false, as this case is always user-initiated).
+func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
+	return !o.SelfService && o.PolicyID != nil
+}
+
+// Priority returns the upcoming activities queue priority to use for this
+// software installation. Software installed for the setup experience is
+// prioritized over other software installations.
+func (o HostSoftwareInstallOptions) Priority() int {
+	if o.ForSetupExperience {
+		return 100
+	}
+	return 0
 }

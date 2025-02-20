@@ -11,7 +11,7 @@ interface IAddProfileCardProps {
 }
 
 const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
-  <Card color="gray" className={baseClass}>
+  <Card color="grey" className={baseClass}>
     <div className={`${baseClass}__card--content-wrap`}>
       <ProfileGraphic baseClass={baseClass} showMessage />
       <Button

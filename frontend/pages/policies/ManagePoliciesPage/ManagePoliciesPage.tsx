@@ -157,6 +157,8 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
+  // this prop.
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
@@ -392,10 +394,12 @@ const ManagePolicyPage = ({
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-  }, []);
+  }, [queryParams, page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
+    // this function encapsulates setting local page state to 0 and triggering the descendant
+    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
     setTableQueryDataForApi(
       (prevState) =>
         ({
@@ -403,6 +407,7 @@ const ManagePolicyPage = ({
           pageIndex: 0,
         } as ITableQueryData)
     );
+    // change in state triggers effect in TableContainer (see comment above this state definition)
     setResetPageIndex(true);
   };
 
@@ -749,9 +754,8 @@ const ManagePolicyPage = ({
     ? teamPolicies && teamPolicies.length > 0
     : globalPolicies && globalPolicies.length > 0;
 
-  // Show CTA buttons if there is no errors AND there are policy results or a search filter
-  const showCtaButtons =
-    !policiesErrors && (policyResults || searchQuery !== "");
+  // Show CTA buttons if there are no errors
+  const showCtaButtons = !policiesErrors;
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
@@ -832,7 +836,6 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -866,7 +869,6 @@ const ManagePolicyPage = ({
           isLoading={
             isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
           }
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}

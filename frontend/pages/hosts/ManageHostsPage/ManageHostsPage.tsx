@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
@@ -119,6 +120,12 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -777,6 +784,14 @@ const ManageHostsPage = ({
         },
       })
     );
+  };
+
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.HOST_DETAILS(row.original.id);
+
+      router.push(path);
+    }
   };
 
   const onAddLabelClick = () => {
@@ -1641,6 +1656,7 @@ const ManageHostsPage = ({
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
         resetPageIndex={resetPageIndex}
+        onClickRow={handleRowSelect}
         disableNextPage={isLastPage}
       />
     );
@@ -1685,7 +1701,7 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
               {!isSandboxMode && canEnrollHosts && !hasErrors && (

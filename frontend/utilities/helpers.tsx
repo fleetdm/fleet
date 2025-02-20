@@ -610,6 +610,10 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+export const internationalNumberFormat = (number: number): string => {
+  return new Intl.NumberFormat(navigator.language).format(number);
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";

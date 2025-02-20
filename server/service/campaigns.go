@@ -28,9 +28,9 @@ type createDistributedQueryCampaignResponse struct {
 	Err      error                           `json:"error,omitempty"`
 }
 
-func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
+func (r createDistributedQueryCampaignResponse) Error() error { return r.Err }
 
-func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createDistributedQueryCampaignRequest)
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 	if err != nil {
@@ -185,7 +185,8 @@ type distributedQueryCampaignTargetsByIdentifiers struct {
 	Hosts []string `json:"hosts"`
 }
 
-func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer,
+	error) {
 	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {

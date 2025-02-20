@@ -8,7 +8,7 @@ In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/insta
 
 This guide will walk you through steps to manually install custom packages on your hosts.
 
-Learn more about automatically installing software in a separate guide [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+Learn more about automatically installing software [the Automatically install software guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
 ## Prerequisites
 

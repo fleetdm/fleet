@@ -58,10 +58,10 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Ads                                  | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
@@ -85,20 +85,6 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
-## Tech stack admins
-
-| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
-|:-----|-----------------:|------:|-------:|------:|------:|------:|----------:|
-| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Owner |✅ Owner | ✅ Owner |
-| CTO | ✅ Super admin | ❌ | ✅ Owner | ❌ | ❌ | ✅ Admin | ❌ |
-| Finance Engineer | ❌ | ❌ | ❌ | ✅ Admin | ✅ Admin |✅ Admin | ❌ |
-| Head of Digital Experience | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
-| Apprentice | ✅ Super admin| ✅ Owner | ✅ Owner | ✅ Admin | ❌ | ✅ Admin | ✅ Admin |
-| Digital Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin |
-| Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| VP of CS | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
-| CS Support Engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin | ❌ | ✅ Admin | ❌ |
 
 ### Docs
 
@@ -136,6 +122,16 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
+## Go-To-Market outreach 
+
+Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
+
+When you reach out to a prospect or customer, make sure you're the right person:
+- **🐋 "Sales-ready" prospect**: The rep (AE) determines the best way to contact the prospective customer, which is often the Solutions Consultant reaching help.
+- **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
+- **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
+
+
 ## Marketing programs
 
 Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
@@ -145,7 +141,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
@@ -159,7 +155,7 @@ Here are some topics for social media posts:
 
 #### Fleet on LinkedIn
 
-Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
 
 
 ### Ads
@@ -174,7 +170,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
 1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
@@ -199,7 +195,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-- **Confidentiality reminder.** Fleet meetings are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
 
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
@@ -505,7 +501,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
 8. Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-> Note: Pages in the `./docs/Contributing/` folder and folders with a underscore prefix (e.g., `./docs/Deploy/_kubernetes/`) are not included in the documentation on the Fleet website.
+> Note: Pages in the `./docs/Contributing/` folder are not included in the documentation on [fleetdm.com](https://fleetdm.com/).
 
 
 ### Merging changes
@@ -1049,9 +1045,9 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
-If you are in need of additional equipment for any reason, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
-- **Tracking equipment:** When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When you receive your new computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+- **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
 - **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 

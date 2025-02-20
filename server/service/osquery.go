@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -30,43 +31,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// osqueryError is the error returned to osquery agents.
-type osqueryError struct {
-	message     string
-	nodeInvalid bool
-	statusCode  int
-	fleet.ErrorWithUUID
+func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, true)
 }
 
-var _ fleet.ErrorUUIDer = (*osqueryError)(nil)
-
-// Error implements the error interface.
-func (e *osqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *osqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *osqueryError) Status() int {
-	return e.statusCode
-}
-
-func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: true,
-	}
-}
-
-func newOsqueryError(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: false,
-	}
+func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -116,9 +86,9 @@ type enrollAgentResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r enrollAgentResponse) error() error { return r.Err }
+func (r enrollAgentResponse) Error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -334,7 +304,7 @@ type getClientConfigResponse struct {
 	Err    error `json:"error,omitempty"`
 }
 
-func (r getClientConfigResponse) error() error { return r.Err }
+func (r getClientConfigResponse) Error() error { return r.Err }
 
 // MarshalJSON implements json.Marshaler.
 //
@@ -352,7 +322,7 @@ func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.Config)
 }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
@@ -580,9 +550,9 @@ type getDistributedQueriesResponse struct {
 	Err        error             `json:"error,omitempty"`
 }
 
-func (r getDistributedQueriesResponse) error() error { return r.Err }
+func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -884,9 +854,9 @@ type submitDistributedQueryResultsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -1010,14 +980,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
 			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
-		}
-
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
-			logging.WithErr(ctx, err)
 		}
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
@@ -1835,8 +1807,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
-			false, // Set Self-service as false because this is triggered by Fleet.
-			&policyID,
+			fleet.HostSoftwareInstallOptions{
+				SelfService: false,
+				PolicyID:    &policyID,
+			},
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1964,7 +1938,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform)
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get VPP metadata",
@@ -1973,7 +1947,23 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
+		}
+
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+			SelfService: false,
+			PolicyID:    &policyID,
+		})
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get install VPP app",
@@ -2203,9 +2193,9 @@ type submitLogsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitLogsResponse) error() error { return r.Err }
+func (r submitLogsResponse) Error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error
@@ -2334,7 +2324,7 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2419,7 +2409,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2444,10 +2434,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 		return
 	}
 
-	// Filter results to only the most recent for each query.
-	filtered := getMostRecentResults(unmarshaledResults)
+	// Transform results that are in "event format" to "snapshot format".
+	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+	// in their agent options.
+	unmarshaledResultsFiltered := transformEventFormatToSnapshotFormat(unmarshaledResults)
 
-	for _, result := range filtered {
+	// Filter results to only the most recent for each query.
+	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
+
+	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -2485,6 +2480,127 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 	}
+}
+
+// transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
+// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+// in their agent options.
+//
+// "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
+//
+//	[
+//		{
+//			"snapshot":[
+//				{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},
+//				{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}
+//			],
+//			"action":"snapshot",
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 22:17:17 2025 UTC",
+//			"unixTime":1738189037,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
+//		}
+//	]
+//
+// "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
+//
+//	[
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns": {
+//				"class":"9",
+//				"model":"AppleUSBVHCIBCE Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		},
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns":{
+//				"class":"9",
+//				"model":"AppleUSBXHCI Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		}
+//	]
+func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
+	isEventFormat := func(result *fleet.ScheduledQueryResult) bool {
+		return result != nil && result.Action == "snapshot" && len(result.Snapshot) == 0 && len(result.Columns) > 0
+	}
+
+	resultsInEventFormat := make(map[string]*fleet.ScheduledQueryResult)
+	for _, result := range results {
+		if !isEventFormat(result) {
+			continue
+		}
+		allResults, ok := resultsInEventFormat[result.QueryName]
+		if !ok {
+			// All snapshot results in "event format" for the same query have the same `hostIdentifier` and `unixTime`.
+			resultsInEventFormat[result.QueryName] = &fleet.ScheduledQueryResult{
+				QueryName:     result.QueryName,
+				OsqueryHostID: result.OsqueryHostID,
+				Snapshot:      []*json.RawMessage{&result.Columns},
+				UnixTime:      result.UnixTime,
+			}
+		} else {
+			resultsInEventFormat[allResults.QueryName].Snapshot = append(resultsInEventFormat[allResults.QueryName].Snapshot, &result.Columns)
+		}
+	}
+
+	if len(resultsInEventFormat) == 0 {
+		return results
+	}
+
+	replaced := make(map[string]struct{})
+	var filteredResults []*fleet.ScheduledQueryResult
+	for _, result := range results {
+		if isEventFormat(result) {
+			if _, ok := replaced[result.QueryName]; !ok {
+				filteredResults = append(filteredResults, resultsInEventFormat[result.QueryName])
+				replaced[result.QueryName] = struct{}{}
+			}
+			continue
+		}
+		filteredResults = append(filteredResults, result)
+	}
+	return filteredResults
 }
 
 // overwriteResultRows deletes existing and inserts the new results for a query and host.
@@ -2683,14 +2799,14 @@ type getYaraResponse struct {
 	Content string
 }
 
-func (r getYaraResponse) error() error { return r.Err }
+func (r getYaraResponse) Error() error { return r.Err }
 
-func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getYaraResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte(r.Content))
 }
 
-func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	r := request.(*getYaraRequest)
 	rule, err := svc.YaraRuleByName(ctx, r.Name)
 	if err != nil {

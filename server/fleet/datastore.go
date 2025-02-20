@@ -54,6 +54,8 @@ type Datastore interface {
 	// UserStore contains methods for managing users in a datastore
 
 	NewUser(ctx context.Context, user *User) (*User, error)
+	// HasUsers returns whether Fleet has any users registered
+	HasUsers(ctx context.Context) (bool, error)
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
@@ -191,7 +193,7 @@ type Datastore interface {
 
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label ID with host
 	// IDs, applied in batches
-	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint) (err error)
+	UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
 
 	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -274,7 +276,7 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, or hardware serials.
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
@@ -555,7 +557,7 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error)
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts HostSoftwareInstallOptions) (string, error)
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
@@ -621,6 +623,7 @@ type Datastore interface {
 	// IsSoftwareInstallerLabelScoped returns whether or not the given installerID is scoped to the
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
+	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -667,7 +670,7 @@ type Datastore interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
-	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
@@ -1623,9 +1626,6 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// NewInternalScriptExecutionRequest creates a new host script result entry with
-	// just the script to run information (result is not yet available), with the script marked as internal.
-	NewInternalScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will
@@ -1640,9 +1640,16 @@ type Datastore interface {
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
+	// except that it only returns those that are ready to execute ("activated" in
+	// the upcoming activities queue, available for orbit to process).
+	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
+
+	// UpdateScriptContents replaces the script contents of a script
+	UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*Script, error)
 
 	// Script returns the saved script corresponding to id.
 	Script(ctx context.Context, id uint) (*Script, error)
@@ -1719,16 +1726,16 @@ type Datastore interface {
 	//
 
 	// GetIncludedHostIDMapForSoftwareInstaller gets the set of hosts that are targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetIncludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
 	// GetExcludedHostIDMapForSoftwareInstaller gets the set of hosts that are NOT targeted/in scope for the
-	// given software installer, based label membership.
+	// given software installer, based on label membership.
 	GetExcludedHostIDMapForSoftwareInstaller(ctx context.Context, installerID uint) (map[uint]struct{}, error)
 
-	// ClearAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// ClearSoftwareInstallerAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
 	// software installer for all the given hosts.
-	ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
+	ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error
 
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
@@ -1736,6 +1743,11 @@ type Datastore interface {
 	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
 	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
+	// except that it only returns software installs that are ready to execute
+	// ("activated" in the upcoming activities queue, available for orbit to
+	// process).
+	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
@@ -1790,9 +1802,9 @@ type Datastore interface {
 	// GetTitleInfoFromVPPAppsTeamsID returns title ID and VPP app name corresponding to the supplied team VPP app PK
 	GetTitleInfoFromVPPAppsTeamsID(ctx context.Context, vppAppsTeamsID uint) (*PolicySoftwareTitle, error)
 
-	// GetVPPAppMetadataByAdamIDAndPlatform returns the VPP app corresponding to the specified ADAM ID and platform.
-	// Note that this doesn't include the self-service flag as the app isn't in the context of a team.
-	GetVPPAppMetadataByAdamIDAndPlatform(ctx context.Context, adamID string, platform AppleDevicePlatform) (*VPPApp, error)
+	// GetVPPAppMetadataByAdamIDPlatformTeamID returns the VPP app correspoding to the specified
+	// ADAM ID, platform within the context of the specified team. It includes the vpp_app_team_id value.
+	GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context, adamID string, platform AppleDevicePlatform, teamID *uint) (*VPPApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
@@ -1828,10 +1840,28 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
-	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
+	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
+	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)
+	// InsertVPPApps inserts the given VPP apps in the database.
+	InsertVPPApps(ctx context.Context, apps []*VPPApp) error
+
+	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
+
+	// GetIncludedHostIDMapForVPPApp gets the set of hosts that are targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
+	// given VPP app, based on label membership.
+	GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
+
+	// ClearVPPAppAutoInstallPolicyStatusForHosts clears out the status of the policy related to the given
+	// VPP app for all the given hosts.
+	ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
@@ -1938,6 +1968,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

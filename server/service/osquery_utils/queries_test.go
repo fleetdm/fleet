@@ -1975,6 +1975,76 @@ func TestSanitizeSoftware(t *testing.T) {
 				BundleIdentifier: "com.jetbrains.intellij-EAP",
 			},
 		},
+		{
+			name: "Python for Windows GA dot-zero",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.150.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows GA patch release",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8150.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows alpha",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.104.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.0-alpha4",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows beta",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.113.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.0-beta3",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows RC",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.122.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.0-rc2",
+				Source:  "programs",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())

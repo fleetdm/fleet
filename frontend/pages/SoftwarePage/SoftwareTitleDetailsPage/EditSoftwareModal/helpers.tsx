@@ -2,16 +2,17 @@ import React from "react";
 import { isAxiosError } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
-import { ISoftwarePackage } from "interfaces/software";
+import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit software. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (err: unknown, software: ISoftwarePackage) => {
+export const getErrorMessage = (
+  err: unknown,
+  software: ISoftwarePackage | IAppStoreApp
+) => {
   const isTimeout =
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);

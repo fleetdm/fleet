@@ -7200,6 +7200,33 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NotEqual(t, tmScriptID, newScriptResp.ScriptID)
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script2.sh", tm.Name, tm.ID), 0)
 
+	// Update a script
+	updateScriptRep := updateScriptResponse{}
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	require.Equal(t, tmScriptID, updateScriptRep.ScriptID)
+	s.lastActivityMatches("updated_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
+
+	// Download the updated script
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, "alt", "media")
+	b, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, `echo "updated script"`, string(b))
+	require.Equal(t, int64(len(`echo "updated script"`)), res.ContentLength)
+	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
+
+	// Try updating a non-existant script
+	updateScriptRep = updateScriptResponse{}
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", 999999999999), body.Bytes(), http.StatusNotFound, headers)
+	err = json.NewDecoder(res.Body).Decode(&updateScriptRep)
+	require.NoError(t, err)
+
 	// delete the no-team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusNoContent)
 	s.lastActivityMatches("deleted_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null}`, "script1.sh"), 0)
@@ -7445,6 +7472,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
+	// it's fine to write directly to host_script_results here because we're not testing the execution
+	// only the script details
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
@@ -11010,10 +11039,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// Get execution ID, normally comes from orbit config
-		var installUUID string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
-		})
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
 		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
@@ -11102,10 +11128,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// Get execution ID, normally comes from orbit config
-		var installUUID string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
-		})
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
 		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
@@ -12315,7 +12338,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprintf("%d", *teamID))
 
-	// install script request succeeds
+	// install software request succeeds
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
@@ -12496,7 +12519,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.NotEmpty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should exist")
 
-	// Remove the installed app by not returning it
+	// Remove the installed app of h2 by not returning it
 	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: *h2.NodeKey,
 		Results: map[string]json.RawMessage{
@@ -12517,7 +12540,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
 
-	// Mark original install successful
+	// Mark original h install successful
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -12526,7 +12549,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	// simulate a lock/unlock; this creates the host_mdm_actions table, which reproduces #25144
+	// simulate a lock/unlock on h; this creates the host_mdm_actions table, which reproduces #25144
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
@@ -12541,7 +12564,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.UnlockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
 
-	// Do uninstall
+	// Do uninstall on h
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12576,12 +12599,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 
-	// expect uninstall script to be pending
+	// expect uninstall script (uninstall software works via a script) to be pending
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+	require.Equal(t, uninstallExecutionID, orbitResp.Notifications.PendingScriptExecutionIDs[0])
 
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -12733,6 +12757,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	require.False(t, listUpcomingAct.Activities[0].FleetInitiated)
 
 	var details fleet.ActivityTypeInstalledSoftware
 	err = json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
@@ -12764,6 +12789,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &listPastAct)
 	require.Len(t, listPastAct.Activities, 1)
 	require.Nil(t, listPastAct.Activities[0].ActorID)
+	require.False(t, listPastAct.Activities[0].FleetInitiated)
 
 	err = json.Unmarshal([]byte(*listPastAct.Activities[0].Details), &details)
 	require.NoError(t, err)
@@ -12811,7 +12837,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	latestInstallUUID := func() string {
 		var id string
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
 		})
 		return id
 	}
@@ -16024,7 +16050,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
-	ctx := context.Background()
 	t := s.T()
 
 	// Fedora and RHEL have hosts.platform = 'rhel'.
@@ -16041,19 +16066,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "rpm_packages")
 
-	latestInstallUUID := func() string {
-		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	// Send a request to the host to install the RPM package.
 	var installSoftwareResp installSoftwareResponse
 	beforeInstallRequest := time.Now()
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &installSoftwareResp)
-	installUUID := latestInstallUUID()
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
 
 	// Simulate host installing the RPM package.
 	beforeInstallResult := time.Now()
@@ -16623,18 +16640,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 
-	latestInstallUUID := func() string {
-		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	// create install request for the software and record a successful result
 	resp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &resp)
-	installUUID := latestInstallUUID()
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
 		json.RawMessage(fmt.Sprintf(`{
