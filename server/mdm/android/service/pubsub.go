@@ -63,11 +63,17 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 }
 
 func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device) error {
-	// TODO: Get the team ID from the device.EnrollmentTokenData
+
+	// Device may already be present in Fleet if it removed MDM profile and then re-enrolled
+
+	enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	}
 
 	// TODO: Do EnrollHost and androidDS.AddHost inside a transaction so we don't add duplicate hosts
-	_, err := svc.fleetDS.EnrollHost(ctx, true, device.HardwareInfo.SerialNumber, device.HardwareInfo.SerialNumber,
-		device.HardwareInfo.SerialNumber, "", nil, 0)
+	_, err = svc.fleetDS.EnrollHost(ctx, true, device.HardwareInfo.SerialNumber, device.HardwareInfo.SerialNumber,
+		device.HardwareInfo.SerialNumber, "", enrollSecret.GetTeamID(), 0)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling host")
 	}

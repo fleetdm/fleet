@@ -16,7 +16,8 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-const policyName = "default"
+// We use numbers for policy names for easier mapping/indexing with Fleet DB.
+const policyID = 1
 
 type Service struct {
 	logger  kitlog.Logger
@@ -152,7 +153,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "generating pubsub token")
 	}
-	// TODO: Use ds.insertOrReplaceConfigAsset to save the token and retrieve it via cached_mysql
+	// TODO: Use ds.insertOrReplaceConfigAsset to save the token and retrieve it later via cached_mysql
 
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
@@ -177,25 +178,28 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, policyName, &androidmanagement.Policy{
+	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, fmt.Sprintf("%d", policyID), &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
-			ApplicationReportsEnabled:    true,
 			DeviceSettingsEnabled:        true,
-			SoftwareInfoEnabled:          true,
 			MemoryInfoEnabled:            true,
 			NetworkInfoEnabled:           true,
 			DisplayInfoEnabled:           true,
 			PowerManagementEventsEnabled: true,
 			HardwareStatusEnabled:        true,
 			SystemPropertiesEnabled:      true,
-			ApplicationReportingSettings: &androidmanagement.ApplicationReportingSettings{
-				IncludeRemovedApps: true,
-			},
-			CommonCriteriaModeEnabled: true,
+			SoftwareInfoEnabled:          true, // Android OS version, etc.
+			CommonCriteriaModeEnabled:    true,
+			// Application inventory will likely be a Premium feature.
+			// applicationReports take a lot of space in device status reports. They are not free -- our current cost is $40 per TiB (2025-02-20).
+			// We should disable them for free accounts. To enable them for a server transitioning from Free to Premium, we will need to patch the existing policies.
+			// For server transitioning from Premium to Free, we will need to patch the existing policies to disable software inventory, which could also be done
+			// by the fleetdm.com proxy or manually. The proxy could also enforce this report setting.
+			ApplicationReportsEnabled:    false,
+			ApplicationReportingSettings: nil,
 		},
 	})
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "patching %s policy", policyName)
+		return ctxerr.Wrapf(ctx, err, "patching %d policy", policyID)
 	}
 
 	err = svc.ds.DeleteOtherEnterprises(ctx, id)
@@ -302,7 +306,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 
 		AdditionalData:     enrollSecret,
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
-		PolicyName:         enterprise.Name() + "/policies/" + policyName,
+		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +policyID),
 		OneTimeOnly:        true,
 	}
 	token, err = svc.proxy.EnterprisesEnrollmentTokensCreate(enterprise.Name(), token)

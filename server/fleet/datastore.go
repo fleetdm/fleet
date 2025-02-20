@@ -989,7 +989,7 @@ type Datastore interface {
 	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
-	// matched, that secret is returned. Otherwise, an error is returned.
+	// matched, that secret is returned. Otherwise, a NotFoundError is returned.
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.

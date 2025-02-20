@@ -1,5 +1,7 @@
 package android
 
+import "time"
+
 type SignupDetails struct {
 	Url  string
 	Name string
@@ -34,8 +36,11 @@ type EnrollmentToken struct {
 	EnrollmentURL   string `json:"android_enrollment_url"`
 }
 
-type Host struct {
-	HostID            uint   `db:"host_id"`
-	FleetEnterpriseID uint   `db:"enterprise_id"`
-	DeviceID          string `db:"device_id"`
+type Device struct {
+	ID                   uint       `db:"id"`
+	HostID               uint       `db:"host_id"`
+	DeviceID             string     `db:"device_id"`
+	EnterpriseSpecificID string     `db:"enterprise_specific_id"`
+	PolicyID             *uint      `db:"policy_id"`
+	LastPolicySyncTime   *time.Time `db:"last_policy_sync_time"`
 }
