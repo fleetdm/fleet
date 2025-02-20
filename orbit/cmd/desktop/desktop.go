@@ -111,6 +111,8 @@ func main() {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
 
+	// We've only seen this bug appear on Linux under certain very
+	// specific conditions
 	if runtime.GOOS == "linux" {
 		// Ensure only one instance of Fleet Desktop is running at a time
 		lockFile, err := getLockfile()
