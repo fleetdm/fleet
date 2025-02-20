@@ -273,7 +273,7 @@ func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, erro
 		}
 	}
 
-	if unusedKey > maxKeySlots {
+	if unusedKey >= maxKeySlots {
 		return 0, errors.New("no empty key slots available")
 	}
 
