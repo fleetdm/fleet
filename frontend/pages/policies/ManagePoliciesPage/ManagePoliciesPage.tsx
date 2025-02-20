@@ -538,35 +538,11 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.install_software !== undefined &&
-          formPolicy.installSoftwareEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.install_software === undefined &&
-          formPolicy.installSoftwareEnabled === true;
-
-        const updatedSwId =
-          prevPolicyState?.install_software?.software_title_id !== undefined &&
-          formPolicy.swIdToInstall !==
-            prevPolicyState?.install_software?.software_title_id;
-
-        return turnedOff || turnedOn || updatedSwId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
       const responses: Promise<
         ReturnType<typeof teamPoliciesAPI.update>
       >[] = [];
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             // "software_title_id": null will unset software install for the policy
             // "software_title_id": X will set the value to the given integer (except 0).
@@ -592,34 +568,12 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
 
-        const turnedOff =
-          prevPolicyState?.run_script !== undefined &&
-          formPolicy.runScriptEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.run_script === undefined &&
-          formPolicy.runScriptEnabled === true;
-
-        const updatedRunScriptId =
-          prevPolicyState?.run_script?.id !== undefined &&
-          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
-
-        return turnedOff || turnedOn || updatedRunScriptId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
       const responses: Promise<
         ReturnType<typeof teamPoliciesAPI.update>
       >[] = [];
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
@@ -671,19 +625,10 @@ const ManagePolicyPage = ({
       }
 
       // update changed policies calendar events enabled
-      const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-        return (
-          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
-        );
-      });
-
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            calendar_events_enabled: changedPolicy.isChecked,
+            calendar_events_enabled: changedPolicy.calendar_events_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -1060,6 +1005,7 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
+            teamId={currentTeamId ?? 0}
           />
         )}
         {showAddPolicyModal && (
@@ -1083,7 +1029,6 @@ const ManagePolicyPage = ({
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />
@@ -1093,7 +1038,6 @@ const ManagePolicyPage = ({
             onExit={togglePolicyRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />
@@ -1105,7 +1049,7 @@ const ManagePolicyPage = ({
             configured={isCalEventsConfigured}
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
-            policies={policiesAvailableToAutomate}
+            teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
           />
         )}
