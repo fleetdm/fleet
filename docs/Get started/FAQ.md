@@ -92,9 +92,9 @@ If a table is not available for your host, Fleet will generally handle things be
 
 ### Linux
 
-Fleet Desktop is supported on Ubuntu and Fedora.
+Fleet Desktop is supported on Ubuntu, Fedora, and Debian.
 
-Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+Fedora and Debian require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
 
 Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
 
