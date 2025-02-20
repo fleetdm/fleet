@@ -193,4 +193,6 @@ function PoliciesPaginatedList(
   );
 }
 
+// Wrap with forwardRef to expose the imperative handle.
+// TODO -- can remove this after upgrading to React 19.
 export default forwardRef(PoliciesPaginatedList);

@@ -193,7 +193,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   );
 }
 
-// Wrap with forwardRef to expose the imperative handle:
+// Wrap with forwardRef to expose the imperative handle.
+// TODO -- can remove this after upgrading to React 19.
 const PaginatedList = forwardRef(PaginatedListInner) as <TItem>(
   props: IPaginatedListProps<TItem> & {
     ref?: Ref<IPaginatedListHandle<TItem>>;
