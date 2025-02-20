@@ -366,7 +366,7 @@ const PolicyForm = ({
           tipOffset={16}
           renderChildren={(dC) => {
             const classes = classnames(policyNameWrapperClasses, {
-              [`${policyNameWrapperBase}--gitops-mode-disabled`]: dC,
+              [`${policyNameWrapperBase}--disabled-by-gitops-mode`]: dC,
             });
             return (
               <div
@@ -419,7 +419,7 @@ const PolicyForm = ({
           tipOffset={16}
           renderChildren={(dC) => {
             const classes = classnames(policyDescriptionWrapperClasses, {
-              [`${policyDescriptionWrapperBase}--gitops-mode-disabled`]: dC,
+              [`${policyDescriptionWrapperBase}--disabled-by-gitops-mode`]: dC,
             });
             return (
               <div
@@ -466,7 +466,7 @@ const PolicyForm = ({
             tipOffset={16}
             renderChildren={(dC) => {
               const classes = classnames(policyResolutionWrapperClasses, {
-                [`${policyResolutionWrapperBase}--gitops-mode-disabled`]: dC,
+                [`${policyResolutionWrapperBase}--disabled-by-gitops-mode`]: dC,
               });
               return (
                 <div

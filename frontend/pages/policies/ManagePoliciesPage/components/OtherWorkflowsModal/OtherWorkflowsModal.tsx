@@ -427,7 +427,9 @@ const OtherWorkflowsModal = ({
                       return (
                         <div
                           className={`policy-row ${
-                            gomEnabled ? "policy-row--gitops-mode-disabled" : ""
+                            gomEnabled
+                              ? "policy-row--disabled-by-gitops-mode"
+                              : ""
                           }`}
                           id={`policy-row--${id}`}
                           key={id}

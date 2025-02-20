@@ -167,7 +167,9 @@ const Sso = ({
         <SectionHeader title="Single sign-on options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           {/* "form" class applies global form styling to fields for free */}
-          <div className={`form ${gomEnabled ? "gitops-mode-disabled" : ""}`}>
+          <div
+            className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}
+          >
             <Checkbox
               onChange={onInputChange}
               onBlur={onInputBlur}

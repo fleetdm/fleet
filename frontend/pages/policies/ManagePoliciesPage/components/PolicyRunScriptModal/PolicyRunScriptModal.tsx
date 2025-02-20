@@ -143,7 +143,7 @@ const PolicyRunScriptModal = ({
     } = policy;
 
     const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
-      "policy-row--gitops-mode-disabled": gomEnabled,
+      "policy-row--disabled-by-gitops-mode": gomEnabled,
     });
     return (
       <li

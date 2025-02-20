@@ -106,7 +106,9 @@ const Info = ({
         <SectionHeader title="Organization info" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           {/* "form" class applies global form styling to fields for free */}
-          <div className={`form ${gomEnabled ? "gitops-mode-disabled" : ""}`}>
+          <div
+            className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}
+          >
             <InputField
               label="Organization name"
               onChange={onInputChange}

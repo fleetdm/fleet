@@ -512,7 +512,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(dC) => {
             const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: dC,
             });
             return (
               <div
@@ -567,7 +567,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(dC) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: dC,
             });
             return (
               <div
@@ -763,7 +763,7 @@ const EditQueryForm = ({
             <div
               // including `form` class here keeps the children fields subject to the global form
               // children styles
-              className={gomEnabled ? "gitops-mode-disabled form" : "form"}
+              className={gomEnabled ? "disabled-by-gitops-mode form" : "form"}
             >
               <Dropdown
                 searchable={false}

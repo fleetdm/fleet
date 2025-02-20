@@ -78,7 +78,7 @@
     }
   }
 
-  .gitops-mode-disabled {
+  .disabled-by-gitops-mode {
     @include disabled;
   }
 }
