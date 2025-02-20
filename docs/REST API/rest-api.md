@@ -1683,6 +1683,7 @@ _Available in Fleet Premium._
 ##### integrations.ndes_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `integrations.ndes_scep_proxy` is an object with the following structure:
 
 | Name      | Type   | Description                                             |
