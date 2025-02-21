@@ -60,7 +60,7 @@ const SingleFlashMessage = ({
     }
 
     return undefined; // No cleanup when we don't set a timeout.
-  }, [notification, alertType, isVisible, isPersistent, id, onRemoveFlash]);
+  }, [notification, alertType, isVisible, setHide, id]);
 
   useEffect(() => {
     if (!persistOnPageChange) {
@@ -115,7 +115,6 @@ const FlashMessage = ({
     return null; // Return null if there are no notifications
   }
 
-  console.log("notification", notification);
   // Check if notification is an array and render accordingly
   if (Array.isArray(notification)) {
     return (
