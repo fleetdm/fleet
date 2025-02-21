@@ -537,7 +537,6 @@ const ManagePolicyPage = ({
   const onUpdatePolicySoftwareInstall = async (
     formData: IInstallSoftwareFormData
   ) => {
-    console.log("formData", formData);
     try {
       setIsUpdatingPolicies(true);
 
