@@ -22,9 +22,9 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { SCEP_SERVER_TIP_CONTENT } from "../components/ScepSection/ScepSection";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "scep-page";
 
