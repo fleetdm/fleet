@@ -877,7 +877,7 @@ if [[ "$failed" == "false" ]]; then
         # Back on patch / prepare
         ask "Did changelog for main work? [y/n]"
         git checkout $target_branch
-        ask "Are you back on the rc branch?"
+        ask "Are you back on the rc branch? [y/n]"
     else
         echo "DRYRUN: Would have switched back to branch $target_branch"
     fi
