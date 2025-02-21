@@ -396,7 +396,7 @@ type Datastore interface {
 	GetAndroidDS() android.Datastore
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
-	AndroidHostLite(ctx context.Context, deviceID string) (*AndroidHost, error)
+	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

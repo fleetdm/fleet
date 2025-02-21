@@ -21,13 +21,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
 	}
-	// Setting the times to a non-zero TIMESTAMP value to avoid issues with MySQL.
-	if host.DetailUpdatedAt.IsZero() {
-		host.DetailUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
-	}
-	if host.LabelUpdatedAt.IsZero() {
-		host.LabelUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
-	}
+	ds.setTimesToNonZero(host)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{deviceID}.
@@ -94,10 +88,21 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	return host, err
 }
 
+// setTimesToNonZero to avoid issues with MySQL.
+func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
+	if host.DetailUpdatedAt.IsZero() {
+		host.DetailUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
+	}
+	if host.LabelUpdatedAt.IsZero() {
+		host.LabelUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
+	}
+}
+
 func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
+	ds.setTimesToNonZero(host)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
@@ -119,33 +124,35 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 		_, err = tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "new Android host")
+			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
 		err = ds.androidDS.UpdateDeviceTx(ctx, host.Device, tx)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating new Android device")
+			return ctxerr.Wrap(ctx, err, "update Android device")
 		}
 		return nil
 	})
 	return err
 }
 
-func (ds *Datastore) AndroidHostLite(ctx context.Context, deviceID string) (*fleet.AndroidHost, error) {
+func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	stmt := `SELECT ad.id, ad.host_id, ad.device_id, ad.enterprise_specific_id, ad.policy_id, ad.last_policy_sync_time
 		FROM android_devices ad
 		LEFT JOIN hosts h ON ad.host_id = h.id
-		WHERE device_id = ?`
+		WHERE ad.enterprise_specific_id = ?`
 	var device android.Device
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, deviceID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, enterpriseSpecificID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, common_mysql.NotFound("Android device").WithName(deviceID)
+		return nil, common_mysql.NotFound("Android device").WithName(enterpriseSpecificID)
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting device by device ID")
 	}
-	return &fleet.AndroidHost{
+	result := &fleet.AndroidHost{
 		Host:   &fleet.Host{ID: device.HostID},
 		Device: &device,
-	}, nil
+	}
+	result.SetNodeKey(enterpriseSpecificID)
+	return result, nil
 }

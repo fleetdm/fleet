@@ -31,15 +31,15 @@ func TestAndroid(t *testing.T) {
 }
 
 func testNewAndroidHost(t *testing.T, ds *Datastore) {
-	const deviceID = "device_id"
-	host := createAndroidHost(deviceID)
+	const enterpriseSpecificID = "enterprise_specific_id"
+	host := createAndroidHost(enterpriseSpecificID)
 
 	result, err := ds.NewAndroidHost(testCtx(), host)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
 
-	resultLite, err := ds.AndroidHostLite(testCtx(), deviceID)
+	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
 	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
@@ -52,7 +52,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
 }
 
-func createAndroidHost(deviceID string) *fleet.AndroidHost {
+func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:       "hostname",
@@ -65,12 +65,13 @@ func createAndroidHost(deviceID string) *fleet.AndroidHost {
 			HardwareSerial: "hardware_serial",
 		},
 		Device: &android.Device{
-			EnterpriseSpecificID: nil,
+			DeviceID:             "device_id",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
 			PolicyID:             ptr.Uint(1),
 			LastPolicySyncTime:   ptr.Time(time.Time{}),
 		},
 	}
-	host.SetDeviceID(deviceID)
+	host.SetNodeKey(enterpriseSpecificID)
 	return host
 }
 
@@ -79,8 +80,8 @@ func testCtx() context.Context {
 }
 
 func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
-	const deviceID = "device_id_update"
-	host := createAndroidHost(deviceID)
+	const enterpriseSpecificID = "es_id_update"
+	host := createAndroidHost(enterpriseSpecificID)
 
 	result, err := ds.NewAndroidHost(testCtx(), host)
 	require.NoError(t, err)
@@ -105,7 +106,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	err = ds.UpdateAndroidHost(testCtx(), host)
 	require.NoError(t, err)
 
-	resultLite, err := ds.AndroidHostLite(testCtx(), deviceID)
+	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
 	require.NoError(t, err)
 	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
 	assert.EqualValues(t, host.Device, resultLite.Device)

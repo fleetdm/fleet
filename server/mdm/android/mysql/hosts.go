@@ -40,20 +40,12 @@ func (ds *Datastore) deleteDuplicate(ctx context.Context, device *android.Device
 	// Duplicates should never happen. We log error and try to handle it gracefully.
 	level.Error(ds.logger).Log("msg", "Found two Android devices with the same device ID or enterprise specific ID", "device_id",
 		device.DeviceID, "enterprise_specific_id", device.EnterpriseSpecificID)
-	var idToDelete, idToUpdate uint
-	if existing[0].DeviceID == device.DeviceID {
-		idToDelete = existing[1].ID
-		idToUpdate = existing[0].ID
-	} else {
-		idToDelete = existing[0].ID
-		idToUpdate = existing[1].ID
-	}
-	err := ds.deleteDevice(ctx, tx, idToDelete)
+	// It should not matter which duplicate we delete since the other one will be overwritten.
+	err := ds.deleteDevice(ctx, tx, existing[0].ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting duplicate device")
 	}
-
-	device.ID = idToUpdate
+	device.ID = existing[1].ID
 	return nil
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type HostStatus string
@@ -380,19 +381,21 @@ type AndroidHost struct {
 	*android.Device
 }
 
-func (ah *AndroidHost) SetDeviceID(deviceID string) {
+func (ah *AndroidHost) SetNodeKey(enterpriseSpecificID string) {
 	if ah.Host == nil || ah.Device == nil {
 		return
 	}
-	ah.Device.DeviceID = deviceID
+	ah.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
 	// We use node_key as a unique identifier for the host table row.
 	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
-	hostNodeKey := "android/" + deviceID
+	hostNodeKey := "android/" + enterpriseSpecificID
 	ah.Host.NodeKey = &hostNodeKey
 }
 
 func (ah *AndroidHost) IsValid() bool {
-	return !(ah == nil || ah.Host == nil || ah.Device == nil || *ah.Host.NodeKey == "" || *ah.Host.NodeKey != "android/"+ah.Device.DeviceID)
+	return !(ah == nil || ah.Host == nil || ah.Device == nil ||
+		ah.Host.NodeKey == nil || ah.Device.EnterpriseSpecificID == nil ||
+		*ah.Host.NodeKey != "android/"+*ah.Device.EnterpriseSpecificID)
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
