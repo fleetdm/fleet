@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -7056,6 +7057,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
 	require.NoError(t, err)
 	require.True(t, added)
+
+	// Add a host certificate
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, []*fleet.HostCertificateRecord{{
+		HostID:     host.ID,
+		CommonName: "foo",
+		SHA1Sum:    sha1.New().Sum([]byte("foo")),
+	}}))
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

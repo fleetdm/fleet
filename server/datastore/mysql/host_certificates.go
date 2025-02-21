@@ -21,11 +21,11 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 	for _, cert := range certs {
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host ID does not match provided certificate: %d %d", hostID, cert.HostID))
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
 		if _, ok := incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))]; ok {
 			// TODO: sha1 is broken so this could be a sign of a problem, how should we handle?
-			level.Info(ds.logger).Log("msg", "host has multiple certificates with the same SHA1, only the first will be recorded", "host_id", hostID, "sha1", string(cert.SHA1Sum))
+			level.Info(ds.logger).Log("msg", "host certificates: host has multiple certificates with the same SHA1, only the first will be recorded", "host_id", hostID, "sha1", string(cert.SHA1Sum))
 			continue
 		}
 		incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))] = cert
@@ -48,7 +48,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("existing certificate: %s", sha1), "host_id", hostID)
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
@@ -179,6 +179,9 @@ INSERT INTO host_certificates (
 }
 
 func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, toDelete []uint) error {
+	// TODO: consider whether we should hard delete certs after a certain period of time if we are seeing
+	// the table grow too large with soft deleted records
+
 	if len(toDelete) == 0 {
 		return nil
 	}
