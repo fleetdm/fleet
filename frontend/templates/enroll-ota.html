@@ -28,7 +28,7 @@
       *,
       *:before,
       *:after {
-        box-sizing: inherit;
+        box-sizing: border-box;
       }
 
       body,
@@ -37,7 +37,9 @@
         margin: 0;
       }
 
-      .download-link {
+      .download-link,
+      .enroll-link {
+        display: inline-block;
         color: #fff;
         background-color: #6a67fe;
         padding: 8px 16px;
@@ -45,8 +47,8 @@
         text-decoration: none;
         font-weight: 700;
         font-size: 14px;
-        width: 100px;
         line-height: 21px;
+        text-align: center;
       }
 
       header {
@@ -73,6 +75,15 @@
       li {
         display: flex;
         flex-direction: column;
+        gap: 20px;
+        align-items: flex-start;
+      }
+
+      .android-content {
+        margin-top: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
         gap: 20px;
       }
 
@@ -112,6 +123,12 @@
         display: flex;
         gap: 8px;
       }
+
+      @media screen and (max-width: 430px) {
+        .enroll-link {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -127,8 +144,14 @@
 
     <!-- android content -->
     <template id="android-template">
-      <h1>Welcome, Android User!</h1>
-      <p>This is the Android-specific version.</p>
+      <h1>Enroll your Android device to Fleet</h1>
+      <div class="android-content">
+        <p>
+          Select <b>Enroll</b> and it will open settings on your Android device.
+          Follow wizard to finish enrollment.
+        </p>
+        <a class="enroll-link" href="test.com">Enroll</a>
+      </div>
     </template>
 
     <!-- ios, ipados content -->
@@ -208,6 +231,8 @@
             navigator.maxTouchPoints !== undefined &&
             navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
+
+        return "android";
 
         if (isAndroid) {
           return "android";
