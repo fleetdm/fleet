@@ -299,7 +299,11 @@ const generateColumnConfigs = ({
             tipOffset={8}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
             )}
           />
         );
@@ -324,7 +328,11 @@ const generateColumnConfigs = ({
             tipOffset={8}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
             )}
           />
         );

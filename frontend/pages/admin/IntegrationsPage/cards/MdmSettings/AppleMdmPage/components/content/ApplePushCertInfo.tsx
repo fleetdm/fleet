@@ -47,7 +47,11 @@ const ApplePushCertInfo = ({
         <GitOpsModeTooltipWrapper
           tipOffset={8}
           renderChildren={(disableChildren) => (
-            <Button variant="inverse" onClick={onClickTurnOff} disabled={dC}>
+            <Button
+              variant="inverse"
+              onClick={onClickTurnOff}
+              disabled={disableChildren}
+            >
               Turn off MDM
             </Button>
           )}
@@ -59,7 +63,7 @@ const ApplePushCertInfo = ({
               className="save-loading"
               variant="brand"
               onClick={onClickRenew}
-              disabled={dC}
+              disabled={disableChildren}
             >
               Renew certificate
             </Button>

@@ -157,7 +157,7 @@ const ProfileListItem = ({
           <GitOpsModeTooltipWrapper
             renderChildren={(disableChildren) => (
               <Button
-                disabled={dC}
+                disabled={disableChildren}
                 className={`${subClass}__action-button`}
                 variant="text-icon"
                 onClick={() => onDelete(profile)}

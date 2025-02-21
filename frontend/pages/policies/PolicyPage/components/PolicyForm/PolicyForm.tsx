@@ -368,7 +368,7 @@ const PolicyForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(policyNameWrapperClasses, {
-              [`${policyNameWrapperBase}--disabled-by-gitops-mode`]: dC,
+              [`${policyNameWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -390,7 +390,7 @@ const PolicyForm = ({
                   onChange={setLastEditedQueryName}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingName}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -421,7 +421,7 @@ const PolicyForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(policyDescriptionWrapperClasses, {
-              [`${policyDescriptionWrapperBase}--disabled-by-gitops-mode`]: dC,
+              [`${policyDescriptionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -441,7 +441,7 @@ const PolicyForm = ({
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -468,7 +468,7 @@ const PolicyForm = ({
             tipOffset={16}
             renderChildren={(disableChildren) => {
               const classes = classnames(policyResolutionWrapperClasses, {
-                [`${policyResolutionWrapperBase}--disabled-by-gitops-mode`]: dC,
+                [`${policyResolutionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
               });
               return (
                 <div
@@ -488,7 +488,7 @@ const PolicyForm = ({
                     onChange={setLastEditedQueryResolution}
                     onKeyPress={onInputKeypress}
                     isFocused={isEditingResolution}
-                    disableTabability={dC}
+                    disableTabability={disableChildren}
                   />
                   <Icon
                     name="pencil"
@@ -652,7 +652,7 @@ const PolicyForm = ({
                       <Button
                         variant="brand"
                         onClick={promptSavePolicy()}
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         className="save-loading"
                         isLoading={isUpdatingPolicy}
                       >

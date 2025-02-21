@@ -137,7 +137,7 @@ export const FileUploader = ({
                 className={`${baseClass}__upload-button`}
                 variant={buttonVariant}
                 isLoading={isLoading}
-                disabled={disabled || dC}
+                disabled={disabled || disableChildren}
                 customOnKeyDown={handleKeyDown}
                 tabIndex={0}
               >

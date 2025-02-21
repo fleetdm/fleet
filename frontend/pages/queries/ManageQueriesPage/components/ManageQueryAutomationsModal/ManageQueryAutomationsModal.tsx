@@ -200,7 +200,7 @@ const ManageQueryAutomationsModal = ({
                 onClick={onSubmitQueryAutomations}
                 className="save-loading"
                 isLoading={isUpdatingAutomations}
-                disabled={dC}
+                disabled={disableChildren}
               >
                 Save
               </Button>

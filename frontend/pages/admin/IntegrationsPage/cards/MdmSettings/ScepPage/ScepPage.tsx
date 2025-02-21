@@ -207,7 +207,7 @@ export const ScepCertificateContent = ({
                       variant="brand"
                       className="button-wrap"
                       isLoading={isSaving}
-                      disabled={disableSave || dC}
+                      disabled={disableSave || disableChildren}
                     >
                       Save
                     </Button>

@@ -22,7 +22,7 @@ const ProfileListHeading = ({
           position="left"
           renderChildren={(disableChildren) => (
             <Button
-              disabled={dC}
+              disabled={disableChildren}
               variant="text-icon"
               className={`${baseClass}__add-button`}
               onClick={onClickAddProfile}

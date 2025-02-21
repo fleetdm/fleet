@@ -87,7 +87,7 @@ const EnrollSecretModal = ({
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
-                disabled={dC}
+                disabled={disableChildren}
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
                 variant="text-icon"

@@ -320,7 +320,7 @@ const PackageForm = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={dC || isSubmitDisabled}
+                disabled={disableChildren || isSubmitDisabled}
               >
                 {isEditingSoftware ? "Save" : "Add software"}
               </Button>

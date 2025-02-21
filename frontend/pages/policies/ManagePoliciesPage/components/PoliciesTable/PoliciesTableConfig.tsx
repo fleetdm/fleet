@@ -276,7 +276,11 @@ const generateTableHeaders = (
             tipOffset={8}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
             )}
           />
         );
@@ -300,7 +304,11 @@ const generateTableHeaders = (
             tipOffset={8}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
             )}
           />
         );

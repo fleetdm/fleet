@@ -65,7 +65,7 @@ const FileDetails = ({
           renderChildren={(disableChildren) => (
             <div className={`${baseClass}__edit`}>
               <Button
-                disabled={dC}
+                disabled={disableChildren}
                 className={`${baseClass}__edit-button`}
                 variant="icon"
               >
@@ -74,7 +74,7 @@ const FileDetails = ({
                 </label>
               </Button>
               <input
-                disabled={dC}
+                disabled={disableChildren}
                 accept={accept}
                 id="edit-file"
                 type="file"

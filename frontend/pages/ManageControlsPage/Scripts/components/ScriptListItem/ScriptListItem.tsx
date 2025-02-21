@@ -101,7 +101,7 @@ const ScriptListItem = ({
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
-            disabled={dC}
+            disabled={disableChildren}
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
             variant="text-icon"
@@ -120,7 +120,7 @@ const ScriptListItem = ({
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
-            disabled={dC}
+            disabled={disableChildren}
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
             variant="text-icon"

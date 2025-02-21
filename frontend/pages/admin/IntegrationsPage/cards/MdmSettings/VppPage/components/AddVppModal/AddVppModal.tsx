@@ -81,7 +81,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
                 variant="brand"
                 onClick={uploadVppToken}
                 isLoading={isUploading}
-                disabled={!tokenFile || isUploading || dC}
+                disabled={!tokenFile || isUploading || disableChildren}
               >
                 Add VPP
               </Button>

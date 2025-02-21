@@ -289,13 +289,13 @@ const IntegrationForm = ({
                     <div
                       data-tip
                       data-for="add-integration-button"
-                      data-tip-disable={!formInvalid || dC}
+                      data-tip-disable={!formInvalid || disableChildren}
                       className="tooltip"
                     >
                       <Button
                         type="submit"
                         variant="brand"
-                        disabled={formInvalid || dC}
+                        disabled={formInvalid || disableChildren}
                       >
                         Save
                       </Button>

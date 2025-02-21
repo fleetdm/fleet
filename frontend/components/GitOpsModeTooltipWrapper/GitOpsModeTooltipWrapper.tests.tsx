@@ -31,7 +31,7 @@ describe("GitOpsModeTooltipWrapper", () => {
     const { user } = render(
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
-          <Button disabled={dC} onClick={onSave} variant="brand">
+          <Button disabled={disableChildren} onClick={onSave} variant="brand">
             Save
           </Button>
         )}
@@ -70,7 +70,7 @@ describe("GitOpsModeTooltipWrapper", () => {
     const { user } = render(
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
-          <Button disabled={dC} onClick={onSave} variant="brand">
+          <Button disabled={disableChildren} onClick={onSave} variant="brand">
             Save
           </Button>
         )}

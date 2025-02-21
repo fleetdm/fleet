@@ -47,7 +47,7 @@ const generateTableConfig = (
             tipOffset={6}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} {...checkboxProps} />
+              <Checkbox disabled={disableChildren} {...checkboxProps} />
             )}
           />
         );
@@ -67,7 +67,7 @@ const generateTableConfig = (
             tipOffset={6}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={dC} {...checkboxProps} />
+              <Checkbox disabled={disableChildren} {...checkboxProps} />
             )}
           />
         );

@@ -99,7 +99,7 @@ const EnrollSecretRow = ({
       renderChildren={(disableChildren) => (
         <div className="buttons">
           <Button
-            disabled={dC}
+            disabled={disableChildren}
             onClick={onEditSecretClick}
             className={`${baseClass}__edit-secret-icon`}
             variant="text-icon"
@@ -108,7 +108,7 @@ const EnrollSecretRow = ({
           </Button>
           <Button
             onClick={onDeleteSecretClick}
-            disabled={dC}
+            disabled={disableChildren}
             className={`${baseClass}__delete-secret-icon`}
             variant="text-icon"
           >

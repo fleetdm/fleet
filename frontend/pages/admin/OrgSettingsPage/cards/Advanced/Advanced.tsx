@@ -422,7 +422,7 @@ const Advanced = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={Object.keys(formErrors).length > 0 || dC}
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="save-loading button-wrap"
                 isLoading={isUpdatingSettings}
               >

@@ -19,7 +19,7 @@ const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
         tipOffset={8}
         renderChildren={(disableChildren) => (
           <Button
-            disabled={dC}
+            disabled={disableChildren}
             className={`${baseClass}__card--add-button`}
             variant="brand"
             type="button"

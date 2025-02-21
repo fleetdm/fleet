@@ -84,7 +84,7 @@ const Statistics = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={dC}
+                disabled={disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}
               >

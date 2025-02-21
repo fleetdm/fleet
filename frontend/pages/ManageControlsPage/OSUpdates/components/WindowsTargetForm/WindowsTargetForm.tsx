@@ -182,7 +182,7 @@ const WindowsTargetForm = ({
       <GitOpsModeTooltipWrapper
         position="right"
         renderChildren={(disableChildren) => (
-          <Button disabled={dC} type="submit" isLoading={isSaving}>
+          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
             Save
           </Button>
         )}

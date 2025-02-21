@@ -208,7 +208,7 @@ const ScriptDetailsModal = ({
               position="bottom"
               renderChildren={(disableChildren) => (
                 <Button
-                  disabled={dC}
+                  disabled={disableChildren}
                   className={`${baseClass}__action-button`}
                   variant="icon"
                   onClick={onDelete}

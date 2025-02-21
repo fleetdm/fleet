@@ -343,7 +343,9 @@ const InstallSoftwareModal = ({
                 onClick={onUpdateInstallSoftware}
                 className="save-loading"
                 isLoading={isUpdating}
-                disabled={dC || anyPolicyEnabledWithoutSelectedSoftware}
+                disabled={
+                  disableChildren || anyPolicyEnabledWithoutSelectedSoftware
+                }
               >
                 Save
               </Button>

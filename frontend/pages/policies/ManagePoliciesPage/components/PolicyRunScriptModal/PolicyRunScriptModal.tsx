@@ -245,7 +245,7 @@ const PolicyRunScriptModal = ({
                 onClick={onUpdate}
                 className="save-loading"
                 isLoading={isUpdating}
-                disabled={dC || anyEnabledWithoutSelection}
+                disabled={disableChildren || anyEnabledWithoutSelection}
               >
                 Save
               </Button>

@@ -512,7 +512,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: dC,
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -536,7 +536,7 @@ const EditQueryForm = ({
                   }}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingName}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -567,7 +567,7 @@ const EditQueryForm = ({
           tipOffset={16}
           renderChildren={(disableChildren) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: dC,
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -587,7 +587,7 @@ const EditQueryForm = ({
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -888,7 +888,7 @@ const EditQueryForm = ({
                       <Button
                         variant="text-link"
                         onClick={promptSaveAsNewQuery()}
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         className="save-as-new-loading"
                         isLoading={isSaveAsNewLoading}
                       >
@@ -909,7 +909,7 @@ const EditQueryForm = ({
                             ? toggleConfirmSaveChangesModal
                             : promptSaveQuery()
                         }
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         isLoading={isQueryUpdating}
                       >
                         Save

@@ -239,7 +239,7 @@ const GlobalHostStatusWebhook = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={Object.keys(formErrors).length > 0 || dC}
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}
               >

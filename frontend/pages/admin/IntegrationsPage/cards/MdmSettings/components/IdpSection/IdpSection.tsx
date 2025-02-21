@@ -167,11 +167,11 @@ const IdpSection = () => {
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent="Complete all required fields to save end user authentication."
-              disableTooltip={enableSaveButton || dC}
+              disableTooltip={enableSaveButton || disableChildren}
               underline={false}
             >
               <Button
-                disabled={!enableSaveButton || dC}
+                disabled={!enableSaveButton || disableChildren}
                 onClick={onSubmit}
                 className="button-wrap"
               >

@@ -368,7 +368,7 @@ const CalendarEventsModal = ({
               onClick={onUpdateCalendarEvents}
               className="save-loading"
               isLoading={isUpdating}
-              disabled={Object.keys(formErrors).length > 0 || dC}
+              disabled={Object.keys(formErrors).length > 0 || disableChildren}
             >
               Save
             </Button>

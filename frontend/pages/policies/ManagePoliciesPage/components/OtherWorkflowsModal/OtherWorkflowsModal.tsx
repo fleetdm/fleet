@@ -479,7 +479,7 @@ const OtherWorkflowsModal = ({
                 onClick={onUpdateOtherWorkflows}
                 className="save-loading"
                 isLoading={isUpdating}
-                disabled={dC}
+                disabled={disableChildren}
               >
                 Save
               </Button>
