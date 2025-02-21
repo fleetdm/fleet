@@ -20,10 +20,6 @@ interface ICustomLinkProps {
    * Changes the appearance of the link.
    *
    * @default "default"
-   *
-   * TODO:
-   * Longterm: refactor 14 instances away from iconColor/color combo, which
-   * usually are identical and repetitive, toward variants e.g. "banner-link"
    */
   variant?: "tooltip-link" | "banner-link" | "flash-message-link" | "default";
 }
