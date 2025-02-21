@@ -12,6 +12,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func (ds *Datastore) GetAndroidDS() android.Datastore {
+	return ds.androidDS
+}
+
 func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")

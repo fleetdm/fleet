@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -390,8 +391,9 @@ type Datastore interface {
 	UpdateOSVersions(ctx context.Context) error
 
 	// ////////////////////////////////////////////////////////////////////////////
-	// Android hosts
+	// Android
 
+	GetAndroidDS() android.Datastore
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
 	AndroidHostLite(ctx context.Context, deviceID string) (*AndroidHost, error)

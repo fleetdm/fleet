@@ -267,11 +267,6 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	return ds, nil
 }
 
-func NewAndroidDS(ds fleet.Datastore) android.Datastore {
-	mysqlDs := ds.(*Datastore)
-	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
-}
-
 type itemToWrite struct {
 	ctx   context.Context
 	errCh chan error

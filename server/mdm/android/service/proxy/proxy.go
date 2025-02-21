@@ -129,13 +129,14 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 	}
 	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
 
+	// Note: We could add a second level of authentication for the subscription, where, upon receiving a message,
+	// Fleet server does an API call to Google to verify the message validity.
 	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
 		Topic:             topic,
 		AckDeadline:       60 * time.Second,
 		RetentionDuration: 24 * time.Hour,
 		PushConfig: pubsub.PushConfig{
 			Endpoint: pushURL,
-			// TODO(26219): Add authentication
 		},
 	})
 	if err != nil {

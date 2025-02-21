@@ -750,7 +750,6 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				mysql.NewAndroidDS(unCachedDS),
 				ds,
 			)
 			if err != nil {

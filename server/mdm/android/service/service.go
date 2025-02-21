@@ -30,7 +30,6 @@ type Service struct {
 func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
-	ds android.Datastore,
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -43,7 +42,7 @@ func NewService(
 	return &Service{
 		logger:  logger,
 		authz:   authorizer,
-		ds:      ds,
+		ds:      fleetDS.GetAndroidDS(),
 		fleetDS: fleetDS,
 		proxy:   prx,
 	}, nil
@@ -131,7 +130,7 @@ func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, 
 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
 	// Skip authorization because the callback is called by Google.
-	// TODO: Add some authorization here so random people can't bind random Android enterprises just for fun.
+	// TODO(26218): Add some authorization here so random people can't bind random Android enterprises just for fun.
 	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -153,7 +152,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "generating pubsub token")
 	}
-	// TODO: Use ds.insertOrReplaceConfigAsset to save the token and retrieve it later via cached_mysql
+	// TODO(26219): Use ds.insertOrReplaceConfigAsset to save the token and retrieve it later via cached_mysql
 
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
