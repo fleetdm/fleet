@@ -13,7 +13,7 @@ type Props = {
 };
 
 type InitialStateType = {
-  notification: INotification | null;
+  notification: INotification | INotification[] | null;
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
@@ -24,9 +24,11 @@ type InitialStateType = {
        * @default undefined
        * */
       persistOnPageChange?: boolean;
+      id?: string;
+      notifications?: INotification[];
     }
   ) => void;
-  hideFlash: () => void;
+  hideFlash: (id?: string) => void;
 };
 
 export type INotificationContext = InitialStateType;
@@ -44,17 +46,44 @@ const actionTypes = {
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
-    case actionTypes.RENDER_FLASH:
+    case actionTypes.RENDER_FLASH: {
+      let newNotifications;
+
+      if (Array.isArray(action.notifications)) {
+        // If we receive an array of notifications, use it directly
+        newNotifications = action.notifications;
+      } else {
+        // Otherwise, create a single notification object
+        newNotifications = [
+          {
+            id: action.id || Date.now().toString(),
+            alertType: action.alertType,
+            isVisible: true,
+            message: action.message,
+            persistOnPageChange: action.options?.persistOnPageChange ?? false,
+          },
+        ];
+      }
+
+      // If the current state is an array, concatenate; otherwise, use the new notifications
+      const updatedNotifications = Array.isArray(state.notification)
+        ? state.notification.concat(newNotifications)
+        : newNotifications;
+
       return {
         ...state,
-        notification: {
-          alertType: action.alertType,
-          isVisible: true,
-          message: action.message,
-          persistOnPageChange: action.options?.persistOnPageChange ?? false,
-        },
+        notification: updatedNotifications,
       };
+    }
     case actionTypes.HIDE_FLASH:
+      if (Array.isArray(state.notification)) {
+        return {
+          ...state,
+          notification: state.notification.filter(
+            (n: INotification) => n.id !== action.id
+          ),
+        };
+      }
       return initialState;
     default:
       return state;
@@ -73,25 +102,32 @@ const NotificationProvider = ({ children }: Props) => {
       message: JSX.Element | string | null,
       options?: {
         persistOnPageChange?: boolean;
+        id?: string;
+        notifications?: INotification[];
       }
     ) => {
-      // wrapping the dispatch in a timeout ensures it is evaluated on the next event loop,
-      // preventing bugs related to the FlashMessage's self-hiding behavior on URL changes.
-      // react router v3 router.push is asynchronous
       setTimeout(() => {
-        dispatch({
-          type: actionTypes.RENDER_FLASH,
-          alertType,
-          message,
-          options,
-        });
+        if (options?.notifications) {
+          dispatch({
+            type: actionTypes.RENDER_FLASH,
+            notifications: options.notifications,
+          });
+        } else {
+          dispatch({
+            type: actionTypes.RENDER_FLASH,
+            id: options?.id || Date.now().toString(),
+            alertType,
+            message,
+            options,
+          });
+        }
       });
     },
     []
   );
 
-  const hideFlash = useCallback(() => {
-    dispatch({ type: actionTypes.HIDE_FLASH });
+  const hideFlash = useCallback((id?: string) => {
+    dispatch({ type: actionTypes.HIDE_FLASH, id });
   }, []);
 
   const value = useMemo(

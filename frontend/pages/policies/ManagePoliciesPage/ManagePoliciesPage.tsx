@@ -14,6 +14,7 @@ import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
+import { INotification } from "interfaces/notification";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -542,6 +543,7 @@ const ManagePolicyPage = ({
   const onUpdatePolicySoftwareInstall = async (
     formData: IInstallSoftwareFormData
   ) => {
+    console.log("formData", formData);
     try {
       setIsUpdatingPolicies(true);
 
@@ -590,19 +592,71 @@ const ManagePolicyPage = ({
 
       // Renders API error reason for each error in a single message
       if (failedUpdates.length > 0) {
-        const errorMessages = failedUpdates.map(
-          (result) =>
-            `Failed to update policy: ${
-              (result as PromiseRejectedResult).reason.data.errors[0].reason
-            }`
+        const errorNotifications: INotification[] = failedUpdates.map(
+          (result, index) => {
+            // Creates a readable JSX element from the error message
+            const readableSWandTeamErrorMessage = (): JSX.Element => {
+              // Extracts the error message from the API response
+              const apiErrorMessage = (result as PromiseRejectedResult).reason
+                .data.errors[0].reason;
+
+              // Splits the message into parts, separating software_title_id and team_id
+              const parts = apiErrorMessage.split(
+                /(software_title_id \d+|team_id \d+)/
+              );
+
+              // Maps each part of the message to a JSX element
+              const jsxElement = parts.map((part: any) => {
+                if (part.startsWith("software_title_id")) {
+                  const swId = part.split(" ")[1];
+
+                  // Finds the corresponding software in formData and replaces software_title_id part with software name
+                  const software = formData.find(
+                    (item) => item.swIdToInstall?.toString() === swId
+                  );
+                  return software ? (
+                    <>
+                      <b>{software.swNameToInstall}</b> (ID:{" "}
+                      {software.swIdToInstall})
+                    </>
+                  ) : (
+                    part
+                  );
+
+                  // Replace team_id part with current team name
+                } else if (part.startsWith("team_id")) {
+                  return <b>{currentTeamName}</b>;
+                }
+                return <>{part}</>;
+              });
+
+              return <>{jsxElement}</>;
+            };
+
+            const message = (
+              <>Could not update policy. {readableSWandTeamErrorMessage()}</>
+            );
+
+            return {
+              id: `error-${index}`,
+              alertType: "error",
+              isVisible: true,
+              message,
+              persistOnPageChange: true, // Required to show multiple
+            };
+          }
         );
-        renderFlash("error", errorMessages.join(". "));
+
+        console.log("errorNotifications", errorNotifications);
+        // Assuming renderFlash can handle an array of notifications
+        renderFlash("error", null, {
+          notifications: errorNotifications,
+        });
       } else if (successfulUpdates.length > 0) {
         // Only render success message if there are no failures
         renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
       }
 
-      await wait(100); // prevent race
       refetchTeamPolicies();
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
