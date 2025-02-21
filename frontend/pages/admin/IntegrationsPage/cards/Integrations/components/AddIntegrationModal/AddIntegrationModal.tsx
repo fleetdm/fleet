@@ -16,8 +16,6 @@ interface IAddIntegrationModalProps {
     integrationSubmitData: IIntegration[],
     integrationDestination: string
   ) => void;
-  serverErrors?: { base: string; email: string };
-  backendValidators: { [key: string]: string };
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }
@@ -30,13 +28,9 @@ const destinationOptions = [
 const AddIntegrationModal = ({
   onCancel,
   onSubmit,
-  backendValidators,
   integrations,
   testingConnection,
 }: IAddIntegrationModalProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>(
-    backendValidators
-  );
   const [destination, setDestination] = useState("jira");
 
   const onDestinationChange = (
@@ -44,10 +38,6 @@ const AddIntegrationModal = ({
   ) => {
     setDestination(selectedDestination?.value || "jira");
   };
-
-  useEffect(() => {
-    setErrors(backendValidators);
-  }, [backendValidators]);
 
   return (
     <Modal title="Add integration" onExit={onCancel} className={baseClass}>
