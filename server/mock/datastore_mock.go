@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -299,11 +300,13 @@ type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
+type GetAndroidDSFunc func() android.Datastore
+
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
 
-type AndroidHostLiteFunc func(ctx context.Context, deviceID string) (*fleet.AndroidHost, error)
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -1652,6 +1655,9 @@ type DataStore struct {
 
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
+
+	GetAndroidDSFunc        GetAndroidDSFunc
+	GetAndroidDSFuncInvoked bool
 
 	NewAndroidHostFunc        NewAndroidHostFunc
 	NewAndroidHostFuncInvoked bool
@@ -4033,6 +4039,13 @@ func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
 	return s.UpdateOSVersionsFunc(ctx)
 }
 
+func (s *DataStore) GetAndroidDS() android.Datastore {
+	s.mu.Lock()
+	s.GetAndroidDSFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidDSFunc()
+}
+
 func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
 	s.mu.Lock()
 	s.NewAndroidHostFuncInvoked = true
@@ -4047,11 +4060,11 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	return s.UpdateAndroidHostFunc(ctx, host)
 }
 
-func (s *DataStore) AndroidHostLite(ctx context.Context, deviceID string) (*fleet.AndroidHost, error) {
+func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	s.mu.Lock()
 	s.AndroidHostLiteFuncInvoked = true
 	s.mu.Unlock()
-	return s.AndroidHostLiteFunc(ctx, deviceID)
+	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
