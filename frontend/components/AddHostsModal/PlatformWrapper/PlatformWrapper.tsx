@@ -20,6 +20,7 @@ import Radio from "components/forms/fields/Radio";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
+import AndroidPanel from "./AndroidPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -46,6 +47,10 @@ const platformSubNav: IPlatformSubNav[] = [
   {
     name: "iOS & iPadOS",
     type: "ios-ipados",
+  },
+  {
+    name: "Android",
+    type: "android",
   },
   {
     name: "Advanced",
@@ -410,6 +415,10 @@ const PlatformWrapper = ({
 
     if (packageType === "ios-ipados") {
       return <IosIpadosPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "android") {
+      return <AndroidPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {
