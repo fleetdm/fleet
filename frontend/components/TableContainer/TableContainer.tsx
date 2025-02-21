@@ -291,7 +291,7 @@ const TableContainer = <T,>({
   ]);
 
   const renderFilterActionButton = () => {
-    // always !!actionButton ehre, this is for type checker
+    // always !!actionButton here, this is for type checker
     if (actionButton) {
       if (actionButton.gitOpsModeCompatible) {
         return (
