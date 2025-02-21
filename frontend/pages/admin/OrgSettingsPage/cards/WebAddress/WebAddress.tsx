@@ -24,7 +24,7 @@ const WebAddress = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IWebAddressFormData>({
     serverURL: appConfig.server_settings.server_url || "",
@@ -82,11 +82,11 @@ const WebAddress = ({
             onBlur={validateForm}
             error={formErrors.server_url}
             tooltip="The base URL of this instance for use in Fleet links."
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

@@ -48,7 +48,7 @@ interface IPolicyRunScriptModal {
   isUpdating: boolean;
   policies: IPolicyStats[];
   teamId: number;
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 const PolicyRunScriptModal = ({
@@ -57,7 +57,7 @@ const PolicyRunScriptModal = ({
   isUpdating,
   policies,
   teamId,
-  gomEnabled = false,
+  gitOpsModeEnabled = false,
 }: IPolicyRunScriptModal) => {
   const [formData, setFormData] = useState<IPolicyRunScriptFormData>(
     policies.map((policy) => ({
@@ -143,7 +143,7 @@ const PolicyRunScriptModal = ({
     } = policy;
 
     const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
-      "policy-row--disabled-by-gitops-mode": gomEnabled,
+      "policy-row--disabled-by-gitops-mode": gitOpsModeEnabled,
     });
     return (
       <li
@@ -154,7 +154,7 @@ const PolicyRunScriptModal = ({
         <Checkbox
           value={enabled}
           name={policyName}
-          disabled={gomEnabled}
+          disabled={gitOpsModeEnabled}
           onChange={() => {
             onChangeEnableRunScript({
               policyId,
@@ -238,7 +238,7 @@ const PolicyRunScriptModal = ({
         </div>
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

@@ -32,7 +32,8 @@ const AgentOptionsPage = ({
   router,
 }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -174,10 +175,10 @@ const AgentOptionsPage = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           <GitOpsModeTooltipWrapper
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

@@ -89,7 +89,8 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -245,13 +246,13 @@ const PackageForm = ({
             formData.software ? getFileDetails(formData.software) : undefined
           }
           gitopsCompatible={gitopsCompatible}
-          gomEnabled={gomEnabled}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div
           // including `form` class here keeps the children fields subject to the global form
           // children styles
           className={
-            gitopsCompatible && gomEnabled
+            gitopsCompatible && gitOpsModeEnabled
               ? `${baseClass}__form-fields--gitops-disabled form`
               : "form"
           }
@@ -315,7 +316,7 @@ const PackageForm = ({
         <div className="form-buttons">
           <GitOpsModeTooltipWrapper
             tipOffset={6}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

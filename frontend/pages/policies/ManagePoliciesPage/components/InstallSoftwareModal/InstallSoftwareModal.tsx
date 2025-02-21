@@ -66,7 +66,7 @@ interface IInstallSoftwareModal {
   isUpdating: boolean;
   policies: IPolicyStats[];
   teamId: number;
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -95,7 +95,7 @@ const InstallSoftwareModal = ({
   isUpdating,
   policies,
   teamId,
-  gomEnabled = false,
+  gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
   const [formData, setFormData] = useState<IInstallSoftwareFormData>(
     policies.map((policy) => ({
@@ -257,7 +257,7 @@ const InstallSoftwareModal = ({
     } = policy;
 
     const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
-      "policy-row--disabled-by-gitops-mode": gomEnabled,
+      "policy-row--disabled-by-gitops-mode": gitOpsModeEnabled,
     });
     return (
       <li
@@ -267,7 +267,7 @@ const InstallSoftwareModal = ({
       >
         <Checkbox
           value={enabled}
-          disabled={gomEnabled}
+          disabled={gitOpsModeEnabled}
           name={policyName}
           onChange={() => {
             onChangeEnableInstallSoftware({
@@ -336,7 +336,7 @@ const InstallSoftwareModal = ({
         </div>
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

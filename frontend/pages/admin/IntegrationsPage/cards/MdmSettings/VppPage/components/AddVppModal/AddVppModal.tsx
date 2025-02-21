@@ -76,7 +76,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
             tipOffset={8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 variant="brand"
                 onClick={uploadVppToken}

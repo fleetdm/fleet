@@ -125,7 +125,8 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
 }: ISoftwareVppFormProps) => {
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -286,7 +287,7 @@ const SoftwareVppForm = ({
   });
 
   const formContentClasses = classnames(`${baseClass}__form-content`, {
-    [`${baseClass}__form-content--disabled`]: gomEnabled,
+    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
   });
 
   return (
@@ -303,7 +304,7 @@ const SoftwareVppForm = ({
           <GitOpsModeTooltipWrapper
             position="bottom"
             tipOffset={8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

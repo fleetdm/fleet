@@ -100,7 +100,8 @@ const WindowsTargetForm = ({
   refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState(
@@ -161,7 +162,7 @@ const WindowsTargetForm = ({
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
-        disabled={gomEnabled}
+        disabled={gitOpsModeEnabled}
         label="Deadline"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."
         helpText="Number of days from 0 to 30."
@@ -170,7 +171,7 @@ const WindowsTargetForm = ({
         onChange={handleDeadlineDaysChange}
       />
       <InputField
-        disabled={gomEnabled}
+        disabled={gitOpsModeEnabled}
         label="Grace period"
         tooltip="Number of days after the deadline the end user has before the host is forced to restart (only if end user was offline when deadline passed)."
         helpText="Number of days from 0 to 7."
@@ -180,7 +181,7 @@ const WindowsTargetForm = ({
       />
       <GitOpsModeTooltipWrapper
         position="right"
-        renderChildren={(dC) => (
+        renderChildren={(disableChildren) => (
           <Button disabled={dC} type="submit" isLoading={isSaving}>
             Save
           </Button>

@@ -46,7 +46,7 @@ const ApplePushCertInfo = ({
       <div className={`${baseClass}__apns-button-wrap`}>
         <GitOpsModeTooltipWrapper
           tipOffset={8}
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <Button variant="inverse" onClick={onClickTurnOff} disabled={dC}>
               Turn off MDM
             </Button>
@@ -54,7 +54,7 @@ const ApplePushCertInfo = ({
         />
         <GitOpsModeTooltipWrapper
           tipOffset={8}
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <Button
               className="save-loading"
               variant="brand"

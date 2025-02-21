@@ -32,7 +32,7 @@ const Agents = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const { ADMIN_TEAMS } = paths;
 
@@ -117,11 +117,11 @@ const Agents = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

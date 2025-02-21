@@ -80,7 +80,7 @@ const Statistics = ({
           </Checkbox>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

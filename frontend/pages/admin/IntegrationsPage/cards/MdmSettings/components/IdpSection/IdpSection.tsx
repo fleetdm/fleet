@@ -25,7 +25,7 @@ const baseClass = "idp-section";
 
 const IdpSection = () => {
   const { config } = useContext(AppContext);
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const { renderFlash } = useContext(NotificationContext);
   const [formData, setFormData] = useState(
@@ -110,7 +110,11 @@ const IdpSection = () => {
             newTab
           />
         </p>
-        <div className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}>
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
           <InputField
             label="Identity provider name"
             onChange={onInputChange}
@@ -160,7 +164,7 @@ const IdpSection = () => {
         </div>
         <GitOpsModeTooltipWrapper
           tipOffset={-8}
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent="Complete all required fields to save end user authentication."
               disableTooltip={enableSaveButton || dC}

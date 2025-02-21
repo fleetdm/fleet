@@ -23,7 +23,7 @@ interface IFileDetailsProps {
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   accept?: string;
   progress?: number;
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 const baseClass = "file-details";
@@ -35,10 +35,10 @@ const FileDetails = ({
   onFileSelect,
   accept,
   progress,
-  gomEnabled = false,
+  gitOpsModeEnabled = false,
 }: IFileDetailsProps) => {
   const infoClasses = classnames(`${baseClass}__info`, {
-    [`${baseClass}__info--disabled-by-gitops-mode`]: gomEnabled,
+    [`${baseClass}__info--disabled-by-gitops-mode`]: gitOpsModeEnabled,
   });
   return (
     <div className={baseClass}>
@@ -62,7 +62,7 @@ const FileDetails = ({
         <GitOpsModeTooltipWrapper
           position="left"
           tipOffset={-8}
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <div className={`${baseClass}__edit`}>
               <Button
                 disabled={dC}

@@ -72,7 +72,7 @@ const Advanced = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
@@ -193,7 +193,9 @@ const Advanced = ({
             Most users do not need to modify these options.
           </p>
           <div
-            className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}
+            className={`form ${
+              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
           >
             {appConfig.mdm.enabled_and_configured && (
               <InputField
@@ -416,7 +418,7 @@ const Advanced = ({
           </div>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

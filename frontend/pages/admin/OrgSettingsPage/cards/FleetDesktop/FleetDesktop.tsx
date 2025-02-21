@@ -28,7 +28,7 @@ const FleetDesktop = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IFleetDesktopFormData>({
     transparencyUrl:
@@ -95,11 +95,11 @@ const FleetDesktop = ({
             onBlur={validateForm}
             error={formErrors.transparency_url}
             placeholder="https://fleetdm.com/transparency"
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

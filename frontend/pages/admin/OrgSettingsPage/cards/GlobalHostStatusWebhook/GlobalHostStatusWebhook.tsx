@@ -39,7 +39,7 @@ const GlobalHostStatusWebhook = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
   const [
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
@@ -148,7 +148,9 @@ const GlobalHostStatusWebhook = ({
             Send an alert if a portion of your hosts go offline.
           </p>
           <div
-            className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}
+            className={`form ${
+              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
           >
             <Checkbox
               onChange={onInputChange}
@@ -233,7 +235,7 @@ const GlobalHostStatusWebhook = ({
           </div>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

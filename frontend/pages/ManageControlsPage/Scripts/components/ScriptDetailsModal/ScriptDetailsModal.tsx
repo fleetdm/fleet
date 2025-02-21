@@ -206,7 +206,7 @@ const ScriptDetailsModal = ({
             </Button>
             <GitOpsModeTooltipWrapper
               position="bottom"
-              renderChildren={(dC) => (
+              renderChildren={(disableChildren) => (
                 <Button
                   disabled={dC}
                   className={`${baseClass}__action-button`}

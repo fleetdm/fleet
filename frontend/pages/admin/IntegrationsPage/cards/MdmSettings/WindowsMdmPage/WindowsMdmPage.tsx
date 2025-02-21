@@ -62,7 +62,7 @@ interface IWindowsMdmPageProps {
 
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [mdmOn, setMdmOn] = useState(
     config?.mdm?.windows_enabled_and_configured ?? false
@@ -110,11 +110,11 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             activeText="Windows MDM on"
             inactiveText="Windows MDM off"
             onChange={onChangeMdmOn}
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           <p>{descriptionText}</p>
           <Checkbox
-            disabled={!isPremiumTier || !mdmOn || gomEnabled}
+            disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
             value={autoMigration}
             onChange={onChangeAutoMigration}
             tooltipContent={
@@ -125,7 +125,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           </Checkbox>
           <GitOpsModeTooltipWrapper
             tipOffset={8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button variant="brand" onClick={onSaveMdm} disabled={dC}>
                 Save
               </Button>

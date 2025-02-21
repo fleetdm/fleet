@@ -30,7 +30,7 @@ describe("GitOpsModeTooltipWrapper", () => {
 
     const { user } = render(
       <GitOpsModeTooltipWrapper
-        renderChildren={(dC) => (
+        renderChildren={(disableChildren) => (
           <Button disabled={dC} onClick={onSave} variant="brand">
             Save
           </Button>
@@ -69,7 +69,7 @@ describe("GitOpsModeTooltipWrapper", () => {
 
     const { user } = render(
       <GitOpsModeTooltipWrapper
-        renderChildren={(dC) => (
+        renderChildren={(disableChildren) => (
           <Button disabled={dC} onClick={onSave} variant="brand">
             Save
           </Button>

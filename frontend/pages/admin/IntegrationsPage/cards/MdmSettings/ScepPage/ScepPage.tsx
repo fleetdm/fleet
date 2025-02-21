@@ -96,7 +96,7 @@ export const ScepCertificateContent = ({
     );
   }
 
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const disableSave =
     // all fields aren't empty
@@ -141,7 +141,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   error={formErrors.scepUrl}
                   placeholder="https://example.com/certsrv/mscep/mscep.dll"
-                  disabled={gomEnabled}
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__admin-url-input`}
@@ -159,7 +159,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   error={formErrors.adminUrl}
                   placeholder="https://example.com/certsrv/mscep_admin/"
-                  disabled={gomEnabled}
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__username-input`}
@@ -177,7 +177,7 @@ export const ScepCertificateContent = ({
                   onBlur={(e: any) => onBlur("username", e.target.value)}
                   parseTarget
                   placeholder="username@example.microsoft.com"
-                  disabled={gomEnabled}
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__password-input`}
@@ -197,11 +197,11 @@ export const ScepCertificateContent = ({
                   placeholder="••••••••"
                   blockAutoComplete
                   error={formErrors.password}
-                  disabled={gomEnabled}
+                  disabled={gitOpsModeEnabled}
                 />
                 <GitOpsModeTooltipWrapper
                   tipOffset={-8}
-                  renderChildren={(dC) => (
+                  renderChildren={(disableChildren) => (
                     <Button
                       type="submit"
                       variant="brand"

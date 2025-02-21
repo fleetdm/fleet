@@ -72,7 +72,8 @@ const ManageQueryAutomationsModal = ({
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -141,7 +142,7 @@ const ManageQueryAutomationsModal = ({
                           // !isChecked &&
                           //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
-                        disabled={gomEnabled}
+                        disabled={gitOpsModeEnabled}
                       >
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
@@ -192,7 +193,7 @@ const ManageQueryAutomationsModal = ({
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
             tipOffset={6}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

@@ -172,7 +172,7 @@ const EditQueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
@@ -510,7 +510,7 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryNameWrapperClasses, {
               [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: dC,
             });
@@ -565,7 +565,7 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
               [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: dC,
             });
@@ -763,7 +763,9 @@ const EditQueryForm = ({
             <div
               // including `form` class here keeps the children fields subject to the global form
               // children styles
-              className={gomEnabled ? "disabled-by-gitops-mode form" : "form"}
+              className={
+                gitOpsModeEnabled ? "disabled-by-gitops-mode form" : "form"
+              }
             >
               <Dropdown
                 searchable={false}
@@ -882,7 +884,7 @@ const EditQueryForm = ({
               <>
                 {savedQueryMode && (
                   <GitOpsModeTooltipWrapper
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         variant="text-link"
                         onClick={promptSaveAsNewQuery()}
@@ -898,7 +900,7 @@ const EditQueryForm = ({
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
                         variant="brand"

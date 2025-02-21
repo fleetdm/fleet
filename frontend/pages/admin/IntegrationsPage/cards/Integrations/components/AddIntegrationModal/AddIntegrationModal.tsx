@@ -33,7 +33,8 @@ const AddIntegrationModal = ({
   integrations,
   testingConnection,
 }: IAddIntegrationModalProps): JSX.Element => {
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [destination, setDestination] = useState("jira");
 
@@ -56,7 +57,7 @@ const AddIntegrationModal = ({
               options={destinationOptions}
               className={`${baseClass}__destination-dropdown`}
               wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              isDisabled={gomEnabled}
+              isDisabled={gitOpsModeEnabled}
             />
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
@@ -71,7 +72,7 @@ const AddIntegrationModal = ({
           integrations={integrations}
           destination={destination}
           testingConnection={testingConnection}
-          gomEnabled={gomEnabled}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
       </div>
     </Modal>

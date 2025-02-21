@@ -58,7 +58,7 @@ interface IFileUploaderProps {
   /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
   /** Whether or not GitOpsMode is enabled. Has no effect if `gitopsCompatible` is false */
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 /**
@@ -78,7 +78,7 @@ export const FileUploader = ({
   canEdit = false,
   fileDetails,
   gitopsCompatible = false,
-  gomEnabled = false,
+  gitOpsModeEnabled = false,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -132,7 +132,7 @@ export const FileUploader = ({
         {gitopsCompatible ? (
           <GitOpsModeTooltipWrapper
             tipOffset={8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 className={`${baseClass}__upload-button`}
                 variant={buttonVariant}
@@ -183,7 +183,7 @@ export const FileUploader = ({
           canEdit={canEdit}
           onFileSelect={onFileSelect}
           accept={accept}
-          gomEnabled={gitopsCompatible && gomEnabled}
+          gitOpsModeEnabled={gitopsCompatible && gitOpsModeEnabled}
         />
       ) : (
         renderFileUploader()

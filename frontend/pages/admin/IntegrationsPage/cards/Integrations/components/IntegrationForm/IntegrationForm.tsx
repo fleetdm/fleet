@@ -38,7 +38,7 @@ interface IIntegrationFormProps {
   integrationEditingType?: IIntegrationType;
   destination?: string;
   testingConnection?: boolean;
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 interface IFormField {
@@ -61,7 +61,7 @@ const IntegrationForm = ({
   integrationEditingType,
   destination,
   testingConnection,
-  gomEnabled,
+  gitOpsModeEnabled,
 }: IIntegrationFormProps): JSX.Element => {
   const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
@@ -194,7 +194,7 @@ const IntegrationForm = ({
             value={url}
             error={urlError}
             onBlur={validateForm}
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           {integrationDestination === "jira" ? (
             <InputField
@@ -204,7 +204,7 @@ const IntegrationForm = ({
               placeholder="name@example.com"
               parseTarget
               value={username}
-              disabled={gomEnabled}
+              disabled={gitOpsModeEnabled}
             />
           ) : (
             <InputField
@@ -214,7 +214,7 @@ const IntegrationForm = ({
               placeholder="name@example.com"
               parseTarget
               value={email}
-              disabled={gomEnabled}
+              disabled={gitOpsModeEnabled}
             />
           )}
           <InputField
@@ -223,7 +223,7 @@ const IntegrationForm = ({
             label="API token"
             parseTarget
             value={apiToken}
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           {integrationDestination === "jira" ? (
             <InputField
@@ -233,7 +233,7 @@ const IntegrationForm = ({
               placeholder="JRAEXAMPLE"
               parseTarget
               value={projectKey}
-              disabled={gomEnabled}
+              disabled={gitOpsModeEnabled}
               tooltip={
                 <>
                   To find the Jira project key, head to your project in <br />
@@ -253,7 +253,7 @@ const IntegrationForm = ({
               type="number"
               parseTarget
               value={groupId === 0 ? null : groupId}
-              disabled={gomEnabled}
+              disabled={gitOpsModeEnabled}
               tooltip={
                 <>
                   To find the Zendesk group ID, select{" "}
@@ -270,7 +270,7 @@ const IntegrationForm = ({
           <div className="modal-cta-wrap">
             <GitOpsModeTooltipWrapper
               tipOffset={8}
-              renderChildren={(dC) => {
+              renderChildren={(disableChildren) => {
                 const formInvalid =
                   integrationDestination === "jira"
                     ? formData.url === "" ||

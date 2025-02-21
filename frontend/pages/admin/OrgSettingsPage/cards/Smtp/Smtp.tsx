@@ -100,7 +100,7 @@ const Smtp = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<ISmtpConfigFormData>({
     enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
@@ -239,7 +239,11 @@ const Smtp = ({
   const renderSmtpForm = () => {
     return (
       <form onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}>
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
           <Checkbox
             onChange={onInputChange}
             onBlur={onInputBlur}
@@ -317,7 +321,7 @@ const Smtp = ({
         </div>
         <GitOpsModeTooltipWrapper
           tipOffset={-8}
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <Button
               type="submit"
               variant="brand"

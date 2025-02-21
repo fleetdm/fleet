@@ -155,7 +155,7 @@ const ProfileListItem = ({
             <Icon name="download" />
           </Button>
           <GitOpsModeTooltipWrapper
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 disabled={dC}
                 className={`${subClass}__action-button`}

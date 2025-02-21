@@ -85,7 +85,7 @@ const Sso = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<ISsoFormData>({
     enableSso: appConfig.sso_settings.enable_sso ?? false,
@@ -168,7 +168,9 @@ const Sso = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           {/* "form" class applies global form styling to fields for free */}
           <div
-            className={`form ${gomEnabled ? "disabled-by-gitops-mode" : ""}`}
+            className={`form ${
+              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+            }`}
           >
             <Checkbox
               onChange={onInputChange}
@@ -271,7 +273,7 @@ const Sso = ({
           </div>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 type="submit"
                 variant="brand"

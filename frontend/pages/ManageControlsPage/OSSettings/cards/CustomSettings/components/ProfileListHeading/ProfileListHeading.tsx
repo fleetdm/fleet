@@ -20,7 +20,7 @@ const ProfileListHeading = ({
       <span className={`${baseClass}__actions-heading`}>
         <GitOpsModeTooltipWrapper
           position="left"
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <Button
               disabled={dC}
               variant="text-icon"

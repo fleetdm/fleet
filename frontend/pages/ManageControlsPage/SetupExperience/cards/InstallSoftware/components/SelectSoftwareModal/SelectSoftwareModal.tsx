@@ -95,7 +95,7 @@ const SelectSoftwareModal = ({
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
             tipOffset={6}
-            renderChildren={(dC) => (
+            renderChildren={(disableChildren) => (
               <Button
                 disabled={dC}
                 variant="brand"

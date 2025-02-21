@@ -117,7 +117,8 @@ const AppleOSTargetForm = ({
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [minOsVersion, setMinOsVersion] = useState(defaultMinOsVersion);
@@ -188,7 +189,7 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        disabled={gomEnabled}
+        disabled={gitOpsModeEnabled}
         tooltip={getMinimumVersionTooltip()}
         helpText={
           <>
@@ -205,7 +206,7 @@ const AppleOSTargetForm = ({
         onChange={handleMinVersionChange}
       />
       <InputField
-        disabled={gomEnabled}
+        disabled={gitOpsModeEnabled}
         label="Deadline"
         tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
@@ -215,7 +216,7 @@ const AppleOSTargetForm = ({
       />
       <GitOpsModeTooltipWrapper
         position="right"
-        renderChildren={(dC) => (
+        renderChildren={(disableChildren) => (
           <Button disabled={dC} type="submit" isLoading={isSaving}>
             Save
           </Button>
