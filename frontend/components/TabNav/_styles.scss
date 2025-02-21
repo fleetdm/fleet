@@ -60,15 +60,15 @@
 
       // // Bolding text when the button is active causes a layout shift
       // // so we add a hidden pseudo element with the same text string
-      // &:before {
-      //   content: attr(data-text);
-      //   height: 0;
-      //   visibility: hidden;
-      //   overflow: hidden;
-      //   user-select: none;
-      //   pointer-events: none;
-      //   font-weight: $bold;
-      // }
+      &:before {
+        content: attr(data-text);
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+        font-weight: $bold;
+      }
 
       &--selected {
         font-weight: $bold;

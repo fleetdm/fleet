@@ -1,6 +1,6 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -55,7 +55,7 @@ const PlatformTabs = ({
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           defaultIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
           onSelect={onTabChange}
@@ -122,7 +122,7 @@ const PlatformTabs = ({
             />
           </TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
     </div>
   );
 };

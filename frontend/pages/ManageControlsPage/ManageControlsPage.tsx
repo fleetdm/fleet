@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -113,7 +113,7 @@ const ManageControlsPage = ({
   const renderBody = () => {
     return (
       <div>
-        <TabsWrapper>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}
@@ -128,7 +128,7 @@ const ManageControlsPage = ({
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {React.cloneElement(children, {
           teamIdForApi,
           currentPage: page,
