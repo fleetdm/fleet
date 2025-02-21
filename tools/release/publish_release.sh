@@ -87,7 +87,6 @@ usage() {
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
     echo "  -u, --publish_release  Set's release from draft to release, deploys to dogfood."
     echo "  -v, --target_version   Set the target version for the release"
-    echo "  -w, --walkthrough      Prompt confirmation before each step"
     echo ""
     echo "Environment Variables:"
     echo "  OPEN_API_KEY           Open API key used for api requests to chat GPT"
@@ -122,7 +121,6 @@ publish_release=false
 release_notes=false
 do_tag=false
 quiet=false
-walkthrough=false
 skip_deploy_dogfood=false
 
 # Parse long options manually
@@ -140,7 +138,6 @@ for arg in "$@"; do
     "--print") set -- "$@" "-p" ;;
     "--quiet") set -- "$@" "-q" ;;
     "--skip_dogfood") set -- "$@" "-k" ;;
-    "--walkthrough") set -- "$@" "-w" ;;
     "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
@@ -171,7 +168,6 @@ while getopts "acdfhgkmno:pqrs:t:uv:w" opt; do
         t) target_date=$OPTARG ;;
         u) publish_release=true ;;
         v) target_version=$OPTARG ;;
-        w) walkthrough=true ;;
         ?) usage; exit 1 ;;
     esac
 done
@@ -227,18 +223,18 @@ check_gh() {
 }
 
 ask() {
-	ask_prompt=$1
-	if [ "$force" = "false" ]; then
-		read -r -p "$ask_prompt" response
-		case "$response" in
-			[yY][eE][sS]|[yY])
-				echo
-				;;
-			*)
-				exit 1
-				;;
-		esac
-	fi
+    ask_prompt=$1
+    if [ "$force" = "false" ]; then
+        read -r -p "$ask_prompt" response
+            case "$response" in
+                    [yY][eE][sS]|[yY])
+                            echo
+                            ;;
+                    *)
+                            exit 1
+                            ;;
+            esac
+    fi
 }
 
 check_required_binaries() {
@@ -351,7 +347,7 @@ build_changelog() {
         cat temp_changelog
         echo
         echo "About to write changelog"
-	ask "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] "
+        ask "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] "
         cat temp_changelog > CHANGELOG.md
         cat old_changelog >> CHANGELOG.md
         rm -f old_changelog
@@ -379,13 +375,11 @@ changelog_and_versions() {
         unameOut="$(uname -s)"
         case "${unameOut}" in
             Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";
-		   sed -i -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
+                   sed -i -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
             Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";
-		   sed -i '' -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
+                   sed -i '' -E 's/(version: v[0-9]+\.[0-9]+\.)([0-9]+)/echo "\1$((\2+1))"/e' charts/fleet/Chart.yaml;;
             *)          echo "unknown distro to parse version"
         esac
-	# increament chart patch
-	#
         git add terraform charts infrastructure tools
         git commit -m "Adding changes for Fleet v$target_milestone"
         git push origin $branch_for_changelog -f
@@ -560,7 +554,7 @@ publish() {
 
             if [ "$skip_deploy_dogfood" = "false" ]; then
                 gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
-	    fi
+            fi
             show_spinner 200
             dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
             cd tools/fleetctl-npm && npm publish
@@ -855,39 +849,39 @@ if [[ "$failed" == "false" ]]; then
     if [ "$dry_run" = "false" ]; then
         # have to push so we can make the PR's back
         git push origin $target_branch
+        ask "Did git push work? [y/n]"
     fi
 
-    ask "Did git push work?"
 
     build_changelog
 
     # Create PR for changelog and version to release
     changelog_and_versions $update_changelog_prepare_branch $target_branch
 
-    ask "Did first changelog work?"
+    ask "Did first changelog work? [y/n]"
 
     if [ "$dry_run" = "false" ]; then
         # Create PR for changelog and version to main
         git checkout main 
         git pull origin main
+        ask "Are you on main? [y/n]"
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi
 
-    ask "Are you on main?"
     
     changelog_and_versions $update_changelog_branch main
 
-    ask "Did changelog for main work?"
 
     if [ "$dry_run" = "false" ]; then
         # Back on patch / prepare
+        ask "Did changelog for main work? [y/n]"
         git checkout $target_branch
+        ask "Are you back on the rc branch?"
     else
         echo "DRYRUN: Would have switched back to branch $target_branch"
     fi
 
-    ask "Are you back on the rc branch?"
 
     # Check for QA issue
     create_qa_issue
