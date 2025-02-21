@@ -22,6 +22,7 @@ interface IActionsDropdownProps {
   placeholder: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  greyed?: boolean;
   isSearchable?: boolean;
   className?: string;
   menuAlign?: "right" | "left" | "default";
