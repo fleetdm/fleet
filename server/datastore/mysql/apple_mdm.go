@@ -1273,8 +1273,12 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 }
 
 func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	args := []interface{}{}
-	parts := []string{}
+	return upsertHostDisplayNames(ctx, tx, hosts...)
+}
+
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
 	for _, h := range hosts {
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")

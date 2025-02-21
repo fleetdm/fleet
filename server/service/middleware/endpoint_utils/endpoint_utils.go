@@ -44,13 +44,13 @@ func ParseTag(tag string) (string, bool, error) {
 	}
 }
 
-type FieldPair struct {
+type fieldPair struct {
 	Sf reflect.StructField
 	V  reflect.Value
 }
 
-// AllFields returns all the fields for a struct, including the ones from embedded structs
-func AllFields(ifv reflect.Value) []FieldPair {
+// allFields returns all the fields for a struct, including the ones from embedded structs
+func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
 		ifv = ifv.Elem()
 	}
@@ -58,7 +58,7 @@ func AllFields(ifv reflect.Value) []FieldPair {
 		return nil
 	}
 
-	var fields []FieldPair
+	var fields []fieldPair
 
 	if !ifv.IsValid() {
 		return nil
@@ -70,10 +70,10 @@ func AllFields(ifv reflect.Value) []FieldPair {
 		v := ifv.Field(i)
 
 		if v.Kind() == reflect.Struct && t.Field(i).Anonymous {
-			fields = append(fields, AllFields(v)...)
+			fields = append(fields, allFields(v)...)
 			continue
 		}
-		fields = append(fields, FieldPair{Sf: ifv.Type().Field(i), V: v})
+		fields = append(fields, fieldPair{Sf: ifv.Type().Field(i), V: v})
 	}
 
 	return fields
@@ -168,7 +168,7 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 	return nil
 }
 
-func DecodeQueryTagValue(r *http.Request, fp FieldPair) error {
+func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -294,10 +294,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	}
 }
 
-// A value that implements requestDecoder takes control of decoding the request
+// A value that implements RequestDecoder takes control of decoding the request
 // as a whole - that is, it is responsible for decoding the body and any url
 // or query argument itself.
-type requestDecoder interface {
+type RequestDecoder interface {
 	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
 }
 
@@ -314,7 +314,7 @@ type requestDecoder interface {
 // The "list_options" are optional by default and it'll ignore the optional
 // portion of the tag.
 //
-// If iface implements the requestDecoder interface, it returns a function that
+// If iface implements the RequestDecoder interface, it returns a function that
 // calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
 // own decoding.
 //
@@ -333,7 +333,7 @@ func MakeDecoder(
 			return nil, nil
 		}
 	}
-	if rd, ok := iface.(requestDecoder); ok {
+	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return rd.DecodeRequest(ctx, r)
 		}
@@ -372,7 +372,7 @@ func MakeDecoder(
 			}
 		}
 
-		fields := AllFields(v)
+		fields := allFields(v)
 		for _, fp := range fields {
 			field := fp.V
 

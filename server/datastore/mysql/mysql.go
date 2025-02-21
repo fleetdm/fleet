@@ -51,10 +51,11 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger log.Logger
-	clock  clock.Clock
-	config config.MysqlConfig
-	pusher nano_push.Pusher
+	logger    log.Logger
+	clock     clock.Clock
+	config    config.MysqlConfig
+	pusher    nano_push.Pusher
+	androidDS android.Datastore
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
@@ -258,16 +259,12 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
+		androidDS:           android_mysql.New(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()
 
 	return ds, nil
-}
-
-func NewAndroidDS(ds fleet.Datastore) android.Datastore {
-	mysqlDs := ds.(*Datastore)
-	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
 }
 
 type itemToWrite struct {

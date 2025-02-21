@@ -41,14 +41,18 @@ func testCreateGetEnterprise(t *testing.T, ds *Datastore) {
 
 	result, err := ds.GetEnterpriseByID(testCtx(), id)
 	require.NoError(t, err)
-	assert.Equal(t, &android.Enterprise{ID: id}, result)
+	assert.Equal(t, android.Enterprise{ID: id}, result.Enterprise)
 }
 
 func testUpdateEnterprise(t *testing.T, ds *Datastore) {
-	enterprise := &android.Enterprise{
-		ID:           9999, // start with an invalid ID
-		SignupName:   "signupUrls/C97372c91c6a85139",
-		EnterpriseID: "LC04bp524j",
+	enterprise := &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID:           9999, // start with an invalid ID
+			EnterpriseID: "LC04bp524j",
+		},
+		SignupName:  "signupUrls/C97372c91c6a85139",
+		TopicID:     "topicId",
+		SignupToken: "signupToken",
 	}
 	err := ds.UpdateEnterprise(testCtx(), enterprise)
 	assert.Error(t, err)
@@ -61,14 +65,13 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 	err = ds.UpdateEnterprise(testCtx(), enterprise)
 	require.NoError(t, err)
 
-	result, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
+	resultEnriched, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	require.NoError(t, err)
-	assert.Equal(t, enterprise, result)
+	assert.Equal(t, enterprise, resultEnriched)
 
-	result, err = ds.GetEnterprise(testCtx())
+	result, err := ds.GetEnterprise(testCtx())
 	require.NoError(t, err)
-	assert.Equal(t, enterprise.ID, result.ID)
-	assert.Equal(t, enterprise.EnterpriseID, result.EnterpriseID)
+	assert.Equal(t, enterprise.Enterprise, *result)
 }
 
 func testDeleteEnterprises(t *testing.T, ds *Datastore) {
@@ -87,10 +90,12 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
-	tempEnterprise := &android.Enterprise{
-		ID:           id, // start with an invalid ID
-		SignupName:   "signupUrls/C97372c91c6a85139",
-		EnterpriseID: "",
+	tempEnterprise := &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID:           id,
+			EnterpriseID: "",
+		},
+		SignupName: "signupUrls/C97372c91c6a85139",
 	}
 	err = ds.UpdateEnterprise(testCtx(), tempEnterprise)
 	require.NoError(t, err)
@@ -110,11 +115,13 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 
 }
 
-func createEnterprise(t *testing.T, ds *Datastore) *android.Enterprise {
-	enterprise := &android.Enterprise{
-		ID:           9999, // start with an invalid ID
-		SignupName:   "signupUrls/C97372c91c6a85139",
-		EnterpriseID: "LC04bp524j",
+func createEnterprise(t *testing.T, ds *Datastore) *android.EnterpriseDetails {
+	enterprise := &android.EnterpriseDetails{
+		Enterprise: android.Enterprise{
+			ID:           9999, // start with an invalid ID
+			EnterpriseID: "LC04bp524j",
+		},
+		SignupName: "signupUrls/C97372c91c6a85139",
 	}
 	id, err := ds.CreateEnterprise(testCtx())
 	require.NoError(t, err)
