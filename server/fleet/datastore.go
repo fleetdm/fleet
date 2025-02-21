@@ -393,6 +393,7 @@ type Datastore interface {
 	// Android hosts
 
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
 	AndroidHostLite(ctx context.Context, deviceID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////

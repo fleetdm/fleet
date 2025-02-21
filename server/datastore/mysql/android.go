@@ -19,7 +19,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{deviceID}.
-		sqlStatement := `
+		stmt := `
 		INSERT INTO hosts (
 		    node_key,
 			detail_updated_at,
@@ -56,16 +56,16 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			team_id = VALUES(team_id),
 			hardware_serial = VALUES(hardware_serial)
 		`
-		sqlStatement, args, err := sqlx.Named(sqlStatement, host)
+		stmt, args, err := sqlx.Named(stmt, host)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "could not bind parameters for new Android host")
 		}
-		result, err := tx.ExecContext(ctx, sqlStatement, args...)
+		result, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host")
 		}
 		id, _ := result.LastInsertId()
-		host.Host.ID = uint(id)
+		host.Host.ID = uint(id) // nolint:gosec
 		host.Device.HostID = host.Host.ID
 
 		err = upsertHostDisplayNames(ctx, tx, *host.Host)
@@ -80,6 +80,43 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		return nil
 	})
 	return host, err
+}
+
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+	if !host.IsValid() {
+		return ctxerr.New(ctx, "valid Android host is required")
+	}
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `
+		UPDATE hosts SET
+			detail_updated_at = :detail_updated_at,
+			label_updated_at = :label_updated_at,
+			hostname = :hostname,
+			computer_name = :computer_name,
+			platform = :platform,
+			os_version = :os_version,
+			build = :build,
+			memory = :memory,
+			hardware_serial = :hardware_serial
+		WHERE id = :id
+		`
+		stmt, args, err := sqlx.Named(stmt, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "could not bind parameters for updating Android host")
+		}
+		_, err = tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host")
+		}
+
+		err = ds.androidDS.UpdateDeviceTx(ctx, host.Device, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating new Android device")
+		}
+		return nil
+	})
+	return err
 }
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, deviceID string) (*fleet.AndroidHost, error) {

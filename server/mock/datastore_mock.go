@@ -301,6 +301,8 @@ type UpdateOSVersionsFunc func(ctx context.Context) error
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
+
 type AndroidHostLiteFunc func(ctx context.Context, deviceID string) (*fleet.AndroidHost, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
@@ -1653,6 +1655,9 @@ type DataStore struct {
 
 	NewAndroidHostFunc        NewAndroidHostFunc
 	NewAndroidHostFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
 
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
@@ -4033,6 +4038,13 @@ func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost)
 	s.NewAndroidHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+	s.mu.Lock()
+	s.UpdateAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidHostFunc(ctx, host)
 }
 
 func (s *DataStore) AndroidHostLite(ctx context.Context, deviceID string) (*fleet.AndroidHost, error) {

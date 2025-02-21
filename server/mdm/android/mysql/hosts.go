@@ -74,7 +74,7 @@ func (ds *Datastore) insertDevice(ctx context.Context, device *android.Device, t
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting android_devices last insert ID")
 	}
-	device.ID = uint(id)
+	device.ID = uint(id) // nolint:gosec
 	return device, nil
 }
 
@@ -96,4 +96,9 @@ func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device, t
 		return nil, ctxerr.Wrap(ctx, err, "updating Android device")
 	}
 	return device, nil
+}
+
+func (ds *Datastore) UpdateDeviceTx(ctx context.Context, device *android.Device, tx sqlx.ExtContext) error {
+	_, err := ds.updateDevice(ctx, device, tx)
+	return err
 }

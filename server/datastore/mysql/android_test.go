@@ -20,6 +20,7 @@ func TestAndroid(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
+		{"UpdateAndroidHost", testUpdateAndroidHost},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -31,6 +32,27 @@ func TestAndroid(t *testing.T) {
 
 func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	const deviceID = "device_id"
+	host := createAndroidHost(deviceID)
+
+	result, err := ds.NewAndroidHost(testCtx(), host)
+	require.NoError(t, err)
+	assert.NotZero(t, result.Host.ID)
+	assert.NotZero(t, result.Device.ID)
+
+	resultLite, err := ds.AndroidHostLite(testCtx(), deviceID)
+	require.NoError(t, err)
+	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
+	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
+
+	// Inserting the same host again should be fine.
+	// This may occur when 2 Fleet servers received the same host information via pubsub.
+	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
+	require.NoError(t, err)
+	assert.Equal(t, result.Host.ID, resultCopy.Host.ID)
+	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
+}
+
+func createAndroidHost(deviceID string) *fleet.AndroidHost {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -51,25 +73,42 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 		},
 	}
 	host.SetDeviceID(deviceID)
+	return host
+}
+
+func testCtx() context.Context {
+	return context.Background()
+}
+
+func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
+	const deviceID = "device_id_update"
+	host := createAndroidHost(deviceID)
 
 	result, err := ds.NewAndroidHost(testCtx(), host)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
 
+	// Dummy update
+	err = ds.UpdateAndroidHost(testCtx(), result)
+	require.NoError(t, err)
+
+	host = result
+	host.Host.DetailUpdatedAt = time.Now()
+	host.Host.LabelUpdatedAt = time.Now()
+	host.Host.Hostname = "hostname_updated"
+	host.Host.ComputerName = "computer_name_updated"
+	host.Host.Platform = "android_updated"
+	host.Host.OSVersion = "Android 15"
+	host.Host.Build = "build_updated"
+	host.Host.Memory = 2048
+	host.Host.HardwareSerial = "hardware_serial_updated"
+	host.Device.PolicyID = ptr.Uint(2)
+	err = ds.UpdateAndroidHost(testCtx(), host)
+	require.NoError(t, err)
+
 	resultLite, err := ds.AndroidHostLite(testCtx(), deviceID)
 	require.NoError(t, err)
-	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
-	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
-
-	// Inserting the same host again should be fine.
-	// This may occur when 2 Fleet servers received the same host information via pubsub.
-	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
-	require.NoError(t, err)
-	assert.Equal(t, result.Host.ID, resultCopy.Host.ID)
-	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
-}
-
-func testCtx() context.Context {
-	return context.Background()
+	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
+	assert.EqualValues(t, host.Device, resultLite.Device)
 }
