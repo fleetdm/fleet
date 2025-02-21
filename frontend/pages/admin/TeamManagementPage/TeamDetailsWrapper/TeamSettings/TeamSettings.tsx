@@ -36,9 +36,9 @@ import SectionHeader from "components/SectionHeader";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "team-settings";
 
