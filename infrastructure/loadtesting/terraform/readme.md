@@ -183,3 +183,22 @@ provider "docker" {
 }
 [...]
 ```
+
+If you are getting the following error when running `terraform apply`:
+
+```sh
+│ Error: Error building docker image: 1: The command '/bin/sh -c git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .' returned a non-zero code: 1
+│
+│   with docker_registry_image.loadtest,
+│   on ecr.tf line 46, in resource "docker_registry_image" "loadtest":
+│   46: resource "docker_registry_image" "loadtest" {
+```
+
+1. Check your Docker virtual machine settings. Open Docker Desktop, then open the settings (`cmd-,`
+   or the gear in the top right of the screen). Scroll down to the "Virtual Machine Options"
+   section.
+
+2. If you currently have the "Apple virtualization framework" setting selected, select the "Docker
+   VMM" option instead. Click "Apply & restart" in the bottom right.
+
+Once Docker has restarted, re-run `terraform apply` and you should be good to go!

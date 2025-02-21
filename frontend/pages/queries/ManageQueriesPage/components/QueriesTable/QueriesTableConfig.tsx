@@ -5,6 +5,8 @@ import React from "react";
 import { formatDistanceToNow } from "date-fns";
 import PATHS from "router/paths";
 
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+
 import permissionsUtils from "utilities/permissions";
 import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
@@ -29,7 +31,8 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
@@ -105,7 +108,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface IGenerateTableHeaders {
+interface IGenerateColumnConfigs {
   currentUser: IUser;
   currentTeamId?: number;
   omitSelectionColumn?: boolean;
@@ -113,11 +116,11 @@ interface IGenerateTableHeaders {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = ({
+const generateColumnConfigs = ({
   currentUser,
   currentTeamId,
   omitSelectionColumn = false,
-}: IGenerateTableHeaders): IDataColumn[] => {
+}: IGenerateColumnConfigs): IDataColumn[] => {
   const isCurrentTeamObserverOrGlobalObserver = currentTeamId
     ? permissionsUtils.isTeamObserver(currentUser, currentTeamId)
     : permissionsUtils.isOnlyObserver(currentUser);
@@ -290,7 +293,16 @@ const generateTableHeaders = ({
             (row.original.team_id ?? undefined) === currentTeamId,
         });
 
-        return <Checkbox {...checkboxProps} enableEnterToCheck />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(dC) => (
+              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+            )}
+          />
+        );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const isInheritedQuery =
@@ -306,7 +318,16 @@ const generateTableHeaders = ({
           onChange: () => row.toggleRowSelected(),
         };
         // v4.35.0 Any team admin or maintainer now can add, edit, delete their team's queries
-        return <Checkbox {...checkboxProps} enableEnterToCheck />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(dC) => (
+              <Checkbox disabled={dC} enableEnterToCheck {...checkboxProps} />
+            )}
+          />
+        );
       },
       disableHidden: true,
     });
@@ -314,4 +335,4 @@ const generateTableHeaders = ({
   return tableHeaders;
 };
 
-export default generateTableHeaders;
+export default generateColumnConfigs;

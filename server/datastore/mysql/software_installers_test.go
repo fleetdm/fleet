@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1399,7 +1400,7 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	// deleting again returns an error, no such installer
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 }
 

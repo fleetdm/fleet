@@ -49,7 +49,7 @@ type getInstallerResponse struct {
 
 func (r getInstallerResponse) Error() error { return r.Err }
 
-func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

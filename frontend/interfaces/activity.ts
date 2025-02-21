@@ -70,6 +70,8 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",

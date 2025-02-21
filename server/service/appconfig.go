@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -58,6 +59,7 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
+	AndroidEnabled bool  `json:"android_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -191,6 +193,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Integrations:    appConfig.Integrations,
 			MDM:             appConfig.MDM,
 			Scripts:         appConfig.Scripts,
+			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -199,6 +202,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
+			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
 		},
 	}
 	return response, nil
@@ -542,6 +546,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
 	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
+	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
+	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -622,6 +628,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
+	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
+	if gme {
+		if !license.IsPremium() {
+			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
+		}
+		if rurl == "" {
+			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
+		}
+	}
+	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+
+	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+		// generate the activity
+		var act fleet.ActivityDetails
+		if gme {
+			act = fleet.ActivityTypeEnabledGitOpsMode{}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsMode{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+
+	}
+
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
@@ -697,7 +728,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Reset teams for ABM tokens that exist in Fleet but aren't present in the config being passed
 	tokensInCfg := make(map[string]struct{})
 	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
 		tokensInCfg[t.OrganizationName] = struct{}{}
@@ -707,13 +737,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
 	}
-	for _, tok := range toks {
-		if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
-			tok.MacOSDefaultTeamID = nil
-			tok.IOSDefaultTeamID = nil
-			tok.IPadOSDefaultTeamID = nil
-			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
+		for _, tok := range toks {
+			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+				tok.MacOSDefaultTeamID = nil
+				tok.IOSDefaultTeamID = nil
+				tok.IPadOSDefaultTeamID = nil
+				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+				}
 			}
 		}
 	}
@@ -1224,7 +1257,7 @@ func (svc *Service) validateABMAssignments(
 		return []*fleet.ABMToken{tok}, nil
 	}
 
-	if mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
+	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
 			return nil, nil
@@ -1362,9 +1395,6 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if existing.Metadata == "" && existing.MetadataURL == "" {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
-	}
-	if incoming.Metadata != "" && incoming.MetadataURL != "" {
-		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
 	}
 	if incoming.EntityID == "" {
 		if existing.EntityID == "" {
