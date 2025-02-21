@@ -102,7 +102,9 @@
       }
 
       #main-content {
+        margin: 0 auto;
         padding: 48px 24px;
+        max-width: 800px;
       }
 
       .device-enroll-message {
@@ -127,48 +129,51 @@
         <span data-attribute="dynamic-device-type">iPhone or iPad</span>, follow
         the instructions below to download and install the Fleet profile.
       </p>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span>
-              <b>Download</b> the Fleet profile and select <b>Allow</b> in the
-              pop-up.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.
-            </span>
-          </p>
-          <div class="profile-downloaded-container">
-            <img
-              class="profile-downloaded-img"
-              src=""
-              alt="select profile downloaded in settings"
-            />
-          </div>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>Select <b>Install</b>.</span>
-          </p>
-          <div class="install-profile-container">
-            <img class="install-profile-img" src="" alt="select install" />
-          </div>
-          <p>
-            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
-            MANAGEMENT warning. Click <b>Install</b> again for each warning.
-            When you see a <b>Remote Management</b> prompt, click
-            <b>Trust</b> to complete enrollment.
-          </p>
-        </li>
-      </ol>
+      <section class="enroll-section">
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                <b>Download</b> the Fleet profile and select <b>Allow</b> in the
+                pop-up.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                Navigate to <b>Settings</b> and select
+                <b>Profile Downloaded</b>.
+              </span>
+            </p>
+            <div class="profile-downloaded-container">
+              <img
+                class="profile-downloaded-img"
+                src=""
+                alt="select profile downloaded in settings"
+              />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>Select <b>Install</b>.</span>
+            </p>
+            <div class="install-profile-container">
+              <img class="install-profile-img" src="" alt="select install" />
+            </div>
+            <p>
+              You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
+              MANAGEMENT warning. Click <b>Install</b> again for each warning.
+              When you see a <b>Remote Management</b> prompt, click
+              <b>Trust</b> to complete enrollment.
+            </p>
+          </li>
+        </ol>
+      </section>
       <p class="device-enroll-message">
         <img src="{{.URLPrefix}}/assets/images/check.svg" />
         Your device will now be enrolled in Fleet.
@@ -183,6 +188,7 @@
           (/Macintosh/i.test(navigator.userAgent) &&
             navigator.maxTouchPoints &&
             navigator.maxTouchPoints > 1);
+        const isAndroid = /Android/i.test(userAgent);
 
         // update text content for device type
         let deviceType = "iPhone or iPad";
