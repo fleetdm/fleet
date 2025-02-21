@@ -259,6 +259,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
+		androidDS:           android_mysql.New(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()
@@ -268,7 +269,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 func NewAndroidDS(ds fleet.Datastore) android.Datastore {
 	mysqlDs := ds.(*Datastore)
-	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica, ds)
+	return android_mysql.New(mysqlDs.logger, mysqlDs.primary, mysqlDs.replica)
 }
 
 type itemToWrite struct {
