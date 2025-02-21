@@ -58,6 +58,7 @@ export interface IMdmConfig {
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
   windows_migration_enabled: boolean;
+  android_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
@@ -107,6 +108,7 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
+  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
