@@ -11,7 +11,7 @@ import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -113,7 +113,7 @@ const SoftwareAddPage = ({
             className={`${baseClass}__back-to-software`}
           />
           <h1>Add software</h1>
-          <TabsWrapper>
+          <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}
               onSelect={navigateToNav}
@@ -128,7 +128,7 @@ const SoftwareAddPage = ({
                 })}
               </TabList>
             </Tabs>
-          </TabsWrapper>
+          </TabNav>
           {React.cloneElement(children, {
             router,
             currentTeamId: parseInt(location.query.team_id, 10),

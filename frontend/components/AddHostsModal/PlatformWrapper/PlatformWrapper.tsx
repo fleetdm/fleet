@@ -13,7 +13,7 @@ import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Radio from "components/forms/fields/Radio";
@@ -574,7 +574,7 @@ const PlatformWrapper = ({
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           onSelect={(index) => setSelectedTabIndex(index)}
           selectedIndex={selectedTabIndex}
@@ -602,7 +602,7 @@ const PlatformWrapper = ({
             );
           })}
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       <div className="modal-cta-wrap">
         <Button onClick={onCancel} variant="brand">
           Done

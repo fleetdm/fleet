@@ -6,7 +6,7 @@ import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
@@ -80,7 +80,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
           Dynamic (smart) labels are assigned to hosts if the query returns
           results. Manual labels are assigned to selected hosts.
         </p>
-        <TabsWrapper className={`${baseClass}__new-label-tab-nav`}>
+        <TabNav className={`${baseClass}__new-label-tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}
@@ -95,7 +95,7 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {React.cloneElement(children, {
           showOpenSidebarButton,
           onOpenSidebar,

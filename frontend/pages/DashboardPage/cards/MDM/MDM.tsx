@@ -4,7 +4,7 @@ import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
@@ -140,7 +140,7 @@ const Mdm = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>
@@ -194,7 +194,7 @@ const Mdm = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

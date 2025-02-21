@@ -31,7 +31,7 @@ import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
@@ -413,7 +413,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderBody = () => {
     return (
       <div>
-        <TabsWrapper>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}
@@ -428,7 +428,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {React.cloneElement(children, {
           router,
           isSoftwareEnabled: Boolean(

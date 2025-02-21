@@ -24,7 +24,7 @@ import sortUtils from "utilities/sort";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -447,7 +447,7 @@ const TeamDetailsWrapper = ({
             ]}
           />
         </div>
-        <TabsWrapper>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(
               location.pathname,
@@ -467,7 +467,7 @@ const TeamDetailsWrapper = ({
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showAddHostsModal && (
           <AddHostsModal
             currentTeamName={currentTeamName}

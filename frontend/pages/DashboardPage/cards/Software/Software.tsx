@@ -8,7 +8,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -77,7 +77,7 @@ const Software = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>
@@ -134,7 +134,7 @@ const Software = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import {
 } from "interfaces/software";
 
 import Modal from "components/Modal";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
@@ -170,7 +170,7 @@ const TabsContent = ({
   software: IHostSoftware;
 }) => {
   return (
-    <TabsWrapper>
+    <TabNav>
       <Tabs>
         <TabList>
           <Tab>
@@ -190,7 +190,7 @@ const TabsContent = ({
           />
         </TabPanel>
       </Tabs>
-    </TabsWrapper>
+    </TabNav>
   );
 };
 

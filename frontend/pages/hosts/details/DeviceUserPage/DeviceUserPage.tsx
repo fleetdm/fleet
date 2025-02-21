@@ -23,7 +23,7 @@ import DeviceUserError from "components/DeviceUserError";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
@@ -391,7 +391,7 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper className={`${baseClass}__tab-nav`}>
+            <TabNav className={`${baseClass}__tab-nav`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}
@@ -467,7 +467,7 @@ const DeviceUserPage = ({
                   </TabPanel>
                 )}
               </Tabs>
-            </TabsWrapper>
+            </TabNav>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal &&
               (host.dep_assigned_to_fleet ? (

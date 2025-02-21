@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import MainContent from "components/MainContent";
 import TabText from "components/TabText";
 import classnames from "classnames";
@@ -78,7 +78,7 @@ const AdminWrapper = ({
   return (
     <MainContent className={classNames}>
       <div className={`${baseClass}_wrapper`}>
-        <TabsWrapper>
+        <TabNav>
           <h1>Settings</h1>
           <Tabs
             selectedIndex={getTabIndex(pathname)}
@@ -96,7 +96,7 @@ const AdminWrapper = ({
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {children}
       </div>
     </MainContent>

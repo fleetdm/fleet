@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-interface ITabsWrapperProps {
+interface ITabNavProps {
   children: React.ReactChild | React.ReactChild[];
   className?: string;
 }
@@ -12,7 +12,7 @@ interface ITabsWrapperProps {
  */
 const baseClass = "tab-nav";
 
-const TabNav = ({ children, className }: ITabsWrapperProps): JSX.Element => {
+const TabNav = ({ children, className }: ITabNavProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   return <div className={classNames}>{children}</div>;
