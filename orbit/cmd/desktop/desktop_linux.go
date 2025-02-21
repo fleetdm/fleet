@@ -30,8 +30,5 @@ func trayIconExists() bool {
 	ownedDbusNames := conn.Names()
 	// If the tray icon name isn't in the list, it likely means the tray icon is
 	// no longer visible.
-	if !slices.Contains(ownedDbusNames, trayIconDbusName) {
-		return false
-	}
-	return true
+	return slices.Contains(ownedDbusNames, trayIconDbusName)
 }
