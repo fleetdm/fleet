@@ -97,7 +97,6 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        gg
         <BackLink
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
