@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import classnames from "classnames";
 
 import { INotification } from "interfaces/notification";
@@ -53,20 +53,26 @@ const SingleFlashMessage = ({
       // After 4 seconds, set hide to true.
       const timer = setTimeout(() => {
         setHide(true);
-        onRemoveFlash(id); // This function resets notifications which allows CoreLayout reset of selected rows
+        onRemoveFlash(); // This function resets notifications which allows CoreLayout reset of selected rows
       }, 4000);
       // Return a cleanup function that will clear this reset, in case another render happens after this.
       return () => clearTimeout(timer);
     }
 
     return undefined; // No cleanup when we don't set a timeout.
-  }, [notification, alertType, isVisible, setHide, id]);
+  }, [id, notification, alertType, isVisible, setHide, id]);
+
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     if (!persistOnPageChange) {
       setHide(true);
     }
-    // intentionally omit persistOnPageChange from dependencies to prevent hiding during initial update of the notification prop from its default empty value
   }, [pathname]);
 
   if (hide || !isVisible) {

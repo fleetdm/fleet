@@ -635,7 +635,7 @@ const ManagePolicyPage = ({
               alertType: "error",
               isVisible: true,
               message,
-              persistOnPageChange: true, // Required to show multiple
+              persistOnPageChange: false,
             };
           }
         );
