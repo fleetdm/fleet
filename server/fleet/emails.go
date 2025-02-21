@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var ErrPasswordResetNotConfigured = errors.New("Cannot send password reset. Please configure SMTP or SES")
+var ErrPasswordResetNotConfigured = errors.New("Cannot send password reset. SMTP or SES Is not configured.")
 
 // Mailer is an email campaign
 // Types which implement the Campaign interface
