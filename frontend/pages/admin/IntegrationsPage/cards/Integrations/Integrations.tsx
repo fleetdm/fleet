@@ -413,7 +413,6 @@ const Integrations = (): JSX.Element => {
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}
           onSubmit={onAddSubmit}
-          backendValidators={backendValidators}
           integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
         />
