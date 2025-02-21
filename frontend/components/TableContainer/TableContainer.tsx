@@ -10,11 +10,12 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 export interface ITableQueryData {
   pageIndex: number;

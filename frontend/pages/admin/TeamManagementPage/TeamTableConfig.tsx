@@ -102,7 +102,7 @@ const generateTableHeaders = (
                 onChange={(value: string) =>
                   actionSelectHandler(value, cellProps.row.original)
                 }
-                placeholder={"Actions"}
+                placeholder="Actions"
                 disabled={disableChildren}
               />
             </div>
