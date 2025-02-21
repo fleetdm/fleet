@@ -45,7 +45,7 @@ import {
 import { isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
@@ -837,7 +837,7 @@ const HostDetailsPage = ({
           )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
-        <TabsWrapper className={`${baseClass}__tab-nav`}>
+        <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -955,7 +955,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}

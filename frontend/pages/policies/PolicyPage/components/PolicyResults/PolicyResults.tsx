@@ -15,7 +15,7 @@ import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -241,7 +241,7 @@ const PolicyResults = ({
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
       />
-      <TabsWrapper>
+      <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>
@@ -256,7 +256,7 @@ const PolicyResults = ({
           <TabPanel>{renderResultsTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       {showQueryModal && (
         <ShowQueryModal
           query={lastEditedQueryBody}

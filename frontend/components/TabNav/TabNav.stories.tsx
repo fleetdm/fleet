@@ -34,19 +34,20 @@ export const Default: Story = {
 
     const platformSubNav = [
       { name: <TabText>Basic tab</TabText>, type: "type1" },
+      { name: <TabText>Basic tab 2</TabText>, type: "type2" },
       {
         name: <TabText>Disabled tab</TabText>,
-        type: "type2",
+        type: "type3",
         disabled: true,
       },
-      { name: <TabText count={3}>Tab with count</TabText>, type: "type3" },
+      { name: <TabText count={3}>Tab with count</TabText>, type: "type4" },
       {
         name: (
           <TabText count={20} isErrorCount>
             Tab with error count
           </TabText>
         ),
-        type: "type4",
+        type: "type5",
       },
     ];
 
@@ -60,6 +61,8 @@ export const Default: Story = {
           return <div>Content for Tab 3</div>;
         case "type4":
           return <div>Content for Tab 4</div>;
+        case "type5":
+          return <div>Content for Tab 5</div>;
         default:
           return null;
       }

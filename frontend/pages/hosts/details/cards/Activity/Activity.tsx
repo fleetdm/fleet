@@ -8,7 +8,7 @@ import {
 } from "services/entities/activities";
 
 import Card from "components/Card";
-import TabsWrapper from "components/TabNav";
+import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -68,7 +68,7 @@ const Activity = ({
         </div>
       )}
       <h2>Activity</h2>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
@@ -104,7 +104,7 @@ const Activity = ({
             />
           </TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
     </Card>
   );
 };
