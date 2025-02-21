@@ -89,7 +89,7 @@ type VPPAppStoreApp struct {
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 	// AddedAt is when the VPP app was added to the team
-	AddedAt time.Time `db:"added_at" json:"added_at"`
+	AddedAt time.Time `db:"added_at" json:"created_at"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
