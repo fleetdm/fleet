@@ -327,7 +327,6 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			unCachedDS := ds
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {

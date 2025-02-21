@@ -139,14 +139,19 @@ func (svc *Service) validateDevice(ctx context.Context, device *androidmanagemen
 }
 
 func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
-	policy, err := svc.getPolicyID(ctx, device)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Android policy ID")
+	if device.AppliedPolicyName != "" {
+		policy, err := svc.getPolicyID(ctx, device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
+		}
+		policySyncTime, err := time.Parse(time.RFC3339, device.LastPolicySyncTime)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
+		}
+		host.Device.PolicyID = ptr.Uint(policy)
+		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
-	policySyncTime, err := time.Parse(time.RFC3339, device.LastPolicySyncTime)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
-	}
+
 	host.Host.ComputerName = svc.getComputerName(device)
 	host.Host.Hostname = svc.getComputerName(device)
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
@@ -154,8 +159,6 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Memory = device.MemoryInfo.TotalRam
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Device.EnterpriseSpecificID = ptr.String(device.HardwareInfo.EnterpriseSpecificId)
-	host.Device.PolicyID = ptr.Uint(policy)
-	host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	host.LabelUpdatedAt = time.Time{}
 	if device.LastStatusReportTime != "" {
 		lastStatusReportTime, err := time.Parse(time.RFC3339, device.LastStatusReportTime)
@@ -165,7 +168,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
 
-	err = svc.fleetDS.UpdateAndroidHost(ctx, host)
+	err := svc.fleetDS.UpdateAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -178,14 +181,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
-	policy, err := svc.getPolicyID(ctx, device)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Android policy ID")
-	}
-	policySyncTime, err := time.Parse(time.RFC3339, device.LastPolicySyncTime)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
-	}
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			TeamID:          enrollSecret.GetTeamID(),
@@ -201,11 +196,22 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		},
 		Device: &android.Device{
 			EnterpriseSpecificID: ptr.String(device.HardwareInfo.EnterpriseSpecificId),
-			PolicyID:             ptr.Uint(policy),
-			LastPolicySyncTime:   ptr.Time(policySyncTime),
 		},
 	}
 	deviceID, err := svc.getDeviceID(ctx, device)
+	if device.AppliedPolicyName != "" {
+		policy, err := svc.getPolicyID(ctx, device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
+		}
+		policySyncTime, err := time.Parse(time.RFC3339, device.LastPolicySyncTime)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
+		}
+		host.Device.PolicyID = ptr.Uint(policy)
+		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
+	}
+
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}

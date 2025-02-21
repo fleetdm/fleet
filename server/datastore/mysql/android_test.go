@@ -55,16 +55,14 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 func createAndroidHost(deviceID string) *fleet.AndroidHost {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			Hostname:        "hostname",
-			ComputerName:    "computer_name",
-			Platform:        "android",
-			OSVersion:       "Android 14",
-			Build:           "build",
-			Memory:          1024,
-			TeamID:          nil,
-			HardwareSerial:  "hardware_serial",
+			Hostname:       "hostname",
+			ComputerName:   "computer_name",
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build",
+			Memory:         1024,
+			TeamID:         nil,
+			HardwareSerial: "hardware_serial",
 		},
 		Device: &android.Device{
 			EnterpriseSpecificID: nil,

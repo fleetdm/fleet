@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -20,14 +21,19 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
 	}
+	// Setting the times to a non-zero TIMESTAMP value to avoid issues with MySQL.
+	if host.DetailUpdatedAt.IsZero() {
+		host.DetailUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
+	}
+	if host.LabelUpdatedAt.IsZero() {
+		host.LabelUpdatedAt, _ = time.Parse(time.RFC3339, "1970-01-01T00:00:01Z")
+	}
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{deviceID}.
 		stmt := `
 		INSERT INTO hosts (
 		    node_key,
-			detail_updated_at,
-			label_updated_at,
 		    hostname,
 			computer_name,
 			platform,
@@ -35,11 +41,11 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		    build,
 			memory,
 			team_id,
-			hardware_serial
+			hardware_serial,
+			detail_updated_at,
+			label_updated_at
 		) VALUES (
    			:node_key,
-			:detail_updated_at,
-			:label_updated_at,
 			:hostname,
 			:computer_name,
 			:platform,
@@ -47,10 +53,10 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			:build,
 			:memory,
 			:team_id,
-			:hardware_serial
+			:hardware_serial,
+			:detail_updated_at,
+			:label_updated_at
 		) ON DUPLICATE KEY UPDATE
-			detail_updated_at = VALUES(detail_updated_at),
-			label_updated_at = VALUES(label_updated_at),
 			hostname = VALUES(hostname),
 			computer_name = VALUES(computer_name),
 			platform = VALUES(platform),
@@ -58,7 +64,9 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			build = VALUES(build),
 			memory = VALUES(memory),
 			team_id = VALUES(team_id),
-			hardware_serial = VALUES(hardware_serial)
+			hardware_serial = VALUES(hardware_serial),
+			detail_updated_at = VALUES(detail_updated_at),
+			label_updated_at = VALUES(label_updated_at)
 		`
 		stmt, args, err := sqlx.Named(stmt, host)
 		if err != nil {
