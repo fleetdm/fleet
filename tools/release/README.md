@@ -52,7 +52,7 @@ A Quality Assurance Engineer from each product group needs to [confirm that thei
 
 **3. Merge changelog and version bump**
 
-Manally increment the [Helm chart]([url](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml)) patch version by 1 and push to your changelog PRs.
+Manally increment the [Helm chart]([url](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml)) minor version by 1 and push to your changelog PRs.
 
 Finalize and merge the two PRs. Check out the RC branch locally and pull the latest updates so that the changelog commit is the most recent commit on the branch.
 
