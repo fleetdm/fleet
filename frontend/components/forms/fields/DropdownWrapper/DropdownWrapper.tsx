@@ -304,9 +304,7 @@ const DropdownWrapper = ({
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
-          ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-down"],
-          },
+          borderColor: COLORS["core-vibrant-blue-down"],
           ".dropdown-wrapper__indicator path": {
             stroke: COLORS["core-vibrant-blue-down"],
           },

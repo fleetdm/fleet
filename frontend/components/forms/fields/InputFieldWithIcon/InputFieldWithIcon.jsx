@@ -2,8 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import Icon from "components/Icon/Icon";
-import FleetIcon from "components/icons/FleetIcon";
+import Icon, { IconNames } from "components/Icon/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import InputField from "../InputField";
@@ -15,8 +14,7 @@ class InputFieldWithIcon extends InputField {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
     helpText: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    iconName: PropTypes.string,
-    iconSvg: PropTypes.string,
+    iconSvg: IconNames,
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
@@ -27,7 +25,6 @@ class InputFieldWithIcon extends InputField {
     type: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    iconPosition: PropTypes.oneOf(["start", "end"]),
     inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
     tooltip: PropTypes.string,
     ignore1Password: PropTypes.bool,
@@ -76,7 +73,6 @@ class InputFieldWithIcon extends InputField {
     const {
       className,
       error,
-      iconName,
       iconSvg,
       name,
       placeholder,
@@ -84,7 +80,6 @@ class InputFieldWithIcon extends InputField {
       type,
       value,
       disabled,
-      iconPosition,
       inputOptions,
       ignore1Password,
       onClick,
@@ -93,20 +88,14 @@ class InputFieldWithIcon extends InputField {
     } = this.props;
     const { onInputChange, renderHelpText } = this;
 
-    const wrapperClasses = classnames(baseClass, "form-field", {
-      [`${baseClass}--icon-start`]: iconPosition && iconPosition === "start",
-    });
+    const wrapperClasses = classnames(baseClass, "form-field");
 
     const inputClasses = classnames(
       `${baseClass}__input`,
       "input-with-icon",
       className,
       { [`${baseClass}__input--error`]: error },
-      { [`${baseClass}__input--password`]: type === "password" && value },
-      {
-        [`${baseClass}__input--icon-start`]:
-          iconPosition && iconPosition === "start",
-      }
+      { [`${baseClass}__input--password`]: type === "password" && value }
     );
 
     const iconClasses = classnames(
@@ -141,7 +130,6 @@ class InputFieldWithIcon extends InputField {
             data-1p-ignore={ignore1Password}
           />
           {iconSvg && <Icon name={iconSvg} className={iconClasses} />}
-          {iconName && <FleetIcon name={iconName} className={iconClasses} />}
           {clearButton && !!value && (
             <Button
               onClick={() => handleClear()}

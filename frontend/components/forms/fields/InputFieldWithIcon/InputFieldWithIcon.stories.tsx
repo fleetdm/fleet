@@ -1,18 +1,38 @@
+import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
-import { noop } from "lodash";
+import { action } from "@storybook/addon-actions";
 
-// @ts-ignore
+// Import the InputFieldWithIcon component
 import InputFieldWithIcon from ".";
 
 import "../../../../index.scss";
 
 const meta: Meta<typeof InputFieldWithIcon> = {
   component: InputFieldWithIcon,
-  title: "Components/FormFields/InputWithIcon",
+  title: "Components/FormFields/InputFieldWithIcon",
   argTypes: {
-    iconPosition: {
-      options: ["start", "end"],
-      control: "radio",
+    type: {
+      options: ["text", "password", "email", "number"],
+      control: "select",
+    },
+    value: {
+      control: "text",
+    },
+    disabled: {
+      control: "boolean",
+    },
+    error: {
+      control: "text",
+    },
+    helpText: {
+      control: "text",
+    },
+    tooltip: {
+      control: "text",
+    },
+    iconSvg: {
+      options: ["search", "filter"], // Add more icons as needed
+      control: "select",
     },
     iconName: {
       options: [
@@ -20,100 +40,12 @@ const meta: Meta<typeof InputFieldWithIcon> = {
         "chevronleft",
         "chevronright",
         "chevronup",
-        "cpu",
-        "downcaret",
-        "filter",
-        "mac",
-        "memory",
-        "storage",
-        "upcaret",
-        "uptime",
-        "world",
-        "osquery",
-        "join",
-        "add-button",
-        "packs",
-        "help",
-        "admin",
-        "config",
-        "success-check",
-        "offline",
-        "windows-original",
-        "centos-original",
-        "ubuntu-original",
-        "apple-original",
+        // Add more icon names here as needed
         "search",
-        "all-hosts",
-        "alerts",
-        "logout",
-        "account",
-        "clipboard",
-        "list-select",
-        "grid-select",
-        "label",
-        "docker",
-        "cloud",
-        "self-hosted",
-        "help-solid",
-        "help-stroke",
-        "warning-filled",
-        "delete-cloud",
-        "pdf",
-        "credit-card-small",
-        "billing-card",
-        "lock-big",
-        "link-big",
-        "briefcase",
-        "name-card",
-        "business",
-        "clock",
-        "host-large",
-        "single-host",
-        "username",
-        "password",
-        "email",
-        "hosts",
-        "query",
-        "import",
-        "pencil",
-        "add-plus",
-        "x",
-        "right-arrow",
-        "camera",
-        "plus-minus",
-        "bold-plus",
-        "linux-original",
-        "clock2",
-        "trash",
-        "laptop-plus",
-        "wrench-hand",
-        "external-link",
-        "fullscreen",
-        "windowed",
-        "heroku",
-        "ubuntu",
-        "windows",
-        "centos",
-        "apple",
-        "linux",
+        // Add other relevant icon names
       ],
       control: "select",
     },
-  },
-  args: {
-    autofocus: false,
-    iconPosition: "start",
-    iconName: "email",
-    disabled: false,
-    label: "Email",
-    placeholder: "Type here...",
-    error: "",
-    helpText: "",
-    name: "",
-    tabIndex: "",
-    type: "",
-    className: "",
-    onChange: noop,
   },
 };
 
@@ -121,4 +53,60 @@ export default meta;
 
 type Story = StoryObj<typeof InputFieldWithIcon>;
 
-export const Default: Story = {};
+const Template: Story = (args) => <InputFieldWithIcon {...args} />;
+
+export const Default: Story = Template.bind({});
+Default.args = {
+  label: "Email",
+  placeholder: "Enter your email",
+  type: "email",
+  onChange: action("onChange"),
+};
+
+export const PasswordInput: Story = Template.bind({});
+PasswordInput.args = {
+  ...Default.args,
+  iconName: "lock",
+  label: "Password",
+  placeholder: "Enter your password",
+  type: "password",
+};
+
+export const WithError: Story = Template.bind({});
+WithError.args = {
+  ...Default.args,
+  error: "Invalid email address",
+};
+
+export const WithHelpText: Story = Template.bind({});
+WithHelpText.args = {
+  ...Default.args,
+  helpText: "We'll never share your email with anyone else.",
+};
+
+export const Disabled: Story = Template.bind({});
+Disabled.args = {
+  ...Default.args,
+  disabled: true,
+};
+
+export const WithTooltip: Story = Template.bind({});
+WithTooltip.args = {
+  ...Default.args,
+  tooltip: "Enter the email address associated with your account",
+};
+
+export const WithClearButton: Story = Template.bind({});
+WithClearButton.args = {
+  ...Default.args,
+  clearButton: action("clearButton"),
+  value: "example@email.com",
+};
+
+export const CustomIcon: Story = Template.bind({});
+CustomIcon.args = {
+  ...Default.args,
+  iconSvg: "search", // Use an appropriate icon SVG name
+  label: "Search",
+  placeholder: "Search...",
+};
