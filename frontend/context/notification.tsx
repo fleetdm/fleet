@@ -113,12 +113,16 @@ const NotificationProvider = ({ children }: Props) => {
             notifications: options.notifications,
           });
         } else {
-          dispatch({
-            type: actionTypes.RENDER_FLASH,
+          const newNotification = {
             id: options?.id || Date.now().toString(),
             alertType,
+            isVisible: true,
             message,
-            options,
+            persistOnPageChange: options?.persistOnPageChange ?? false,
+          };
+          dispatch({
+            type: actionTypes.RENDER_FLASH,
+            notifications: [newNotification],
           });
         }
       });
