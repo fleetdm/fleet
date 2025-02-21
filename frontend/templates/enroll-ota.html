@@ -115,10 +115,24 @@
     </style>
   </head>
   <body>
-    <header>
-      <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
-    </header>
-    <section id="main-content">
+    <!-- templates for android and ios, ipad content -->
+
+    <template id="unsupported-template">
+      <h1>Enroll your device to Fleet</h1>
+      <p class="page-description">
+        To enroll your iPhone, iPad, or Android device, please open this page on
+        your mobile device.
+      </p>
+    </template>
+
+    <!-- android content -->
+    <template id="android-template">
+      <h1>Welcome, Android User!</h1>
+      <p>This is the Android-specific version.</p>
+    </template>
+
+    <!-- ios, ipados content -->
+    <template id="ios-ipad-template">
       <h1>
         Enroll your
         <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
@@ -129,74 +143,119 @@
         <span data-attribute="dynamic-device-type">iPhone or iPad</span>, follow
         the instructions below to download and install the Fleet profile.
       </p>
-      <section class="enroll-section">
-        <ol>
-          <li>
-            <p>
-              <span>1.</span>
-              <span>
-                <b>Download</b> the Fleet profile and select <b>Allow</b> in the
-                pop-up.
-              </span>
-            </p>
-            <a class="download-link" href="{{.EnrollURL}}">Download</a>
-          </li>
-          <li>
-            <p>
-              <span>2.</span>
-              <span>
-                Navigate to <b>Settings</b> and select
-                <b>Profile Downloaded</b>.
-              </span>
-            </p>
-            <div class="profile-downloaded-container">
-              <img
-                class="profile-downloaded-img"
-                src=""
-                alt="select profile downloaded in settings"
-              />
-            </div>
-          </li>
-          <li>
-            <p>
-              <span>3.</span>
-              <span>Select <b>Install</b>.</span>
-            </p>
-            <div class="install-profile-container">
-              <img class="install-profile-img" src="" alt="select install" />
-            </div>
-            <p>
-              You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
-              MANAGEMENT warning. Click <b>Install</b> again for each warning.
-              When you see a <b>Remote Management</b> prompt, click
-              <b>Trust</b> to complete enrollment.
-            </p>
-          </li>
-        </ol>
-      </section>
+      <ol>
+        <li>
+          <p>
+            <span>1.</span>
+            <span>
+              <b>Download</b> the Fleet profile and select <b>Allow</b> in the
+              pop-up.
+            </span>
+          </p>
+          <a class="download-link" href="{{.EnrollURL}}">Download</a>
+        </li>
+        <li>
+          <p>
+            <span>2.</span>
+            <span>
+              Navigate to <b>Settings</b> and select <b>Profile Downloaded</b>.
+            </span>
+          </p>
+          <div class="profile-downloaded-container">
+            <img
+              class="profile-downloaded-img"
+              src=""
+              alt="select profile downloaded in settings"
+            />
+          </div>
+        </li>
+        <li>
+          <p>
+            <span>3.</span>
+            <span>Select <b>Install</b>.</span>
+          </p>
+          <div class="install-profile-container">
+            <img class="install-profile-img" src="" alt="select install" />
+          </div>
+          <p>
+            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
+            MANAGEMENT warning. Click <b>Install</b> again for each warning.
+            When you see a <b>Remote Management</b> prompt, click
+            <b>Trust</b> to complete enrollment.
+          </p>
+        </li>
+      </ol>
       <p class="device-enroll-message">
         <img src="{{.URLPrefix}}/assets/images/check.svg" />
         Your device will now be enrolled in Fleet.
       </p>
-    </section>
+    </template>
+
+    <header>
+      <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
+    </header>
+
+    <!-- container for the dynamic content -->
+    <section id="main-content"></section>
+
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
+      const getPlatform = () => {
         const userAgent = navigator.userAgent;
         const isIPhone = /iPhone/.test(userAgent);
         const isIPad =
           /iPad/.test(userAgent) ||
-          (/Macintosh/i.test(navigator.userAgent) &&
-            navigator.maxTouchPoints &&
+          (/Macintosh/i.test(userAgent) &&
+            navigator.maxTouchPoints !== undefined &&
             navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
 
-        // update text content for device type
-        let deviceType = "iPhone or iPad";
-        if (isIPhone) {
-          deviceType = "iPhone";
+        if (isAndroid) {
+          return "android";
+        } else if (isIPhone) {
+          return "ios";
         } else if (isIPad) {
+          return "ipad";
+        }
+
+        return "unsupported";
+      };
+
+      const getTemplateId = () => {
+        const platform = getPlatform();
+
+        let templateId = "";
+        if (platform === "android") {
+          templateId = "android-template";
+        } else if (platform === "ios" || platform === "ipad") {
+          templateId = "ios-ipad-template";
+        } else {
+          templateId = "unsupported-template";
+        }
+
+        return templateId;
+      };
+
+      // renders the content based on the platform
+      const renderContent = () => {
+        const platform = getPlatform();
+        let templateId = getTemplateId();
+
+        const template = document.getElementById(templateId);
+        if (template) {
+          document
+            .getElementById("main-content")
+            .appendChild(template.content.cloneNode(true));
+        }
+      };
+
+      // dynmaic content rendering for ios and ipad only
+      const renderIosIpadContent = (platform) => {
+        if (platform === "ios") {
+          deviceType = "iPhone";
+        } else if (platform === "ipad") {
           deviceType = "iPad";
         }
+
         document
           .querySelectorAll('[data-attribute="dynamic-device-type"]')
           .forEach((el) => {
@@ -204,13 +263,24 @@
           });
 
         // update image src based on OS
-        const osImagePrefix = isIPhone ? "ios" : "iPadOS";
+        const osImagePrefix = platform === "ios" ? "ios" : "iPadOS";
         document.querySelector(
           ".profile-downloaded-img"
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-profile-downloaded.png`;
         document.querySelector(
           ".install-profile-img"
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
+      };
+
+      // set up the page content
+      document.addEventListener("DOMContentLoaded", function () {
+        const platform = getPlatform();
+
+        renderContent();
+
+        if (platform === "ios" || platform === "ipad") {
+          renderIosIpadContent(platform);
+        }
       });
     </script>
   </body>
