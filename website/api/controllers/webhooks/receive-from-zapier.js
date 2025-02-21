@@ -30,8 +30,8 @@ module.exports = {
 
   exits: {
     success: { description: 'An event has successfully been received.' },
-    unrecognizedEventName: { description: 'I do not know how to handle that kind of event.', responseType: 'badRequest' },// TODO: how will zapier react to receiving a bad request response?
-    couldNotMatchLinkedinId: { description: 'A linkedIn company could not be found using the provided linkedIn url', responseType: 'TODO' }
+    unrecognizedEventName: { description: 'I do not know how to handle that kind of event.', responseType: 'ok' },// TODO: how will zapier react to receiving a bad request response?
+    couldNotMatchLinkedinId: { description: 'A linkedIn company could not be found using the provided linkedIn url', responseType: 'ok' }
   },
 
 
