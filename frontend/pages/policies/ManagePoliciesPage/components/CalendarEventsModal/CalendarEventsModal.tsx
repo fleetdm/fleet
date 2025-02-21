@@ -15,6 +15,7 @@ import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
 
@@ -39,6 +40,7 @@ interface ICalendarEventsModal {
   enabled: boolean;
   url: string;
   policies: IPolicyStats[];
+  gomEnabled?: boolean;
 }
 
 // allows any policy name to be the name of a form field, one of the checkboxes
@@ -52,6 +54,7 @@ const CalendarEventsModal = ({
   enabled,
   url,
   policies,
+  gomEnabled = false,
 }: ICalendarEventsModal) => {
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
 
@@ -203,7 +206,7 @@ const CalendarEventsModal = ({
                     onChange={() => {
                       onPolicyEnabledChange({ name, value: !isChecked });
                     }}
-                    disabled={!formData.enabled}
+                    disabled={!formData.enabled || gomEnabled}
                   >
                     <TooltipTruncatedText value={name} />
                   </Checkbox>
@@ -273,6 +276,7 @@ const CalendarEventsModal = ({
         onChange={onFeatureEnabledChange}
         inactiveText="Disabled"
         activeText="Enabled"
+        disabled={gomEnabled}
       />
       <Button
         type="button"
@@ -337,7 +341,7 @@ const CalendarEventsModal = ({
               error={formErrors.url}
               tooltip="Provide a URL to deliver a webhook request to."
               helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-              disabled={!formData.enabled}
+              disabled={!formData.enabled || gomEnabled}
             />
             <RevealButton
               isShowing={showExamplePayload}
@@ -356,16 +360,20 @@ const CalendarEventsModal = ({
         {renderPolicies()}
       </div>
       <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onUpdateCalendarEvents}
-          className="save-loading"
-          isLoading={isUpdating}
-          disabled={Object.keys(formErrors).length > 0}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(dC) => (
+            <Button
+              type="submit"
+              variant="brand"
+              onClick={onUpdateCalendarEvents}
+              className="save-loading"
+              isLoading={isUpdating}
+              disabled={Object.keys(formErrors).length > 0 || dC}
+            >
+              Save
+            </Button>
+          )}
+        />
         <Button onClick={onExit} variant="inverse">
           Cancel
         </Button>

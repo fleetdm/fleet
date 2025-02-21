@@ -1,4 +1,4 @@
-# Demand
+# Marketing
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
@@ -12,16 +12,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of the Demand department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-demand&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [#g-demand](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
 > To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
 
-The Demand department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
 
 
@@ -51,7 +51,7 @@ Intent signals help measure an individual's current level of engagement with the
 
 (a) A contact and/or account needs to be created/updated. 
 
-(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/demand#research-an-account).
+(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/marketing#research-an-account).
 
 (c) An account/contact would benefit from a sales conversation.
 
@@ -67,7 +67,7 @@ Intent signals help measure an individual's current level of engagement with the
 
 ### Research an account
 
-Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/demand#measure-intent-signals).
+Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
 
 1. Create the account in SalesForce if it doesn't already exist.
 2. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
@@ -109,7 +109,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 ### Settle event strategy
 
- Fleet's [Head of Marketing](https://fleetdm.com/handbook/demand#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
+ Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
   - target buying situation of the audience
@@ -137,20 +137,20 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 ### Book an event
 
-Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
+Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/marketing#team) as needed with any questions or blockers to booking an event.
 
-> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
+> Note: The Marketing department [settles all event strategy](https://fleetdm.com/handbook/marketing#settle-event-strategy) prior to booking an event. 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
 ### Create an article
 Article creation begins with creation of an issue using the "Article request" template.
 
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=Drew-P-drawers&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=Drew-P-drawers&labels=%3Ahelp-marketing=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+Check the "📃 Planned articles" column in [:help-marketing board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 -->
 
 
@@ -244,7 +244,7 @@ To do this:
 
 ### Request swag
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
-1. [Create an issue](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the #g-demand board.
+1. [Create an issue](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the :help-marketing board.
 2. Provide order details (e.g. expected shirt size, name, and shipping details).
 3. Decide if you'd like to include a personalized message and attach it to the issue.
 
@@ -268,9 +268,9 @@ Swag requests are received in the form of issues and will be fulfilled based on 
 ### Run a new ad or change an existing ad
 
 Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
+1. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
+3. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
 
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
@@ -315,7 +315,7 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 
 #### Stubs
@@ -341,4 +341,4 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 <meta name="maintainedBy" value="Drew-P-Drawers">
-<meta name="title" value="🫧 Demand">
+<meta name="title" value="🫧 Marketing">

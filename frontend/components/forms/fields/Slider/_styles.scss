@@ -25,6 +25,9 @@
     display: flex;
     align-items: center;
     height: 24px; // Noticeable with help text below slider
+    &--disabled {
+      @include disabled;
+    }
   }
 
   &__dot {
