@@ -242,7 +242,6 @@ type Datastore interface {
 	Host(ctx context.Context, id uint) (*Host, error)
 	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
 	// the provided uuids and filtered according to the provided team filters. It
@@ -389,6 +388,12 @@ type Datastore interface {
 	// The returned OSVersion is accompanied by the time it was last updated.
 	OSVersion(ctx context.Context, osVersionID uint, teamFilter *TeamFilter) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
+
+	// ////////////////////////////////////////////////////////////////////////////
+	// Android hosts
+
+	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	AndroidHostLite(ctx context.Context, deviceID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore

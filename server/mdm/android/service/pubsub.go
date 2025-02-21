@@ -78,23 +78,24 @@ func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device
 		// if err != nil && !fleet.IsNotFound(err) {
 		// 	return ctxerr.Wrap(ctx, err, "getting host")
 		// }
-	} else {
-		// Device is new to Fleet
-		enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
-		}
-		// TODO: Do EnrollHost and androidDS.AddHost inside a transaction so we don't add duplicate hosts
-		host := &fleet.AndroidHost{
-			Host: &fleet.Host{
-				TeamID: enrollSecret.GetTeamID(),
-			},
-			Device: &android.Device{},
-		}
-		_, err = svc.fleetDS.NewAndroidHost(ctx, host)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enrolling Android host")
-		}
+		return nil
+	}
+
+	// Device is new to Fleet
+	enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	}
+	// TODO: Do EnrollHost and androidDS.AddHost inside a transaction so we don't add duplicate hosts
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			TeamID: enrollSecret.GetTeamID(),
+		},
+		Device: &android.Device{},
+	}
+	_, err = svc.fleetDS.NewAndroidHost(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
 	return nil
