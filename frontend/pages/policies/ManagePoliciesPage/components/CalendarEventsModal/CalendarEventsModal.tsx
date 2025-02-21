@@ -40,7 +40,7 @@ interface ICalendarEventsModal {
   enabled: boolean;
   url: string;
   policies: IPolicyStats[];
-  gomEnabled?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 // allows any policy name to be the name of a form field, one of the checkboxes
@@ -54,7 +54,7 @@ const CalendarEventsModal = ({
   enabled,
   url,
   policies,
-  gomEnabled = false,
+  gitOpsModeEnabled = false,
 }: ICalendarEventsModal) => {
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
 
@@ -206,7 +206,7 @@ const CalendarEventsModal = ({
                     onChange={() => {
                       onPolicyEnabledChange({ name, value: !isChecked });
                     }}
-                    disabled={!formData.enabled || gomEnabled}
+                    disabled={!formData.enabled || gitOpsModeEnabled}
                   >
                     <TooltipTruncatedText value={name} />
                   </Checkbox>
@@ -276,7 +276,7 @@ const CalendarEventsModal = ({
         onChange={onFeatureEnabledChange}
         inactiveText="Disabled"
         activeText="Enabled"
-        disabled={gomEnabled}
+        disabled={gitOpsModeEnabled}
       />
       <Button
         type="button"
@@ -341,7 +341,7 @@ const CalendarEventsModal = ({
               error={formErrors.url}
               tooltip="Provide a URL to deliver a webhook request to."
               helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-              disabled={!formData.enabled || gomEnabled}
+              disabled={!formData.enabled || gitOpsModeEnabled}
             />
             <RevealButton
               isShowing={showExamplePayload}
@@ -361,14 +361,14 @@ const CalendarEventsModal = ({
       </div>
       <div className="modal-cta-wrap">
         <GitOpsModeTooltipWrapper
-          renderChildren={(dC) => (
+          renderChildren={(disableChildren) => (
             <Button
               type="submit"
               variant="brand"
               onClick={onUpdateCalendarEvents}
               className="save-loading"
               isLoading={isUpdating}
-              disabled={Object.keys(formErrors).length > 0 || dC}
+              disabled={Object.keys(formErrors).length > 0 || disableChildren}
             >
               Save
             </Button>

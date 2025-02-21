@@ -27,6 +27,8 @@ import validUrl from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
@@ -40,6 +42,7 @@ interface IOtherWorkflowsModalProps {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
+  gitOpsModeEnabled?: boolean;
 }
 
 interface ICheckedPolicy {
@@ -100,6 +103,7 @@ const OtherWorkflowsModal = ({
   isUpdating,
   onExit,
   onSubmit,
+  gitOpsModeEnabled = false,
 }: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
@@ -300,7 +304,7 @@ const OtherWorkflowsModal = ({
           helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
-          disabled={!isPolicyAutomationsEnabled}
+          disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -333,6 +337,7 @@ const OtherWorkflowsModal = ({
             hint={
               "For each policy, Fleet will create a ticket with a list of the failing hosts."
             }
+            disabled={gitOpsModeEnabled}
           />
         </div>
         <RevealButton
@@ -380,6 +385,7 @@ const OtherWorkflowsModal = ({
           inactiveText="Disabled"
           activeText="Enabled"
           autoFocus
+          disabled={gitOpsModeEnabled}
         />
         <div
           className={`form ${baseClass}__policy-automations__${
@@ -396,7 +402,7 @@ const OtherWorkflowsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onChangeRadio}
-              disabled={!isPolicyAutomationsEnabled}
+              disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -406,7 +412,7 @@ const OtherWorkflowsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onChangeRadio}
-              disabled={!isPolicyAutomationsEnabled}
+              disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
             />
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
@@ -420,7 +426,11 @@ const OtherWorkflowsModal = ({
                       const { isChecked, name, id } = policyItem;
                       return (
                         <div
-                          className="policy-row"
+                          className={`policy-row ${
+                            gitOpsModeEnabled
+                              ? "policy-row--disabled-by-gitops-mode"
+                              : ""
+                          }`}
                           id={`policy-row--${id}`}
                           key={id}
                         >
@@ -432,7 +442,9 @@ const OtherWorkflowsModal = ({
                               !isChecked &&
                                 setErrors((errs) => omit(errs, "policyItems"));
                             }}
-                            disabled={!isPolicyAutomationsEnabled}
+                            disabled={
+                              !isPolicyAutomationsEnabled || gitOpsModeEnabled
+                            }
                           >
                             <TooltipTruncatedText value={name} />
                           </Checkbox>
@@ -459,15 +471,20 @@ const OtherWorkflowsModal = ({
           </p>
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onUpdateOtherWorkflows}
-            className="save-loading"
-            isLoading={isUpdating}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={onUpdateOtherWorkflows}
+                className="save-loading"
+                isLoading={isUpdating}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onExit} variant="inverse">
             Cancel
           </Button>

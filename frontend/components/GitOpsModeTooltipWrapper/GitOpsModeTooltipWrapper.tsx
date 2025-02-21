@@ -21,10 +21,10 @@ const GitOpsModeTooltipWrapper = ({
   fixedPositionStrategy,
 }: IGitOpsModeTooltipWrapper) => {
   const { config } = useContext(AppContext);
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
   const repoURL = config?.gitops.repository_url;
 
-  if (!gomEnabled) {
+  if (!gitOpsModeEnabled) {
     return <>{renderChildren()}</>;
   }
 

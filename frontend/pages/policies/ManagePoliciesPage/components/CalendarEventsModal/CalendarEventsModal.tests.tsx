@@ -112,7 +112,7 @@ describe("CalendarEventsModal - component", () => {
         enabled
         url="https://server.com/example"
         policies={testGlobalPolicies}
-        gomEnabled
+        gitOpsModeEnabled
       />
     );
 

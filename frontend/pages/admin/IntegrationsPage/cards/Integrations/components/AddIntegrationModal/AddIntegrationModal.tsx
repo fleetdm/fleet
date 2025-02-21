@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import { SingleValue } from "react-select-5";
@@ -31,6 +33,9 @@ const AddIntegrationModal = ({
   integrations,
   testingConnection,
 }: IAddIntegrationModalProps): JSX.Element => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [destination, setDestination] = useState("jira");
 
   const onDestinationChange = (
@@ -52,6 +57,7 @@ const AddIntegrationModal = ({
               options={destinationOptions}
               className={`${baseClass}__destination-dropdown`}
               wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              isDisabled={gitOpsModeEnabled}
             />
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
@@ -66,6 +72,7 @@ const AddIntegrationModal = ({
           integrations={integrations}
           destination={destination}
           testingConnection={testingConnection}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
       </div>
     </Modal>

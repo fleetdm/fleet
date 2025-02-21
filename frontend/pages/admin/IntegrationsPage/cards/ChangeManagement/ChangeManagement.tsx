@@ -23,7 +23,7 @@ import { AppContext } from "context/app";
 const baseClass = "change-management";
 
 interface IChangeManagementFormData {
-  gomEnabled: boolean;
+  gitOpsModeEnabled: boolean;
   repoURL: string;
 }
 
@@ -33,8 +33,8 @@ interface IChangeManagementFormErrors {
 
 const validate = (formData: IChangeManagementFormData) => {
   const errs: IChangeManagementFormErrors = {};
-  const { gomEnabled, repoURL } = formData;
-  if (gomEnabled) {
+  const { gitOpsModeEnabled, repoURL } = formData;
+  if (gitOpsModeEnabled) {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
@@ -51,7 +51,7 @@ const ChangeManagement = () => {
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
     // dummy 0 values, will be populated with fresh config API response
-    gomEnabled: false,
+    gitOpsModeEnabled: false,
     repoURL: "",
   });
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
@@ -67,15 +67,18 @@ const ChangeManagement = () => {
     {
       onSuccess: (data) => {
         const {
-          gitops: { gitops_mode_enabled: gomEnabled, repository_url: repoURL },
+          gitops: {
+            gitops_mode_enabled: gitOpsModeEnabled,
+            repository_url: repoURL,
+          },
         } = data;
-        setFormData({ gomEnabled, repoURL });
+        setFormData({ gitOpsModeEnabled, repoURL });
         setConfig(data);
       },
     }
   );
 
-  const { gomEnabled, repoURL } = formData;
+  const { gitOpsModeEnabled, repoURL } = formData;
 
   if (isLoadingConfig) {
     return <Spinner />;
@@ -96,7 +99,7 @@ const ChangeManagement = () => {
     try {
       await configAPI.update({
         gitops: {
-          gitops_mode_enabled: formData.gomEnabled,
+          gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
         },
       });
@@ -147,8 +150,8 @@ const ChangeManagement = () => {
       <form onSubmit={handleSubmit}>
         <Checkbox
           onChange={onInputChange}
-          name="gomEnabled"
-          value={gomEnabled}
+          name="gitOpsModeEnabled"
+          value={gitOpsModeEnabled}
           parseTarget
         >
           <TooltipWrapper tipContent="GitOps mode is a UI-only setting. API permissions are restricted based on user role.">
@@ -165,7 +168,7 @@ const ChangeManagement = () => {
           onBlur={onInputBlur}
           error={formErrors.repository_url}
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
-          disabled={!gomEnabled}
+          disabled={!gitOpsModeEnabled}
         />
         <Button
           type="submit"
