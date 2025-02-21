@@ -1,6 +1,3 @@
-//go:build darwin || linux
-// +build darwin linux
-
 package main
 
 import (
