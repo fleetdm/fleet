@@ -5,6 +5,7 @@ interface ITabTextProps {
   className?: string;
   children: React.ReactNode;
   count?: number;
+  /** Changes count badge from default purple to red */
   isErrorCount?: boolean;
 }
 
