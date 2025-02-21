@@ -107,6 +107,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
+			team_id = :team_id,
 			detail_updated_at = :detail_updated_at,
 			label_updated_at = :label_updated_at,
 			hostname = :hostname,
@@ -137,12 +138,23 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 }
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
-	stmt := `SELECT ad.id, ad.host_id, ad.device_id, ad.enterprise_specific_id, ad.policy_id, ad.last_policy_sync_time
+	type liteHost struct {
+		TeamID *uint `db:"team_id"`
+		*android.Device
+	}
+	stmt := `SELECT 
+  		h.team_id,
+    	ad.id,
+    	ad.host_id,
+    	ad.device_id,
+    	ad.enterprise_specific_id,
+    	ad.policy_id,
+    	ad.last_policy_sync_time
 		FROM android_devices ad
 		LEFT JOIN hosts h ON ad.host_id = h.id
 		WHERE ad.enterprise_specific_id = ?`
-	var device android.Device
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, enterpriseSpecificID)
+	var host liteHost
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, enterpriseSpecificID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, common_mysql.NotFound("Android device").WithName(enterpriseSpecificID)
@@ -150,8 +162,11 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		return nil, ctxerr.Wrap(ctx, err, "getting device by device ID")
 	}
 	result := &fleet.AndroidHost{
-		Host:   &fleet.Host{ID: device.HostID},
-		Device: &device,
+		Host: &fleet.Host{
+			ID:     host.Device.HostID,
+			TeamID: host.TeamID,
+		},
+		Device: host.Device,
 	}
 	result.SetNodeKey(enterpriseSpecificID)
 	return result, nil

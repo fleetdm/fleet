@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDevice(t *testing.T) {
+func TestHosts(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
