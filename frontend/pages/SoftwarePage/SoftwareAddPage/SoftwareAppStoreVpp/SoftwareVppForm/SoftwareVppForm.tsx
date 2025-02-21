@@ -125,7 +125,8 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
 }: ISoftwareVppFormProps) => {
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -286,7 +287,7 @@ const SoftwareVppForm = ({
   });
 
   const formContentClasses = classnames(`${baseClass}__form-content`, {
-    [`${baseClass}__form-content--disabled`]: gomEnabled,
+    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
   });
 
   return (

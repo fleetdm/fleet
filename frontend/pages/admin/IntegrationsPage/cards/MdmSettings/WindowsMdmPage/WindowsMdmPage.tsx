@@ -11,6 +11,8 @@ import Button from "components/buttons/Button";
 import BackLink from "components/BackLink/BackLink";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "windows-mdm-page";
@@ -60,6 +62,7 @@ interface IWindowsMdmPageProps {
 
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [mdmOn, setMdmOn] = useState(
     config?.mdm?.windows_enabled_and_configured ?? false
@@ -106,10 +109,11 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             activeText="Windows MDM on"
             inactiveText="Windows MDM off"
             onChange={onChangeMdmOn}
+            disabled={gitOpsModeEnabled}
           />
           <p>{descriptionText}</p>
           <Checkbox
-            disabled={!isPremiumTier || !mdmOn}
+            disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
             value={autoMigration}
             onChange={onChangeAutoMigration}
             tooltipContent={
@@ -118,10 +122,18 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           >
             Automatically migrate hosts connected to another MDM solution
           </Checkbox>
-
-          <Button variant="brand" onClick={onSaveMdm}>
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="brand"
+                onClick={onSaveMdm}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </>
     </MainContent>

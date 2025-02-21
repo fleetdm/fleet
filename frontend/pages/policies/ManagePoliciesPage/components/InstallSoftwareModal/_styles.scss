@@ -24,6 +24,9 @@
       height: 40px;
       padding-top: 4px;
       padding-bottom: 4px;
+      &--disabled-by-gitops-mode {
+        @include disabled;
+      }
     }
 
     &__no-software {
