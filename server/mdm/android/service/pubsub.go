@@ -3,13 +3,18 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-json-experiment/json"
 	"github.com/go-kit/log/level"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -65,14 +70,27 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 
 func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device) error {
 
-	// Device may already be present in Fleet if device user removed the MDM profile and then re-enrolled
-	fleetDevice, err := svc.getDeviceIfPresent(ctx, device)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting Android device if present")
+	if device.HardwareInfo == nil {
+		return ctxerr.Errorf(ctx, "missing hardware info for Android device %s", device.Name)
 	}
-	// TODO: Check if entry in hosts table is also present. If not, create one.
+	if device.SoftwareInfo == nil {
+		return ctxerr.Errorf(ctx, "missing software info for Android device %s", device.Name)
+	}
+	if device.MemoryInfo == nil {
+		return ctxerr.Errorf(ctx, "missing memory info for Android device %s", device.Name)
+	}
 
-	if fleetDevice != nil {
+	// Device may already be present in Fleet if device user removed the MDM profile and then re-enrolled
+	deviceID, err := svc.getDeviceID(ctx, device)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting device ID")
+	}
+	host, err := svc.getHostIfPresent(ctx, deviceID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android host if present")
+	}
+
+	if host != nil {
 		// TODO: Update device details; this could also be a re-enrollment
 		// _, err := svc.fleetDS.HostLite(ctx, fleetDevice.HostID)
 		// if err != nil && !fleet.IsNotFound(err) {
@@ -86,13 +104,35 @@ func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
-	// TODO: Do EnrollHost and androidDS.AddHost inside a transaction so we don't add duplicate hosts
-	host := &fleet.AndroidHost{
-		Host: &fleet.Host{
-			TeamID: enrollSecret.GetTeamID(),
-		},
-		Device: &android.Device{},
+
+	policy, err := svc.getPolicyID(ctx, device)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android policy ID")
 	}
+	policySyncTime, err := time.Parse(time.RFC3339, device.LastPolicySyncTime)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
+	}
+	newHost := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			TeamID:          enrollSecret.GetTeamID(),
+			ComputerName:    svc.getComputerName(device),
+			Hostname:        svc.getComputerName(device),
+			Platform:        "android",
+			OSVersion:       "Android " + device.SoftwareInfo.AndroidVersion,
+			Build:           device.SoftwareInfo.AndroidBuildNumber,
+			Memory:          device.MemoryInfo.TotalRam,
+			HardwareSerial:  device.HardwareInfo.SerialNumber,
+			LabelUpdatedAt:  time.Time{},
+			DetailUpdatedAt: time.Time{},
+		},
+		Device: &android.Device{
+			EnterpriseSpecificID: ptr.String(device.HardwareInfo.EnterpriseSpecificId),
+			PolicyID:             ptr.Uint(policy),
+			LastPolicySyncTime:   ptr.Time(policySyncTime),
+		},
+	}
+	newHost.SetDeviceID(deviceID)
 	_, err = svc.fleetDS.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
@@ -101,15 +141,36 @@ func (svc *Service) enroll(ctx context.Context, device *androidmanagement.Device
 	return nil
 }
 
-func (svc *Service) getDeviceIfPresent(ctx context.Context, device *androidmanagement.Device) (*android.Device, error) {
-	nameParts := strings.Split(device.Name, "/")
-	if len(nameParts) != 4 {
-		return nil, ctxerr.Errorf(ctx, "invalid Android device name: %s", device.Name)
-	}
-	deviceID := nameParts[3]
-	fleetDevice, err := svc.ds.GetDeviceByDeviceID(ctx, deviceID)
+func (svc *Service) getComputerName(device *androidmanagement.Device) string {
+	computerName := cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
+	return computerName
+}
+
+func (svc *Service) getHostIfPresent(ctx context.Context, deviceID string) (*fleet.AndroidHost, error) {
+	host, err := svc.fleetDS.AndroidHostLite(ctx, deviceID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting device by device ID")
 	}
-	return fleetDevice, nil
+	return host, nil
+}
+
+func (svc *Service) getDeviceID(ctx context.Context, device *androidmanagement.Device) (string, error) {
+	nameParts := strings.Split(device.Name, "/")
+	if len(nameParts) != 4 {
+		return "", ctxerr.Errorf(ctx, "invalid Android device name: %s", device.Name)
+	}
+	deviceID := nameParts[3]
+	return deviceID, nil
+}
+
+func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.Device) (uint, error) {
+	nameParts := strings.Split(device.AppliedPolicyName, "/")
+	if len(nameParts) != 4 {
+		return 0, ctxerr.Errorf(ctx, "invalid Android policy name: %s", device.AppliedPolicyName)
+	}
+	result, err := strconv.ParseUint(nameParts[3], 10, 64)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "parsing Android policy ID")
+	}
+	return uint(result), nil
 }

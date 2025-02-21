@@ -35,7 +35,6 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 		Host: &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Time{},
 			Hostname:        "hostname",
 			ComputerName:    "computer_name",
 			Platform:        "android",

@@ -2,13 +2,18 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,13 +37,13 @@ func TestDevice(t *testing.T) {
 }
 
 func testCreateGetDevice(t *testing.T, ds *Datastore) {
-	_, err := ds.GetDeviceByDeviceID(testCtx(), "deviceID")
+	_, err := ds.getDeviceByDeviceID(testCtx(), "deviceID")
 	assert.True(t, fleet.IsNotFound(err))
 
 	device1 := &android.Device{
 		HostID:               1,
 		DeviceID:             "deviceID",
-		EnterpriseSpecificID: "enterpriseSpecificID",
+		EnterpriseSpecificID: ptr.String("enterpriseSpecificID"),
 		PolicyID:             nil,
 		LastPolicySyncTime:   nil,
 	}
@@ -51,7 +56,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 	device2 := &android.Device{
 		HostID:               2,
 		DeviceID:             "deviceID2",
-		EnterpriseSpecificID: "enterpriseSpecificID2",
+		EnterpriseSpecificID: ptr.String("enterpriseSpecificID2"),
 		PolicyID:             ptr.Uint(1),
 		LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 	}
@@ -61,14 +66,27 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 	device2.ID = result2.ID
 	assert.Equal(t, device2, result2)
 
-	result1, err = ds.GetDeviceByDeviceID(testCtx(), device1.DeviceID)
+	result1, err = ds.getDeviceByDeviceID(testCtx(), device1.DeviceID)
 	require.NoError(t, err)
 	assert.Equal(t, device1, result1)
-	result2, err = ds.GetDeviceByDeviceID(testCtx(), device2.DeviceID)
+	result2, err = ds.getDeviceByDeviceID(testCtx(), device2.DeviceID)
 	require.NoError(t, err)
 	assert.EqualValues(t, device2, result2)
 }
 
 func (ds *Datastore) createDevice(ctx context.Context, device *android.Device) (*android.Device, error) {
 	return ds.CreateDeviceTx(ctx, device, ds.Writer(ctx))
+}
+
+func (ds *Datastore) getDeviceByDeviceID(ctx context.Context, deviceID string) (*android.Device, error) {
+	stmt := `SELECT id, host_id, device_id, enterprise_specific_id, policy_id, last_policy_sync_time FROM android_devices WHERE device_id = ?`
+	var device android.Device
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, deviceID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, common_mysql.NotFound("Android device").WithName(deviceID)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting device by device ID")
+	}
+	return &device, nil
 }

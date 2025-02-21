@@ -24,7 +24,6 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		    node_key,
 			detail_updated_at,
 			label_updated_at,
-			policy_updated_at,
 		    hostname,
 			computer_name,
 			platform,
@@ -37,7 +36,6 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
    			:node_key,
 			:detail_updated_at,
 			:label_updated_at,
-			:policy_updated_at,
 			:hostname,
 			:computer_name,
 			:platform,
@@ -49,7 +47,6 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		) ON DUPLICATE KEY UPDATE
 			detail_updated_at = VALUES(detail_updated_at),
 			label_updated_at = VALUES(label_updated_at),
-			policy_updated_at = VALUES(policy_updated_at),
 			hostname = VALUES(hostname),
 			computer_name = VALUES(computer_name),
 			platform = VALUES(platform),
