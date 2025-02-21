@@ -24,9 +24,6 @@
       height: 40px;
       padding-top: 4px;
       padding-bottom: 4px;
-      &--disabled-by-gitops-mode {
-        @include disabled;
-      }
     }
 
     &__no-scripts {
@@ -38,7 +35,7 @@
       justify-content: center;
       font-size: $small;
 
-      div {
+      div  {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
         a {

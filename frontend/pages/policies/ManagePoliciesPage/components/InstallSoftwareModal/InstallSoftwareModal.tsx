@@ -3,8 +3,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
-import classnames from "classnames";
-
 import { IPolicyStats } from "interfaces/policy";
 import {
   CommaSeparatedPlatformString,
@@ -31,7 +29,6 @@ import {
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -66,7 +63,6 @@ interface IInstallSoftwareModal {
   isUpdating: boolean;
   policies: IPolicyStats[];
   teamId: number;
-  gitOpsModeEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -95,7 +91,6 @@ const InstallSoftwareModal = ({
   isUpdating,
   policies,
   teamId,
-  gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
   const [formData, setFormData] = useState<IInstallSoftwareFormData>(
     policies.map((policy) => ({
@@ -256,18 +251,14 @@ const InstallSoftwareModal = ({
       swIdToInstall,
     } = policy;
 
-    const classes = classnames(`${baseClass}__policy-row`, "policy-row", {
-      "policy-row--disabled-by-gitops-mode": gitOpsModeEnabled,
-    });
     return (
       <li
-        className={classes}
+        className={`${baseClass}__policy-row policy-row`}
         id={`policy-row--${policyId}`}
         key={`${policyId}-${enabled}`} // Re-renders when modifying enabled for truncation check
       >
         <Checkbox
           value={enabled}
-          disabled={gitOpsModeEnabled}
           name={policyName}
           onChange={() => {
             onChangeEnableInstallSoftware({
@@ -335,22 +326,16 @@ const InstallSoftwareModal = ({
           </div>
         </div>
         <div className="modal-cta-wrap">
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                variant="brand"
-                onClick={onUpdateInstallSoftware}
-                className="save-loading"
-                isLoading={isUpdating}
-                disabled={
-                  disableChildren || anyPolicyEnabledWithoutSelectedSoftware
-                }
-              >
-                Save
-              </Button>
-            )}
-          />
+          <Button
+            type="submit"
+            variant="brand"
+            onClick={onUpdateInstallSoftware}
+            className="save-loading"
+            isLoading={isUpdating}
+            disabled={anyPolicyEnabledWithoutSelectedSoftware}
+          >
+            Save
+          </Button>
           <Button onClick={onExit} variant="inverse">
             Cancel
           </Button>
