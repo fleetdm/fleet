@@ -45,7 +45,7 @@ Note that Firehose logging has limits [discussed in the documentation](https://d
 
 To send logs to Snowflake, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
 
-If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/firehose.tf), Firehose is already configured as your log destination.
+If you're using Fleet's [best practice Terraform](https://github.com/fleetdm/fleet-terraform), Firehose is already configured as your log destination.
 
 With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into a Snowflake database. AWS provides instructions on how to direct logs to a Snowflake database [here in the AWS documentation](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/automate-data-stream-ingestion-into-a-snowflake-database-by-using-snowflake-snowpipe-amazon-s3-amazon-sns-and-amazon-kinesis-data-firehose.html)
 
