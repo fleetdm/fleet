@@ -14,6 +14,7 @@ import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
+import { INotification } from "interfaces/notification";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -538,6 +539,7 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
+
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -558,22 +560,97 @@ const ManagePolicyPage = ({
 
         return turnedOff || turnedOn || updatedSwId;
       });
+
       if (!changedPolicies.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses = changedPolicies.map((changedPolicy) => {
-        return teamPoliciesAPI.update(changedPolicy.id, {
-          // "software_title_id": null will unset software install for the policy
-          // "software_title_id": X will set the value to the given integer (except 0).
+
+      const promises = changedPolicies.map((changedPolicy) =>
+        teamPoliciesAPI.update(changedPolicy.id, {
           software_title_id: changedPolicy.swIdToInstall || null,
           team_id: teamIdForApi,
+        })
+      );
+
+      // Allows for all API calls to settle even if there is an error on one
+      const results = await Promise.allSettled(promises);
+
+      const successfulUpdates = results.filter(
+        (result) => result.status === "fulfilled"
+      );
+      const failedUpdates = results.filter(
+        (result) => result.status === "rejected"
+      );
+
+      // Renders API error reason for each error in a single message
+      if (failedUpdates.length > 0) {
+        const errorNotifications: INotification[] = failedUpdates.map(
+          (result, index) => {
+            // Creates a readable JSX element from the error message
+            const readableSWandTeamErrorMessage = (): JSX.Element => {
+              // Extracts the error message from the API response
+              const apiErrorMessage = (result as PromiseRejectedResult).reason
+                .data.errors[0].reason;
+
+              // Splits the message into parts, separating software_title_id and team_id
+              const parts = apiErrorMessage.split(
+                /(software_title_id \d+|team_id \d+)/
+              );
+
+              // Maps each part of the message to a JSX element
+              const jsxElement = parts.map((part: any) => {
+                if (part.startsWith("software_title_id")) {
+                  const swId = part.split(" ")[1];
+
+                  // Finds the corresponding software in formData and replaces software_title_id part with software name
+                  const software = formData.find(
+                    (item) => item.swIdToInstall?.toString() === swId
+                  );
+                  return software ? (
+                    <>
+                      <b>{software.swNameToInstall}</b> (ID:{" "}
+                      {software.swIdToInstall})
+                    </>
+                  ) : (
+                    part
+                  );
+
+                  // Replace team_id part with current team name
+                } else if (part.startsWith("team_id")) {
+                  return <b>{currentTeamName}</b>;
+                }
+                return <>{part}</>;
+              });
+
+              return <>{jsxElement}</>;
+            };
+
+            const message = (
+              <>Could not update policy. {readableSWandTeamErrorMessage()}</>
+            );
+
+            return {
+              id: `error-${index}`,
+              alertType: "error",
+              isVisible: true,
+              message,
+              persistOnPageChange: false,
+            };
+          }
+        );
+
+        console.log("errorNotifications", errorNotifications);
+        // Assuming renderFlash can handle an array of notifications
+        renderFlash("error", null, {
+          notifications: errorNotifications,
         });
-      });
-      await Promise.all(responses);
-      await wait(100); // prevent race
+      } else if (successfulUpdates.length > 0) {
+        // Only render success message if there are no failures
+        renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+      }
+
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
