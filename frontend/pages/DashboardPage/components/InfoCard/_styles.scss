@@ -1,10 +1,14 @@
 .dashboard-info-card {
-  padding: 32px;
+  padding: $pad-medium;
   width: 100%;
   background-color: $core-white;
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   box-sizing: border-box;
+
+  @media (min-width: $break-sm) {
+    padding: $pad-xlarge;
+  }
 
   &__section-title-cta {
     display: flex;
@@ -38,9 +42,12 @@
   }
 
   &__section-title-detail {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+    display: none;
+    @media (min-width: $break-xs) {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
   }
 
   &__section-description {
