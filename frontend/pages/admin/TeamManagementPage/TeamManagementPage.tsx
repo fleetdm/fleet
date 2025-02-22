@@ -277,6 +277,7 @@ const TeamManagementPage = (): JSX.Element => {
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
+              gitOpsModeCompatible: true,
             }}
             resultsTitle={"teams"}
             emptyComponent={() => (

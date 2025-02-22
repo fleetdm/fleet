@@ -892,8 +892,6 @@ const ManagePolicyPage = ({
       config?.integrations.google_calendar.length > 0) ??
     false;
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
-
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
@@ -1057,7 +1055,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showAddPolicyModal && (
@@ -1082,7 +1079,6 @@ const ManagePolicyPage = ({
             onSubmit={onUpdatePolicySoftwareInstall}
             isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
-            gitOpsModeEnabled={gitOpsModeEnabled}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />
@@ -1093,7 +1089,6 @@ const ManagePolicyPage = ({
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
             policies={policiesAvailableToAutomate}
-            gitOpsModeEnabled={gitOpsModeEnabled}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
           />
@@ -1107,7 +1102,6 @@ const ManagePolicyPage = ({
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
       </div>

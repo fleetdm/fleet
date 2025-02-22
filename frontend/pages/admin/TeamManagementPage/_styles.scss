@@ -32,4 +32,12 @@
       }
     }
   }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+    .actions-dropdown-select__control--is-disabled {
+      min-height: 0;
+      padding: 0;
+    }
+  }
 }
