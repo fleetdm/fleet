@@ -1080,16 +1080,18 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":     {},
-		hostDetailQueryPrefix + "mdm":                        {},
-		hostDetailQueryPrefix + "munki_info":                 {},
-		hostDetailQueryPrefix + "windows_update_history":     {},
-		hostDetailQueryPrefix + "kubequery_info":             {},
-		hostDetailQueryPrefix + "orbit_info":                 {},
-		hostDetailQueryPrefix + "software_vscode_extensions": {},
-		hostDetailQueryPrefix + "software_macos_firefox":     {},
-		hostDetailQueryPrefix + "battery":                    {},
-		hostDetailQueryPrefix + "software_macos_codesign":    {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
+		hostDetailQueryPrefix + "mdm":                                     {},
+		hostDetailQueryPrefix + "munki_info":                              {},
+		hostDetailQueryPrefix + "windows_update_history":                  {},
+		hostDetailQueryPrefix + "kubequery_info":                          {},
+		hostDetailQueryPrefix + "orbit_info":                              {},
+		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_python_packages":                {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
+		hostDetailQueryPrefix + "software_macos_firefox":                  {},
+		hostDetailQueryPrefix + "battery":                                 {},
+		hostDetailQueryPrefix + "software_macos_codesign":                 {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3709,6 +3711,25 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"installed_path":    "/some/override/path",
 	}
 
+	pythonPackageOne := map[string]string{
+		"name":           "cryptography",
+		"version":        "41.0.7",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/usr/lib/python3/dist-packages",
+	}
+	pythonPackageTwo := map[string]string{
+		"name":           "pip",
+		"version":        "25.0.1",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",
+	}
+
 	for _, tc := range []struct {
 		name       string
 		host       *fleet.Host
@@ -3719,6 +3740,50 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
+		{
+			name: "python packages using original query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":           fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages": []map[string]string{
+					pythonPackageOne,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageOne,
+				},
+			},
+		},
+		{
+			name: "python packages using user query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                          fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": []map[string]string{
+					pythonPackageTwo,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageTwo,
+				},
+			},
+		},
 		{
 			name: "software query works and there are vs code extensions in extra",
 
