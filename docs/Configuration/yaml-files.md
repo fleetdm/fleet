@@ -23,6 +23,19 @@ team_settings: # Only teams/team-name.yml
 
 Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
+#### Environment variables
+
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your YAML files. Use `$ENV_VARIABLE` format, for example:
+
+```yaml
+agent_options:
+  config:
+    options:
+      distributed_interval: $DISTRIBUTED_INTERVAL_SETTING
+```
+
+> Note that while using variables with multi-line values is also supported, it can be challenging to do correctly.  Specifically, the value must be formatted such that when the variable is expanded, the indentation of each line is valid for its location in the YAML.  If set incorrectly, you may receive errors like `failed to unmarshal file error converting YAML to JSON` when running your GitOps command.
+
 ## policies
 
 Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml` files. They can also be specified in separate files in your `lib/` folder.
