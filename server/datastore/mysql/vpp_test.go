@@ -1552,6 +1552,7 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+		{Name: "Existing Title from windows", Version: "0.0.3", Source: "programs"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -1562,9 +1563,22 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+	// get the ID of the windows title so we can validate that it is not re-used
+	sw, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{}, fleet.TeamFilter{TeamID: host2.TeamID})
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	var tid uint
+	for _, s := range sw {
+		if s.Name == "Existing Title from windows" {
+			tid = s.ID
+		}
+	}
+
 	tests := []struct {
-		name string
-		app  *fleet.VPPApp
+		name            string
+		app             *fleet.VPPApp
+		existingTitleID uint
+		expectDiffID    bool
 	}{
 		{
 			name: "title that already exists, no bundle identifier in payload",
@@ -1599,6 +1613,16 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
+			name: "title that already exists for windows",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title from windows",
+				LatestVersion:    "0.0.4",
+				BundleIdentifier: "com.bundle.id",
+			},
+			existingTitleID: tid,
+			expectDiffID:    true,
+		},
+		{
 			name: "title that doesn't exist, no bundle identifier in payload",
 			app: &fleet.VPPApp{
 				Name:             "New Title",
@@ -1628,6 +1652,9 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 				})
 				require.NoError(t, err)
 				require.NotEmpty(t, id)
+				if tt.expectDiffID {
+					require.NotEqual(t, tt.existingTitleID, id)
+				}
 			})
 		}
 	}
