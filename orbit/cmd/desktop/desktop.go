@@ -477,6 +477,27 @@ func main() {
 		systray.Quit()
 	}()
 
+	// Check for the system tray icon periodically and kill the process if it's missing,
+	// forcing the parent to restart it. This may happen if a Linux display manager
+	// is restarted.
+	if runtime.GOOS == "linux" {
+		log.Debug().Msg("starting tray icon checker")
+		go func() {
+			checkTrayIconTicker := time.NewTicker(5 * time.Second)
+
+			for {
+				<-checkTrayIconTicker.C
+				if !trayIconExists() {
+					log.Warn().Msg("system tray icon missing, exiting")
+					// Cleanly stop systray.
+					systray.Quit()
+					// Exit to trigger restart.
+					os.Exit(75)
+				}
+			}
+		}()
+	}
+
 	systray.Run(onReady, onExit)
 }
 

@@ -1656,7 +1656,7 @@ func (d *desktopRunner) Execute() error {
 
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
-		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
+		if done := retry(15*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
