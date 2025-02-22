@@ -71,7 +71,7 @@ const FlashMessage = ({
   }
 
   return (
-    <div className={"flash-message-container"}>
+    <div className="flash-message-container">
       <div className={baseClasses} id={baseClasses}>
         <div className={`${baseClass}__content`}>
           <Icon
