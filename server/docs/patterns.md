@@ -9,6 +9,13 @@ Table of Contents
 - [API Inputs](#api-inputs)
 - [Go](#go)
 - [MySQL](#mysql)
+  - [Timestamps](#timestamps)
+  - [UUIDs](#uuids)
+  - [Say no to `goqu`](#say-no-to-goqu)
+  - [Data retention](#data-retention)
+  - [Re-usable transactionable functions](#re-usable-transactionable-functions)
+- [Specific features](#specific-features)
+  - [GitOps](#gitops)
 
 ## API Inputs
 
@@ -112,3 +119,22 @@ func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere
 
 See [this commit](https://github.com/fleetdm/fleet/pull/22843/files#diff-c5babdad542a72acf2ec2ecb7cb43967fc53850b6998ac629e253336b87e008bR415)
 for an example of this pattern.
+
+## Specific features
+
+### GitOps
+
+[GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files)
+
+`fleetctl gitops` was implemented on top of the existing `fleetctl apply` command. Now that `apply` no longer supports the newest features,
+we need to separate the code for the two commands.
+
+Common issues and gotchas:
+
+- Removing a setting. When a setting is removed from the YAML config file, the GitOps run should remove it from the server. Sometimes, the
+  removal doesn't happen since `apply` did not work like this. Also, developers/QA may forget to test this case explicitly.
+- Few integration tests. GitOps is a complex feature with an extensive state space because many settings interact. At the same time, setting
+  up a test environment for GitOps is difficult. As we work on GitOps, we need to add more integration tests and develop testing utilities
+  to make adding future integration tests easier.
+- GitOps admin can define settings in `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`. Create unit tests for all these cases
+  for features that support them.
