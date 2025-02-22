@@ -38,111 +38,12 @@
     font-size: 14px;
     font-weight: 700;
     line-height: 150%;
+    text-decoration: none;
     &:hover {
       text-decoration: none;
     }
   }
 
-  [purpose='app-search'] {
-
-    // Note: We're using classes here to override the default Docsearch styles;
-    button {
-      width: 100%;
-      cursor: text;
-      margin: 0;
-    }
-    .DocSearch-Button {
-      border-top-left-radius: 6px;
-      border-bottom-left-radius: 6px;
-      border-top-right-radius: 6px;
-      border-bottom-right-radius: 6px;
-      border: 1px solid @core-fleet-black-25;
-      background-color: #FFF;
-      padding: 8px 15px;
-      height: 36px;
-      margin: 0;
-      width: 221px;
-    }
-    .DocSearch-Button:hover {
-      box-shadow: none;
-      border: 1px solid @core-fleet-black-25;
-      color: @core-fleet-black-50;
-    }
-    .DocSearch-Search-Icon {
-      margin-left: 0px;
-      margin-right: 8px;
-      height: 16px;
-      width: 16px;
-      color: @core-fleet-black-50;
-      stroke-width: 3px;
-    }
-    .DocSearch-Button-Keys {
-      display: none;
-    }
-    .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
-    }
-    .DocSearch-Button-Placeholder {
-      font-size: 16px;
-      line-height: 16px;
-      font-weight: 400;
-      padding-left: 0px;
-    }
-    [purpose='disabled-search'] {
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
-        border: none;
-        } &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-          color: #8B8FA2;
-        }
-      .input-group {
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-        border: 1px solid @core-fleet-black-25;
-        background: #FFF;
-      }
-      .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
-      }
-      .form-control {
-        border-radius: 6px;
-        padding: 6px;
-        height: 36px;
-        margin: 0;
-        width: 212px;
-      }
-      .docsearch-input:focus-visible {
-        outline: none;
-      }
-      .ds-input:focus {
-        outline: rgba(0, 0, 0, 0);
-      }
-      .input-group-text {
-        color: @core-fleet-black-50;
-      }
-      .form-control {
-        height: 36px;
-        padding: 0px;
-        font-size: 16px;
-      } &:focus {
-        border: none;
-      }
-    }
-    img {
-      height: 16px;
-      margin-right: 8px;
-    }
-    background: #FFF;
-    &::placeholder {
-      font-size: 16px;
-      color: @core-fleet-black-50;
-    }
-  }
   [purpose='app-cards'] {
     column-count: 3;
     margin-right: -8px;
@@ -168,6 +69,7 @@
     border: 1px solid #E2E4EA;
     background: #FFF;
     box-shadow: none;
+    text-decoration: none;
     &:hover {
       text-decoration: none;
       color: unset;

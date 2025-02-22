@@ -10,7 +10,7 @@
     <div purpose="docs-template" class="container-fluid p-0">
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0"><%= thisPage.title %></h1>
       <div purpose="edit-button-container">
-          <a :purpose="thisPage.title !== 'FAQ' ? 'edit-button' : 'faq-edit-button'" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">
+          <a :purpose="thisPage.title !== 'FAQ' ? 'edit-button' : 'faq-edit-button'" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank" no-icon>
             <i class="fa fa-pencil"></i>Edit page
           </a>
       </div>
@@ -27,9 +27,9 @@
               </div>
             </div>
           </div>
-          <a purpose="subpage-link" target="_blank" href="/releases">Release notes</a>
-          <a purpose="subpage-link" href="/docs/contributing" target="_blank">Contributing</a>
-          <a purpose="subpage-link" target="_blank" href="/support">Support</a>
+          <a purpose="subpage-link" target="_blank" href="/releases" no-icon>Release notes</a>
+          <a purpose="subpage-link" href="/docs/contributing" target="_blank" no-icon>Contributing</a>
+          <a purpose="subpage-link" target="_blank" href="/support" no-icon>Support</a>
           <a purpose="subpage-link" href="/contact">Take a tour</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
             <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">

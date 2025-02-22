@@ -35,7 +35,7 @@ parasails.registerComponent('animatedArrowButton', {
   //  ╠═╣ ║ ║║║║
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
-  <a :class="type" style="text-decoration: none;">
+  <a :class="type" style="text-decoration: none;" no-icon>
     <span purpose="button-text" :style="'color: '+fontColor+';'"><slot name="default"></slot></span>
     <svg purpose="animated-arrow" :style="'stroke: '+strokeColor+';'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
       <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
