@@ -86,7 +86,15 @@ module.exports = {
       if (latestCampaign && latestCampaign.linkedinCompanyIds.length < 100) {
         // Update ad campaign in Campaign Manager
         // > For help w/ Linkedin API, see https://github.com/fleetdm/confidential/tree/main/ads
-        await sails.helpers.http.sendHttpRequest({
+        let filterCriteriaForLatestCampaign = latestCampaign.linkedinCompanyIds.map((id)=>{
+          return `urn:li:organization:${id}`;
+        });
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          url: 'TODO',// TODO: create zap to updates an existing campaign.
+          data: {
+            targetingCriteria: filterCriteriaForLatestCampaign,
+          }
           // TODO: call out to a "update LI campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
           // See the other example below of "create LI campaign" below for example of fields to send in  (see also the other repo)
         }).retry();
@@ -106,32 +114,52 @@ module.exports = {
           });
         }//ﬁ
 
+        // Create a placeholder linkedinCampaignUrn value to create the record with initially
+        // We'll use this value in a subsequent webhook run that will save update the record with the real linkedinCampaignUrn (once it has been created).
+        let placeholderUrn = sails.helpers.strings.random();
+        let nowAt = new Date();
+        let newCampaignName = `${nowAt.toIsoString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`
+        // Now save an incomplete reference to the new LinkedIn campaign.
+        latestCampaign = await AdCampaign.create({
+          isLatest: true,
+          persona: data.persona,
+          linkedinCampaignUrn: placeholderUrn,
+          linkedinCompanyIds: [ linkedinCompanyId ],
+        }).fetch();
+
+        // TODO: call out to a "create campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
         // Then create new ad campaign in Campaign Manager
         // > For help w/ Linkedin API, see https://github.com/fleetdm/confidential/tree/main/ads
-        let report = await sails.helpers.http.sendHttpRequest({
-          // TODO: call out to a "create campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
+        let report = await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          url: 'https://hooks.zapier.com/hooks/catch/3627242/2wdx23r/',
           headers: {
             'X-Custom-Secret-For-Zapier-LinkedIn-Proxy': sails.config.custom.zapierWebhookSecret
           },
           body: {
             campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
-            name: '',// TODO: dynamically create short name from persona + the current date/time
-            targetingCriteria: [],// TODO: build this -- see other repo for example (there is a set of base criteria to fold in)
+            name: newCampaignName,
+            targetingCriteria: [`urn:li:organization:${linkedinCompanyId}`],
+            placeholderUrn,
           },
         }).retry();
 
         assert(_.isString(report.linkedinCampaignUrn) && '' !== report.linkedinCampaignUrn);
 
-        // Now save the reference to the new LinkedIn campaign.
-        latestCampaign = await AdCampaign.create({
-          isLatest: true,
-          persona: data.persona,
-          linkedinCampaignUrn: report.linkedinCampaignUrn,
-          linkedinCompanyIds: [ linkedinCompanyId ],
-        }).fetch();
-
       }
+      // Zap: https://zapier.com/editor/280954803     // «« TODO: Add a webhook request to the zap with this event name and data.
+    } else if(eventName === 'update-placeholder-campaign-urn') {
+      assert(_.isObject(data));
+      assert(_.isString(data.placeholderUrn));
+      assert(_.isString(data.linkedinCampaignUrn));
 
+      let adCampaignWithThisPlaceholderUrn = await AdCampaign.findOne({linkedinCampaignUrn: data.placeholderUrn})
+      if(!adCampaignWithThisPlaceholderUrn) {
+        sails.log.warn(`when the receive-from-zapier webhook received an event to update an AdCampaign record with a non-placeholder linkedinCampaignUrn value (${data.linkedinCampaignUrn}), no record could be found with the specified placeholder (${data.placeholderUrn}).`);
+      }
+      await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
+        linkedinCampaignUrn: data.linkedinCampaignUrn
+      });
     } else {
       throw 'unrecognizedEventName';
     }
