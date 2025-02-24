@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -243,7 +244,7 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	return test.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+	return fleet_httptest.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
 func decodeJSON(r io.Reader, v interface{}) error {
