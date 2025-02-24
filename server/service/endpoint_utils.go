@@ -47,52 +47,41 @@ type listOptionsValidator interface {
 	ValidateListOptions(opts fleet.ListOptions) error
 }
 
-func parseCustomTags(urlTagValue string, r *http.Request, requestStruct, field reflect.Value) (bool, error) {
-	var listOpts fleet.ListOptions
-
+func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
 	switch urlTagValue {
 	case "list_options":
 		opts, err := listOptionsFromRequest(r)
 		if err != nil {
 			return false, err
 		}
-		listOpts = opts
 		field.Set(reflect.ValueOf(opts))
+		return true, nil
 
 	case "user_options":
 		opts, err := userListOptionsFromRequest(r)
 		if err != nil {
 			return false, err
 		}
-		listOpts = opts.ListOptions
 		field.Set(reflect.ValueOf(opts))
+		return true, nil
 
 	case "host_options":
 		opts, err := hostListOptionsFromRequest(r)
 		if err != nil {
 			return false, err
 		}
-		listOpts = opts.ListOptions
 		field.Set(reflect.ValueOf(opts))
+		return true, nil
 
 	case "carve_options":
 		opts, err := carveListOptionsFromRequest(r)
 		if err != nil {
 			return false, err
 		}
-		listOpts = opts.ListOptions
 		field.Set(reflect.ValueOf(opts))
-
-	default:
-		return false, nil
+		return true, nil
 	}
-
-	if lov, ok := requestStruct.Interface().(listOptionsValidator); ok {
-		if err := lov.ValidateListOptions(listOpts); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
+	return false, nil
 }
 
 func jsonDecode(body io.Reader, req any) error {

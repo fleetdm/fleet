@@ -330,7 +330,7 @@ type requestValidator interface {
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
-	parseCustomTags func(urlTagValue string, r *http.Request, requestStruct, field reflect.Value) (bool, error),
+	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 ) kithttp.DecodeRequestFunc {
@@ -393,7 +393,7 @@ func MakeDecoder(
 				}
 				foundValue := false
 				if parseCustomTags != nil {
-					foundValue, err = parseCustomTags(urlTagValue, r, v, field)
+					foundValue, err = parseCustomTags(urlTagValue, r, field)
 					if err != nil {
 						return nil, err
 					}
