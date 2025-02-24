@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import classnames from "classnames";
 
 import { INotification } from "interfaces/notification";
-// @ts-ignore
 import Icon from "components/Icon/Icon";
 
 const baseClass = "flash-message";
@@ -64,7 +63,15 @@ const SingleFlashMessage = ({
     }
 
     return undefined; // No cleanup when we don't set a timeout.
-  }, [id, notification, alertType, isVisible, setHide, id]);
+  }, [
+    id,
+    notification,
+    alertType,
+    isVisible,
+    setHide,
+    isPersistent,
+    onRemoveFlash,
+  ]);
 
   const isFirstRender = useRef(true);
 
@@ -77,7 +84,7 @@ const SingleFlashMessage = ({
     if (!persistOnPageChange) {
       setHide(true);
     }
-  }, [pathname]);
+  }, [pathname, persistOnPageChange]);
 
   if (hide || !isVisible) {
     return null;
