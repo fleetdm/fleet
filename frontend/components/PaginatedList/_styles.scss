@@ -90,4 +90,10 @@
     .fleet-checkbox__label {
         display: flex;
     }
+
+    &.form-fields {
+        &--disabled {
+            @include disabled;
+        }
+    }
 }

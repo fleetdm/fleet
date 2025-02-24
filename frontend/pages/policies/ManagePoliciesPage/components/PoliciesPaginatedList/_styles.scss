@@ -2,4 +2,10 @@
     .component__tooltip-wrapper {
         display: block
     }
+
+    .form-fields {
+        &--disabled {
+            @include disabled;
+        }
+    }
 }
