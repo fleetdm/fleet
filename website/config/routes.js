@@ -870,6 +870,7 @@ module.exports.routes = {
   'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/policy-templates': '/policies',
+  'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
 
   // Sitemap
   // =============================================================================================================
