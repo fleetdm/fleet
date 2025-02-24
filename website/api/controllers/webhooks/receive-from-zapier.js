@@ -54,7 +54,7 @@ module.exports = {
       linkedinCampaignUrn: {startsWith: 'PLACEHOLDER-'}
     });
     if(adCampaignsWithPlaceholderUrns.length > 2) {
-      throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`)
+      throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`);
     }
     // Zap: https://zapier.com/editor/280954803     // «« TODO: Add a webhook request to the zap with this event name and data.
     if(eventName === 'update-placeholder-campaign-urn') {
@@ -117,8 +117,6 @@ module.exports = {
             linkedinCampaignUrn: latestCampaign.linkedinCampaignUrn,
             targetingCriteria: filterCriteriaForLatestCampaign,
           }
-          // TODO: call out to a "update LI campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
-          // See the other example below of "create LI campaign" below for example of fields to send in  (see also the other repo)
         }).retry();
 
         await AdCampaign.updateOne({ id: latestCampaign.id }).set({
@@ -140,7 +138,7 @@ module.exports = {
         // We'll use this value in a subsequent webhook run that will save update the record with the real linkedinCampaignUrn (once it has been created).
         // Note: there is a possibility that a new campaign can't be created with only one linkedInCompanyID, (There is a minimum audience size of 300)
         // In this case, we will treat this new campaign as the latest campaign in the website's database, and send updates for it as new company IDs are added.
-        // When the campaing actually exists in LinkedIn, Zapier will send another event to update the campaign urn in the website's database.
+        // When the campaign actually exists in LinkedIn, Zapier will send another event to update the campaign urn in the website's database.
         let placeholderUrn = 'PLACEHOLDER-'+sails.helpers.strings.random();
         let nowAt = new Date();
         let newCampaignName = `${data.persona} - ${nowAt.toIsoString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`;
