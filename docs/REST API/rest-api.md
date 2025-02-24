@@ -501,14 +501,19 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_id": 3,
       "actor_gravatar": "",
       "actor_email": "",
-      "type": "uninstalled_software",
+      "type": "installed_software",
+      "fleet_initiated": false,
       "details": {
-        "host_id": 1,
-        "host_display_name": "Marko's MacBook Pro",
-        "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "eeeddb94-52d3-4071-8b18-7322cd382abb",
-        "status": "failed_install"
-      }
+        "status": "installed",
+        "host_id": 1272,
+        "host_display_name": "MacBook Pro",
+        "policy_id": null,
+        "policy_name": null,
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "self_service": false,
+        "software_title": "zoom.us.app",
+        "software_package": "ZoomInstallerIT.pkg",
+	    }
     },
     {
       "created_at": "2021-07-29T14:40:27Z",
@@ -518,67 +523,32 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_gravatar": "",
       "actor_email": "name@example.com",
       "type": "created_team",
+      "fleet_initiated": false,
       "details": {
         "team_id": 2,
         "team_name": "Apples"
       }
     },
     {
-      "created_at": "2021-07-30T13:41:07Z",
-      "id": 24,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 25,
+      "type": "installed_software",
+      "fleet_initiated": true,
       "details": {
-        "targets_count": 231
-      }
-    },
-    {
-      "created_at": "2021-07-29T15:35:33Z",
-      "id": 23,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "deleted_multiple_saved_query",
-      "details": {
-        "query_ids": [
-          2,
-          24,
-          25
-        ]
-      }
-    },
-    {
-      "created_at": "2021-07-29T14:40:30Z",
-      "id": 22,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "created_team",
-      "details": {
-        "team_id": 3,
-        "team_name": "Oranges"
-      }
-    },
-    {
-      "created_at": "2021-07-26T17:27:08Z",
-      "id": 15,
-      "actor_full_name": "name",
-      "actor_id": 1,
-      "actor_gravatar": "",
-      "actor_email": "name@example.com",
-      "type": "live_query",
-      "details": {
-        "target_counts": 14
-      }
+        "status": "installed",
+        "host_id": 1272,
+        "host_display_name": "MacBook Pro",
+        "policy_id": 24,
+        "policy_name": "[Install software] Zoom",
+        "install_uuid": "077970ab-0ed6-4573-9cdc-ca9ef9015283",
+        "self_service": false,
+        "software_title": "zoom.us.app",
+        "software_package": "ZoomInstallerIT.pkg",
+	    }
     }
   ],
   "meta": {
-    "has_next_results": true,
+    "has_next_results": false,
     "has_previous_results": false
   }
 }
@@ -4445,67 +4415,41 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 {
   "activities": [
     {
-      "created_at": "2023-07-27T14:35:08Z",
-      "actor_id": 1,
+      "created_at": "2025-02-20T10:09:48.551757Z",
+      "id": 123,
       "actor_full_name": "Anna Chao",
-      "id": 4,
+      "actor_id": 12,
       "actor_gravatar": "",
-      "actor_email": "",
-      "type": "uninstalled_software",
+      "actor_email": "anna@example.com",
+      "type": "installed_software",
+      "fleet_initiated": false,
       "details": {
-        "host_id": 1,
-        "host_display_name": "Marko’s MacBook Pro",
-        "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "failed_uninstall"
-      }
-    },
-    {
-      "created_at": "2023-07-27T14:35:08Z",
-      "actor_id": 1,
-      "actor_full_name": "Anna Chao",
-      "id": 3,
-      "actor_gravatar": "",
-      "actor_email": "",
-      "type": "uninstalled_software",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Marko’s MacBook Pro",
-        "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "uninstalled"
+          "status": "installed",
+          "host_id": 934,
+          "policy_id": null,
+          "policy_name": null,
+          "install_uuid": "2fddb3d3-d553-4334-89a3-235da50d0ee7",
+          "self_service": false,
+          "software_title": "Notion.app",
+          "software_package": "Notion-4.5.0-arm64.dmg",
+          "host_display_name": "Marko's MacBook Pro"
       }
     },
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 2,
-      "actor_full_name": "Anna",
-      "actor_id": 1,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 12,
       "actor_gravatar": "",
       "actor_email": "anna@example.com",
       "type": "ran_script",
+      "fleet_initiated": true,
       "details": {
         "host_id": 1,
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": true
-      },
-    },
-    {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 1,
-      "actor_full_name": "Bob",
-      "actor_id": 2,
-      "actor_gravatar": "",
-      "actor_email": "bob@example.com",
-      "type": "ran_script",
-      "details": {
-        "host_id": 1,
-        "host_display_name": "Steve's MacBook Pro",
-        "script_name": "",
-        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-        "async": false
       },
     },
   ],
@@ -4541,20 +4485,24 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
   "count": 3,
   "activities": [
     {
-      "created_at": "2023-07-27T14:35:08Z",
-      "actor_id": 1,
+      "created_at": "2025-02-20T10:05:43.013218Z",
+      "uuid": "ce8ed8b1-8e77-413f-936c-4ef2f9b665f8",
       "actor_full_name": "Anna Chao",
-      "uuid": "cc081637-fdf9-4d44-929f-96dfaec00f67",
+      "actor_id": 12,
       "actor_gravatar": "",
-      "actor_email": "",
-      "type": "uninstalled_software",
-      "fleet_initiated_activity": false,
+      "actor_email": "anna@example.com",
+      "type": "installed_software",
+      "fleet_initiated": false,
       "details": {
-        "host_id": 1,
-        "host_display_name": "Marko's MacBook Pro",
-        "software_title": "Adobe Acrobat.app",
-        "script_execution_id": "ecf22dba-07dc-40a9-b122-5480e948b756",
-        "status": "pending_uninstall",
+          "status": "pending_install",
+          "host_id": 934,
+          "policy_id": null,
+          "policy_name": null,
+          "install_uuid": "2fddb3d3-d553-4334-89a3-235da50d0ee7",
+          "self_service": false,
+          "software_title": "Notion.app",
+          "software_package": "Notion-4.5.0-arm64.dmg",
+          "host_display_name": "Marko's MacBook Pro"
       }
     },
     {
@@ -4565,6 +4513,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_gravatar": "",
       "actor_email": "marko@example.com",
       "type": "ran_script",
+      "fleet_initiated": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Steve's MacBook Pro",
@@ -4581,6 +4530,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_gravatar": "",
       "actor_email": "rachael@example.com",
       "type": "ran_script",
+      "fleet_initiated": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Steve's MacBook Pro",
