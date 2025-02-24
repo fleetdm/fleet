@@ -6,6 +6,7 @@ import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
+import { INotification } from "interfaces/notification";
 
 import paths from "router/paths";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -34,7 +35,10 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   // setTimeout is to help with race conditions as table reloads
   // in some instances (i.e. Manage Hosts)
   useDeepEffect(() => {
-    if (notification?.alertType === "success") {
+    if (
+      notification &&
+      (notification as INotification).alertType === "success"
+    ) {
       setTimeout(() => {
         setResetSelectedRows(true);
         setTimeout(() => {

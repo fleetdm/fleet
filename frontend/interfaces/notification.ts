@@ -12,4 +12,5 @@ export interface INotification {
   isVisible: boolean;
   message: JSX.Element | string | null;
   persistOnPageChange?: boolean;
+  id?: string;
 }
