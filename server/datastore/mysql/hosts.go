@@ -542,6 +542,7 @@ var hostRefs = []string{
 	"host_mdm_actions",
 	"host_calendar_events",
 	"upcoming_activities",
+	"android_devices",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
