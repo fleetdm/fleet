@@ -550,12 +550,12 @@ org_settings:
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
     digicert:
-      name: DIGICERT_WIFI
-      api_token: $DIGICERT_API_TOKEN
-      profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-      certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-      certificate_subject_alternative_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-      certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+      - name: DIGICERT_WIFI
+        api_token: $DIGICERT_API_TOKEN
+        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_subject_alternative_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
     ndes_scep_proxy:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
