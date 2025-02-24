@@ -1,0 +1,22 @@
+.software-details-widget {
+  display: flex;
+  gap: $pad-medium;
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+    @include ellipse-text;
+    max-width: 48vw;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    justify-content: center;
+  }
+
+  &__details {
+    font-size: $xx-small;
+  }
+}
