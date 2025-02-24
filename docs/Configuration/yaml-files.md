@@ -562,9 +562,9 @@ org_settings:
       username: Administrator@example.com
       password: 'myPassword'
     scep_proxy:
-      name: SCEP_VPN
-      server_url: https://example.com/scep
-      challenge: $SCEP_VPN_CHALLENGE
+      - name: SCEP_VPN
+        server_url: https://example.com/scep
+        challenge: $SCEP_VPN_CHALLENGE
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
