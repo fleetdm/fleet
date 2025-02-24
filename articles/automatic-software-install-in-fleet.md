@@ -57,7 +57,7 @@ Use the following policy templates to see if the software is already installed a
 SELECT 1 FROM apps WHERE bundle_identifier = '<YOUR_APP_BUNDLE_ID>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-> You can also use the `name` column for matching (e.g. "Google Chrome.app"), but using `bundle_identifier` is is a more reliable identifier for macOS apps that have bundle identifiers (exceptions include Python and some Homebrew packages).
+> You can also use the `name` column for matching (e.g. "Google Chrome.app"), but using `bundle_identifier` is more reliable for macOS apps that have bundle identifiers.
 
 ### Windows (msi and exe)
 
