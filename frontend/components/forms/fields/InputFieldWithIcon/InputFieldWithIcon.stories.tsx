@@ -1,15 +1,13 @@
-import React from "react";
-import { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 
-// Import the InputFieldWithIcon component
+// @ts-ignore
 import InputFieldWithIcon from ".";
 
-import "../../../../index.scss";
-
+// Define metadata for the story
 const meta: Meta<typeof InputFieldWithIcon> = {
-  component: InputFieldWithIcon,
   title: "Components/FormFields/InputFieldWithIcon",
+  component: InputFieldWithIcon,
   argTypes: {
     type: {
       options: ["text", "password", "email", "number"],
@@ -34,18 +32,6 @@ const meta: Meta<typeof InputFieldWithIcon> = {
       options: ["search", "filter"], // Add more icons as needed
       control: "select",
     },
-    iconName: {
-      options: [
-        "chevrondown",
-        "chevronleft",
-        "chevronright",
-        "chevronup",
-        // Add more icon names here as needed
-        "search",
-        // Add other relevant icon names
-      ],
-      control: "select",
-    },
   },
 };
 
@@ -53,60 +39,73 @@ export default meta;
 
 type Story = StoryObj<typeof InputFieldWithIcon>;
 
-const Template: Story = (args) => <InputFieldWithIcon {...args} />;
-
-export const Default: Story = Template.bind({});
-Default.args = {
-  label: "Email",
-  placeholder: "Enter your email",
-  type: "email",
-  onChange: action("onChange"),
+// Default story
+export const Default: Story = {
+  args: {
+    label: "Email",
+    placeholder: "Enter your email",
+    type: "email",
+    onChange: action("onChange"),
+  },
 };
 
-export const PasswordInput: Story = Template.bind({});
-PasswordInput.args = {
-  ...Default.args,
-  iconName: "lock",
-  label: "Password",
-  placeholder: "Enter your password",
-  type: "password",
+// Password input story
+export const PasswordInput: Story = {
+  args: {
+    ...Default.args,
+    label: "Password",
+    placeholder: "Enter your password",
+    type: "password",
+  },
 };
 
-export const WithError: Story = Template.bind({});
-WithError.args = {
-  ...Default.args,
-  error: "Invalid email address",
+// With error story
+export const WithError: Story = {
+  args: {
+    ...Default.args,
+    error: "Invalid email address",
+  },
 };
 
-export const WithHelpText: Story = Template.bind({});
-WithHelpText.args = {
-  ...Default.args,
-  helpText: "We'll never share your email with anyone else.",
+// With help text story
+export const WithHelpText: Story = {
+  args: {
+    ...Default.args,
+    helpText: "We'll never share your email with anyone else.",
+  },
 };
 
-export const Disabled: Story = Template.bind({});
-Disabled.args = {
-  ...Default.args,
-  disabled: true,
+// Disabled story
+export const Disabled: Story = {
+  args: {
+    ...Default.args,
+    disabled: true,
+  },
 };
 
-export const WithTooltip: Story = Template.bind({});
-WithTooltip.args = {
-  ...Default.args,
-  tooltip: "Enter the email address associated with your account",
+// With tooltip story
+export const WithTooltip: Story = {
+  args: {
+    ...Default.args,
+    tooltip: "Enter the email address associated with your account",
+  },
 };
 
-export const WithClearButton: Story = Template.bind({});
-WithClearButton.args = {
-  ...Default.args,
-  clearButton: action("clearButton"),
-  value: "example@email.com",
+// With clear button story
+export const WithClearButton: Story = {
+  args: {
+    ...Default.args,
+    clearButton: action("clearButton"),
+    value: "example@email.com",
+  },
 };
 
-export const CustomIcon: Story = Template.bind({});
-CustomIcon.args = {
-  ...Default.args,
-  iconSvg: "search", // Use an appropriate icon SVG name
-  label: "Search",
-  placeholder: "Search...",
+// Custom icon story
+export const CustomIcon: Story = {
+  args: {
+    ...Default.args,
+    iconSvg: "search", // Use an appropriate icon SVG name
+    label: "Search",
+    placeholder: "Search...",
+  },
 };
