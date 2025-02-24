@@ -30,13 +30,13 @@ Learn more about automatically installing software [the Automatically install so
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
-* Select the installation mode under "Install". If you select "Manual", you will have to manually specify how to install the software. If you select "Automatic", Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts that fail the policy.
+* If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist.
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options except the installation mode can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
+> After the initial package upload, all options except automatic install can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
 ### Package metadata extraction
 
