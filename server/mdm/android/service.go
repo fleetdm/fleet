@@ -7,6 +7,7 @@ import (
 type Service interface {
 	EnterpriseSignup(ctx context.Context) (*SignupDetails, error)
 	EnterpriseSignupCallback(ctx context.Context, enterpriseID uint, enterpriseToken string) error
+	GetEnterprise(ctx context.Context) (*Enterprise, error)
 	DeleteEnterprise(ctx context.Context) error
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.

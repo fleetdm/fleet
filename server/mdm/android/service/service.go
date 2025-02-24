@@ -58,7 +58,7 @@ func newErrResponse(err error) defaultResponse {
 	return defaultResponse{Err: err}
 }
 
-type androidEnterpriseSignupResponse struct {
+type enterpriseSignupResponse struct {
 	Url string `json:"android_enterprise_signup_url"`
 	defaultResponse
 }
@@ -68,7 +68,7 @@ func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Se
 	if err != nil {
 		return newErrResponse(err)
 	}
-	return androidEnterpriseSignupResponse{Url: result.Url}
+	return enterpriseSignupResponse{Url: result.Url}
 }
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
@@ -222,6 +222,33 @@ func topicIDFromName(name string) (string, error) {
 	return name[lastSlash+1:], nil
 }
 
+type getEnterpriseResponse struct {
+	EnterpriseID string `json:"android_enterprise_id"`
+	defaultResponse
+}
+
+func getEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	enterprise, err := svc.GetEnterprise(ctx)
+	if err != nil {
+		return defaultResponse{Err: err}
+	}
+	return getEnterpriseResponse{EnterpriseID: enterprise.EnterpriseID}
+}
+
+func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewInvalidArgumentError("enterprise", "No enterprise found").WithStatus(http.StatusNotFound)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+	return enterprise, nil
+}
+
 func deleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	err := svc.DeleteEnterprise(ctx)
 	return defaultResponse{Err: err}
@@ -246,7 +273,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		}
 	}
 
-	err = svc.ds.DeleteEnterprises(ctx)
+	err = svc.ds.DeleteAllEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
 	}
@@ -263,7 +290,7 @@ type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
 
-type androidEnrollmentTokenResponse struct {
+type enrollmentTokenResponse struct {
 	*android.EnrollmentToken
 	defaultResponse
 }
@@ -274,7 +301,7 @@ func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc andro
 	if err != nil {
 		return defaultResponse{Err: err}
 	}
-	return androidEnrollmentTokenResponse{EnrollmentToken: token}
+	return enrollmentTokenResponse{EnrollmentToken: token}
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
