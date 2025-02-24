@@ -9523,8 +9523,7 @@ List available Fleet-maintained apps.
       "id": 3,
       "name": "Box Drive",
       "version": "2.39.179",
-      "platform": "darwin",
-      "software_title_id": 1
+      "platform": "darwin"
     },
     ...
   ],
