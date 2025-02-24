@@ -151,7 +151,7 @@ queries:
 
 ## labels
 
-Currently, labels can specified in separate files from your `lib/` folder.
+Currently, labels can specified in separate files in your `lib/` folder.
 
 ### Options
 
