@@ -205,9 +205,6 @@ const FleetMaintainedAppDetailsPage = ({
       );
       titleId = res.software_title_id;
 
-      // TODO: Revisit this code and modify with new API changes to FMA to create policy from BE instead of from here
-      // // for manual install we redirect only on a successful software add.
-      // if (installType === "manual") {
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
           team_id: teamId,

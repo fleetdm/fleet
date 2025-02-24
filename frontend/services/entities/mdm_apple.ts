@@ -34,7 +34,7 @@ export interface IAddVppAppPostBody {
 export interface IEditVppAppPostBody {
   team_id: number;
   self_service?: boolean;
-  automatic_install?: boolean;
+  // No automatic_install on edit VPP app
   labels_include_any?: string[];
   labels_exclude_any?: string[];
 }
@@ -124,7 +124,6 @@ export default {
 
     const body: IEditVppAppPostBody = {
       self_service: formData.selfService,
-      automatic_install: formData.automaticInstall,
       team_id: teamId,
     };
 

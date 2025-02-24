@@ -180,7 +180,6 @@ const SoftwareVppForm = ({
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
   };
 
   const onToggleAutomaticInstall = (value: boolean) => {
