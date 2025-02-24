@@ -49,9 +49,28 @@ module.exports = {
     if (sails.config.custom.zapierWebhookSecret !== webhookSecret) {
       throw new Error('Received unexpected webhook request with webhookSecret set to: '+webhookSecret);
     }
+    let adCampaignsWithPlaceholderUrns = await AdCampaign.find({
+      isLatest: true,
+      linkedinCampaignUrn: {startsWith: 'PLACEHOLDER-'}
+    });
+    if(adCampaignsWithPlaceholderUrns.length > 2) {
+      throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`)
+    }
+    // Zap: https://zapier.com/editor/280954803     // «« TODO: Add a webhook request to the zap with this event name and data.
+    if(eventName === 'update-placeholder-campaign-urn') {
+      assert(_.isObject(data));
+      assert(_.isString(data.placeholderUrn));
+      assert(_.isString(data.linkedinCampaignUrn));
 
+      let adCampaignWithThisPlaceholderUrn = await AdCampaign.findOne({linkedinCampaignUrn: data.placeholderUrn});
+      if(!adCampaignWithThisPlaceholderUrn) {
+        sails.log.warn(`when the receive-from-zapier webhook received an event to update an AdCampaign record with a non-placeholder linkedinCampaignUrn value (${data.linkedinCampaignUrn}), no record could be found with the specified placeholder (${data.placeholderUrn}).`);
+      }
+      await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
+        linkedinCampaignUrn: data.linkedinCampaignUrn
+      });
     // Zap: https://zapier.com/editor/281086063     // «« TODO: actually publish this Zap when deployed and ready
-    if (eventName === 'receive-new-customer-data') {
+    } else if (eventName === 'receive-new-customer-data') {
       assert(_.isObject(data));
       assert(_.isString(data.newMarketingStage));
       assert(_.isString(data.name));
@@ -91,8 +110,11 @@ module.exports = {
         });
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
-          url: 'TODO',// TODO: create zap to updates an existing campaign.
+          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ sails.config.custom.zapierWebhookSecret}`,
           data: {
+            campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
+            name: latestCampaign.name,
+            linkedinCampaignUrn: latestCampaign.linkedinCampaignUrn,
             targetingCriteria: filterCriteriaForLatestCampaign,
           }
           // TODO: call out to a "update LI campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
@@ -116,9 +138,12 @@ module.exports = {
 
         // Create a placeholder linkedinCampaignUrn value to create the record with initially
         // We'll use this value in a subsequent webhook run that will save update the record with the real linkedinCampaignUrn (once it has been created).
-        let placeholderUrn = sails.helpers.strings.random();
+        // Note: there is a possibility that a new campaign can't be created with only one linkedInCompanyID, (There is a minimum audience size of 300)
+        // In this case, we will treat this new campaign as the latest campaign in the website's database, and send updates for it as new company IDs are added.
+        // When the campaing actually exists in LinkedIn, Zapier will send another event to update the campaign urn in the website's database.
+        let placeholderUrn = 'PLACEHOLDER-'+sails.helpers.strings.random();
         let nowAt = new Date();
-        let newCampaignName = `${nowAt.toIsoString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`
+        let newCampaignName = `${data.persona} - ${nowAt.toIsoString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`;
         // Now save an incomplete reference to the new LinkedIn campaign.
         latestCampaign = await AdCampaign.create({
           isLatest: true,
@@ -130,36 +155,17 @@ module.exports = {
         // TODO: call out to a "create campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
         // Then create new ad campaign in Campaign Manager
         // > For help w/ Linkedin API, see https://github.com/fleetdm/confidential/tree/main/ads
-        let report = await sails.helpers.http.sendHttpRequest.with({
+        await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
-          url: 'https://hooks.zapier.com/hooks/catch/3627242/2wdx23r/',
-          headers: {
-            'X-Custom-Secret-For-Zapier-LinkedIn-Proxy': sails.config.custom.zapierWebhookSecret
-          },
+          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ sails.config.custom.zapierWebhookSecret}`,
           body: {
             campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
             name: newCampaignName,
             targetingCriteria: [`urn:li:organization:${linkedinCompanyId}`],
-            placeholderUrn,
+            linkedinCampaignUrn: placeholderUrn,
           },
         }).retry();
-
-        assert(_.isString(report.linkedinCampaignUrn) && '' !== report.linkedinCampaignUrn);
-
       }
-      // Zap: https://zapier.com/editor/280954803     // «« TODO: Add a webhook request to the zap with this event name and data.
-    } else if(eventName === 'update-placeholder-campaign-urn') {
-      assert(_.isObject(data));
-      assert(_.isString(data.placeholderUrn));
-      assert(_.isString(data.linkedinCampaignUrn));
-
-      let adCampaignWithThisPlaceholderUrn = await AdCampaign.findOne({linkedinCampaignUrn: data.placeholderUrn})
-      if(!adCampaignWithThisPlaceholderUrn) {
-        sails.log.warn(`when the receive-from-zapier webhook received an event to update an AdCampaign record with a non-placeholder linkedinCampaignUrn value (${data.linkedinCampaignUrn}), no record could be found with the specified placeholder (${data.placeholderUrn}).`);
-      }
-      await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
-        linkedinCampaignUrn: data.linkedinCampaignUrn
-      });
     } else {
       throw 'unrecognizedEventName';
     }
