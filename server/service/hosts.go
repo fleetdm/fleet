@@ -16,7 +16,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -2752,7 +2751,7 @@ var listHostCertificatesSortCols = map[string]bool{
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		host, err := svc.ds.HostLite(ctx, hostID)
 		if err != nil {
 			svc.authz.SkipAuthorization(ctx)
