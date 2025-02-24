@@ -120,6 +120,21 @@ WHERE
 		}
 	}
 
+	for _, cert := range certs {
+		cert.Subject = &fleet.HostCertificateNameDetails{
+			Country:            cert.SubjectCountry,
+			Organization:       cert.SubjectOrganization,
+			OrganizationalUnit: cert.SubjectOrganizationalUnit,
+			CommonName:         cert.SubjectCommonName,
+		}
+		cert.Issuer = &fleet.HostCertificateNameDetails{
+			Country:            cert.IssuerCountry,
+			Organization:       cert.IssuerOrganization,
+			OrganizationalUnit: cert.IssuerOrganizationalUnit,
+			CommonName:         cert.IssuerCommonName,
+		}
+	}
+
 	return certs, metaData, nil
 }
 

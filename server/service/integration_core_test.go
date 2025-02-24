@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -12973,4 +12974,134 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+}
+
+func (s *integrationTestSuite) TestHostCertificates() {
+	t := s.T()
+	ctx := context.Background()
+
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	// no certificate at the moment
+	var certResp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusOK, &certResp)
+	require.Empty(t, certResp.Certificates)
+
+	certResp = listHostCertificatesResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&certResp)
+	require.NoError(t, err)
+	require.Empty(t, certResp.Certificates)
+
+	// create some certs for that host
+	certNames := []string{"a", "b", "c", "d", "e"}
+	now := time.Now()
+	// sorting by not_valid_after should get us "d", "c", "e", "a", "b"
+	notValidAfterTimes := []time.Time{
+		now.Add(time.Minute), now.Add(time.Hour),
+		now.Add(time.Second), now.Add(time.Millisecond),
+		now.Add(2 * time.Second)}
+	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
+	for i, name := range certNames {
+		certs = append(certs, &fleet.HostCertificateRecord{
+			HostID:         host.ID,
+			CommonName:     name,
+			SHA1Sum:        sha1.New().Sum([]byte(name)),
+			SubjectCountry: "s" + name,
+			IssuerCountry:  "i" + name,
+			NotValidAfter:  notValidAfterTimes[i],
+		})
+	}
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, certs))
+
+	// list all certs
+	certResp = listHostCertificatesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusOK, &certResp)
+	require.Len(t, certResp.Certificates, len(certNames))
+	for i, cert := range certResp.Certificates {
+		want := certNames[i]
+		require.Equal(t, want, cert.CommonName)
+		require.NotNil(t, cert.Subject)
+		require.Equal(t, "s"+want, cert.Subject.Country)
+		require.NotNil(t, cert.Issuer)
+		require.Equal(t, "i"+want, cert.Issuer.Country)
+	}
+
+	certResp = listHostCertificatesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&certResp)
+	require.NoError(t, err)
+	require.Len(t, certResp.Certificates, len(certNames))
+	for i, cert := range certResp.Certificates {
+		want := certNames[i]
+		require.Equal(t, want, cert.CommonName)
+		require.NotNil(t, cert.Subject)
+		require.Equal(t, "s"+want, cert.Subject.Country)
+		require.NotNil(t, cert.Issuer)
+		require.Equal(t, "i"+want, cert.Issuer.Country)
+	}
+
+	// non-existing host
+	certResp = listHostCertificatesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID+1000), nil, http.StatusNotFound, &certResp)
+	// for the device endpoint, the token is the authentication so if it doesn't
+	// exist, the endpoint is unauthorized.
+	certResp = listHostCertificatesResponse{}
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/NO-SUCH-TOKEN/certificates", nil, http.StatusUnauthorized)
+
+	pluckCertNames := func(certs []*fleet.HostCertificateRecord) []string {
+		names := make([]string, 0, len(certs))
+		for _, cert := range certs {
+			names = append(names, cert.CommonName)
+		}
+		return names
+	}
+
+	// invalid sort column silently defaults to "common_name"
+	certResp = listHostCertificatesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusOK, &certResp, "order_key", "no-such-column")
+	require.Len(t, certResp.Certificates, len(certNames))
+	require.Equal(t, certNames, pluckCertNames(certResp.Certificates))
+
+	certResp = listHostCertificatesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusOK, "order_key", "no-such-column")
+	err = json.NewDecoder(res.Body).Decode(&certResp)
+	require.NoError(t, err)
+	require.Len(t, certResp.Certificates, len(certNames))
+	require.Equal(t, certNames, pluckCertNames(certResp.Certificates))
+
+	// test the pagination options
+	cases := []struct {
+		queryParams []string
+		wantNames   []string
+		wantMeta    fleet.PaginationMetadata
+	}{
+		{queryParams: []string{"page", "0", "per_page", "2"}, wantNames: []string{"a", "b"}, wantMeta: fleet.PaginationMetadata{HasNextResults: true}},
+		{queryParams: []string{"page", "1", "per_page", "2"}, wantNames: []string{"c", "d"}, wantMeta: fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true}},
+		{queryParams: []string{"page", "2", "per_page", "2"}, wantNames: []string{"e"}, wantMeta: fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
+		{queryParams: []string{"page", "3", "per_page", "2"}, wantNames: []string{}, wantMeta: fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
+		{queryParams: []string{"page", "0", "per_page", "4", "order_direction", "desc"}, wantNames: []string{"e", "d", "c", "b"}, wantMeta: fleet.PaginationMetadata{HasNextResults: true}},
+		{queryParams: []string{"page", "1", "per_page", "4", "order_direction", "desc"}, wantNames: []string{"a"}, wantMeta: fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
+		{queryParams: []string{"page", "0", "per_page", "3", "order_key", "not_valid_after"}, wantNames: []string{"d", "c", "e"}, wantMeta: fleet.PaginationMetadata{HasNextResults: true}},
+		{queryParams: []string{"page", "1", "per_page", "3", "order_key", "not_valid_after"}, wantNames: []string{"a", "b"}, wantMeta: fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
+	}
+	for _, c := range cases {
+		t.Run(strings.Join(c.queryParams, "_"), func(t *testing.T) {
+			certResp = listHostCertificatesResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusOK, &certResp, c.queryParams...)
+			require.Len(t, certResp.Certificates, len(c.wantNames))
+			require.Equal(t, c.wantNames, pluckCertNames(certResp.Certificates))
+			require.Equal(t, c.wantMeta, *certResp.Meta)
+
+			certResp = listHostCertificatesResponse{}
+			res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusOK, c.queryParams...)
+			err = json.NewDecoder(res.Body).Decode(&certResp)
+			require.NoError(t, err)
+			require.Len(t, certResp.Certificates, len(c.wantNames))
+			require.Equal(t, c.wantNames, pluckCertNames(certResp.Certificates))
+			require.Equal(t, c.wantMeta, *certResp.Meta)
+		})
+	}
 }
