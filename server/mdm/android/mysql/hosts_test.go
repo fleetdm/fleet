@@ -44,7 +44,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		HostID:               1,
 		DeviceID:             "deviceID",
 		EnterpriseSpecificID: ptr.String("enterpriseSpecificID"),
-		PolicyID:             nil,
+		AndroidPolicyID:      nil,
 		LastPolicySyncTime:   nil,
 	}
 	result1, err := ds.createDevice(testCtx(), device1)
@@ -57,7 +57,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		HostID:               2,
 		DeviceID:             "deviceID2",
 		EnterpriseSpecificID: ptr.String("enterpriseSpecificID2"),
-		PolicyID:             ptr.Uint(1),
+		AndroidPolicyID:      ptr.Uint(1),
 		LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 	}
 	result2, err := ds.createDevice(testCtx(), device2)
@@ -79,7 +79,7 @@ func (ds *Datastore) createDevice(ctx context.Context, device *android.Device) (
 }
 
 func (ds *Datastore) getDeviceByDeviceID(ctx context.Context, deviceID string) (*android.Device, error) {
-	stmt := `SELECT id, host_id, device_id, enterprise_specific_id, policy_id, last_policy_sync_time FROM android_devices WHERE device_id = ?`
+	stmt := `SELECT id, host_id, device_id, enterprise_specific_id, android_policy_id, last_policy_sync_time FROM android_devices WHERE device_id = ?`
 	var device android.Device
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, deviceID)
 	switch {

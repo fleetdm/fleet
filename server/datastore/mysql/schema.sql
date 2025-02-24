@@ -62,7 +62,7 @@ CREATE TABLE `android_devices` (
   `host_id` int unsigned NOT NULL,
   `device_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `enterprise_specific_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `policy_id` int unsigned DEFAULT NULL,
+  `android_policy_id` int unsigned DEFAULT NULL,
   `last_policy_sync_time` datetime(3) DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),

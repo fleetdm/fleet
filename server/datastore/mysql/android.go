@@ -147,7 +147,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		ad.host_id,
 		ad.device_id,
 		ad.enterprise_specific_id,
-		ad.policy_id,
+		ad.android_policy_id,
 		ad.last_policy_sync_time
 		FROM android_devices ad
 		JOIN hosts h ON ad.host_id = h.id

@@ -67,7 +67,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 		Device: &android.Device{
 			DeviceID:             "device_id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
-			PolicyID:             ptr.Uint(1),
+			AndroidPolicyID:      ptr.Uint(1),
 			LastPolicySyncTime:   ptr.Time(time.Time{}),
 		},
 	}
@@ -102,7 +102,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.Build = "build_updated"
 	host.Host.Memory = 2048
 	host.Host.HardwareSerial = "hardware_serial_updated"
-	host.Device.PolicyID = ptr.Uint(2)
+	host.Device.AndroidPolicyID = ptr.Uint(2)
 	err = ds.UpdateAndroidHost(testCtx(), host)
 	require.NoError(t, err)
 

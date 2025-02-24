@@ -43,6 +43,6 @@ type Device struct {
 	HostID               uint       `db:"host_id"`
 	DeviceID             string     `db:"device_id"`
 	EnterpriseSpecificID *string    `db:"enterprise_specific_id"`
-	PolicyID             *uint      `db:"policy_id"`
+	AndroidPolicyID      *uint      `db:"android_policy_id"`
 	LastPolicySyncTime   *time.Time `db:"last_policy_sync_time"`
 }

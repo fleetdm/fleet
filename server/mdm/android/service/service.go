@@ -17,7 +17,7 @@ import (
 )
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
-const defaultPolicyID = 1
+const defaultAndroidPolicyID = 1
 
 type Service struct {
 	logger  kitlog.Logger
@@ -177,7 +177,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, fmt.Sprintf("%d", defaultPolicyID), &androidmanagement.Policy{
+	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, fmt.Sprintf("%d", defaultAndroidPolicyID), &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -198,7 +198,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		},
 	})
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultPolicyID)
+		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 
 	err = svc.ds.DeleteOtherEnterprises(ctx, id)
@@ -305,7 +305,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 
 		AdditionalData:     enrollSecret,
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultPolicyID),
+		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
 	token, err = svc.proxy.EnterprisesEnrollmentTokensCreate(enterprise.Name(), token)

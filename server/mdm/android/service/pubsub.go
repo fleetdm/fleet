@@ -147,7 +147,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.PolicyID = ptr.Uint(policy)
+		host.Device.AndroidPolicyID = ptr.Uint(policy)
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 
@@ -216,7 +216,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.PolicyID = ptr.Uint(policy)
+		host.Device.AndroidPolicyID = ptr.Uint(policy)
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)

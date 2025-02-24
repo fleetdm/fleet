@@ -56,8 +56,9 @@ func (ds *Datastore) deleteDevice(ctx context.Context, tx sqlx.ExtContext, id ui
 }
 
 func (ds *Datastore) insertDevice(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
-	stmt := `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id, policy_id, last_policy_sync_time) VALUES (?, ?, ?, ?, ?)`
-	result, err := tx.ExecContext(ctx, stmt, device.HostID, device.DeviceID, device.EnterpriseSpecificID, device.PolicyID,
+	stmt := `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id, android_policy_id, last_policy_sync_time) VALUES (?, ?, ?, ?,
+?)`
+	result, err := tx.ExecContext(ctx, stmt, device.HostID, device.DeviceID, device.EnterpriseSpecificID, device.AndroidPolicyID,
 		device.LastPolicySyncTime)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting device")
@@ -76,7 +77,7 @@ func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device, t
 		host_id = :host_id,
 		device_id = :device_id,
 		enterprise_specific_id = :enterprise_specific_id,
-		policy_id = :policy_id,
+		android_policy_id = :android_policy_id,
 		last_policy_sync_time = :last_policy_sync_time
 	WHERE id = :id`
 	stmt, args, err := sqlx.Named(stmt, device)

@@ -29,7 +29,7 @@ func Up_20250219142401(tx *sql.Tx) error {
 			-- The enterprise_specific_id uniquely identifies personally-owned devices.
     		enterprise_specific_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
     		-- We could have a flow in the future where policy is assigned after enrollment.
-    		policy_id INT UNSIGNED NULL,
+    		android_policy_id INT UNSIGNED NULL,
     		last_policy_sync_time DATETIME(3) NULL,
     		created_at DATETIME(6) NOT NULL DEFAULT NOW(6),
     		updated_at DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
