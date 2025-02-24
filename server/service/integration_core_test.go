@@ -13068,18 +13068,13 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		return names
 	}
 
-	// invalid sort column silently defaults to "common_name"
+	// fails if order_key  is invalid
 	certResp = listHostCertificatesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusOK, &certResp, "order_key", "no-such-column")
-	require.Len(t, certResp.Certificates, len(certNames))
-	require.Equal(t, certNames, pluckCertNames(certResp.Certificates))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID), nil, http.StatusBadRequest, &certResp, "order_key", "no-such-column")
 
 	certResp = listHostCertificatesResponse{}
-	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusOK, "order_key", "no-such-column")
-	err = json.NewDecoder(res.Body).Decode(&certResp)
-	require.NoError(t, err)
-	require.Len(t, certResp.Certificates, len(certNames))
-	require.Equal(t, certNames, pluckCertNames(certResp.Certificates))
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/certificates", nil, http.StatusBadRequest, "order_key", "no-such-column")
+	require.Contains(t, extractServerErrorText(res.Body), "invalid order key")
 
 	// test the pagination options
 	cases := []struct {

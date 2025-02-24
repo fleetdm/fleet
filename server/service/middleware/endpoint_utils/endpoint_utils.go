@@ -301,6 +301,12 @@ type requestDecoder interface {
 	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
 }
 
+// A value that implements requestValidator is called after having the values
+// decoded into it to apply further validations.
+type requestValidator interface {
+	ValidateRequest() error
+}
+
 // MakeDecoder creates a decoder for the type for the struct passed on. If the
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
@@ -324,7 +330,7 @@ type requestDecoder interface {
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
-	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
+	parseCustomTags func(urlTagValue string, r *http.Request, requestStruct, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 ) kithttp.DecodeRequestFunc {
@@ -387,7 +393,7 @@ func MakeDecoder(
 				}
 				foundValue := false
 				if parseCustomTags != nil {
-					foundValue, err = parseCustomTags(urlTagValue, r, field)
+					foundValue, err = parseCustomTags(urlTagValue, r, v, field)
 					if err != nil {
 						return nil, err
 					}
@@ -439,6 +445,11 @@ func MakeDecoder(
 			}
 		}
 
+		if rv, ok := v.Interface().(requestValidator); ok {
+			if err := rv.ValidateRequest(); err != nil {
+				return nil, err
+			}
+		}
 		return v.Interface(), nil
 	}
 }
