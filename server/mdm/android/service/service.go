@@ -48,19 +48,13 @@ func NewService(
 	}, nil
 }
 
-type defaultResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r defaultResponse) Error() error { return r.Err }
-
-func newErrResponse(err error) defaultResponse {
-	return defaultResponse{Err: err}
+func newErrResponse(err error) android.DefaultResponse {
+	return android.DefaultResponse{Err: err}
 }
 
 type enterpriseSignupResponse struct {
 	Url string `json:"android_enterprise_signup_url"`
-	defaultResponse
+	android.DefaultResponse
 }
 
 func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
@@ -125,7 +119,7 @@ type enterpriseSignupCallbackRequest struct {
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
-	return defaultResponse{Err: err}
+	return android.DefaultResponse{Err: err}
 }
 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
@@ -222,17 +216,12 @@ func topicIDFromName(name string) (string, error) {
 	return name[lastSlash+1:], nil
 }
 
-type getEnterpriseResponse struct {
-	EnterpriseID string `json:"android_enterprise_id"`
-	defaultResponse
-}
-
 func getEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	enterprise, err := svc.GetEnterprise(ctx)
 	if err != nil {
-		return defaultResponse{Err: err}
+		return android.DefaultResponse{Err: err}
 	}
-	return getEnterpriseResponse{EnterpriseID: enterprise.EnterpriseID}
+	return android.GetEnterpriseResponse{EnterpriseID: enterprise.EnterpriseID}
 }
 
 func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
@@ -251,7 +240,7 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 
 func deleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	err := svc.DeleteEnterprise(ctx)
-	return defaultResponse{Err: err}
+	return android.DefaultResponse{Err: err}
 }
 
 func (svc *Service) DeleteEnterprise(ctx context.Context) error {
@@ -292,14 +281,14 @@ type enrollmentTokenRequest struct {
 
 type enrollmentTokenResponse struct {
 	*android.EnrollmentToken
-	defaultResponse
+	android.DefaultResponse
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
 	if err != nil {
-		return defaultResponse{Err: err}
+		return android.DefaultResponse{Err: err}
 	}
 	return enrollmentTokenResponse{EnrollmentToken: token}
 }
