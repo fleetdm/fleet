@@ -11,6 +11,7 @@ export const PLATFORM_DISPLAY_NAMES = {
   windows: "Windows",
   linux: "Linux",
   chrome: "ChromeOS",
+  android: "Android",
   ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
 

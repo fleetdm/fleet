@@ -19,6 +19,7 @@ interface IPlatformHostCountsProps {
   chromeCount: number;
   iosCount: number;
   ipadosCount: number;
+  androidCount: number;
   builtInLabels?: IHostSummary["builtin_labels"];
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
@@ -33,6 +34,7 @@ const PlatformHostCounts = ({
   chromeCount,
   iosCount,
   ipadosCount,
+  androidCount,
   builtInLabels,
   errorHosts,
   selectedPlatform,
@@ -187,6 +189,29 @@ const PlatformHostCounts = ({
     );
   };
 
+  const renderAndroidCount = (teamId?: number) => {
+    const androidLabelId = getBuiltinLabelId("android");
+
+    if (hidePlatformCard(androidCount)) {
+      return null;
+    }
+
+    if (androidLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <HostCountCard
+        iconName="android"
+        count={androidCount}
+        title="Android"
+        path={PATHS.MANAGE_HOSTS_LABEL(androidLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
   const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":
@@ -201,6 +226,8 @@ const PlatformHostCounts = ({
         return renderIosCount(teamId);
       case "ipados":
         return renderIpadosCount(teamId);
+      case "android":
+        return renderAndroidCount(teamId);
       default:
         return (
           <>
@@ -210,6 +237,7 @@ const PlatformHostCounts = ({
             {renderChromeCard(teamId)}
             {renderIosCount(teamId)}
             {renderIpadosCount(teamId)}
+            {renderAndroidCount(teamId)}
           </>
         );
     }

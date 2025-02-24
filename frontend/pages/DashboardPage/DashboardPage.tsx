@@ -137,6 +137,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [chromeCount, setChromeCount] = useState(0);
   const [iosCount, setIosCount] = useState(0);
   const [ipadosCount, setIpadosCount] = useState(0);
+  const [androidCount, setAndroidCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -242,12 +243,17 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
         ) || { platform: "ipados", hosts_count: 0 };
 
+        const android = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "android"
+        ) || { platform: "android", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setChromeCount(chromebooks.hosts_count);
         setIosCount(iphones.hosts_count);
         setIpadosCount(ipads.hosts_count);
+        setAndroidCount(android.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -547,6 +553,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
+        androidCount={androidCount}
         builtInLabels={labels}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
@@ -764,6 +771,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const androidLayout = () => (
+    <>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -778,6 +791,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return iosLayout();
       case "ipados":
         return ipadosLayout();
+      case "android":
+        return androidLayout();
       default:
         return allLayout();
     }

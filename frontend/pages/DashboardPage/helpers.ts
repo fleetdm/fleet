@@ -20,6 +20,7 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
   { label: "iOS", value: "ios", path: paths.DASHBOARD_IOS },
   { label: "iPadOS", value: "ipados", path: paths.DASHBOARD_IPADOS },
+  { label: "Android", value: "android", path: paths.DASHBOARD_ANDROID },
 ];
 
 /** Selected platform value mapped to built in label name */
@@ -30,6 +31,7 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   chrome: "chrome",
   ios: "iOS",
   ipados: "iPadOS",
+  android: "Android",
 };
 
 /** Premium feature, Gb must be set between 1-100 */
