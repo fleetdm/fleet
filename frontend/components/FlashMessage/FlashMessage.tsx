@@ -16,6 +16,10 @@ export interface IFlashMessage {
   pathname?: string;
 }
 
+type ISingleFlashMessage = Omit<IFlashMessage, "notification"> & {
+  notification: INotification;
+};
+
 // Component to render a single flash message
 const SingleFlashMessage = ({
   notification,
@@ -24,7 +28,7 @@ const SingleFlashMessage = ({
   className,
   onRemoveFlash,
   pathname,
-}: Omit<IFlashMessage, "notification"> & { notification: INotification }) => {
+}: ISingleFlashMessage) => {
   const {
     alertType,
     isVisible,
