@@ -58,10 +58,10 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Ads                                  | <sup><sub>_See [🫧 Demand team](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
-| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
@@ -141,7 +141,7 @@ Fleet's community programs are rooted in several areas; created to nurture commu
 
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
@@ -155,7 +155,7 @@ Here are some topics for social media posts:
 
 #### Fleet on LinkedIn
 
-Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
 
 
 ### Ads
@@ -170,7 +170,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 #### Event lead follow-up
 
-Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/demand#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
+Eventgoers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/marketing#upload-contacts-to-salesforce-after-an-event) based on the conversations that they had at the event.
 
 1. Once a list of badge scans is available, fleeties who attended the event are to add any follow-up notes, including primary buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within three business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up and provide the list of badge scans uploaded to the ["Events" folder in Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR).
@@ -195,7 +195,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and videos are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple."
 
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
@@ -206,6 +206,9 @@ Videos are transcribed, and this makes it easier to find required redactions dur
   - The agenda creation and/or prep beforehand. 
   - There is a designated notetaker during the meeting. 
   - All action items are tracked and assigned to the correct individuals. 
+
+Meetings that are currently considered public and marked with ▶️:
+- Design reviews
 
 
 ### Meeting agendas

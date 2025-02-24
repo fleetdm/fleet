@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -298,6 +299,14 @@ type SoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]*f
 type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (*fleet.OSVersion, *time.Time, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
+
+type GetAndroidDSFunc func() android.Datastore
+
+type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
+
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
+
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
@@ -1161,6 +1170,10 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
+type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
+
+type InsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
@@ -1222,6 +1235,8 @@ type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) e
 type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
+
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1640,6 +1655,18 @@ type DataStore struct {
 
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
+
+	GetAndroidDSFunc        GetAndroidDSFunc
+	GetAndroidDSFuncInvoked bool
+
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
+
+	AndroidHostLiteFunc        AndroidHostLiteFunc
+	AndroidHostLiteFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -2934,6 +2961,12 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
+	GetAllVPPAppsFunc        GetAllVPPAppsFunc
+	GetAllVPPAppsFuncInvoked bool
+
+	InsertVPPAppsFunc        InsertVPPAppsFunc
+	InsertVPPAppsFuncInvoked bool
+
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
 
@@ -3026,6 +3059,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
+
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4001,6 +4037,34 @@ func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
 	s.UpdateOSVersionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOSVersionsFunc(ctx)
+}
+
+func (s *DataStore) GetAndroidDS() android.Datastore {
+	s.mu.Lock()
+	s.GetAndroidDSFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidDSFunc()
+}
+
+func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.NewAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+	s.mu.Lock()
+	s.UpdateAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -7020,6 +7084,20 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
+func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetAllVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllVPPAppsFunc(ctx)
+}
+
+func (s *DataStore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.InsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppsFunc(ctx, apps)
+}
+
 func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
@@ -7235,4 +7313,11 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }
