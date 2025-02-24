@@ -69,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.11.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.12.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -83,7 +83,8 @@ module "main" {
       sort_buffer_size = 8388608
     }
     # VPN
-    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    backup_retention_period = 30
   }
   redis_config = {
     name = local.customer

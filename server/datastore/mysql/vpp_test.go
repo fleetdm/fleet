@@ -80,7 +80,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK for comparison purposes
+	meta.VPPAppsTeamsID = 0    // we don't care about the VPP app team PK for comparison purposes
+	meta.AddedAt = time.Time{} // we don't care about AddedAt here
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1", SelfService: true}, meta)
 
 	// Check that getting metadata in team context works for no team
@@ -110,6 +111,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, titleID1, title.SoftwareTitleID)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{} // we don't care about AddedAt here
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true, BundleIdentifier: "com.app.vpp1"}, meta)
 
 	// get nonexistent title
@@ -128,12 +130,14 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for all teams
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// try to add the same app again, fails
@@ -147,6 +151,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for team 2, does not exist
@@ -166,10 +171,12 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// create another no-team app
@@ -190,6 +197,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp1
@@ -203,6 +211,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp2 for team1
@@ -217,6 +226,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	expectedVPPAppsTeamsID := meta.VPPAppsTeamsID
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
+	meta.AddedAt = time.Time{}
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// Check that getting metadata in team context works
@@ -674,8 +684,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	appTeamID2 := meta.AppTeamID
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1},
-		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2},
+		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1, AddedAt: appSet[app1.VPPAppID].AddedAt},
+		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2, AddedAt: appSet[app2.VPPAppID].AddedAt},
 	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
@@ -688,8 +698,8 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	appTeamID2 = meta.AppTeamID
 	require.NoError(t, err)
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1},
-		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2},
+		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1, AddedAt: appSet[appNoTeam1.VPPAppID].AddedAt},
+		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2, AddedAt: appSet[appNoTeam2.VPPAppID].AddedAt},
 	}, appSet)
 
 	var appTitles []fleet.SoftwareTitle
@@ -1523,7 +1533,7 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, apps, 0)
 
-	/// Can't assaign apps with no token
+	/// Can't assign apps with no token
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
 	assert.Error(t, err)

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import classnames from "classnames";
+
+import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -12,7 +14,10 @@ import Button from "components/buttons/Button";
 import FileDetails from "components/FileDetails";
 import Checkbox from "components/forms/fields/Checkbox";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -120,6 +125,9 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
 }: ISoftwareVppFormProps) => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
       ? {
@@ -211,7 +219,7 @@ const SoftwareVppForm = ({
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
-            graphicNames={"app-store"}
+            graphicNames="app-store"
             fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
             canEdit={false}
           />
@@ -278,6 +286,10 @@ const SoftwareVppForm = ({
     [`${baseClass}__content-disabled`]: isLoading,
   });
 
+  const formContentClasses = classnames(`${baseClass}__form-content`, {
+    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+  });
+
   return (
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
@@ -285,21 +297,28 @@ const SoftwareVppForm = ({
         {!softwareVppForEdit && (
           <p>Apple App Store apps purchased via Apple Business Manager:</p>
         )}
-        <div className={`${baseClass}__form-content`}>
+        <div className={formContentClasses}>
           <>{renderContent()}</>
-          <div className={`${baseClass}__action-buttons`}>
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={isSubmitDisabled}
-              isLoading={isLoading}
-            >
-              {softwareVppForEdit ? "Save" : "Add software"}
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
+        </div>
+        <div className={`${baseClass}__action-buttons`}>
+          <GitOpsModeTooltipWrapper
+            position="bottom"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={disableChildren || isSubmitDisabled}
+                isLoading={isLoading}
+                className={`${baseClass}__add-secret-btn`}
+              >
+                {softwareVppForEdit ? "Save" : "Add software"}
+              </Button>
+            )}
+          />
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </div>
     </form>

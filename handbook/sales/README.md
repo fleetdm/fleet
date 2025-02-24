@@ -25,6 +25,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Communicate marketing priority level
+
+All GTM stakeholders are responsible for communicating when a new or existing prospect is actively intriged. AEs, ADRs, and operations team members use multiple tools and [CRM reports](https://fleetdm.lightning.force.com/lightning/o/Report/home?queryScope=mru) to collect this data. Once you've identified an account as active, use the following steps to add an account to the "[🆘 Marketing priority list](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view?queryScope=userFolders)":
+1. Find the account in Salesforce.
+2. Click the "🕹️ GTM actions" tab.
+3. Set the account's "Marketing stage" to indicate the desired next step to move this account forward.
+4. Set the account's "Marketing priority level" to indicate how time-sensitive the next step is.
+5. Add any necessary context to the "Marketing priority context" field to help guide the ADR as they review the account (e.g. "Research for MDM expansion"). 
+
+
 ### Set up a Fleet trial
 
 You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.

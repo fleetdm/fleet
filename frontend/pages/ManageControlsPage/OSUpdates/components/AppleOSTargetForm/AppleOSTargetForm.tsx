@@ -12,6 +12,8 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
+import { AppContext } from "context/app";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "apple-os-target-form";
 
@@ -115,6 +117,8 @@ const AppleOSTargetForm = ({
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [minOsVersion, setMinOsVersion] = useState(defaultMinOsVersion);
@@ -185,6 +189,7 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
+        disabled={gitOpsModeEnabled}
         tooltip={getMinimumVersionTooltip()}
         helpText={
           <>
@@ -201,6 +206,7 @@ const AppleOSTargetForm = ({
         onChange={handleMinVersionChange}
       />
       <InputField
+        disabled={gitOpsModeEnabled}
         label="Deadline"
         tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
@@ -208,9 +214,14 @@ const AppleOSTargetForm = ({
         error={deadlineError}
         onChange={handleDeadlineChange}
       />
-      <Button type="submit" isLoading={isSaving}>
-        Save
-      </Button>
+      <GitOpsModeTooltipWrapper
+        position="right"
+        renderChildren={(disableChildren) => (
+          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
+            Save
+          </Button>
+        )}
+      />
     </form>
   );
 };

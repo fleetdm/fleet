@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import { SingleValue } from "react-select-5";
@@ -16,8 +18,6 @@ interface IAddIntegrationModalProps {
     integrationSubmitData: IIntegration[],
     integrationDestination: string
   ) => void;
-  serverErrors?: { base: string; email: string };
-  backendValidators: { [key: string]: string };
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }
@@ -30,13 +30,12 @@ const destinationOptions = [
 const AddIntegrationModal = ({
   onCancel,
   onSubmit,
-  backendValidators,
   integrations,
   testingConnection,
 }: IAddIntegrationModalProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>(
-    backendValidators
-  );
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [destination, setDestination] = useState("jira");
 
   const onDestinationChange = (
@@ -44,10 +43,6 @@ const AddIntegrationModal = ({
   ) => {
     setDestination(selectedDestination?.value || "jira");
   };
-
-  useEffect(() => {
-    setErrors(backendValidators);
-  }, [backendValidators]);
 
   return (
     <Modal title="Add integration" onExit={onCancel} className={baseClass}>
@@ -62,6 +57,7 @@ const AddIntegrationModal = ({
               options={destinationOptions}
               className={`${baseClass}__destination-dropdown`}
               wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              isDisabled={gitOpsModeEnabled}
             />
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
@@ -76,6 +72,7 @@ const AddIntegrationModal = ({
           integrations={integrations}
           destination={destination}
           testingConnection={testingConnection}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
       </div>
     </Modal>

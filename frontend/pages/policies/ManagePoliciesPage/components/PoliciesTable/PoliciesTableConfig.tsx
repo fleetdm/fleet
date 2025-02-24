@@ -16,6 +16,8 @@ import { PolicyResponse } from "utilities/constants";
 import { createHostsByPolicyPath } from "utilities/helpers";
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -268,7 +270,20 @@ const generateTableHeaders = (
         const checkboxProps = viewingTeamPolicies
           ? teamCheckboxProps
           : regularCheckboxProps;
-        return <Checkbox {...checkboxProps} enableEnterToCheck />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const inheritedPolicy = cellProps.row.original.team_id === null;
@@ -283,7 +298,20 @@ const generateTableHeaders = (
           return <></>;
         }
 
-        return <Checkbox {...checkboxProps} enableEnterToCheck />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       disableHidden: true,
     });
