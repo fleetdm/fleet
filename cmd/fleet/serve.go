@@ -327,7 +327,6 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			unCachedDS := ds
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
@@ -750,7 +749,6 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				mysql.NewAndroidDS(unCachedDS),
 				ds,
 			)
 			if err != nil {
@@ -991,6 +989,12 @@ the way that the Fleet server works.
 					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register refresh vpp app versions schedule")
 				}
 			}
 

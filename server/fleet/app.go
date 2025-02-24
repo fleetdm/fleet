@@ -207,10 +207,18 @@ type MDM struct {
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
+	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
+	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type UIGitOpsModeConfig struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -552,6 +560,8 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+
 	// Scripts is a slice of script file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
@@ -724,6 +734,8 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
+
+	// UIGitOpsMode: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
@@ -1229,6 +1241,13 @@ type EnrollSecret struct {
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+}
+
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
 }
 
 func (e *EnrollSecret) AuthzType() string {

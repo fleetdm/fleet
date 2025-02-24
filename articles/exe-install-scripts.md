@@ -2,17 +2,17 @@
 
 ## What are EXE install scripts?
 
-EXE install scripts are a way to install software on Windows. EXE installers, such as `Figma-124.3.2.exe`, are self-contained packages with all the files and instructions needed to install software on a Windows device. EXE installers are fully customizable and do not follow the same installation process as MSI installers.
+EXE install scripts are a way to install software on Windows. EXE installers, such as `Figma-124.3.2.exe`, are self-contained packages with all the files and instructions needed to install software on a Windows host. EXE installers are fully customizable and do not follow the same installation process as MSI installers.
 
 For EXE installers, there is no unique script or command that will work for all installers. MSI installers are typically preferred over EXE installers because they provide a standardized installation process, easier silent deployment, and better integration with Windows Installer Service. If available, MSI installers offer more predictable results in enterprise environments.
 
 Some EXE installers and uninstallers require additional switches or flags to run silently. Common flags include `/S`, `/q`, `/quiet`, `/silent`, or `--silent`.
 
-## Device-scoped install scripts
+## Machine-scoped install scripts
 
-The recommended way to install software on Windows devices is to use device-scoped install scripts. These scripts install the software for all users on the device and run the installation process with administrator privileges.
+The recommended way to install software on Windows hosts is to use machine-scoped install scripts. These scripts install the software for all local users on the computer and run the installation process with administrator privileges.
 
-Fleet defaults to a device-scoped install script when you add software using an EXE installer.
+Fleet defaults to a machine-scoped install script when you add software using an EXE installer.
 
 ## User-scoped install scripts
 
@@ -320,7 +320,7 @@ Exit $LASTEXITCODE
 ```
 ## Conclusion
 
-EXE install scripts provide a flexible solution for installing software on Windows devices when MSI installers are unavailable. By leveraging the power of PowerShell and scheduled tasks, IT administrators can easily automate both device-scoped and user-scoped installations. Whether you're deploying software for all users on a device or targeting a specific logged-in user, the provided scripts offer a robust starting point for handling EXE installations.
+EXE install scripts provide a flexible solution for installing software on Windows hosts when MSI installers are unavailable. By leveraging the power of PowerShell and scheduled tasks, IT administrators can easily automate both machine-scoped and user-scoped installations. Whether you're deploying software for all users on a computer or targeting a specific logged-in user, the provided scripts offer a robust starting point for handling EXE installations.
 
 Always verify the EXE installer's specific flags for silent installation for smoother operations, ensure proper permissions are in place, and consider implementing logging for troubleshooting. While MSI installers are generally preferred for their standardized behavior, these scripts allow you to manage even the most customized EXE installs in enterprise environments.
 

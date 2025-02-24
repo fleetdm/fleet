@@ -25,13 +25,14 @@ type Activity struct {
 	// past activities as those are "real activities" with an activity id.
 	UUID string `json:"uuid,omitempty" db:"uuid"`
 
-	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
-	Type          string           `json:"type" db:"activity_type"`
-	Details       *json.RawMessage `json:"details" db:"details"`
-	Streamed      *bool            `json:"-" db:"streamed"`
+	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	Type           string           `json:"type" db:"activity_type"`
+	Details        *json.RawMessage `json:"details" db:"details"`
+	Streamed       *bool            `json:"-" db:"streamed"`
+	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
 }
 
 // AuthzType implement AuthzTyper to be able to verify access to activities
@@ -44,8 +45,7 @@ func (*Activity) AuthzType() string {
 type UpcomingActivity struct {
 	Activity
 
-	FleetInitiated bool `json:"fleet_initiated" db:"fleet_initiated"`
-	Cancellable    bool `json:"cancellable" db:"cancellable"`
+	Cancellable bool `json:"cancellable" db:"cancellable"`
 }
 
 // ActivityDetailsList is used to generate documentation.
@@ -106,6 +106,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+
+	ActivityTypeEnabledGitOpsMode{},
+	ActivityTypeDisabledGitOpsMode{},
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
@@ -1150,6 +1153,26 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledGitOpsMode struct{}
+
+func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
+	return "enabled_gitops_mode"
+}
+
+func (a ActivityTypeEnabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledGitOpsMode struct{}
+
+func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
+	return "disabled_gitops_mode"
+}
+
+func (a ActivityTypeDisabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables GitOps mode.`, `This activity does not contain any detail fields.`, ``
 }
 
 type ActivityTypeAddedBootstrapPackage struct {

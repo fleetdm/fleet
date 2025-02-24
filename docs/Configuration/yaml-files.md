@@ -401,6 +401,9 @@ software:
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
+      labels_include_any:
+        - Product
+        - Marketing
 ```
 
 Use `labels_include_any_path` to target hosts that have any label or `labels_exclude_any_path` to target hosts that don't have any label. Only one of `labels_include_any_path` or `labels_exclude_any_path` can be specified. If neither are specified, all hosts are targeted.

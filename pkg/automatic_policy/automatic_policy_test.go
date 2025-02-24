@@ -7,7 +7,7 @@ import (
 )
 
 func TestGenerateErrors(t *testing.T) {
-	_, err := Generate(InstallerMetadata{
+	_, err := Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "exe",
 		BundleIdentifier: "",
@@ -15,14 +15,14 @@ func TestGenerateErrors(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrExtensionNotSupported)
 
-	_, err = Generate(InstallerMetadata{
+	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "msi",
 		BundleIdentifier: "",
 		PackageIDs:       []string{""},
 	})
 	require.ErrorIs(t, err, ErrMissingProductCode)
-	_, err = Generate(InstallerMetadata{
+	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "msi",
 		BundleIdentifier: "",
@@ -30,7 +30,7 @@ func TestGenerateErrors(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrMissingProductCode)
 
-	_, err = Generate(InstallerMetadata{
+	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "pkg",
 		BundleIdentifier: "",
@@ -38,7 +38,7 @@ func TestGenerateErrors(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrMissingBundleIdentifier)
 
-	_, err = Generate(InstallerMetadata{
+	_, err = Generate(FullInstallerMetadata{
 		Title:            "",
 		Extension:        "deb",
 		BundleIdentifier: "",
@@ -48,7 +48,7 @@ func TestGenerateErrors(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	policyData, err := Generate(InstallerMetadata{
+	policyData, err := Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "pkg",
 		BundleIdentifier: "com.foo.bar",
@@ -60,7 +60,7 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, "darwin", policyData.Platform)
 	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo.bar';", policyData.Query)
 
-	policyData, err = Generate(InstallerMetadata{
+	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Barfoo",
 		Extension:        "msi",
 		BundleIdentifier: "",
@@ -72,7 +72,7 @@ func TestGenerate(t *testing.T) {
 	require.Equal(t, "windows", policyData.Platform)
 	require.Equal(t, "SELECT 1 FROM programs WHERE identifying_number = 'foo';", policyData.Query)
 
-	policyData, err = Generate(InstallerMetadata{
+	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Zoobar",
 		Extension:        "deb",
 		BundleIdentifier: "",
@@ -89,7 +89,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	SELECT 1 FROM deb_packages WHERE name = 'Zoobar'
 );`, policyData.Query)
 
-	policyData, err = Generate(InstallerMetadata{
+	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Barzoo",
 		Extension:        "rpm",
 		BundleIdentifier: "",

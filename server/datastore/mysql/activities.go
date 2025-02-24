@@ -32,6 +32,7 @@ func (ds *Datastore) NewActivity(
 	var userID *uint
 	var userName *string
 	var userEmail *string
+	var fleetInitiated bool
 	if user != nil {
 		// To support creating activities with users that were deleted. This can happen
 		// for automatically installed software which uses the author of the upload as the author of
@@ -41,12 +42,15 @@ func (ds *Datastore) NewActivity(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+	}
+	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
 		userName = &automationActivityAuthor
+		fleetInitiated = true
 	}
 
-	cols := []string{"user_id", "user_name", "activity_type", "details", "created_at"}
+	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at"}
 	args := []any{
+		fleetInitiated,
 		userID,
 		userName,
 		activity.ActivityName(),
@@ -133,7 +137,8 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.activity_type,
 			a.user_name as name,
 			a.streamed,
-			a.user_email
+			a.user_email,
+			a.fleet_initiated
 		FROM activities a
 		WHERE true`
 
@@ -512,7 +517,8 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		a.details as details,
 		u.gravatar_url as gravatar_url,
 		a.created_at as created_at,
-		u.id as user_id
+		u.id as user_id,
+		a.fleet_initiated as fleet_initiated
 	FROM
 		host_activities ha
 		JOIN activities a

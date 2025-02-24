@@ -1,13 +1,16 @@
 package android
 
+import (
+	"time"
+)
+
 type SignupDetails struct {
-	Url  string `json:"url,omitempty"`
-	Name string `json:"name,omitempty"`
+	Url  string
+	Name string
 }
 
 type Enterprise struct {
 	ID           uint   `db:"id"`
-	SignupName   string `db:"signup_name"`
 	EnterpriseID string `db:"enterprise_id"`
 }
 
@@ -19,12 +22,27 @@ func (e Enterprise) IsValid() bool {
 	return e.EnterpriseID != ""
 }
 
-type EnrollmentToken struct {
-	Value string `json:"value"`
+func (e Enterprise) AuthzType() string {
+	return "android_enterprise"
 }
 
-type Host struct {
-	HostID            uint   `db:"host_id"`
-	FleetEnterpriseID uint   `db:"enterprise_id"`
-	DeviceID          string `db:"device_id"`
+type EnterpriseDetails struct {
+	Enterprise
+	SignupName  string `db:"signup_name"`
+	SignupToken string `db:"signup_token"`
+	TopicID     string `db:"pubsub_topic_id"`
+}
+
+type EnrollmentToken struct {
+	EnrollmentToken string `json:"android_enrollment_token"`
+	EnrollmentURL   string `json:"android_enrollment_url"`
+}
+
+type Device struct {
+	ID                   uint       `db:"id"`
+	HostID               uint       `db:"host_id"`
+	DeviceID             string     `db:"device_id"`
+	EnterpriseSpecificID *string    `db:"enterprise_specific_id"`
+	AndroidPolicyID      *uint      `db:"android_policy_id"`
+	LastPolicySyncTime   *time.Time `db:"last_policy_sync_time"`
 }

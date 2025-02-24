@@ -24,16 +24,15 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 ### End user authentication
 
-> If you've already configured [single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
-To require end user authentication, first configure your IdP by heading to
-**Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user
-authentication by heading to **Controls > Setup experience > End user authentication**.
-Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
+2. In your new SAML app, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 
-In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
+3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-In your IdP, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
+
+> If you've already configured [single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
 
 ### End user license agreement (EULA)
 

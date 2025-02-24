@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -388,6 +389,14 @@ type Datastore interface {
 	// The returned OSVersion is accompanied by the time it was last updated.
 	OSVersion(ctx context.Context, osVersionID uint, teamFilter *TeamFilter) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
+
+	// ////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	GetAndroidDS() android.Datastore
+	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
+	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -989,7 +998,7 @@ type Datastore interface {
 	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
-	// matched, that secret is returned. Otherwise, an error is returned.
+	// matched, that secret is returned. Otherwise, a NotFoundError is returned.
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
@@ -1840,6 +1849,12 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
+	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
+	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)
+	// InsertVPPApps inserts the given VPP apps in the database.
+	InsertVPPApps(ctx context.Context, apps []*VPPApp) error
+
+	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
@@ -1962,6 +1977,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
