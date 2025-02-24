@@ -36,6 +36,7 @@ interface ICalendarEventsModal {
   enabled: boolean;
   url: string;
   teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
 
 const CalendarEventsModal = ({
@@ -46,6 +47,7 @@ const CalendarEventsModal = ({
   enabled,
   url,
   teamId,
+  gitOpsModeEnabled = false,
 }: ICalendarEventsModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
@@ -187,6 +189,7 @@ const CalendarEventsModal = ({
         onChange={onFeatureEnabledChange}
         inactiveText="Disabled"
         activeText="Enabled"
+        disabled={gitOpsModeEnabled}
       />
       <Button
         type="button"
@@ -251,7 +254,7 @@ const CalendarEventsModal = ({
               error={formErrors.url}
               tooltip="Provide a URL to deliver a webhook request to."
               helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-              disabled={!formData.enabled}
+              disabled={!formData.enabled || gitOpsModeEnabled}
             />
             <RevealButton
               isShowing={showExamplePayload}
@@ -262,51 +265,52 @@ const CalendarEventsModal = ({
               onClick={() => {
                 setShowExamplePayload(!showExamplePayload);
               }}
-              disabled={!formData.enabled}
+              disabled={!formData.enabled || gitOpsModeEnabled}
             />
             {showExamplePayload && renderExamplePayload()}
           </>
         )}
-        <div>
-          <PoliciesPaginatedList
-            ref={paginatedListRef}
-            isSelected="calendar_events_enabled"
-            onToggleItem={(item) => {
-              item.calendar_events_enabled = !item.calendar_events_enabled;
-              return item;
-            }}
-            renderItemRow={(item) => {
-              return (
-                <Button
-                  variant="text-icon"
-                  onClick={() => {
-                    setSelectedPolicyToPreview(item);
-                    togglePreviewCalendarEvent();
-                  }}
-                  className="policy-row__preview-button"
-                >
-                  <Icon name="eye" /> Preview
-                </Button>
-              );
-            }}
-            footer={
-              <div className="form-field__help-text">
-                A calendar event will be created for end users if one of their
-                hosts fail any of these policies.{" "}
-                <CustomLink
-                  url="https://www.fleetdm.com/learn-more-about/calendar-events"
-                  text="Learn more"
-                  newTab
-                  disableKeyboardNavigation={!formData.enabled}
-                />
-              </div>
-            }
-            isUpdating={isUpdating}
-            onSubmit={onUpdateCalendarEvents}
-            onCancel={onExit}
-            teamId={teamId}
-          />
-        </div>
+      </div>
+      <div>
+        <PoliciesPaginatedList
+          ref={paginatedListRef}
+          isSelected="calendar_events_enabled"
+          onToggleItem={(item) => {
+            item.calendar_events_enabled = !item.calendar_events_enabled;
+            return item;
+          }}
+          renderItemRow={(item) => {
+            return (
+              <Button
+                variant="text-icon"
+                onClick={() => {
+                  setSelectedPolicyToPreview(item);
+                  togglePreviewCalendarEvent();
+                }}
+                className="policy-row__preview-button"
+              >
+                <Icon name="eye" /> Preview
+              </Button>
+            );
+          }}
+          footer={
+            <div className="form-field__help-text">
+              A calendar event will be created for end users if one of their
+              hosts fail any of these policies.{" "}
+              <CustomLink
+                url="https://www.fleetdm.com/learn-more-about/calendar-events"
+                text="Learn more"
+                newTab
+                disableKeyboardNavigation={!formData.enabled}
+              />
+            </div>
+          }
+          isUpdating={isUpdating}
+          onSubmit={onUpdateCalendarEvents}
+          onCancel={onExit}
+          teamId={teamId}
+          disabled={!formData.enabled}
+        />
       </div>
     </div>
   );

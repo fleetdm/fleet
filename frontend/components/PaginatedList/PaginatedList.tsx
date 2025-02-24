@@ -5,6 +5,7 @@ import React, {
   forwardRef,
   Ref,
 } from "react";
+import classnames from "classnames";
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
@@ -47,6 +48,7 @@ interface IPaginatedListProps<TItem> {
   // The size of the page to fetch and show.
   pageSize?: number;
   onUpdate?: (changedItems: TItem[]) => void;
+  disabled?: boolean;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
@@ -60,6 +62,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     onToggleItem,
     onUpdate,
     isSelected,
+    disabled = false,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
@@ -125,9 +128,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
 
-  // Redner the list.
+  // Render the list.
+  const classes = classnames(baseClass, "form", {
+    "form-fields--disabled": disabled,
+  });
   return (
-    <div className={baseClass}>
+    <div className={classes}>
       {isLoading && (
         <div className="loading-overlay">
           <Spinner />

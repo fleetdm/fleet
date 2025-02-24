@@ -53,6 +53,7 @@ interface IInstallSoftwareModal {
   onSubmit: (formData: IInstallSoftwareFormData) => void;
   isUpdating: boolean;
   teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -80,6 +81,7 @@ const InstallSoftwareModal = ({
   onSubmit,
   isUpdating,
   teamId,
+  gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const {

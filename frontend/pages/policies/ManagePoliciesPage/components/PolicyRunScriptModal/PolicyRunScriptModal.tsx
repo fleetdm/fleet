@@ -38,6 +38,7 @@ interface IPolicyRunScriptModal {
   onSubmit: (formData: IPolicyRunScriptFormData) => void;
   isUpdating: boolean;
   teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
 
 const PolicyRunScriptModal = ({
@@ -45,6 +46,7 @@ const PolicyRunScriptModal = ({
   onSubmit,
   isUpdating,
   teamId,
+  gitOpsModeEnabled = false,
 }: IPolicyRunScriptModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 

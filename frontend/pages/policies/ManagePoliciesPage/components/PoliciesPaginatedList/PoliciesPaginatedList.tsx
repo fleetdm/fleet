@@ -3,10 +3,13 @@ import React, {
   useImperativeHandle,
   useRef,
   useState,
+  useContext,
   forwardRef,
   Ref,
 } from "react";
+import classnames from "classnames";
 import { ReactElement } from "react-markdown/lib/react-markdown";
+import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
 import { IPolicy } from "interfaces/policy";
@@ -16,6 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 // Extend the IPolicy interface with some virtual properties that make it easier
 // to track item state. These are set by the various Manage Automations modals.
@@ -36,6 +40,7 @@ interface IPoliciesPaginatedListProps {
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
+  disabled?: boolean;
   disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
   teamId: number;
   footer: ReactElement | undefined | null;
@@ -51,14 +56,19 @@ function PoliciesPaginatedList(
     onCancel,
     onSubmit,
     isUpdating,
+    disabled = false,
     disableSave,
     teamId,
     footer,
   }: IPoliciesPaginatedListProps,
   ref: Ref<IPaginatedListHandle<IFormPolicy>>
 ) {
+  const { config } = useContext(AppContext);
+
   // Create a ref to use with the PaginatedList, so we can access its dirty items.
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [saveDisabled, setSaveDisabled] = useState<string | boolean>(false);
 
@@ -148,10 +158,14 @@ function PoliciesPaginatedList(
     });
   }, []);
 
+  const labelClasses = classnames("form-field__label", {
+    "form-fields--disabled": gitOpsModeEnabled,
+  });
+
   return (
     <div className={`${baseClass} form`}>
       <div className="form-field">
-        <div className="form-field__label">Policies:</div>
+        <div className={labelClasses}>Policies:</div>
         <div>
           <PaginatedList<IFormPolicy>
             ref={paginatedListRef}
@@ -161,34 +175,40 @@ function PoliciesPaginatedList(
             renderItemRow={renderItemRow}
             pageSize={DEFAULT_PAGE_SIZE}
             onUpdate={onUpdate}
+            disabled={disabled || gitOpsModeEnabled}
           />
-
           {footer}
         </div>
       </div>
-      <div className="modal-cta-wrap">
-        <TooltipWrapper
-          showArrow
-          position="top"
-          tipContent={saveDisabled}
-          disableTooltip={!saveDisabled}
-          underline={false}
-        >
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onClickSave}
-            className="save-loading"
-            isLoading={isUpdating}
-            disabled={!!saveDisabled}
-          >
-            Save
-          </Button>
-        </TooltipWrapper>
-        <Button onClick={onCancel} variant="inverse">
-          Cancel
-        </Button>
-      </div>
+      <GitOpsModeTooltipWrapper
+        position="right"
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <div className="modal-cta-wrap">
+            <TooltipWrapper
+              showArrow
+              position="top"
+              tipContent={saveDisabled}
+              disableTooltip={disableChildren || !saveDisabled}
+              underline={false}
+            >
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={onClickSave}
+                className="save-loading"
+                isLoading={isUpdating}
+                disabled={!!saveDisabled || disableChildren}
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
+            <Button onClick={onCancel} variant="inverse">
+              Cancel
+            </Button>
+          </div>
+        )}
+      />
     </div>
   );
 }

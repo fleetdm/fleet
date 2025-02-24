@@ -39,6 +39,7 @@ interface IOtherWorkflowsModalProps {
     integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
   teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
 
 const findEnabledIntegration = ({
@@ -69,6 +70,7 @@ const OtherWorkflowsModal = ({
   onExit,
   onSubmit,
   teamId,
+  gitOpsModeEnabled = false,
 }: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
