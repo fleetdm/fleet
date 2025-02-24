@@ -41,12 +41,6 @@ func decodeBody(ctx context.Context, r *http.Request, v reflect.Value, body io.R
 	return nil
 }
 
-// A value that implements listOptionsValidator is called with the decoded
-// ListOptions struct to validate its options.
-type listOptionsValidator interface {
-	ValidateListOptions(opts fleet.ListOptions) error
-}
-
 func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (bool, error) {
 	switch urlTagValue {
 	case "list_options":
