@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -13008,7 +13008,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
-			SHA1Sum:        sha1.New().Sum([]byte(name)),
+			SHA1Sum:        sha1.New().Sum([]byte(name)), // nolint: gosec
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
