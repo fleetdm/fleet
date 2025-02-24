@@ -652,8 +652,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 				    SELECT id
 				    FROM software_titles
 				    WHERE bundle_identifier = ? AND additional_identifier = 0
-				    ORDER BY bundle_identifier = ? DESC
-				    LIMIT 1`
+				    ORDER BY bundle_identifier = ? DESC`
 			selectArgs = []any{app.BundleIdentifier, app.BundleIdentifier}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
