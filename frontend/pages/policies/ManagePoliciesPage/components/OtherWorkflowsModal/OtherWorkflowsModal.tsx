@@ -238,7 +238,7 @@ const OtherWorkflowsModal = ({
           helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
-          disabled={!isPolicyAutomationsEnabled}
+          disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
         />
         <RevealButton
           isShowing={showExamplePayload}
@@ -247,7 +247,7 @@ const OtherWorkflowsModal = ({
           showText="Show example payload"
           caretPosition="after"
           onClick={() => setShowExamplePayload(!showExamplePayload)}
-          disabled={!isPolicyAutomationsEnabled}
+          disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
         />
         {showExamplePayload && <ExamplePayload />}
       </>
@@ -318,6 +318,7 @@ const OtherWorkflowsModal = ({
           inactiveText="Disabled"
           activeText="Enabled"
           autoFocus
+          disabled={gitOpsModeEnabled}
         />
         <div
           className={`form ${baseClass}__policy-automations__${
@@ -334,7 +335,7 @@ const OtherWorkflowsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onChangeRadio}
-              disabled={!isPolicyAutomationsEnabled}
+              disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -344,7 +345,7 @@ const OtherWorkflowsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onChangeRadio}
-              disabled={!isPolicyAutomationsEnabled}
+              disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
             />
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
