@@ -129,6 +129,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
+| Create, edit, and delete labels                                                                                                            |          |            |                |            | ✅      |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
 | Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
