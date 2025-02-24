@@ -45,4 +45,8 @@ func (s *enterpriseTestSuite) TestGetEnterprise() {
 	resp = android.GetEnterpriseResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
 	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
+
+	// Delete enterprise and make sure we can't find it.
+	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
+	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &resp)
 }

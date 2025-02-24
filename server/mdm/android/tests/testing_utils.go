@@ -88,6 +88,10 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 		assert.Equal(t, EnterpriseID, enterpriseID)
 		return nil
 	}
+	ts.Proxy.EnterpriseDeleteFunc = func(enterpriseID string) error {
+		assert.Equal(t, EnterpriseID, enterpriseID)
+		return nil
+	}
 }
 
 func (ts *WithServer) TearDownSuite() {
