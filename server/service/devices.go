@@ -700,9 +700,9 @@ func (r *listDeviceCertificatesRequest) deviceAuthToken() string {
 }
 
 type listDeviceCertificatesResponse struct {
-	Certificates []*fleet.HostCertificateRecord `json:"certificates"`
-	Meta         *fleet.PaginationMetadata      `json:"meta,omitempty"`
-	Err          error                          `json:"error,omitempty"`
+	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
+	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Err          error                           `json:"error,omitempty"`
 }
 
 func (r listDeviceCertificatesResponse) Error() error { return r.Err }
@@ -720,7 +720,7 @@ func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, sv
 		return listDeviceCertificatesResponse{Err: err}, nil
 	}
 	if res == nil {
-		res = []*fleet.HostCertificateRecord{}
+		res = []*fleet.HostCertificatePayload{}
 	}
 	return listDeviceCertificatesResponse{Certificates: res, Meta: meta}, nil
 }

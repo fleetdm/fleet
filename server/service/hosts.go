@@ -2726,9 +2726,9 @@ type listHostCertificatesRequest struct {
 }
 
 type listHostCertificatesResponse struct {
-	Certificates []*fleet.HostCertificateRecord `json:"certificates"`
-	Meta         *fleet.PaginationMetadata      `json:"meta,omitempty"`
-	Err          error                          `json:"error,omitempty"`
+	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
+	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Err          error                           `json:"error,omitempty"`
 }
 
 func (r listHostCertificatesResponse) Error() error { return r.Err }
@@ -2740,7 +2740,7 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 		return listHostCertificatesResponse{Err: err}, nil
 	}
 	if res == nil {
-		res = []*fleet.HostCertificateRecord{}
+		res = []*fleet.HostCertificatePayload{}
 	}
 	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
 }
@@ -2750,7 +2750,7 @@ var listHostCertificatesSortCols = map[string]bool{
 	"not_valid_after": true,
 }
 
-func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		host, err := svc.ds.HostLite(ctx, hostID)
 		if err != nil {
@@ -2771,5 +2771,14 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 		opts.OrderKey = "common_name"
 	}
 
-	return svc.ds.ListHostCertificates(ctx, hostID, opts)
+	certs, meta, err := svc.ds.ListHostCertificates(ctx, hostID, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	payload := make([]*fleet.HostCertificatePayload, 0, len(certs))
+	for _, cert := range certs {
+		payload = append(payload, cert.ToPayload())
+	}
+	return payload, meta, nil
 }

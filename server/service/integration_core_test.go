@@ -13051,7 +13051,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	certResp = listHostCertificatesResponse{}
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/NO-SUCH-TOKEN/certificates", nil, http.StatusUnauthorized)
 
-	pluckCertNames := func(certs []*fleet.HostCertificateRecord) []string {
+	pluckCertNames := func(certs []*fleet.HostCertificatePayload) []string {
 		names := make([]string, 0, len(certs))
 		for _, cert := range certs {
 			names = append(names, cert.CommonName)
