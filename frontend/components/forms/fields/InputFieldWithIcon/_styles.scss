@@ -77,7 +77,7 @@
     }
   }
 
-  &__input-wrapper:hover {
+  &__input-wrapper:not(&__input-wrapper--disabled):hover {
     .input-icon-field__input {
       border: 1px solid $core-vibrant-blue-over;
     }
@@ -114,6 +114,10 @@
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
+    }
+
+    &--disabled {
+      color: $ui-fleet-black-50;
     }
   }
 

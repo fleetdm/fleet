@@ -31,11 +31,12 @@ class InputFieldWithIcon extends InputField {
   };
 
   renderHeading = () => {
-    const { error, placeholder, name, tooltip } = this.props;
+    const { error, placeholder, name, tooltip, disabled } = this.props;
     const label = this.props.label ?? placeholder;
 
     const labelClasses = classnames(`${baseClass}__label`, {
       [`${baseClass}__errors`]: !!error,
+      [`${baseClass}__label--disabled`]: disabled,
     });
 
     return (
@@ -98,6 +99,10 @@ class InputFieldWithIcon extends InputField {
       { [`${baseClass}__input--password`]: type === "password" && value }
     );
 
+    const inputWrapperClasses = classnames(`${baseClass}__input-wrapper`, {
+      [`${baseClass}__input-wrapper--disabled`]: disabled,
+    });
+
     const iconClasses = classnames(
       `${baseClass}__icon`,
       { [`${baseClass}__icon--error`]: error },
@@ -111,7 +116,7 @@ class InputFieldWithIcon extends InputField {
     return (
       <div className={wrapperClasses}>
         {this.props.label && this.renderHeading()}
-        <div className={`${baseClass}__input-wrapper`}>
+        <div className={inputWrapperClasses}>
           <input
             id={name}
             name={name}
