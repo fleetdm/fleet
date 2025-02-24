@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) CreateDeviceTx(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
+func (ds *Datastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
 	// Check for existing devices and duplicates
 	stmt := `SELECT id, device_id, enterprise_specific_id FROM android_devices WHERE device_id = ? OR enterprise_specific_id = ?`
 	var existing []android.Device
@@ -90,7 +90,7 @@ func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device, t
 	return device, nil
 }
 
-func (ds *Datastore) UpdateDeviceTx(ctx context.Context, device *android.Device, tx sqlx.ExtContext) error {
+func (ds *Datastore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error {
 	_, err := ds.updateDevice(ctx, device, tx)
 	return err
 }

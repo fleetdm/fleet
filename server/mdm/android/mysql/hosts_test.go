@@ -75,7 +75,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 }
 
 func (ds *Datastore) createDevice(ctx context.Context, device *android.Device) (*android.Device, error) {
-	return ds.CreateDeviceTx(ctx, device, ds.Writer(ctx))
+	return ds.CreateDeviceTx(ctx, ds.Writer(ctx), device)
 }
 
 func (ds *Datastore) getDeviceByDeviceID(ctx context.Context, deviceID string) (*android.Device, error) {

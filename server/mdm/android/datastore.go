@@ -14,6 +14,6 @@ type Datastore interface {
 	DeleteEnterprises(ctx context.Context) error
 	DeleteOtherEnterprises(ctx context.Context, ID uint) error
 
-	CreateDeviceTx(ctx context.Context, device *Device, tx sqlx.ExtContext) (*Device, error)
-	UpdateDeviceTx(ctx context.Context, device *Device, tx sqlx.ExtContext) error
+	CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) (*Device, error)
+	UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) error
 }

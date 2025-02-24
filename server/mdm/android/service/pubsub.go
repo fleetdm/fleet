@@ -72,7 +72,9 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 			return ctxerr.Wrap(ctx, err, "getting existing Android host")
 		}
 		if host == nil {
-			// Device is not in Fleet. Perhaps it was deleted in Fleet, but it is still connected via MDM.
+			level.Debug(svc.logger).Log("msg", "Device not found in Fleet. Perhaps it was deleted, "+
+				"but it is still connected via Android MDM. Re-enrolling", "device.name", device.Name,
+				"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 			err = svc.enrollHost(ctx, &device)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
@@ -99,7 +101,8 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if host != nil {
-		// Update the team on the host if the host enrolled with a different team
+		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
+			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
@@ -231,8 +234,11 @@ func (svc *Service) getComputerName(device *androidmanagement.Device) string {
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	host, err := svc.fleetDS.AndroidHostLite(ctx, enterpriseSpecificID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "getting device by device ID")
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, nil
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting Android host")
 	}
 	return host, nil
 }
