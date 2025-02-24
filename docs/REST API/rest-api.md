@@ -9739,9 +9739,9 @@ List available Fleet-maintained apps.
     },
     {
       "id": 2,
-      "name": "Adobe Acrobat Reader",
-      "version": "24.002.21005",
-      "platform": "darwin"
+      "name": "1Password",
+      "version": "8.10.40",
+      "platform": "windows"
     },
     {
       "id": 3,
@@ -9749,6 +9749,7 @@ List available Fleet-maintained apps.
       "version": "2.39.179",
       "platform": "darwin"
     },
+    ...
   ],
   "meta": {
     "has_next_results": false,
@@ -9790,6 +9791,7 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+    "software_title_id": 3
   }
 }
 ```
