@@ -127,9 +127,10 @@ const FlashMessage = ({
 
   // Check if notification is an array and render accordingly
   if (Array.isArray(notification)) {
+    const displayNotifications = notification.slice(0, 5); // Limit to 5 notifications
     return (
       <div className="flash-message-container">
-        {notification.map((n) => (
+        {displayNotifications.map((n) => (
           <SingleFlashMessage
             key={n.id}
             notification={n}

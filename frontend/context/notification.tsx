@@ -26,7 +26,7 @@ type MultiFlashOptions = FlashOptions & {
 };
 
 type InitialStateType = {
-  notification: INotification | null;
+  notification: INotification | INotification[] | null;
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
@@ -51,19 +51,29 @@ const actionTypes = {
   HIDE_FLASH: "HIDE_FLASH",
 } as const;
 
-const reducer = (state: any, action: any) => {
-  switch (action.type) {
-    case actionTypes.RENDER_MULTIFLASH: {
-      const newNotifications = action.notifications;
+type State = {
+  notification: INotification | INotification[] | null;
+};
 
-      const updatedNotifications = state.notification.concat(newNotifications);
-
-      return {
-        ...state,
-        notification: updatedNotifications,
-      };
+type Action =
+  | {
+      type: typeof actionTypes.RENDER_MULTIFLASH;
+      notifications: INotification[];
     }
-    case actionTypes.RENDER_FLASH: {
+  | {
+      type: typeof actionTypes.RENDER_FLASH;
+      alertType: "success" | "error" | "warning-filled" | null;
+      message: JSX.Element | string | null;
+      options?: FlashOptions;
+    }
+  | {
+      type: typeof actionTypes.HIDE_FLASH;
+      id?: string;
+    };
+
+const reducer = (state: State, action: Action) => {
+  switch (action.type) {
+    case actionTypes.RENDER_FLASH:
       return {
         ...state,
         notification: {
@@ -72,6 +82,13 @@ const reducer = (state: any, action: any) => {
           message: action.message,
           persistOnPageChange: action.options?.persistOnPageChange ?? false,
         },
+      };
+    case actionTypes.RENDER_MULTIFLASH: {
+      const multiNotifications = action.notifications;
+
+      return {
+        ...state,
+        notification: multiNotifications,
       };
     }
     case actionTypes.HIDE_FLASH:
@@ -103,16 +120,15 @@ const NotificationProvider = ({ children }: Props) => {
         persistOnPageChange?: boolean;
       }
     ) => {
+      // wrapping the dispatch in a timeout ensures it is evaluated on the next event loop,
+      // preventing bugs related to the FlashMessage's self-hiding behavior on URL changes.
+      // react router v3 router.push is asynchronous
       setTimeout(() => {
-        const newNotification = {
-          alertType,
-          isVisible: true,
-          message,
-          persistOnPageChange: options?.persistOnPageChange ?? false,
-        };
         dispatch({
           type: actionTypes.RENDER_FLASH,
-          notifications: [newNotification],
+          alertType,
+          message,
+          options,
         });
       });
     },
