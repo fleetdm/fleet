@@ -12,22 +12,27 @@ type Props = {
   children: ReactNode;
 };
 
+type FlashOptions = {
+  /** `persistOnPageChange` is used to keep the flash message showing after a
+   * router change if set to `true`.
+   *
+   * @default undefined
+   * */
+  persistOnPageChange?: boolean;
+};
+
+type MultiFlashOptions = FlashOptions & {
+  notifications?: INotification[];
+};
+
 type InitialStateType = {
-  notification: INotification | INotification[] | null;
+  notification: INotification | null;
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    options?: {
-      /** `persistOnPageChange` is used to keep the flash message showing after a
-       * router change if set to `true`.
-       *
-       * @default undefined
-       * */
-      persistOnPageChange?: boolean;
-      id?: string;
-      notifications?: INotification[];
-    }
+    options?: FlashOptions
   ) => void;
+  renderMultiFlash: (options?: MultiFlashOptions) => void;
   hideFlash: (id?: string) => void;
 };
 
@@ -36,43 +41,37 @@ export type INotificationContext = InitialStateType;
 const initialState = {
   notification: null,
   renderFlash: noop,
+  renderMultiFlash: noop,
   hideFlash: noop,
 };
 
 const actionTypes = {
   RENDER_FLASH: "RENDER_FLASH",
+  RENDER_MULTIFLASH: "RENDER_MULTIFLASH",
   HIDE_FLASH: "HIDE_FLASH",
 } as const;
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
-    case actionTypes.RENDER_FLASH: {
-      let newNotifications;
+    case actionTypes.RENDER_MULTIFLASH: {
+      const newNotifications = action.notifications;
 
-      if (Array.isArray(action.notifications)) {
-        // If we receive an array of notifications, use it directly
-        newNotifications = action.notifications;
-      } else {
-        // Otherwise, create a single notification object
-        newNotifications = [
-          {
-            id: action.id || Date.now().toString(),
-            alertType: action.alertType,
-            isVisible: true,
-            message: action.message,
-            persistOnPageChange: action.options?.persistOnPageChange ?? false,
-          },
-        ];
-      }
-
-      // If the current state is an array, concatenate; otherwise, use the new notifications
-      const updatedNotifications = Array.isArray(state.notification)
-        ? state.notification.concat(newNotifications)
-        : newNotifications;
+      const updatedNotifications = state.notification.concat(newNotifications);
 
       return {
         ...state,
         notification: updatedNotifications,
+      };
+    }
+    case actionTypes.RENDER_FLASH: {
+      return {
+        ...state,
+        notification: {
+          alertType: action.alertType,
+          isVisible: true,
+          message: action.message,
+          persistOnPageChange: action.options?.persistOnPageChange ?? false,
+        },
       };
     }
     case actionTypes.HIDE_FLASH:
@@ -102,33 +101,34 @@ const NotificationProvider = ({ children }: Props) => {
       message: JSX.Element | string | null,
       options?: {
         persistOnPageChange?: boolean;
-        id?: string;
-        notifications?: INotification[];
       }
     ) => {
       setTimeout(() => {
-        if (options?.notifications) {
-          dispatch({
-            type: actionTypes.RENDER_FLASH,
-            notifications: options.notifications,
-          });
-        } else {
-          const newNotification = {
-            id: options?.id || Date.now().toString(),
-            alertType,
-            isVisible: true,
-            message,
-            persistOnPageChange: options?.persistOnPageChange ?? false,
-          };
-          dispatch({
-            type: actionTypes.RENDER_FLASH,
-            notifications: [newNotification],
-          });
-        }
+        const newNotification = {
+          alertType,
+          isVisible: true,
+          message,
+          persistOnPageChange: options?.persistOnPageChange ?? false,
+        };
+        dispatch({
+          type: actionTypes.RENDER_FLASH,
+          notifications: [newNotification],
+        });
       });
     },
     []
   );
+
+  const renderMultiFlash = useCallback((options?: MultiFlashOptions) => {
+    setTimeout(() => {
+      if (options?.notifications) {
+        dispatch({
+          type: actionTypes.RENDER_MULTIFLASH,
+          notifications: options.notifications,
+        });
+      }
+    });
+  }, []);
 
   const hideFlash = useCallback((id?: string) => {
     dispatch({ type: actionTypes.HIDE_FLASH, id });
@@ -138,9 +138,10 @@ const NotificationProvider = ({ children }: Props) => {
     () => ({
       notification: state.notification,
       renderFlash,
+      renderMultiFlash,
       hideFlash,
     }),
-    [state.notification, renderFlash, hideFlash]
+    [state.notification, renderFlash, renderMultiFlash, hideFlash]
   );
 
   return (

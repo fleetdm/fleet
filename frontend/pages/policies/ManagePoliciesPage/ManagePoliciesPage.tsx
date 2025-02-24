@@ -106,7 +106,7 @@ const ManagePolicyPage = ({
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
     setLastEditedQueryName,
@@ -642,7 +642,7 @@ const ManagePolicyPage = ({
 
         console.log("errorNotifications", errorNotifications);
         // Assuming renderFlash can handle an array of notifications
-        renderFlash("error", null, {
+        renderMultiFlash({
           notifications: errorNotifications,
         });
       } else if (successfulUpdates.length > 0) {
