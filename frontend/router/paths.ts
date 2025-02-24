@@ -43,10 +43,12 @@ export default {
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
   ADMIN_INTEGRATIONS_MDM_APPLE: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
+  ADMIN_INTEGRATIONS_MDM_ANDROID: `${URL_PREFIX}/settings/integrations/mdm/android`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
+  ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
 

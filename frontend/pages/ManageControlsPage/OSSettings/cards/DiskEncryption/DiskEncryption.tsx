@@ -20,6 +20,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -197,6 +198,7 @@ const DiskEncryption = ({
                 />
               )}
               <Checkbox
+                disabled={config?.gitops.gitops_mode_enabled}
                 onChange={onToggleCheckbox}
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
@@ -212,12 +214,18 @@ const DiskEncryption = ({
                   newTab
                 />
               </p>
-              <Button
-                className={`${baseClass}__save-button`}
-                onClick={onUpdateDiskEncryption}
-              >
-                Save
-              </Button>
+              <GitOpsModeTooltipWrapper
+                tipOffset={-12}
+                renderChildren={(d) => (
+                  <Button
+                    disabled={d}
+                    className={`${baseClass}__save-button`}
+                    onClick={onUpdateDiskEncryption}
+                  >
+                    Save
+                  </Button>
+                )}
+              />
             </div>
           )}
         </>

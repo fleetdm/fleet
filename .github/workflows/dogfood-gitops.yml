@@ -79,6 +79,7 @@ jobs:
           DOGFOOD_ACTIVITIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_ACTIVITIES_WEBHOOK_URL }}
           DOGFOOD_CALENDAR_WEBHOOK_URL: ${{ secrets.DOGFOOD_CALENDAR_WEBHOOK_URL }}
           DOGFOOD_HOST_STATUS_WEBHOOK_URL: ${{ secrets.DOGFOOD_HOST_STATUS_WEBHOOK_URL }}
+          DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

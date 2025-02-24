@@ -559,7 +559,7 @@ module.exports.routes = {
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
   'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
-  'GET /handbook/marketing': '/handbook/demand/',
+  'GET /handbook/demand': '/handbook/marketing/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
@@ -869,6 +869,7 @@ module.exports.routes = {
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/policy-templates': '/policies',
 
   // Sitemap
   // =============================================================================================================

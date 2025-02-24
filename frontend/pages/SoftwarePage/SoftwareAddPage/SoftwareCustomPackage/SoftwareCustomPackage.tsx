@@ -166,6 +166,8 @@ const SoftwareCustomPackage = ({
           className={`${baseClass}__package-form`}
           onCancel={onCancel}
           onSubmit={onSubmit}
+          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
+          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal

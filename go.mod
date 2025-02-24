@@ -44,11 +44,13 @@ require (
 	github.com/github/smimesign v0.2.0
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-ini/ini v1.67.0
+	github.com/go-json-experiment/json v0.0.0-20250211171154-1ae217ad3535
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
+	github.com/godbus/dbus/v5 v5.1.0
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
@@ -195,7 +197,6 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

@@ -25,7 +25,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	teamID *uint,
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
-	selfService bool,
+	selfService bool, automaticInstall bool,
 	labelsIncludeAny, labelsExcludeAny []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -137,6 +137,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		InstallScript:     installScript,
 		UninstallScript:   uninstallScript,
 		ValidatedLabels:   validatedLabels,
+		AutomaticInstall:  automaticInstall,
 	}
 
 	// Create record in software installers table
