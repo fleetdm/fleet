@@ -435,6 +435,9 @@ type Service interface {
 	// the specified host.
 	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// ListHostCertificates lists the certificates installed on the specified host.
+	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 

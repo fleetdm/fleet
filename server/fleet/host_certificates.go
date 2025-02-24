@@ -24,24 +24,24 @@ type HostCertificateRecord struct {
 	DeletedAt *time.Time `json:"-" db:"deleted_at"`
 
 	// The following fields are extracted from the certificate.
+	NotValidAfter        time.Time `json:"-" db:"not_valid_after"`
+	NotValidBefore       time.Time `json:"-" db:"not_valid_before"`
+	CertificateAuthority bool      `json:"-" db:"certificate_authority"`
+	CommonName           string    `json:"-" db:"common_name"`
+	KeyAlgorithm         string    `json:"-" db:"key_algorithm"`
+	KeyStrength          int       `json:"-" db:"key_strength"`
+	KeyUsage             string    `json:"-" db:"key_usage"`
+	Serial               string    `json:"-" db:"serial"`
+	SigningAlgorithm     string    `json:"-" db:"signing_algorithm"`
 
-	NotValidAfter             time.Time `json:"-" db:"not_valid_after"`
-	NotValidBefore            time.Time `json:"-" db:"not_valid_before"`
-	CertificateAuthority      bool      `json:"-" db:"certificate_authority"`
-	CommonName                string    `json:"-" db:"common_name"`
-	KeyAlgorithm              string    `json:"-" db:"key_algorithm"`
-	KeyStrength               int       `json:"-" db:"key_strength"`
-	KeyUsage                  string    `json:"-" db:"key_usage"`
-	Serial                    string    `json:"-" db:"serial"`
-	SigningAlgorithm          string    `json:"-" db:"signing_algorithm"`
-	SubjectCountry            string    `json:"-" db:"subject_country"`
-	SubjectOrganization       string    `json:"-" db:"subject_org"`
-	SubjectOrganizationalUnit string    `json:"-" db:"subject_org_unit"`
-	SubjectCommonName         string    `json:"-" db:"subject_common_name"`
-	IssuerCountry             string    `json:"-" db:"issuer_country"`
-	IssuerOrganization        string    `json:"-" db:"issuer_org"`
-	IssuerOrganizationalUnit  string    `json:"-" db:"issuer_org_unit"`
-	IssuerCommonName          string    `json:"-" db:"issuer_common_name"`
+	SubjectCountry            string `json:"-" db:"subject_country"`
+	SubjectOrganization       string `json:"-" db:"subject_org"`
+	SubjectOrganizationalUnit string `json:"-" db:"subject_org_unit"`
+	SubjectCommonName         string `json:"-" db:"subject_common_name"`
+	IssuerCountry             string `json:"-" db:"issuer_country"`
+	IssuerOrganization        string `json:"-" db:"issuer_org"`
+	IssuerOrganizationalUnit  string `json:"-" db:"issuer_org_unit"`
+	IssuerCommonName          string `json:"-" db:"issuer_common_name"`
 }
 
 func NewHostCertificateRecord(
@@ -80,6 +80,54 @@ func NewHostCertificateRecord(
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
 	}
+}
+
+// ToPayload fills a HostCertificatePayload with the fields of a
+// HostCertificateRecord. The HostCertificatePayload is used in API responses.
+func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
+	subject := &HostCertificateNameDetails{
+		CommonName:         r.SubjectCommonName,
+		Country:            r.SubjectCountry,
+		Organization:       r.SubjectOrganization,
+		OrganizationalUnit: r.SubjectOrganizationalUnit,
+	}
+	issuer := &HostCertificateNameDetails{
+		CommonName:         r.IssuerCommonName,
+		Country:            r.IssuerCountry,
+		Organization:       r.IssuerOrganization,
+		OrganizationalUnit: r.IssuerOrganizationalUnit,
+	}
+	return &HostCertificatePayload{
+		ID:                   r.ID,
+		NotValidAfter:        r.NotValidAfter,
+		NotValidBefore:       r.NotValidBefore,
+		CertificateAuthority: r.CertificateAuthority,
+		CommonName:           r.CommonName,
+		KeyAlgorithm:         r.KeyAlgorithm,
+		KeyStrength:          r.KeyStrength,
+		KeyUsage:             r.KeyUsage,
+		Serial:               r.Serial,
+		SigningAlgorithm:     r.SigningAlgorithm,
+		Subject:              subject,
+		Issuer:               issuer,
+	}
+}
+
+// HostCertificatePayload is the JSON model for API endpoints that return host certificates.
+type HostCertificatePayload struct {
+	ID                   uint      `json:"id"`
+	NotValidAfter        time.Time `json:"not_valid_after"`
+	NotValidBefore       time.Time `json:"not_valid_before"`
+	CertificateAuthority bool      `json:"certificate_authority"`
+	CommonName           string    `json:"common_name"`
+	KeyAlgorithm         string    `json:"key_algorithm"`
+	KeyStrength          int       `json:"key_strength"`
+	KeyUsage             string    `json:"key_usage"`
+	Serial               string    `json:"serial"`
+	SigningAlgorithm     string    `json:"signing_algorithm"`
+
+	Subject *HostCertificateNameDetails `json:"subject,omitempty"`
+	Issuer  *HostCertificateNameDetails `json:"issuer,omitempty"`
 }
 
 type HostCertificateNameDetails struct {

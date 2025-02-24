@@ -73,15 +73,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 }
 
 func listHostCertsDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
-	// TODO: move this to the service layer and do validation of the order key?
-	if opts.OrderKey == "" {
-		// default sort by common name ascending
-		opts.OrderKey = "common_name"
-		opts.OrderDirection = fleet.OrderAscending
-	}
-
 	stmt := `
-SELECT 
+SELECT
 	id,
 	sha1_sum,
 	host_id,
@@ -105,8 +98,8 @@ SELECT
 	issuer_org_unit,
 	issuer_common_name
 FROM
-	host_certificates 
-WHERE 
+	host_certificates
+WHERE
 	host_id = ?
 	AND deleted_at IS NULL`
 
@@ -126,7 +119,6 @@ WHERE
 			certs = certs[:len(certs)-1]
 		}
 	}
-
 	return certs, metaData, nil
 }
 
