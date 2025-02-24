@@ -2,24 +2,38 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"log"
 	"os"
 
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/option"
 )
 
 // Required env vars:
 var (
-	androidServiceCredentials = os.Getenv("FLEET_ANDROID_SERVICE_CREDENTIALS")
-	androidProjectID          = os.Getenv("FLEET_ANDROID_PROJECT_ID")
+	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
+	androidProjectID          string
 )
 
 func main() {
-	if androidServiceCredentials == "" || androidProjectID == "" {
-		log.Fatal("FLEET_ANDROID_SERVICE_CREDENTIALS and FLEET_ANDROID_PROJECT_ID must be set")
+	if androidServiceCredentials == "" {
+		log.Fatal("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS must be set")
+	}
+
+	type credentials struct {
+		ProjectID string `json:"project_id"`
+	}
+	var creds credentials
+	err := json.Unmarshal([]byte(androidServiceCredentials), &creds)
+	if err != nil {
+		log.Fatalf("unmarshaling android service credentials: %s", err)
+	}
+	androidProjectID = creds.ProjectID
+	if androidProjectID == "" {
+		log.Fatal("project_id not found in android service credentials")
 	}
 
 	command := flag.String("command", "", "")
@@ -106,7 +120,7 @@ func devicesList(mgmt *androidmanagement.Service, enterpriseID string) {
 		return
 	}
 	for _, device := range result.Devices {
-		data, err := json.MarshalIndent(device, "", "  ")
+		data, err := json.Marshal(device, jsontext.WithIndent("  "))
 		if err != nil {
 			log.Fatalf("Error marshalling device: %v", err)
 		}
@@ -136,7 +150,7 @@ func devicesRelinquishOwnership(mgmt *androidmanagement.Service, enterpriseID, d
 	if err != nil {
 		log.Fatalf("Error issuing command: %v", err)
 	}
-	data, err := json.MarshalIndent(operation, "", "  ")
+	data, err := json.Marshal(operation, jsontext.WithIndent("  "))
 	if err != nil {
 		log.Fatalf("Error marshalling operation: %v", err)
 	}

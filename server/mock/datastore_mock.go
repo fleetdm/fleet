@@ -1165,6 +1165,10 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
+type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
+
+type InsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
@@ -1226,6 +1230,8 @@ type ValidateEmbeddedSecretsFunc func(ctx context.Context, documents []string) e
 type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (string, error)
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
+
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2944,6 +2950,12 @@ type DataStore struct {
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
 
+	GetAllVPPAppsFunc        GetAllVPPAppsFunc
+	GetAllVPPAppsFuncInvoked bool
+
+	InsertVPPAppsFunc        InsertVPPAppsFunc
+	InsertVPPAppsFuncInvoked bool
+
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
 
@@ -3036,6 +3048,9 @@ type DataStore struct {
 
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
+
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7044,6 +7059,20 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
+func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetAllVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllVPPAppsFunc(ctx)
+}
+
+func (s *DataStore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.InsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppsFunc(ctx, apps)
+}
+
 func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
@@ -7259,4 +7288,11 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }

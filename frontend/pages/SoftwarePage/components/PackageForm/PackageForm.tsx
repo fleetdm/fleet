@@ -2,6 +2,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
@@ -23,6 +24,7 @@ import {
   InstallTypeSection,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
@@ -64,6 +66,8 @@ interface IPackageFormProps {
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
   className?: string;
+  /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  gitopsCompatible?: boolean;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
@@ -82,8 +86,11 @@ const PackageForm = ({
   defaultUninstallScript,
   defaultSelfService,
   className,
+  gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -238,66 +245,87 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+          gitopsCompatible={gitopsCompatible}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        {!isEditingSoftware && (
-          <InstallTypeSection
-            className={baseClass}
-            isCustomPackage
-            isExeCustomPackage={isExePackage}
-            installType={formData.installType}
-            onChangeInstallType={onChangeInstallType}
-          />
-        )}
-        <TargetLabelSelector
-          selectedTargetType={formData.targetType}
-          selectedCustomTarget={formData.customTarget}
-          selectedLabels={formData.labelTargets}
-          customTargetOptions={CUSTOM_TARGET_OPTIONS}
-          className={`${baseClass}__target`}
-          onSelectTargetType={onSelectTargetType}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          labels={labels || []}
-          dropdownHelpText={
-            formData.targetType === "Custom" &&
-            generateHelpText(formData.installType, formData.customTarget)
+        <div
+          // including `form` class here keeps the children fields subject to the global form
+          // children styles
+          className={
+            gitopsCompatible && gitOpsModeEnabled
+              ? `${baseClass}__form-fields--gitops-disabled form`
+              : "form"
           }
-        />
-        <Checkbox
-          value={formData.selfService}
-          onChange={onToggleSelfServiceCheckbox}
         >
-          <TooltipWrapper
-            tipContent={
-              <>
-                End users can install from{" "}
-                <b>Fleet Desktop {">"} Self-service</b>.
-              </>
+          {!isEditingSoftware && (
+            <InstallTypeSection
+              className={`${baseClass}__install-type`}
+              isCustomPackage
+              isExeCustomPackage={isExePackage}
+              installType={formData.installType}
+              onChangeInstallType={onChangeInstallType}
+            />
+          )}
+          <TargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            className={`${baseClass}__target`}
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTarget}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+            dropdownHelpText={
+              formData.targetType === "Custom" &&
+              generateHelpText(formData.installType, formData.customTarget)
             }
+          />
+          <Checkbox
+            value={formData.selfService}
+            onChange={onToggleSelfServiceCheckbox}
           >
-            Self-service
-          </TooltipWrapper>
-        </Checkbox>
-        <PackageAdvancedOptions
-          showSchemaButton={showSchemaButton}
-          selectedPackage={formData.software}
-          errors={{
-            preInstallQuery: formValidation.preInstallQuery?.message,
-          }}
-          preInstallQuery={formData.preInstallQuery}
-          installScript={formData.installScript}
-          postInstallScript={formData.postInstallScript}
-          uninstallScript={formData.uninstallScript}
-          onClickShowSchema={onClickShowSchema}
-          onChangePreInstallQuery={onChangePreInstallQuery}
-          onChangeInstallScript={onChangeInstallScript}
-          onChangePostInstallScript={onChangePostInstallScript}
-          onChangeUninstallScript={onChangeUninstallScript}
-        />
+            <TooltipWrapper
+              tipContent={
+                <>
+                  End users can install from{" "}
+                  <b>Fleet Desktop {">"} Self-service</b>.
+                </>
+              }
+            >
+              Self-service
+            </TooltipWrapper>
+          </Checkbox>
+          <PackageAdvancedOptions
+            showSchemaButton={showSchemaButton}
+            selectedPackage={formData.software}
+            errors={{
+              preInstallQuery: formValidation.preInstallQuery?.message,
+            }}
+            preInstallQuery={formData.preInstallQuery}
+            installScript={formData.installScript}
+            postInstallScript={formData.postInstallScript}
+            uninstallScript={formData.uninstallScript}
+            onClickShowSchema={onClickShowSchema}
+            onChangePreInstallQuery={onChangePreInstallQuery}
+            onChangeInstallScript={onChangeInstallScript}
+            onChangePostInstallScript={onChangePostInstallScript}
+            onChangeUninstallScript={onChangeUninstallScript}
+          />
+        </div>
         <div className="form-buttons">
-          <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-            {isEditingSoftware ? "Save" : "Add software"}
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={disableChildren || isSubmitDisabled}
+              >
+                {isEditingSoftware ? "Save" : "Add software"}
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

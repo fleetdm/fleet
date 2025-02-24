@@ -1810,14 +1810,14 @@ type hostsReportRequest struct {
 }
 
 type hostsReportResponse struct {
-	Columns []string              `json:"-"` // used to control the generated csv, see the hijackRender method
+	Columns []string              `json:"-"` // used to control the generated csv, see the HijackRender method
 	Hosts   []*fleet.HostResponse `json:"-"` // they get rendered explicitly, in csv
 	Err     error                 `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) Error() error { return r.Err }
 
-func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
 		if h.DeviceMapping != nil {

@@ -2,6 +2,7 @@ import React from "react";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 
 import {
@@ -16,6 +17,7 @@ import {
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
+import classnames from "classnames";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -130,10 +132,12 @@ const About = ({
         displayPrimaryUser = email;
       } else {
         displayPrimaryUser = (
-          <>
+          <span className={`${baseClass}__device-mapping__primary-user`}>
             {email}{" "}
-            <span className="device-mapping__source">{`(${source})`}</span>
-          </>
+            <span
+              className={`${baseClass}__device-mapping__source`}
+            >{`(${source})`}</span>
+          </span>
         );
       }
     }
@@ -141,18 +145,26 @@ const About = ({
       <DataSet
         title="Used by"
         value={
-          newDeviceMapping.length > 1 ? (
-            <TooltipWrapper
-              tipContent={getDeviceUserTipContent(newDeviceMapping)}
-            >
-              {displayPrimaryUser}
-              <span className="device-mapping__more">{` +${
-                newDeviceMapping.length - 1
-              } more`}</span>
-            </TooltipWrapper>
-          ) : (
-            displayPrimaryUser
-          )
+          <div className={`${baseClass}__used-by`}>
+            {newDeviceMapping.length > 1 ? (
+              <>
+                <span className={`${baseClass}__multiple`}>
+                  <TooltipTruncatedText value={displayPrimaryUser} />
+                </span>
+                <TooltipWrapper
+                  tipContent={getDeviceUserTipContent(newDeviceMapping)}
+                >
+                  <span className="device-mapping__more">{` +${
+                    newDeviceMapping.length - 1
+                  } more`}</span>
+                </TooltipWrapper>
+              </>
+            ) : (
+              <span className={`${baseClass}__single`}>
+                <TooltipTruncatedText value={displayPrimaryUser} />
+              </span>
+            )}
+          </div>
         }
       />
     );

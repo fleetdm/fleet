@@ -476,10 +476,14 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	return auth, res
 }
 
+func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+	return ts.lastActivityMatchesExtended(name, details, id, nil)
+}
+
 // gets the latest activity and checks that it matches any provided properties.
 // empty string or 0 id means do not check that property. It returns the ID of that
 // latest activity.
-func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
@@ -495,6 +499,9 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	}
 	if id > 0 {
 		assert.Equal(t, id, act.ID)
+	}
+	if fleetInitiated != nil {
+		assert.Equal(t, *fleetInitiated, act.FleetInitiated)
 	}
 	return act.ID
 }

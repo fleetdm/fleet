@@ -8,6 +8,7 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -257,7 +258,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 }
 
 func TestLabelsWithReplica(t *testing.T) {
-	opts := &mysql.DatastoreTestOptions{DummyReplica: true}
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := mysql.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 

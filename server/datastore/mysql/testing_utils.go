@@ -26,6 +26,8 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
@@ -36,27 +38,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testUsername              = "root"
-	testPassword              = "toor"
-	testAddress               = "localhost:3307"
-	testReplicaDatabaseSuffix = "_replica"
-	testReplicaAddress        = "localhost:3310"
-)
-
-func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	cfg := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Database: testName,
-		Address:  testAddress,
-	}
+func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	cfg := testing_utils.MysqlTestConfig(testName)
 
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.DummyReplica {
-		replicaConf := cfg
-		replicaConf.Database += testReplicaDatabaseSuffix
+		replicaConf := *cfg
+		replicaConf.Database += testing_utils.TestReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
 
@@ -83,18 +72,18 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// standard SQL.
 	//
 	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
 		setupDummyReplica(t, testName, ds, opts)
 	}
 	if opts.RealReplica {
-		replicaOpts := &dbOptions{
-			minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			maxAttempts:         1,
-			logger:              log.NewNopLogger(),
-			sqlMode:             "ANSI",
+		replicaOpts := &common_mysql.DBOptions{
+			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+			MaxAttempts:         1,
+			Logger:              log.NewNopLogger(),
+			SqlMode:             "ANSI",
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -102,7 +91,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
-func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testing_utils.DatastoreTestOptions) {
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
@@ -135,7 +124,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 
 		primary := ds.primary
 		replica := ds.replica.(*sqlx.DB)
-		replicaDB := testName + testReplicaDatabaseSuffix
+		replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
 		// drop all foreign keys in the replica, as that causes issues even with
@@ -255,7 +244,7 @@ var (
 	databasesToReplicate string
 )
 
-func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
+func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *common_mysql.DBOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
 	const replicaPassword = "rotacilper"
@@ -267,7 +256,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
-				"-u"+testUsername, "-p"+testPassword,
+				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
 			).CombinedOutput(); err != nil {
@@ -327,7 +316,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
-		"-u"+testUsername, "-p"+testPassword,
+		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(
 			`
@@ -346,13 +335,13 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	// Connect to the replica
 	replicaConfig := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
 		Database: testName,
-		Address:  testReplicaAddress,
+		Address:  testing_utils.TestReplicaAddress,
 	}
 	require.NoError(t, checkConfig(&replicaConfig))
-	replica, err := newDB(&replicaConfig, options)
+	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
 	ds.readReplicaConfig = &replicaConfig
@@ -361,129 +350,23 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
+func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
-	base := path.Dir(filename)
-	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	// execute the schema for the test db, and once more for the replica db if
-	// that option is set.
-	dbs := []string{testName}
-	if opts.DummyReplica {
-		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
-	}
-	for _, dbName := range dbs {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			dbName, dbName, dbName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-	if opts.RealReplica {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			testName, testName, testName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_replica_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-
+	schemaPath := path.Join(path.Dir(filename), "schema.sql")
+	testing_utils.LoadSchema(t, testName, opts, schemaPath)
 	return connectMySQL(t, testName, opts)
 }
 
-// DatastoreTestOptions configures how the test datastore is created
-// by CreateMySQLDSWithOptions.
-type DatastoreTestOptions struct {
-	// DummyReplica indicates that a read replica test database should be created.
-	DummyReplica bool
-
-	// RunReplication is the function to call to execute the replication of all
-	// missing changes from the primary to the replica. The function is created
-	// and set automatically by CreateMySQLDSWithOptions. The test is in full
-	// control of when the replication is executed. Only applies to DummyReplica.
-	// Note that not all changes to data show up in the information_schema
-	// update_time timestamp, so to work around that limitation, explicit table
-	// names can be provided to force their replication.
-	RunReplication func(forceTables ...string)
-
-	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
-	RealReplica bool
-}
-
-func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
-		t.Skip("MySQL tests are disabled")
-	}
-
-	if opts == nil {
-		// so it is never nil in internal helper functions
-		opts = new(DatastoreTestOptions)
-	}
-
-	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
-		tt.Parallel()
-	}
-
-	if opts.RealReplica {
-		if _, ok := os.LookupEnv("MYSQL_REPLICA_TEST"); !ok {
-			t.Skip("MySQL replica tests are disabled. Set env var MYSQL_REPLICA_TEST=1 to enable.")
-		}
-	}
-
-	pc, _, _, ok := runtime.Caller(2)
-	details := runtime.FuncForPC(pc)
-	if !ok || details == nil {
-		t.FailNow()
-	}
-
-	cleanName := strings.ReplaceAll(
-		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
-	)
-	cleanName = strings.ReplaceAll(cleanName, ".", "_")
-	if len(cleanName) > 60 {
-		// the later parts are more unique than the start, with the package names,
-		// so trim from the start.
-		cleanName = cleanName[len(cleanName)-60:]
-	}
-	ds := initializeDatabase(t, cleanName, opts)
+func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
+	ds := initializeDatabase(t, cleanTestName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }
 
-func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithReplica(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	if opts == nil {
-		opts = new(DatastoreTestOptions)
+		opts = new(testing_utils.DatastoreTestOptions)
 	}
 	opts.RealReplica = true
 	const numberOfAttempts = 10
@@ -506,7 +389,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
-func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithOptions(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	return createMySQLDSWithOptions(t, opts)
 }
 
@@ -519,7 +402,7 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
+	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }
@@ -540,17 +423,7 @@ func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, e
 	return encrypt(data, ds.serverPrivateKey)
 }
 
-// TruncateTables truncates the specified tables, in order, using ds.writer.
-// Note that the order is typically not important because FK checks are
-// disabled while truncating. If no table is provided, all tables (except
-// those that are seeded by the SQL schema file) are truncated.
 func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
-	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
-	// by inspecting mysql tables.
-	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
-		return
-	}
-
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
@@ -562,46 +435,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"mdm_operation_types":              true,
 		"mdm_apple_declaration_categories": true,
 	}
-	ctx := context.Background()
-
-	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var skipSeeded bool
-
-		if len(tables) == 0 {
-			skipSeeded = true
-			sql := `
-      SELECT
-        table_name
-      FROM
-        information_schema.tables
-      WHERE
-        table_schema = database() AND
-        table_type = 'BASE TABLE'
-    `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
-				return err
-			}
-		}
-
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
-			return err
-		}
-		for _, tbl := range tables {
-			if nonEmptyTables[tbl] {
-				if skipSeeded {
-					continue
-				}
-				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
-			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
-			return err
-		}
-		return nil
-	}))
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient

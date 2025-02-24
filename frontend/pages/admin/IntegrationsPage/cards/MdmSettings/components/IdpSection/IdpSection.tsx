@@ -12,6 +12,7 @@ import { AppContext } from "context/app";
 import { expandErrorReasonRequired } from "interfaces/errors";
 import { AxiosResponse } from "axios";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import {
   IFormDataIdp,
   IFormErrorsIdp,
@@ -24,6 +25,8 @@ const baseClass = "idp-section";
 
 const IdpSection = () => {
   const { config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const { renderFlash } = useContext(NotificationContext);
   const [formData, setFormData] = useState(
     newFormDataIdp(config?.mdm?.end_user_authentication)
@@ -107,64 +110,76 @@ const IdpSection = () => {
             newTab
           />
         </p>
-        <InputField
-          label="Identity provider name"
-          onChange={onInputChange}
-          onBlur={onBlur}
-          name="idp_name"
-          value={formData.idp_name}
-          parseTarget
-          error={formErrors?.idp_name}
-          tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
-        />
-        <InputField
-          label="Entity ID"
-          onChange={onInputChange}
-          onBlur={onBlur}
-          name="entity_id"
-          value={formData.entity_id}
-          parseTarget
-          error={formErrors?.entity_id}
-          tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
-        />
-        <InputField
-          label="Metadata URL"
-          helpText={
-            <>
-              If both <b>Metadata URL</b> and <b>Metadata</b> are specified,{" "}
-              <b>Metadata URL</b> will be used.
-            </>
-          }
-          onChange={onInputChange}
-          onBlur={onBlur}
-          name="metadata_url"
-          value={formData.metadata_url}
-          parseTarget
-          error={formErrors?.metadata_url}
-          tooltip="Metadata URL provided by the identity provider."
-        />
-        <InputField
-          label="Metadata"
-          type="textarea"
-          onChange={onInputChange}
-          name="metadata"
-          value={formData.metadata}
-          parseTarget
-          error={formErrors?.metadata}
-          tooltip="Metadata XML provided by the identity provider."
-        />
-        <TooltipWrapper
-          tipContent="Complete all required fields to save end user authentication."
-          disableTooltip={enableSaveButton}
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
         >
-          <Button
-            disabled={!enableSaveButton}
-            onClick={onSubmit}
-            className="button-wrap"
-          >
-            Save
-          </Button>
-        </TooltipWrapper>
+          <InputField
+            label="Identity provider name"
+            onChange={onInputChange}
+            onBlur={onBlur}
+            name="idp_name"
+            value={formData.idp_name}
+            parseTarget
+            error={formErrors?.idp_name}
+            tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
+          />
+          <InputField
+            label="Entity ID"
+            onChange={onInputChange}
+            onBlur={onBlur}
+            name="entity_id"
+            value={formData.entity_id}
+            parseTarget
+            error={formErrors?.entity_id}
+            tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
+          />
+          <InputField
+            label="Metadata URL"
+            helpText={
+              <>
+                If both <b>Metadata URL</b> and <b>Metadata</b> are specified,{" "}
+                <b>Metadata URL</b> will be used.
+              </>
+            }
+            onChange={onInputChange}
+            onBlur={onBlur}
+            name="metadata_url"
+            value={formData.metadata_url}
+            parseTarget
+            error={formErrors?.metadata_url}
+            tooltip="Metadata URL provided by the identity provider."
+          />
+          <InputField
+            label="Metadata"
+            type="textarea"
+            onChange={onInputChange}
+            name="metadata"
+            value={formData.metadata}
+            parseTarget
+            error={formErrors?.metadata}
+            tooltip="Metadata XML provided by the identity provider."
+          />
+        </div>
+        <GitOpsModeTooltipWrapper
+          tipOffset={-8}
+          renderChildren={(disableChildren) => (
+            <TooltipWrapper
+              tipContent="Complete all required fields to save end user authentication."
+              disableTooltip={enableSaveButton || disableChildren}
+              underline={false}
+            >
+              <Button
+                disabled={!enableSaveButton || disableChildren}
+                onClick={onSubmit}
+                className="button-wrap"
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
+          )}
+        />
       </form>
     </div>
   );

@@ -696,7 +696,7 @@ type getMDMAppleConfigProfileResponse struct {
 
 func (r getMDMAppleConfigProfileResponse) Error() error { return r.Err }
 
-func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getMDMAppleConfigProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -1389,13 +1389,13 @@ func (r mdmAppleEnrollResponse) Error() error { return r.Err }
 type mdmAppleEnrollResponse struct {
 	Err error `json:"error,omitempty"`
 
-	// Profile field is used in hijackRender for the response.
+	// Profile field is used in HijackRender for the response.
 	Profile []byte
 
 	SoftwareUpdateRequired *fleet.MDMAppleSoftwareUpdateRequired
 }
 
-func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	if r.SoftwareUpdateRequired != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -1718,7 +1718,7 @@ type mdmAppleGetInstallerResponse struct {
 	installer []byte
 }
 
-func (r mdmAppleGetInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r mdmAppleGetInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.size, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.name))
@@ -2322,7 +2322,7 @@ type downloadBootstrapPackageResponse struct {
 
 func (r downloadBootstrapPackageResponse) Error() error { return r.Err }
 
-func (r downloadBootstrapPackageResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r downloadBootstrapPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.pkg.Bytes)))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.pkg.Name))
@@ -2659,7 +2659,7 @@ type callbackMDMAppleSSOResponse struct {
 	redirectURL string
 }
 
-func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
 	w.WriteHeader(http.StatusSeeOther)
 }
@@ -4889,7 +4889,7 @@ type mdmAppleOTAResponse struct {
 
 func (r mdmAppleOTAResponse) Error() error { return r.Err }
 
-func (r mdmAppleOTAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.xml)))
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

@@ -1,10 +1,4 @@
 .team-management {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-    padding-bottom: $pad-medium;
-  }
   .data-table-block {
     .data-table__table {
       thead {
@@ -36,6 +30,14 @@
           width: $col-sm;
         }
       }
+    }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+    .actions-dropdown-select__control--is-disabled {
+      min-height: 0;
+      padding: 0;
     }
   }
 }

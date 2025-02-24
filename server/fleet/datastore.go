@@ -1843,6 +1843,12 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
+	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
+	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)
+	// InsertVPPApps inserts the given VPP apps in the database.
+	InsertVPPApps(ctx context.Context, apps []*VPPApp) error
+
+	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
@@ -1965,6 +1971,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
