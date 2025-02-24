@@ -135,8 +135,6 @@ queries:
   interval: 300
   observer_can_run: false
   automations_enabled: false
-  labels_include_all_path:
-  - ../lib/c-suite.labels.yml
 - name: Collect USB devices
   description: Collects the USB devices that are currently connected to macOS and Linux hosts.
   query: SELECT model, vendor FROM usb_devices;
@@ -151,6 +149,8 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
+    labels_include_all_path:
+    - ../lib/c-suite.labels.yml
 ```
 
 ## agent_options
