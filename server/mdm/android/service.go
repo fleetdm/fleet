@@ -28,3 +28,8 @@ type GetEnterpriseResponse struct {
 	EnterpriseID string `json:"android_enterprise_id"`
 	DefaultResponse
 }
+
+type EnterpriseSignupResponse struct {
+	Url string `json:"android_enterprise_signup_url"`
+	DefaultResponse
+}

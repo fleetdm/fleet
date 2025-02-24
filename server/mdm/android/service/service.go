@@ -24,7 +24,7 @@ type Service struct {
 	authz   *authz.Authorizer
 	ds      android.Datastore
 	fleetDS fleet.Datastore
-	proxy   *proxy.Proxy
+	proxy   android.Proxy
 }
 
 func NewService(
@@ -32,19 +32,26 @@ func NewService(
 	logger kitlog.Logger,
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
+	prx := proxy.NewProxy(ctx, logger)
+	return NewServiceWithProxy(logger, fleetDS, prx)
+}
+
+func NewServiceWithProxy(
+	logger kitlog.Logger,
+	fleetDS fleet.Datastore,
+	proxy android.Proxy,
+) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
-
-	prx := proxy.NewProxy(ctx, logger)
 
 	return &Service{
 		logger:  logger,
 		authz:   authorizer,
 		ds:      fleetDS.GetAndroidDS(),
 		fleetDS: fleetDS,
-		proxy:   prx,
+		proxy:   proxy,
 	}, nil
 }
 
@@ -52,17 +59,12 @@ func newErrResponse(err error) android.DefaultResponse {
 	return android.DefaultResponse{Err: err}
 }
 
-type enterpriseSignupResponse struct {
-	Url string `json:"android_enterprise_signup_url"`
-	android.DefaultResponse
-}
-
 func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	result, err := svc.EnterpriseSignup(ctx)
 	if err != nil {
 		return newErrResponse(err)
 	}
-	return enterpriseSignupResponse{Url: result.Url}
+	return android.EnterpriseSignupResponse{Url: result.Url}
 }
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
@@ -150,10 +152,19 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
-		[]string{android.PubSubEnrollment, android.PubSubStatusReport, android.PubSubCommand, android.PubSubUsageLogs},
-		enterpriseToken,
-		enterprise.SignupName,
-		appConfig.ServerSettings.ServerURL+pubSubPushPath+"?token="+pubSubToken,
+		android.ProxyEnterprisesCreateRequest{
+			Enterprise: androidmanagement.Enterprise{
+				EnabledNotificationTypes: []string{
+					android.PubSubEnrollment,
+					android.PubSubStatusReport,
+					android.PubSubCommand,
+					android.PubSubUsageLogs,
+				},
+			},
+			EnterpriseToken: enterpriseToken,
+			SignupUrlName:   enterprise.SignupName,
+			PubSubPushURL:   appConfig.ServerSettings.ServerURL + pubSubPushPath + "?token=" + pubSubToken,
+		},
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")

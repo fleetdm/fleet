@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	proxy_mock "github.com/fleetdm/fleet/v4/server/mdm/android/service/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
@@ -21,46 +22,76 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
-type WithDS struct {
-	suite.Suite
-	DS *mysql.Datastore
-}
-
-func (ts *WithDS) SetupSuite(t *testing.T, dbName string) {
-	ts.DS = CreateNamedMySQLDS(t, dbName)
-}
-
-func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
-		t.Skip("MySQL tests are disabled")
-	}
-	ds := mysql.InitializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
-	t.Cleanup(func() { mysql.Close(ds) })
-	return ds
-}
-
-func (ts *WithDS) TearDownSuite() {
-	mysql.Close(ts.DS)
-}
+const (
+	EnterpriseSignupURL = "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B4D779F1C4DD9A440"
+	EnterpriseID        = "LC02k5wxw7"
+)
 
 type WithServer struct {
-	WithDS
-	Server *httptest.Server
-	Token  string
+	suite.Suite
+	DS               *mysql.Datastore
+	FleetDS          ds_mock.Store
+	Server           *httptest.Server
+	Token            string
+	AppConfig        fleet.AppConfig
+	Proxy            proxy_mock.Proxy
+	ProxyCallbackURL string
 }
 
 func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
-	ts.WithDS.SetupSuite(t, dbName)
-	ts.Server = runServerForTestsWithFleetDS(t, ts.DS)
+	ts.DS = CreateNamedMySQLDS(t, dbName)
+	ts.createCommonDSMocks()
+
+	ts.Proxy = proxy_mock.Proxy{}
+	ts.createCommonProxyMocks(t)
+
+	fleetSvc := mockService{}
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	svc, err := service.NewServiceWithProxy(logger, &ts.FleetDS, &ts.Proxy)
+	require.NoError(t, err)
+
+	ts.Server = runServerForTests(t, logger, &fleetSvc, svc)
+}
+
+func (ts *WithServer) createCommonDSMocks() {
+	ts.FleetDS.GetAndroidDSFunc = func() android.Datastore {
+		return ts.DS
+	}
+	ts.FleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &ts.AppConfig, nil
+	}
+	ts.FleetDS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
+		ts.AppConfig.MDM.AndroidEnabledAndConfigured = configured
+		return nil
+	}
+}
+
+func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
+	ts.Proxy.SignupURLsCreateFunc = func(callbackURL string) (*android.SignupDetails, error) {
+		ts.ProxyCallbackURL = callbackURL
+		return &android.SignupDetails{
+			Url:  EnterpriseSignupURL,
+			Name: "signupUrls/Cb08124d0999c464f",
+		}, nil
+	}
+	ts.Proxy.EnterprisesCreateFunc = func(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
+		return EnterpriseID, "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5", nil
+	}
+	ts.Proxy.EnterprisesPoliciesPatchFunc = func(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
+		assert.Equal(t, EnterpriseID, enterpriseID)
+		return nil
+	}
 }
 
 func (ts *WithServer) TearDownSuite() {
-	ts.WithDS.TearDownSuite()
+	mysql.Close(ts.DS)
 }
 
 type mockService struct {
@@ -76,20 +107,12 @@ func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*fleet
 	return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
 }
 
-func runServerForTestsWithFleetDS(t *testing.T, ds android.Datastore) *httptest.Server {
-	fleetDS := ds_mock.Store{}
-	fleetDS.GetAndroidDSFunc = func() android.Datastore {
-		return ds
-	}
-	fleetSvc := mockService{}
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewService(testCtx(), logger, &fleetDS)
-	require.NoError(t, err)
+func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
 
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,
-			auth.SetRequestsContexts(&fleetSvc),
+			auth.SetRequestsContexts(fleetSvc),
 		),
 		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
 		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
@@ -100,7 +123,7 @@ func runServerForTestsWithFleetDS(t *testing.T, ds android.Datastore) *httptest.
 	}
 
 	r := mux.NewRouter()
-	service.GetRoutes(&fleetSvc, svc)(r, fleetAPIOptions)
+	service.GetRoutes(fleetSvc, androidSvc)(r, fleetAPIOptions)
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("/api/", r.ServeHTTP)
 
@@ -118,4 +141,13 @@ func runServerForTestsWithFleetDS(t *testing.T, ds android.Datastore) *httptest.
 
 func testCtx() context.Context {
 	return context.Background()
+}
+
+func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+		t.Skip("MySQL tests are disabled")
+	}
+	ds := mysql.InitializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
+	t.Cleanup(func() { mysql.Close(ds) })
+	return ds
 }
