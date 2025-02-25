@@ -16,5 +16,4 @@ type Datastore interface {
 
 	CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) (*Device, error)
 	UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *Device) error
-	InsertHostLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, hostID uint) error
 }
