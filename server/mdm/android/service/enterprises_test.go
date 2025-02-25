@@ -97,6 +97,12 @@ func TestEnterprisesAuth(t *testing.T) {
 
 			_, err = svc.EnterpriseSignup(ctx)
 			checkAuthErr(t, tt.shouldFailWrite, err)
+
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			_, err = svc.EnterpriseSignupSSE(ctx)
+			checkAuthErr(t, tt.shouldFailRead, err)
+
 		})
 	}
 
