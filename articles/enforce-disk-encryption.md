@@ -86,40 +86,6 @@ Disk encryption keys are used to login to workstations (hosts) when the end user
 
 3. Follow the instructions on the Mac to enter the disk encryption (recovery) key.
 
-### Windows
-
-1. In Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. 
-
-If it has an **On (automatic)** status follow the first set of instructions. If it has an **On (manual)** status follow the second set of instructions.
-
-#### On (automatic)
-
-1. You don't need the disk encryption key. Instead login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
-
-2. Select the end user's user and select **Reset password**.
-
-3. Use the new password to login to the Windows workstation.
-
-#### On (manual)
-
-1. With the Windows host in front of you, hold the **Shift** key and restart the host.
-
-2. Select **Troubleshoot > Advanced options > Command Prompt** and enter the disk encryption (BitLocker) key when prompted.
-
-3. Run the following command to list the local users accounts:
-
-```
-net user
-```
-
-4. Identify the end user's account and run this command to reset the end user's password:
-
-```
-net user <account> <new-password>
-```
-
-5. Use the new password to login to the Windows workstation.
-
 ### Linux 
 
 1. With the Linux host in front of you, restart it.
