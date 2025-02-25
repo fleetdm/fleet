@@ -74,6 +74,9 @@ const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
 
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 500;
+const DEFAULT_CERTIFICATES_PAGE = 0;
+
 interface IDeviceUserPageProps {
   location: {
     pathname: string;
@@ -150,19 +153,6 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
-    }
-  );
-
-  const {
-    data: deviceCertificates,
-    isLoading: isLoadingDeviceCertificates,
-    isError: isErrorDeviceCertificates,
-  } = useQuery(
-    ["hostCertificates", deviceAuthToken],
-    () => deviceUserAPI.getDeviceCertificates(deviceAuthToken),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!deviceUserAPI,
     }
   );
 
@@ -262,6 +252,28 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
+
+  const isDarwinHost = host?.platform === "darwin";
+  const isIosOrIpadosHost =
+    host?.platform === "ios" || host?.platform === "ipados";
+
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+  } = useQuery(
+    ["hostCertificates", deviceAuthToken],
+    () =>
+      deviceUserAPI.getDeviceCertificates(
+        deviceAuthToken,
+        DEFAULT_CERTIFICATES_PAGE,
+        DEFAULT_CERTIFICATES_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!deviceUserAPI && (isDarwinHost || isIosOrIpadosHost),
+    }
+  );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -377,13 +389,9 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const isDarwinHost = host?.platform === "darwin";
-    const isIosOrIpadosHost =
-      host?.platform === "ios" || host?.platform === "ipados";
-
     return (
       <div className="core-wrapper">
-        {!host || isLoadingHost ? (
+        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>

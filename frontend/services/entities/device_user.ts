@@ -87,14 +87,18 @@ export default {
   },
 
   getDeviceCertificates: (
-    deviceToken: string
+    deviceToken: string,
+    page = 0,
+    perPage = 10
   ): Promise<IGetDeviceCertificatesResponse> => {
     const { DEVICE_CERTIFICATES } = endpoints;
-    const path = DEVICE_CERTIFICATES(deviceToken);
+    const path = `${DEVICE_CERTIFICATES(
+      deviceToken
+    )}?${buildQueryStringFromParams({
+      page,
+      per_page: perPage,
+    })}`;
 
-    // return sendRequest("GET", path);
-    return new Promise((resolve) => {
-      resolve(createMockGetHostCertificatesResponse());
-    });
+    return sendRequest("GET", path);
   },
 };

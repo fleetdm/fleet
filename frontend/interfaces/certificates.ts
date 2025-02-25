@@ -7,7 +7,7 @@ export interface IHostCertificate {
   key_algorithm: string;
   key_strength: number;
   key_usage: string;
-  serial: number;
+  serial: string;
   signing_algorithm: string;
   subject: {
     country: string;

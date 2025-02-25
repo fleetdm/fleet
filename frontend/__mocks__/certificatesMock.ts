@@ -10,7 +10,7 @@ const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
   key_algorithm: "rsaEncryption",
   key_strength: 2048,
   key_usage: "CRL Sign, Key Cert Sign",
-  serial: 1,
+  serial: "123",
   signing_algorithm: "sha256WithRSAEncryption",
   subject: {
     country: "US",
