@@ -343,11 +343,47 @@ describe("PaginatedList", () => {
     });
   });
 
-  it("Notifies the parent when a change is made to the set of dirty items", async () => {});
+  it("Notifies the parent when a change is made to the set of dirty items", async () => {
+    const onUpdate = jest.fn();
+    const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        ref={paginatedListRef}
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={jest.fn((item) => item)}
+        onUpdate={onUpdate}
+        isSelected={jest.fn()}
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    userEvent.click(checkboxes[0]);
+    await waitFor(() => {
+      expect(onUpdate.mock.calls.length).toEqual(2);
+      // Called on first render with no updated items.
+      expect(onUpdate.mock.calls[0]).toEqual([[]]);
+      // Called after toggle with the result of the toggle.
+      expect(onUpdate.mock.calls[1]).toEqual([[items[0]]]);
+    });
+  });
 
-  it("Exposes a method to get the set of changed items", async () => {});
-
-  it("Allows for disabling the list", async () => {});
-
-  it("Allows for disabling the save button with a custom message", async () => {});
+  it("Allows for disabling the list", async () => {
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={jest.fn()}
+        onUpdate={jest.fn()}
+        isSelected={jest.fn()}
+        disabled
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    checkboxes.forEach((checkbox) => {
+      expect(checkbox).toBeDisabled();
+    });
+  });
 });

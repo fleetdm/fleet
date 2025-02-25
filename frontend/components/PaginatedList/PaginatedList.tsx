@@ -149,6 +149,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           return (
             <li className={`${baseClass}__row`} key={item[idKey]}>
               <Checkbox
+                disabled={disabled}
                 value={
                   typeof isSelected === "function"
                     ? isSelected(item)
