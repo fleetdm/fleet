@@ -173,7 +173,7 @@ When new users are added to Google Workspace, they will be included in the next 
 
 ## Conclusion
 
-You've now successfully configured Google Workspace to provide full names to Fleet using custom attributes and automated synchronization. This setup ensures that Fleet can automatically populate and lock the macOS local account Full Name for all your users.
+You've now successfully configured Google Workspace to provide full names to Fleet using a custom attribute and automated synchronization. This setup ensures that Fleet can automatically populate and the macOS local account name for all your users during the initial macOS setup experience.
 
 
 <meta name="articleTitle" value="Configuring Full Names in Google Workspace">
