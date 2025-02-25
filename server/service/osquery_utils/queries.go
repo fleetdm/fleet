@@ -1090,7 +1090,7 @@ var softwarePythonPackages = DetailQuery{
 		FROM python_packages
 	`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
-	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') > 0`,
+	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') < 0`,
 }
 
 // In osquery versions >= 5.16.0 the python_packages table was modified to allow for a

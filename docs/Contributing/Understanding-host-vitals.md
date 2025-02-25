@@ -724,7 +724,7 @@ WITH app_paths AS (
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') > 0
+SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') < 0
 ```
 
 - Query:
