@@ -111,7 +111,7 @@ module.exports = {
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ sails.config.custom.zapierWebhookSecret}`,
-          data: {
+          body: {
             campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
             name: latestCampaign.name,
             linkedinCampaignUrn: latestCampaign.linkedinCampaignUrn,
@@ -141,11 +141,12 @@ module.exports = {
         // When the campaign actually exists in LinkedIn, Zapier will send another event to update the campaign urn in the website's database.
         let placeholderUrn = 'PLACEHOLDER-'+sails.helpers.strings.random();
         let nowAt = new Date();
-        let newCampaignName = `${data.persona} - ${nowAt.toIsoString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`;
+        let newCampaignName = `${data.persona} - ${nowAt.toISOString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`;
         // Now save an incomplete reference to the new LinkedIn campaign.
         latestCampaign = await AdCampaign.create({
           isLatest: true,
           persona: data.persona,
+          name: newCampaignName,
           linkedinCampaignUrn: placeholderUrn,
           linkedinCompanyIds: [ linkedinCompanyId ],
         }).fetch();

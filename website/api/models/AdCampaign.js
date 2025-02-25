@@ -29,6 +29,12 @@ module.exports = {
       required: true
     },
 
+    name: {
+      type: 'string',
+      example: 'elf.it-major-mdm - 2024-02-24 @ 6:11pm',
+      required: true,
+    },
+
     linkedinCampaignUrn: {
       type: 'string',
       example: 'urn:li:sponsoredCampaign:379399199',
