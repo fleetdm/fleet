@@ -114,7 +114,8 @@ export type HostPlatform =
   | typeof HOST_LINUX_PLATFORMS[number]
   | typeof HOST_APPLE_PLATFORMS[number]
   | "windows"
-  | "chrome";
+  | "chrome"
+  | "android";
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
@@ -135,6 +136,10 @@ export const isAppleDevice = (platform: string) => {
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
+
+/* isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
+export const isMobilePlatform = (platform: string | HostPlatform) =>
+  isIPadOrIPhone(platform) || platform === "android";
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
