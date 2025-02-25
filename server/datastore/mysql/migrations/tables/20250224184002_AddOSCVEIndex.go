@@ -10,7 +10,7 @@ func init() {
 }
 
 func Up_20250224184002(tx *sql.Tx) error {
-	_, err := tx.Exec(`ALTER TABLE operating_system_vulnerabilities ADD INDEX idx_os_vulernerabilities_cve (cve);`)
+	_, err := tx.Exec(`ALTER TABLE operating_system_vulnerabilities ADD INDEX idx_os_vulnerabilities_cve (cve);`)
 	if err != nil {
 		return fmt.Errorf("failed to add index to operating_system_vulnerabilities.cve: %w", err)
 	}
