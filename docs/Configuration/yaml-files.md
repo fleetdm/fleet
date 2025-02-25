@@ -177,7 +177,7 @@ controls:
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
-        labels_exclude_any_path:
+        labels_exclude_any_paths:
         - ../lib/windows-arm.labels.yml
 ```
 
@@ -199,7 +199,7 @@ controls:
 software:
   packages:
   - path: ../lib/software-name.package.yml
-    labels_include_any_path:
+    labels_include_any_paths:
       - ../lib/c-suite.labels.yml
 ```
 
@@ -296,13 +296,13 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any_path:
+        labels_exclude_any_paths:
           - ../lib/macos-sequoia.labels.yml
       - path: ../lib/macos-profile2.json
-        labels_include_all_path:
+        labels_include_all_paths:
           - ../lib/macos-sonoma.labels.yml
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any_path:
+        labels_include_any_paths:
           - ../lib/engineering.labels.yml
           - ../lib/marketing.labels.yml
   windows_settings:
@@ -352,7 +352,7 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
 
-Use `labels_include_all_path` to target hosts that have all labels, `labels_include_any_path` to target hosts that have any label, or `labels_exclude_any_path` to target hosts that don't have any of the labels. Only one of `labels_include_all_path`, `labels_include_any_path`, or `labels_exclude_any_path` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all_paths` to target hosts that have all labels, `labels_include_any_paths` to target hosts that have any label, or `labels_exclude_any_paths` to target hosts that don't have any of the labels. Only one of `labels_include_all_paths`, `labels_include_any_paths`, or `labels_exclude_any_paths` can be specified. If none are specified, all hosts are targeted.
 
 ### macos_setup
 
@@ -396,16 +396,16 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any_path:
+      labels_include_any_paths:
         - ../lib/engineering.labels.yml
         - ../lib/marketing.labels.yml
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any:
+      labels_include_any_paths:
         - ../lib/engineering.labels.yml
 ```
 
-Use `labels_include_any_path` to target hosts that have any label or `labels_exclude_any_path` to target hosts that don't have any label. Only one of `labels_include_any_path` or `labels_exclude_any_path` can be specified. If neither are specified, all hosts are targeted.
+Use `labels_include_any_paths` to target hosts that have any label or `labels_exclude_any_paths` to target hosts that don't have any label. Only one of `labels_include_any_paths` or `labels_exclude_any_paths` can be specified. If neither are specified, all hosts are targeted.
 
 ### packages
 
