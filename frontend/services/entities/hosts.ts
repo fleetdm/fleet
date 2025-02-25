@@ -602,22 +602,16 @@ export default {
   },
 
   getHostCertificates: (
-    hostId: number
+    hostId: number,
+    page = 0,
+    perPage = 10
   ): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
+    const path = `${HOST_CERTIFICATES(hostId)}?${buildQueryStringFromParams({
+      page,
+      per_page: perPage,
+    })}`;
 
-    // return sendRequest("GET", HOST_CERTIFICATES(hostId));
-    return new Promise((resolve) => {
-      resolve(
-        createMockGetHostCertificatesResponse({
-          certificates: [
-            createMockHostCertificate({
-              common_name: "Test 2",
-              not_valid_after: "2025-05-01T00:00:00.000Z",
-            }),
-          ],
-        })
-      );
-    });
+    return sendRequest("GET", path);
   },
 };
