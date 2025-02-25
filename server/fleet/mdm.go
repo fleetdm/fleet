@@ -770,6 +770,7 @@ func MDMPlatform(hostPlatform string) string {
 		return "darwin"
 	case "windows":
 		return "windows"
+		// TODO(android): add android to this list?
 	}
 	return ""
 }
