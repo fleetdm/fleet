@@ -10,10 +10,11 @@ module.exports = {
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
+    dogfoodAccessToken: { type: 'string', description: 'If provided, a token for Fleet\'s dogfood instance will be used to get the latest version information for Fleet maintained apps.'}
   },
 
 
-  fn: async function ({ dry, githubAccessToken }) {
+  fn: async function ({ dry, githubAccessToken, dogfoodAccessToken }) {
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
@@ -1295,6 +1296,19 @@ module.exports = {
         let appLibrary = [];
         // Get app library json
         let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/server/mdm/maintainedapps/apps.json'));
+        let latestMaintainedAppsInformationFromFleetInstance;
+        // If a dogfoodAccessToken is provided, send a request to get the latest version information about Fleet maintained apps.
+        if(dogfoodAccessToken) {
+          let maintainedAppsResponseData = await sails.helpers.http.get.with({
+            url: 'https://dogfood.fleetdm.com/api/v1/fleet/software/fleet_maintained_apps',
+            headers: {
+              Authorization: `bearer ${dogfoodAccessToken}`
+            }
+          }).intercept((err)=>{
+            return new Error(`When sending a request to the Dogfood to get the latest version information for Fleet maintained apps, an error occured. Full error: ${util.inspect(err)}`, );
+          });
+          latestMaintainedAppsInformationFromFleetInstance = maintainedAppsResponseData.fleet_maintained_apps;
+        }
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData, async(app)=>{
           let appInformation = {
@@ -1351,12 +1365,15 @@ module.exports = {
 
           // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
-
-
           appInformation.uninstallScript = scriptToUninstallThisApp;
-          appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
           appInformation.description = detailedInformationAboutThisApp.desc;
           appInformation.name = detailedInformationAboutThisApp.name[0];
+          if(dogfoodAccessToken) {
+            let informationFromFleetAboutThisApp = _.find(latestMaintainedAppsInformationFromFleetInstance, {name: appInformation.name});
+            appInformation.version = informationFromFleetAboutThisApp.version.split(',')[0];
+          } else {
+            appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
+          }
           appLibrary.push(appInformation);
         });
         builtStaticContent.appLibrary = appLibrary;
