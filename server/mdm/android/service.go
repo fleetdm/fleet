@@ -9,6 +9,7 @@ type Service interface {
 	EnterpriseSignupCallback(ctx context.Context, enterpriseID uint, enterpriseToken string) error
 	GetEnterprise(ctx context.Context) (*Enterprise, error)
 	DeleteEnterprise(ctx context.Context) error
+	ProcessSSE(ctx context.Context) error
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
 	CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*EnrollmentToken, error)

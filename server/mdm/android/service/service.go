@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -155,10 +156,10 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		android.ProxyEnterprisesCreateRequest{
 			Enterprise: androidmanagement.Enterprise{
 				EnabledNotificationTypes: []string{
-					android.PubSubEnrollment,
-					android.PubSubStatusReport,
-					android.PubSubCommand,
-					android.PubSubUsageLogs,
+					string(android.PubSubEnrollment),
+					string(android.PubSubStatusReport),
+					string(android.PubSubCommand),
+					string(android.PubSubUsageLogs),
 				},
 			},
 			EnterpriseToken: enterpriseToken,
@@ -357,4 +358,43 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
 	}
 	return appConfig, nil
+}
+
+type enterpriseSSEResponse struct {
+	android.DefaultResponse
+}
+
+func (r enterpriseSSEResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	// Simulate sending events (you can replace this with real data)
+	for i := 0; i < 1000; i++ {
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf("Event %d", i))
+		time.Sleep(2 * time.Second)
+		w.(http.Flusher).Flush()
+	}
+}
+
+func enterpriseSSE(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	err := svc.ProcessSSE(ctx)
+	if err != nil {
+		return android.DefaultResponse{Err: err}
+	}
+	return enterpriseSSEResponse{}
+}
+
+func (svc *Service) ProcessSSE(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	_, err := svc.checkIfAndroidAlreadyConfigured(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
