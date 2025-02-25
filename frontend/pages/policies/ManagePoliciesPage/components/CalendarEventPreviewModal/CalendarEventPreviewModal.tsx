@@ -5,13 +5,13 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-import { IPolicy } from "interfaces/policy";
+import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-event-preview-modal";
 
 interface ICalendarEventPreviewModalProps {
   onCancel: () => void;
-  policy?: IPolicy;
+  policy?: IFormPolicy;
 }
 
 const CalendarEventPreviewModal = ({

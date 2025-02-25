@@ -1,0 +1,211 @@
+import React, {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  Ref,
+} from "react";
+import classnames from "classnames";
+import { ReactElement } from "react-markdown/lib/react-markdown";
+import Checkbox from "components/forms/fields/Checkbox";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+// @ts-ignore
+import Pagination from "components/Pagination";
+
+const baseClass = "paginated-list";
+
+// Create an interface for the Ref, so that when parents use `useRef` to provide
+// a reference to this list, they can call `getDirtyItems()` on it to retrieve
+// the list of dirty items.
+export interface IPaginatedListHandle<TItem> {
+  getDirtyItems: () => TItem[];
+}
+interface IPaginatedListProps<TItem> {
+  // Function to fetch one page of data.
+  fetchPage: (pageNumber: number) => Promise<TItem[]>;
+  // UID property in an item. Defaults to `id`.
+  idKey?: string;
+  // Property to use as an item's label. Defaults to `name`.
+  labelKey?: string;
+  // How to determine whether to check an item's checkbox.
+  // If string, a key in an item whose truthiness will be checked.
+  // if function, a function that given an item, returns a boolean.
+  isSelected: string | ((item: TItem) => boolean);
+  // Custom function to render the label for an item.
+  renderItemLabel?: (item: TItem) => ReactElement | null;
+  // Custom function to render extra markup (besides the label) in an item row.
+  renderItemRow?: (
+    item: TItem,
+    // A callback function that the extra markup logic can call to indicate a change
+    // to the item, for example if a dropdown is changed.
+    onChange: (item: TItem) => void
+  ) => ReactElement | false | null | undefined;
+  // A function to call when an item's checkbox is toggled.
+  // Parents can use this to change whatever item metadata is needed to toggle
+  // the value indicated by `isSelected`.
+  onToggleItem: (item: TItem) => TItem;
+  // The size of the page to fetch and show.
+  pageSize?: number;
+  onUpdate?: (changedItems: TItem[]) => void;
+  disabled?: boolean;
+}
+
+function PaginatedListInner<TItem extends Record<string, any>>(
+  {
+    fetchPage,
+    idKey: _idKey,
+    labelKey: _labelKey,
+    pageSize: _pageSize,
+    renderItemLabel,
+    renderItemRow,
+    onToggleItem,
+    onUpdate,
+    isSelected,
+    disabled = false,
+  }: IPaginatedListProps<TItem>,
+  ref: Ref<IPaginatedListHandle<TItem>>
+) {
+  // The # of the page to display.
+  const [currentPage, setCurrentPage] = useState(0);
+  // The set of items fetched via `fetchPage`.
+  const [items, setItems] = useState<TItem[]>([]);
+  // The set of items that have been changed in some way.
+  const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
+    {}
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const idKey = _idKey ?? "id";
+  const labelKey = _labelKey ?? "name";
+  const pageSize = _pageSize ?? 20;
+
+  // When the current page # changes, fetch a new page of data.
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadPage() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const result = await fetchPage(currentPage);
+        if (!isCancelled) {
+          setItems(result);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err as Error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPage, fetchPage]);
+
+  // Whenever the dirty items list changes, notify the parent.
+  useEffect(() => {
+    if (onUpdate) {
+      onUpdate(Object.values(dirtyItems));
+    }
+  }, [onUpdate, dirtyItems]);
+
+  // Create an imperative handle for this component so that parents
+  // can call `ref.current.getDirtyItems()` to get the changed set.
+  useImperativeHandle(ref, () => ({
+    getDirtyItems() {
+      return Object.values(dirtyItems);
+    },
+  }));
+
+  // TODO -- better error state?
+  if (error) return <p>Error: {error.message}</p>;
+
+  // Render the list.
+  const classes = classnames(baseClass, "form", {
+    "form-fields--disabled": disabled,
+  });
+  return (
+    <div className={classes}>
+      {isLoading && (
+        <div className="loading-overlay">
+          <Spinner />
+        </div>
+      )}
+      <ul className={`${baseClass}__list`}>
+        {items.map((_item) => {
+          // If an item has been marked as changed, use the changed version
+          // of the item rather than the one from the page fetch.  This allows
+          // us to render an item correctly even after we've navigated away
+          // from its page and then back again.
+          const item = dirtyItems[_item[idKey]] ?? _item;
+          return (
+            <li className={`${baseClass}__row`} key={item[idKey]}>
+              <Checkbox
+                disabled={disabled}
+                value={
+                  typeof isSelected === "function"
+                    ? isSelected(item)
+                    : item[isSelected]
+                }
+                name={`item_${item[idKey]}_checkbox`}
+                onChange={() => {
+                  // When checkbox is toggled, set item as dirty.
+                  // The parent is responsible for actually updating item properties via onToggleItem().
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [item[idKey]]: onToggleItem(item),
+                  });
+                }}
+              >
+                {renderItemLabel ? (
+                  renderItemLabel(item)
+                ) : (
+                  <TooltipTruncatedText
+                    value={
+                      <span className={`${baseClass}__item-label`}>
+                        {item[labelKey]}
+                      </span>
+                    }
+                  />
+                )}
+              </Checkbox>
+              {renderItemRow &&
+                // If a custom row renderer was supplied, call it with the item value
+                // as well as the callback the parent can use to indicate changes to an item.
+                renderItemRow(item, (changedItem) => {
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [changedItem[idKey]]: changedItem,
+                  });
+                })}
+            </li>
+          );
+        })}
+      </ul>
+      <Pagination
+        resultsOnCurrentPage={items.length}
+        currentPage={currentPage}
+        resultsPerPage={pageSize}
+        onPaginationChange={setCurrentPage}
+      />
+    </div>
+  );
+}
+
+// Wrap with forwardRef to expose the imperative handle.
+// TODO -- can remove this after upgrading to React 19.
+const PaginatedList = forwardRef(PaginatedListInner) as <TItem>(
+  props: IPaginatedListProps<TItem> & {
+    ref?: Ref<IPaginatedListHandle<TItem>>;
+  }
+) => JSX.Element;
+
+export default PaginatedList;

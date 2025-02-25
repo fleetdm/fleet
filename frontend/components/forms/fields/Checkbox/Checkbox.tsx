@@ -118,7 +118,7 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
           ref={inputRef}
           name={name}
-          checked={value || undefined}
+          checked={!!value}
           onChange={noop} // Empty onChange to avoid React warning
           disabled={disabled || readOnly}
           style={{ display: "none" }} // Hide the input

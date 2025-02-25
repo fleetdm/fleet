@@ -1,0 +1,11 @@
+.policies-paginated-list {
+    .gitops-mode-tooltip-wrapper {
+        display: block
+    }
+
+    .form-fields {
+        &--disabled {
+            @include disabled;
+        }
+    }
+}
