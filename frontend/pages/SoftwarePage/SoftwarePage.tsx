@@ -23,8 +23,8 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
-  buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -344,12 +344,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
 
       // Only query param to persist between tabs is team id
-      const teamIdParam = buildQueryStringFromParams({
+      const teamIdParam = {
         team_id: location?.query.team_id,
         page: 0, // Fixes flakey page reset in API call when switching between tabs
-      });
+      };
 
-      const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
+      const navPath = getPathWithQueryParams(
+        softwareSubNav[i].pathname,
+        teamIdParam
+      );
+
       router.replace(navPath);
     },
     [location, router]

@@ -32,6 +32,7 @@ import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
+import { getPathWithQueryParams } from "utilities/url";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -181,7 +182,9 @@ const ManageQueriesPage = ({
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
-    router.push(PATHS.NEW_QUERY(currentTeamId));
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, { team_id: currentTeamId })
+    );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
   const toggleDeleteQueryModal = useCallback(() => {

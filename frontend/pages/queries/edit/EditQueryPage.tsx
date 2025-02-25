@@ -2,9 +2,16 @@ import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { QueryContext } from "context/query";
+import useTeamIdParam from "hooks/useTeamIdParam";
+
+import debounce from "utilities/debounce";
+import deepDifference from "utilities/deep_difference";
+import { getPathWithQueryParams } from "utilities/url";
 import {
   DEFAULT_QUERY,
   DOCUMENT_TITLE_SUFFIX,
@@ -28,16 +35,6 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 import BackLink from "components/BackLink";
 import InfoBanner from "components/InfoBanner";
-
-import useTeamIdParam from "hooks/useTeamIdParam";
-
-import { NotificationContext } from "context/notification";
-
-import PATHS from "router/paths";
-import debounce from "utilities/debounce";
-import deepDifference from "utilities/deep_difference";
-import { buildQueryStringFromParams } from "utilities/url";
-
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
@@ -212,13 +209,12 @@ const EditQueryPage = ({
       !canEditExistingQuery
     ) {
       // Reroute to query report page still maintains query params for live query purposes
-      const baseUrl = PATHS.QUERY_DETAILS(queryId);
-      const queryParams = buildQueryStringFromParams({
-        host_id: location.query.host_id,
-        team_id: location.query.team_id,
-      });
-
-      router.push(queryParams ? `${baseUrl}?${queryParams}` : baseUrl);
+      router.push(
+        getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+          host_id: location.query.host_id,
+          team_id: location.query.team_id,
+        })
+      );
     }
   }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
@@ -264,7 +260,11 @@ const EditQueryPage = ({
       setIsQuerySaving(true);
       try {
         const { query } = await queryAPI.create(formData);
-        router.push(PATHS.QUERY_DETAILS(query.id, query.team_id));
+        router.push(
+          getPathWithQueryParams(PATHS.QUERY_DETAILS(query.id), {
+            team_id: query.team_id,
+          })
+        );
         renderFlash("success", "Query created!");
         setBackendValidators({});
       } catch (createError: any) {
@@ -365,17 +365,16 @@ const EditQueryPage = ({
   };
 
   // Function instead of constant eliminates race condition
-  const backToQueriesPath = () => {
-    const manageQueryPage =
-      filteredQueriesPath ||
-      `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
-        team_id: currentTeamId,
-      })}`;
-
-    return queryId
-      ? PATHS.QUERY_DETAILS(queryId, currentTeamId)
-      : manageQueryPage;
-  };
+  // Returns to queries details page, manage queries page with filters, or default manage queries page
+  const backToQueriesPath = () =>
+    queryId
+      ? getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+          team_id: currentTeamId,
+        })
+      : filteredQueriesPath ||
+        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+          team_id: currentTeamId,
+        });
 
   const showSidebar =
     isSidebarOpen &&

@@ -26,7 +26,6 @@ import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
   secondsToDhms,
-  TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -36,6 +35,7 @@ import {
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 
@@ -341,10 +341,9 @@ const EditQueryForm = ({
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(
-            PATHS.QUERY_DETAILS(
-              response.query.id,
-              response.query.team_id ?? undefined
-            )
+            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
+              team_id: response.query.team_id,
+            })
           );
           renderFlash("success", `Successfully added query.`);
         })
@@ -366,7 +365,11 @@ const EditQueryForm = ({
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query.id));
+                router.push(
+                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
+                    team_id: apiTeamIdForQuery,
+                  })
+                );
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -657,8 +660,10 @@ const EditQueryForm = ({
               variant="blue-green"
               onClick={() => {
                 router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
+                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    host_id: hostId,
+                    team_id: apiTeamIdForQuery,
+                  })
                 );
               }}
               disabled={disabledLiveQuery}
@@ -941,8 +946,10 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                      host_id: hostId,
+                      team_id: currentTeamId,
+                    })
                   );
                 }}
                 disabled={disabledLiveQuery}

@@ -1,7 +1,7 @@
 import React from "react";
 import PATHS from "router/paths";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HostCountCard from "../HostCountCard";
 
@@ -23,11 +23,11 @@ const MissingHosts = ({
     status: "missing",
     team_id: currentTeamId,
   };
-  const queryString = buildQueryStringFromParams(queryParams);
+
   const endpoint = selectedPlatformLabelId
     ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
     : PATHS.MANAGE_HOSTS;
-  const path = `${endpoint}?${queryString}`;
+  const path = getPathWithQueryParams(endpoint, queryParams);
 
   return (
     <HostCountCard

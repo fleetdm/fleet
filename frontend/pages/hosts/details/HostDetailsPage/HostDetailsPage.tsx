@@ -980,6 +980,7 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
+            teamIdForApi={currentTeam?.id}
           />
         )}
         {!!host && showTransferHostModal && (

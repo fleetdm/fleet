@@ -6,10 +6,9 @@ import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
@@ -180,9 +179,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAppDetailsModal(true);
   };
 
-  const backToAddSoftwareUrl = `${
-    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED
-  }?${buildQueryStringFromParams({ team_id: teamId })}`;
+  const backToAddSoftwareUrl = getPathWithQueryParams(
+    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+    { team_id: teamId }
+  );
 
   const onCancel = () => {
     router.push(backToAddSoftwareUrl);
@@ -206,11 +206,12 @@ const FleetMaintainedAppDetailsPage = ({
       titleId = res.software_title_id;
 
       router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
           team_id: teamId,
           available_for_install: true,
-        })}`
+        })
       );
+
       renderFlash(
         "success",
         <>
