@@ -7,7 +7,7 @@ import React from "react";
 import { CellProps, Column, HeaderProps } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
@@ -67,12 +67,10 @@ const generateDefaultTableHeaders = (
 
       const { name, os_version_id } = cellProps.row.original;
 
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
-      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
-        os_version_id
-      )}?${teamQueryParam}`;
+      const softwareOsDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_OS_DETAILS(os_version_id),
+        { team_id: teamId }
+      );
 
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row

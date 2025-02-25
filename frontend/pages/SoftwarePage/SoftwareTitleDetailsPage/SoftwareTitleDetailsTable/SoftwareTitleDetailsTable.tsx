@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 import { ISoftwareTitleVersion } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -92,12 +92,10 @@ const SoftwareTitleDetailsTable = ({
     if (row.original.id) {
       const softwareVersionId = row.original.id;
 
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamIdForApi,
-      });
-      const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-        softwareVersionId.toString()
-      )}?${teamQueryParam}`;
+      const softwareVersionDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VERSION_DETAILS(softwareVersionId.toString()),
+        { team_id: teamIdForApi }
+      );
 
       router.push(softwareVersionDetailsPath);
     }

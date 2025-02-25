@@ -8,6 +8,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import { IHost, IHostResponse } from "interfaces/host";
@@ -85,9 +86,13 @@ const RunQueryPage = ({
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
-    queryId
-      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
-      : router.push(PATHS.NEW_QUERY(currentTeamId));
+    const path = queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.NEW_QUERY;
+
+    router.push(
+      getPathWithQueryParams(path, {
+        team_id: currentTeamId,
+      })
+    );
   }
 
   // disabled on page load so we can control the number of renders
@@ -155,13 +160,11 @@ const RunQueryPage = ({
     }
   }, [location.pathname, storedQuery?.name]);
 
-  const goToQueryEditor = useCallback(
-    () =>
-      queryId
-        ? router.push(PATHS.EDIT_QUERY(queryId, currentTeamId))
-        : router.push(PATHS.NEW_QUERY(currentTeamId)),
-    []
-  );
+  const goToQueryEditor = useCallback(() => {
+    const path = queryId ? PATHS.EDIT_QUERY(queryId) : PATHS.NEW_QUERY;
+
+    router.push(getPathWithQueryParams(path, { team_id: currentTeamId }));
+  }, []);
 
   const renderScreen = () => {
     const step1Props = {
