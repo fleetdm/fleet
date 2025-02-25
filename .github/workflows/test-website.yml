@@ -66,4 +66,4 @@ jobs:
       - run: cd website/ && npm test
 
       # Compile assets
-      - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod
+      - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }} --dogfoodAccessToken=${{ secrets.DOGFOOD_API_TOKEN }}" npm run build-for-prod
