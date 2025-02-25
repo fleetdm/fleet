@@ -7415,6 +7415,7 @@ Returns a list of global queries or team queries.
       "author_id": 1,
       "author_name": "noah",
       "author_email": "noah@example.com",
+      "labels_include_any": [],
       "packs": [
         {
           "created_at": "2021-01-05T21:13:04Z",
@@ -7453,6 +7454,7 @@ Returns a list of global queries or team queries.
       "author_id": 1,
       "author_name": "noah",
       "author_email": "noah@example.com",
+      "labels_include_any": ["macOS 13+"],
       "packs": [
         {
           "created_at": "2021-01-19T17:08:31Z",
@@ -7522,6 +7524,7 @@ Returns the query specified by ID.
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
+    "labels_include_any": [],
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -7713,6 +7716,7 @@ Creates a global query or team query.
 | team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -7735,7 +7739,10 @@ Creates a global query or team query.
   "min_osquery_version": "",
   "automations_enabled": true,
   "logging": "snapshot",
-  "discard_data": false
+  "discard_data": false,
+  "labels_include_any": [
+    "Hosts with Docker installed"
+  ]
 }
 ```
 
@@ -7764,7 +7771,10 @@ Creates a global query or team query.
     "author_email": "",
     "observer_can_run": true,
     "discard_data": false,
-    "packs": []
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed"
+    ]
   }
 }
 ```
@@ -7786,6 +7796,7 @@ Modifies the query specified by ID.
 | observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -7793,6 +7804,7 @@ Modifies the query specified by ID.
 
 > Note that any of the following conditions will cause the existing query report to be deleted:
 > - Updating the `query` (SQL) field
+> - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels_include_any`)
 > - Changing `discard_data` from `false` to `true`
 > - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
@@ -7809,7 +7821,11 @@ Modifies the query specified by ID.
   "platform": "",
   "min_osquery_version": "",
   "automations_enabled": false,
-  "discard_data": true
+  "discard_data": true,
+  "labels_include_any": [
+    "Hosts with Docker installed",
+    "macOS 13+"
+  ]
 }
 ```
 
@@ -7837,7 +7853,11 @@ Modifies the query specified by ID.
     "author_name": "noah",
     "observer_can_run": true,
     "discard_data": true,
-    "packs": []
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed",
+      "macOS 13+"
+    ]
   }
 }
 ```

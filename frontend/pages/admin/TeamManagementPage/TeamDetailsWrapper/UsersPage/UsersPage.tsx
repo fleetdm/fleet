@@ -414,6 +414,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
               ? toggleAddUserModal
               : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
+            gitOpsModeCompatible: true,
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder="Search"

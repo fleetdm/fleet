@@ -114,7 +114,8 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const gomEnabled = useContext(AppContext).config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
@@ -354,7 +355,7 @@ const ManageAutomationsModal = ({
         (zendeskIntegrationsIndexed &&
           zendeskIntegrationsIndexed.length > 0) ? (
           <Dropdown
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
@@ -412,7 +413,7 @@ const ManageAutomationsModal = ({
           }
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
-          disabled={!softwareAutomationsEnabled || gomEnabled}
+          disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
         />
         <Button
           type="button"
@@ -496,7 +497,7 @@ const ManageAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <Slider
-          disabled={gomEnabled}
+          disabled={gitOpsModeEnabled}
           value={softwareAutomationsEnabled}
           onChange={() =>
             setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
@@ -519,7 +520,7 @@ const ManageAutomationsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onRadioChange(true)}
-              disabled={!softwareAutomationsEnabled || gomEnabled}
+              disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -529,7 +530,7 @@ const ManageAutomationsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onRadioChange(false)}
-              disabled={!softwareAutomationsEnabled || gomEnabled}
+              disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
             />
           </div>
           {integrationEnabled ? renderTicket() : renderWebhook()}
