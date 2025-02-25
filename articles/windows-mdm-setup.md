@@ -175,7 +175,7 @@ You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/
 
 ## Turn off Windows MDM
 
-To turn off Windows MDM at the organization level, first turn off MDM for each host, by running [a script](https://github.com/fleetdm/fleet/blob/713068f4c1934c5b254bd7fad4255d34b46f6097/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), and then:
+1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/713068f4c1934c5b254bd7fad4255d34b46f6097/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on all your Windows hosts.
 1. Head to **Settings > Integrations > MDM**.
 2. Next select **Edit** in **Windows MDM turned on** section.
 3. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.
