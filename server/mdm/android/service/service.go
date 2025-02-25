@@ -236,7 +236,7 @@ func getEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Servi
 }
 
 func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
-	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	enterprise, err := svc.ds.GetEnterprise(ctx)
