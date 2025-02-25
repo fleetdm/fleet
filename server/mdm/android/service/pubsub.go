@@ -51,7 +51,7 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 	}
 
 	switch notificationType {
-	case android.PubSubEnrollment:
+	case string(android.PubSubEnrollment):
 		var device androidmanagement.Device
 		err := json.Unmarshal(rawData, &device)
 		if err != nil {
@@ -59,13 +59,19 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		}
 		err = svc.enrollHost(ctx, &device)
 		if err != nil {
+			level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "enrolling Android host")
 		}
-	case android.PubSubStatusReport:
+	case string(android.PubSubStatusReport):
 		var device androidmanagement.Device
 		err := json.Unmarshal(rawData, &device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
+		}
+		if device.AppliedState == string(android.DeviceStateDeleted) {
+			level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
+				"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
+			return nil
 		}
 		host, err := svc.getExistingHost(ctx, &device)
 		if err != nil {
@@ -77,11 +83,13 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 				"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 			err = svc.enrollHost(ctx, &device)
 			if err != nil {
+				level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "data", rawData)
 				return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 			}
 		}
 		err = svc.updateHost(ctx, &device, host)
 		if err != nil {
+			level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "enrolling Android host")
 		}
 	}
@@ -138,6 +146,10 @@ func (svc *Service) validateDevice(ctx context.Context, device *androidmanagemen
 }
 
 func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+	err := svc.validateDevice(ctx, device)
+	if err != nil {
+		return err
+	}
 	if device.AppliedPolicyName != "" {
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {
@@ -147,7 +159,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.AndroidPolicyID = ptr.Uint(policy)
+		host.Device.AndroidPolicyID = policy
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 
@@ -216,7 +228,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.AndroidPolicyID = ptr.Uint(policy)
+		host.Device.AndroidPolicyID = policy
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
@@ -252,14 +264,20 @@ func (svc *Service) getDeviceID(ctx context.Context, device *androidmanagement.D
 	return deviceID, nil
 }
 
-func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.Device) (uint, error) {
+func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.Device) (*uint, error) {
 	nameParts := strings.Split(device.AppliedPolicyName, "/")
 	if len(nameParts) != 4 {
-		return 0, ctxerr.Errorf(ctx, "invalid Android policy name: %s", device.AppliedPolicyName)
+		return nil, ctxerr.Errorf(ctx, "invalid Android policy name: %s", device.AppliedPolicyName)
+	}
+	if len(nameParts[3]) == 0 {
+		level.Error(svc.logger).Log("msg", "Empty Android policy ID", "device.name", device.Name,
+			"device.enterpriseSpecificID", device.HardwareInfo.EnterpriseSpecificId, "device.AppliedPolicyName",
+			device.AppliedPolicyName)
+		return nil, nil
 	}
 	result, err := strconv.ParseUint(nameParts[3], 10, 64)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "parsing Android policy ID")
+		return nil, ctxerr.Wrapf(ctx, err, "parsing Android policy ID from %s", device.AppliedPolicyName)
 	}
-	return uint(result), nil
+	return ptr.Uint(uint(result)), nil
 }
