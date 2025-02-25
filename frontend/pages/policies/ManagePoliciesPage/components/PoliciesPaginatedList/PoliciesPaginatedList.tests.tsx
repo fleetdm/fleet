@@ -208,7 +208,9 @@ describe("PoliciesPaginatedList - component", () => {
     // Initially, the save button should be disabled since there are no changes.
     expect(saveButton).toBeDisabled();
     await userEvent.hover(saveButton);
-    expect(screen.getByText("No changes")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("No changes")).toBeInTheDocument();
+    });
     await userEvent.unhover(saveButton);
 
     // After clicking a checkbox, the save button should be enabled.
@@ -220,7 +222,9 @@ describe("PoliciesPaginatedList - component", () => {
     await userEvent.click(checkboxes[1]);
     expect(saveButton).toBeDisabled();
     await userEvent.hover(saveButton);
-    expect(screen.getByText("Stop touching things!")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Stop touching things!")).toBeInTheDocument();
+    });
     await userEvent.unhover(saveButton);
   });
 
