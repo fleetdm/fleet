@@ -90,6 +90,21 @@ controls:
       - path: ../lib/macos/configuration-profiles/automatically-update-1Password.mobileconfig
         labels_include_any:
           - "Macs with 1Password8 installed"
+      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
+        labels_include_any:
+          - "Santa test device"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
@@ -135,6 +150,7 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu

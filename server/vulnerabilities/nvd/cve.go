@@ -628,6 +628,11 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 	// - versionStartExcluding
 	// - versionEndExcluding
 	// - versionEndIncluding - not used in this function as we don't want to assume the resolved version
+
+	// Back slashes are added to the version string during parsing; remove them to ensure that the version
+	// comparison works correctly. See https://github.com/fleetdm/fleet/issues/25991.
+	hostSoftwareVersion := wfn.StripSlashes(hostSoftwareMeta.Version)
+
 	for _, rule := range cpeMatch {
 		if rule.VersionEndExcluding == "" {
 			continue
@@ -645,10 +650,11 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
-		versionEnd, err := checkVersion(rule, hostSoftwareMeta.Version)
+		versionEnd, err := checkVersion(rule, hostSoftwareVersion)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking version")
 		}
+
 		if versionEnd != "" {
 			return versionEnd, nil
 		}
