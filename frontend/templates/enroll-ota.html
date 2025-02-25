@@ -163,7 +163,7 @@
           Select <b>Enroll</b> and it will open settings on your Android device.
           Follow wizard to finish enrollment.
         </p>
-        <a class="enroll-link" href="test.com">Enroll</a>
+        <a class="enroll-link" href="" target="_blank">Enroll</a>
       </div>
     </template>
 
@@ -257,6 +257,11 @@
     <section id="main-content"></section>
 
     <script>
+      // TODO: does this need to come from server?
+      const ANDROID_ENROLL_URL = "https://enterprise.google.com/android/enroll";
+      const ANDROID_GET_TOKEN_URL =
+        "{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token";
+
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
         const isIPhone = /iPhone/.test(userAgent);
@@ -278,9 +283,7 @@
         return "unsupported";
       };
 
-      const getTemplateIdFromPlatform = () => {
-        const platform = getPlatform();
-
+      const getTemplateIdFromPlatform = (platform) => {
         let templateId = "";
         if (platform === "android") {
           templateId = "android-template";
@@ -293,7 +296,7 @@
         return templateId;
       };
 
-      // renders the content based on the platform
+      // renders the content based on the template id
       const renderContent = (templateId) => {
         const template = document.getElementById(templateId);
         if (template) {
@@ -303,8 +306,14 @@
         }
       };
 
+      const setEnrollTokenUrl = (token) => {
+        document
+          .querySelector(".enroll-link")
+          .setAttribute("href", `${ANDROID_ENROLL_URL}?et=${token}`);
+      };
+
       // dynmaic content rendering for ios and ipad only
-      const renderIosIpadContent = (platform) => {
+      const setIosIpadContent = (platform) => {
         if (platform === "ios") {
           deviceType = "iPhone";
         } else if (platform === "ipad") {
@@ -345,44 +354,33 @@
       const getEnrollmentToken = async () => {
         const enrollSecret = getEnrollmentSecret();
 
-        if (!enrollSecret) {
-          renderError(
-            "This URL is invalid.",
-            "Enroll secret is invalid. Please contact your IT admin."
-          );
-          return;
-        }
+        // TODO: remove
+        return new Promise((resolve, reject) => {
+          resolve({ token: "123456" });
+        });
 
-        try {
-          const response = await fetch(
-            `{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=${enrollSecret}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
-          const data = await response.json();
-
-          if (data.error) {
-            renderError("Error", data.error);
-            return;
+        const response = await fetch(
+          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${enrollSecret}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
           }
-
-          return data;
-        } catch (error) {
-          renderError("Error", "Failed to fetch enrollment token.");
+        );
+        if (!response.ok) {
+          throw new Error("Failed to get enrollment token");
         }
+        return await response.json();
       };
 
-      const ANDROID_MDM_ENABLED = false;
-      const MAC_MDM_ENABLED = false;
+      // TODO: get from server
+      const ANDROID_MDM_ENABLED = true;
+      const MAC_MDM_ENABLED = true;
 
-      // set up the page content
-      document.addEventListener("DOMContentLoaded", function () {
-        // const platform = getPlatform();
-        const platform = "android";
+      // here we render the page content
+      document.addEventListener("DOMContentLoaded", async function () {
+        const platform = getPlatform();
 
         // quick exit if platform is unsupported
         if (platform === "unsupported") {
@@ -390,7 +388,7 @@
           return;
         }
 
-        // check if the enroll secret is valid
+        // check if the enroll secret is valid.
         if (!getEnrollmentSecret()) {
           renderError(
             "This URL is invalid.",
@@ -399,7 +397,7 @@
           return;
         }
 
-        let templateId = "";
+        let templateId = getTemplateIdFromPlatform(platform);
 
         // handle android rendering
         if (platform === "android") {
@@ -410,37 +408,33 @@
             );
             return;
           }
+
+          // we need to get the token and then place it in the enroll link
+          try {
+            const data = await getEnrollmentToken();
+            renderContent(templateId);
+            setEnrollTokenUrl(data.token);
+          } catch (error) {
+            renderError(
+              "This URL is invalid.",
+              "Enroll secret is invalid. Please contact your IT admin."
+            );
+            return;
+          }
         }
 
-        if ((platform === "ios" || platform === "ipad") && !MAC_MDM_ENABLED) {
-          const description = `To enroll your ${
-            platform === "ios" ? "iPhone" : "iPad"
-          } please contact your IT admin.`;
-          renderError("The Apple MDM is turned off.", description);
+        // handle rendering for ios and ipad
+        if (platform === "ios" || platform === "ipad") {
+          if (!MAC_MDM_ENABLED) {
+            const description = `To enroll your ${
+              platform === "ios" ? "iPhone" : "iPad"
+            } please contact your IT admin.`;
+            renderError("The Apple MDM is turned off.", description);
+            return;
+          }
+          renderContent(templateId);
+          setIosIpadContent(platform);
         }
-
-        if (platform === "android") {
-          templateId = "android-template";
-        } else if (platform === "ios" || platform === "ipad") {
-          templateId = "ios-ipad-template";
-        } else {
-          templateId = "unsupported-template";
-        }
-
-        // const token = getEnrollmentToken();
-
-        // renderContent("unsupported-template");
-
-        // renderContent(templateId);
-
-        renderError(
-          "This URL is invalid.",
-          "Enroll secret is invalid. Please contact your IT admin."
-        );
-
-        // if (platform === "ios" || platform === "ipad") {
-        //   renderIosIpadContent(platform);
-        // }
       });
     </script>
   </body>
