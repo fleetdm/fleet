@@ -145,9 +145,6 @@ const ManagePolicyPage = ({
     },
   });
 
-  console.log("currentTeamId", currentTeamId);
-  console.log("teamIdForApi", teamIdForApi);
-
   // loading state used by various policy updates on this page
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
 
