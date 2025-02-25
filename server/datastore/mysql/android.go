@@ -38,7 +38,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			detail_updated_at,
 			label_updated_at
 		) VALUES (
-   			:node_key,
+			:node_key,
 			:hostname,
 			:computer_name,
 			:platform,
@@ -76,6 +76,10 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		err = upsertHostDisplayNames(ctx, tx, *host.Host)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host display name")
+		}
+		err = ds.androidDS.InsertHostLabelMembershipTx(ctx, tx, host.Host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
 		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
@@ -141,7 +145,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		TeamID *uint `db:"team_id"`
 		*android.Device
 	}
-	stmt := `SELECT 
+	stmt := `SELECT
 		h.team_id,
 		ad.id,
 		ad.host_id,

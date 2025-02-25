@@ -32,7 +32,7 @@ func Up_20250225085436(tx *sql.Tx) error {
 	ts := time.Date(2025, 2, 25, 0, 0, 0, 0, time.UTC)
 	_, err := tx.Exec(
 		stmt,
-		fleet.BuiltinLabelAndroid,
+		fleet.BuiltinLabelNameAndroid,
 		"All Android hosts",
 		"android",
 		fleet.LabelTypeBuiltIn,
@@ -43,7 +43,7 @@ func Up_20250225085436(tx *sql.Tx) error {
 	if err != nil {
 		if driverErr, ok := err.(*mysql.MySQLError); ok {
 			if driverErr.Number == mysqlerr.ER_DUP_ENTRY {
-				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", fleet.BuiltinLabelAndroid, err)
+				return fmt.Errorf("a label with the name %q already exists, please rename it before applying this migration: %w", fleet.BuiltinLabelNameAndroid, err)
 			}
 		}
 		return err
