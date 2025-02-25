@@ -1798,11 +1798,11 @@ var (
 				candidateSuffix := ""
 				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
 				case "10":
-					candidateSuffix = "-alpha" + releaseSerial
+					candidateSuffix = "a" + releaseSerial
 				case "11":
-					candidateSuffix = "-beta" + releaseSerial
+					candidateSuffix = "b" + releaseSerial
 				case "12":
-					candidateSuffix = "-rc" + releaseSerial
+					candidateSuffix = "rc" + releaseSerial
 				} // default
 
 				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
