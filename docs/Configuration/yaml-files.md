@@ -155,7 +155,7 @@ Currently, labels can specified in separate files in your `lib/` folder.
 
 ### Options
 
-For possible options, see the parameters for the [Create query API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-query).
+For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
 
 ### Example
 
