@@ -21,8 +21,8 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // version info
@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	caCMD := flag.NewFlagSet("ca", flag.ExitOnError)
+	var caCMD = flag.NewFlagSet("ca", flag.ExitOnError)
 	{
 		if len(os.Args) >= 2 {
 			if os.Args[1] == "ca" {
@@ -75,12 +75,13 @@ func main() {
 	httpAddrSet := setByUser("http-addr", "SCEP_HTTP_ADDR")
 	portSet := setByUser("port", "SCEP_HTTP_LISTEN_PORT")
 	var httpAddr string
-	if httpAddrSet && portSet {
+	switch {
+	case httpAddrSet && portSet:
 		fmt.Fprintln(os.Stderr, "cannot set both -http-addr and -port")
 		os.Exit(1)
-	} else if httpAddrSet {
+	case httpAddrSet:
 		httpAddr = *flHTTPAddr
-	} else {
+	default:
 		httpAddr = ":" + *flPort
 	}
 
@@ -148,9 +149,9 @@ func main() {
 		if *flSignServerAttrs {
 			signerOpts = append(signerOpts, scepdepot.WithSeverAttrs())
 		}
-		var signer scepserver.CSRSigner = scepdepot.NewSigner(depot, signerOpts...)
+		var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scepdepot.NewSigner(depot, signerOpts...))
 		if *flChallengePassword != "" {
-			signer = scepserver.ChallengeMiddleware(*flChallengePassword, signer)
+			signer = scepserver.StaticChallengeMiddleware(*flChallengePassword, signer)
 		}
 		if csrVerifier != nil {
 			signer = csrverifier.Middleware(csrVerifier, signer)

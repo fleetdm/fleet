@@ -1,0 +1,45 @@
+.calendar-events-modal {
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    line-height: 150%;
+
+    img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .modal-cta-wrap {
+      margin-top: 0;
+    }
+  }
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    .button--text-link {
+      white-space: nowrap;
+    }
+  }
+
+  .form-fields {
+    &--disabled {
+      @include disabled;
+    }
+  }
+
+  pre {
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  .form-field__help-text {
+    margin-top: $pad-large;
+  }
+}
+
+.calendar-event-preview {
+  p {
+    margin: 24px 0;
+  }
+}

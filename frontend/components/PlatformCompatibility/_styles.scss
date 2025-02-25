@@ -2,6 +2,9 @@
   display: flex;
   font-size: $x-small;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
   b,
   svg,
   span {
@@ -9,16 +12,8 @@
     align-items: center;
   }
 
-  span {
-    padding-left: 12px;
-  }
-
   .platform {
-    padding-left: 0px;
-
-    .icon {
-      padding-left: 12px;
-      padding-right: $pad-xsmall;
-    }
+    display: flex;
+    gap: $pad-xsmall;
   }
 }

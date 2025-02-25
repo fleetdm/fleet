@@ -1,10 +1,12 @@
 package scepclient
 
 import (
+	"time"
+
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // Client is a SCEP Client
@@ -17,8 +19,9 @@ type Client interface {
 func New(
 	serverURL string,
 	logger log.Logger,
+	timeout *time.Duration,
 ) (Client, error) {
-	endpoints, err := scepserver.MakeClientEndpoints(serverURL)
+	endpoints, err := scepserver.MakeClientEndpoints(serverURL, timeout)
 	if err != nil {
 		return nil, err
 	}

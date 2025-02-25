@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
@@ -27,7 +28,7 @@ type getInstallerRequest struct {
 func (getInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	k, ok := mux.Vars(r)["kind"]
 	if !ok {
-		return "", errBadRoute
+		return "", endpoint_utils.ErrBadRoute
 	}
 
 	return getInstallerRequest{
@@ -46,9 +47,9 @@ type getInstallerResponse struct {
 	fileExt    string
 }
 
-func (r getInstallerResponse) error() error { return r.Err }
+func (r getInstallerResponse) Error() error { return r.Err }
 
-func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -65,7 +66,7 @@ func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseW
 	r.fileReader.Close()
 }
 
-func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(getInstallerRequest)
 
 	fileReader, fileLength, err := svc.GetInstaller(ctx, fleet.Installer{
@@ -121,9 +122,9 @@ type checkInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r checkInstallerResponse) error() error { return r.Err }
+func (r checkInstallerResponse) Error() error { return r.Err }
 
-func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*checkInstallerRequest)
 
 	err := svc.CheckInstallerExistence(ctx, fleet.Installer{

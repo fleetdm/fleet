@@ -1,0 +1,11 @@
+name: No TEAM
+controls:
+policies:
+software:
+  packages:
+    - install_script:
+        path: lib/install_ruby.sh
+      pre_install_query:
+        path: lib/query_ruby.yml
+      post_install_script:
+        path: lib/post_install_ruby.sh

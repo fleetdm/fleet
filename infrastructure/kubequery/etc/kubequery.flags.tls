@@ -1,9 +1,0 @@
---schedule_splay_percent=50
---disable_watchdog=true
---tls_hostname=z6c0b1jca0.execute-api.us-west-2.amazonaws.com
---tls_server_certs=/opt/uptycs/etc/certs.pem
---enroll_secret_path=/opt/uptycs/config/enroll.secret
---enroll_tls_endpoint=/default/enroll
---logger_plugin=tls
---logger_tls_endpoint=/default/log
---logger_tls_compress=true

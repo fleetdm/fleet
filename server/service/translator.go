@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type translatorRequest struct {
@@ -15,9 +17,9 @@ type translatorResponse struct {
 	Err  error                    `json:"error,omitempty"`
 }
 
-func (r translatorResponse) error() error { return r.Err }
+func (r translatorResponse) Error() error { return r.Err }
 
-func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*translatorRequest)
 	resp, err := svc.Translate(ctx, req.List)
 	if err != nil {
@@ -61,6 +63,12 @@ func translateHostToID(ctx context.Context, ds fleet.Datastore, identifier strin
 }
 
 func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
+	if len(payloads) == 0 {
+		// skip auth since there is no case in which this request will make sense with no payloads
+		svc.authz.SkipAuthorization(ctx)
+		return nil, badRequest("payloads must not be empty")
+	}
+
 	var finalPayload []fleet.TranslatePayload
 
 	for _, payload := range payloads {
@@ -88,7 +96,15 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 			}
 			translateFunc = translateHostToID
 		default:
-			return nil, fleet.NewErrorf(fleet.ErrNoUnknownTranslate, "Type %s is unknown.", payload.Type)
+			// if no supported payload type, this is bad regardless of authorization
+			svc.authz.SkipAuthorization(ctx)
+			return nil, endpoint_utils.BadRequestErr(
+				fmt.Sprintf("Type %s is unknown. ", payload.Type),
+				fleet.NewErrorf(
+					fleet.ErrNoUnknownTranslate,
+					"Type %s is unknown.",
+					payload.Type),
+			)
 		}
 
 		id, err := translateFunc(ctx, svc.ds, payload.Payload.Identifier)

@@ -1,0 +1,105 @@
+{
+	"token": "google-chrome",
+	"full_token": "google-chrome",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Google Chrome"
+	],
+	"desc": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms.",
+	"homepage": "https://www.google.com/chrome/",
+	"url": "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg",
+	"url_specs": {},
+	"version": "128.0.6613.120",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": "6613.120",
+	"bundle_short_version": "128.0.6613.120",
+	"outdated": false,
+	"sha256": "no_check",
+	"artifacts": [
+		{
+			"app": [
+				"Google Chrome.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"launchctl": [
+						"com.google.keystone.agent",
+						"com.google.keystone.daemon"
+					],
+					"trash": [
+						"/Library/Caches/com.google.SoftwareUpdate.*",
+						"/Library/Google/Google Chrome Brand.plist",
+						"/Library/Google/GoogleSoftwareUpdate",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.app.*.sfl*",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.google.chrome.sfl*",
+						"~/Library/Application Support/Google/Chrome",
+						"~/Library/Caches/com.google.Chrome",
+						"~/Library/Caches/com.google.Chrome.helper.*",
+						"~/Library/Caches/com.google.Keystone",
+						"~/Library/Caches/com.google.Keystone.Agent",
+						"~/Library/Caches/com.google.SoftwareUpdate",
+						"~/Library/Caches/Google/Chrome",
+						"~/Library/Google/Google Chrome Brand.plist",
+						"~/Library/Google/GoogleSoftwareUpdate",
+						"~/Library/LaunchAgents/com.google.keystone.agent.plist",
+						"~/Library/LaunchAgents/com.google.keystone.xpcservice.plist",
+						"~/Library/Logs/GoogleSoftwareUpdateAgent.log",
+						"~/Library/Preferences/com.google.Chrome.plist",
+						"~/Library/Preferences/com.google.Keystone.Agent.plist",
+						"~/Library/Saved Application State/com.google.Chrome.app.*.savedState",
+						"~/Library/Saved Application State/com.google.Chrome.savedState",
+						"~/Library/WebKit/com.google.Chrome"
+					],
+					"rmdir": [
+						"/Library/Google",
+						"~/Library/Application Support/Google",
+						"~/Library/Caches/Google",
+						"~/Library/Google"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/g/google-chrome.rb",
+	"ruby_source_checksum": {
+		"sha256": "b31aabe1674fdecda8d5178de43a5188cd1a58c24e844260ea1dccfa6f293340"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"google-chrome": 19149
+			},
+			"90d": {
+				"google-chrome": 54038
+			},
+			"365d": {
+				"google-chrome": 216929
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

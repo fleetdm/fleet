@@ -18,8 +18,14 @@ import hostsCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
-import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareVersion,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -29,6 +35,7 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import { VulnsNotSupported } from "../components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-version-details-page";
 
@@ -61,7 +68,7 @@ const SoftwareVersionDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -77,7 +84,8 @@ const SoftwareVersionDetailsPage = ({
     [{ scope: "softwareVersion", versionId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
       select: (data) => data.software,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
@@ -109,6 +117,22 @@ const SoftwareVersionDetailsPage = ({
     [handleTeamChange]
   );
 
+  const renderVulnTable = (swVersion: ISoftwareVersion) => {
+    if (isIpadOrIphoneSoftwareSource(swVersion.source)) {
+      const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
+      return <VulnsNotSupported platformText={platformText} />;
+    }
+    return (
+      <SoftwareVulnerabilitiesTable
+        data={swVersion.vulnerabilities ?? []}
+        itemName="software item"
+        isLoading={isSoftwareVersionLoading}
+        router={router}
+        teamIdForApi={teamIdForApi}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isSoftwareVersionLoading) {
       return <Spinner />;
@@ -131,9 +155,7 @@ const SoftwareVersionDetailsPage = ({
         {isSoftwareVersionError ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this software installed.`}
+            details="No hosts have this software installed."
           />
         ) : (
           <>
@@ -149,18 +171,12 @@ const SoftwareVersionDetailsPage = ({
               source={softwareVersion.source}
             />
             <Card
-              borderRadiusSize="large"
+              borderRadiusSize="xxlarge"
               includeShadow
               className={`${baseClass}__vulnerabilities-section`}
             >
               <h2 className="section__header">Vulnerabilities</h2>
-              <SoftwareVulnerabilitiesTable
-                data={softwareVersion.vulnerabilities ?? []}
-                itemName="software item"
-                isLoading={isSoftwareVersionLoading}
-                router={router}
-                teamIdForApi={teamIdForApi}
-              />
+              {renderVulnTable(softwareVersion)}
             </Card>
           </>
         )}

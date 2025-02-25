@@ -164,11 +164,11 @@ func TestUserPasswordRequirements(t *testing.T) {
 }
 
 func TestSaltAndHashPassword(t *testing.T) {
-	passwordTests := []string{"foobar!!", "bazbing!!"}
+	goodTests := []string{"foobar!!", "bazbing!!", "foobarbaz!!!foobarbaz!!!foobarbaz!!!foobarbaz!!", "foobarbaz!!!foobarbaz!!!foobarbaz!!!foobarbaz!!!"}
 	keySize := 24
 	cost := 10
 
-	for _, pwd := range passwordTests {
+	for _, pwd := range goodTests {
 		hashed, salt, err := saltAndHashPassword(keySize, pwd, cost)
 		require.NoError(t, err)
 
@@ -178,6 +178,14 @@ func TestSaltAndHashPassword(t *testing.T) {
 
 		err = bcrypt.CompareHashAndPassword(hashed, []byte(fmt.Sprint("invalidpassword", salt)))
 		require.Error(t, err)
+
+		// too long
+		badTests := []string{"foobarbaz!!!foobarbaz!!!foobarbaz!!!foobarbaz!!!!"}
+		for _, pwd := range badTests {
+			_, _, err := saltAndHashPassword(keySize, pwd, cost)
+			require.Error(t, err)
+
+		}
 	}
 }
 

@@ -29,9 +29,16 @@ type Authenticate struct {
 	Model      string
 	ModelName  string
 
+	// ProductName contains the device's product name (e.g. `iPhone3,1`).
+	//
+	// iPhones and iPads send ProductName but not Model/ModelName,
+	// thus we use this field as the device's Model (which is required
+	// on lifecycle stages).
+	ProductName string
+
 	// Fields that may be present but are not strictly required for the
 	// operation of the MDM protocol. Nice-to-haves.
-	SerialNumber string
+	SerialNumber string `plist:",omitempty"`
 }
 
 type b64Data []byte
@@ -109,6 +116,44 @@ type DeclarativeManagement struct {
 	Raw      []byte `plist:"-"` // Original XML plist
 }
 
+// TokenParameters is a representation of a "GetTokenRequest.TokenParameters" structure.
+// See https://developer.apple.com/documentation/devicemanagement/gettokenrequest/tokenparameters
+type TokenParameters struct {
+	PhoneUDID     string
+	SecurityToken string
+	WatchUDID     string
+}
+
+// GetTokenResponse is a representation of a "GetTokenResponse" structure.
+// See https://developer.apple.com/documentation/devicemanagement/gettokenresponse
+type GetTokenResponse struct {
+	TokenData []byte
+}
+
+// GetToken is a representation of a "GetToken" check-in message type.
+// See https://developer.apple.com/documentation/devicemanagement/get_token
+type GetToken struct {
+	Enrollment
+	MessageType
+	TokenServiceType string
+	TokenParameters  *TokenParameters `plist:",omitempty"`
+	Raw              []byte           `plist:"-"` // Original XML plist
+}
+
+// Validate validates a GetToken check-in message.
+func (m *GetToken) Validate() error {
+	if m == nil {
+		return errors.New("nil GetToken")
+	}
+	if m.TokenServiceType == "" {
+		return errors.New("empty GetToken TokenServiceType")
+	}
+	if m.TokenServiceType == "com.apple.watch.pairing" && m.TokenParameters == nil {
+		return fmt.Errorf("nil TokenParameters for GetToken: %s", m.TokenServiceType)
+	}
+	return nil
+}
+
 // newCheckinMessageForType returns a pointer to a check-in struct for MessageType t
 func newCheckinMessageForType(t string, raw []byte) interface{} {
 	switch t {
@@ -126,6 +171,8 @@ func newCheckinMessageForType(t string, raw []byte) interface{} {
 		return &UserAuthenticate{Raw: raw}
 	case "DeclarativeManagement":
 		return &DeclarativeManagement{Raw: raw}
+	case "GetToken":
+		return &GetToken{Raw: raw}
 	default:
 		return nil
 	}

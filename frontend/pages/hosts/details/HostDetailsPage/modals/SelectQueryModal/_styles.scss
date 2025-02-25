@@ -1,76 +1,45 @@
+// Similar to AddPolicyModal
 .select-query-modal {
+  min-height: 400px;
+  height: 90%;
+  overflow: hidden;
+
+  .modal__content-wrapper {
+    height: 95%;
+  }
+
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    height: 100%;
+  }
+
+  &__query-selection {
+    overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
+  }
+
   &__no-queries {
-    .info {
-      &__header {
-        margin: $pad-medium 0 $pad-medium 0;
-      }
-      &__data {
-        margin: 0 0 $pad-large 0;
-      }
-    }
-  }
-
-  &__modal {
-    .info {
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: center;
-      }
-
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: center;
-      }
-    }
-    .modal-cta-wrap {
-      justify-content: center;
-    }
-  }
-
-  &__filter-create-wrapper {
     display: flex;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    flex-direction: column;
+    gap: $pad-medium;
+    margin: $pad-large 0;
   }
 
-  &__filter-queries {
-    flex-grow: 3;
-    position: relative;
-
-    .form-field {
-      margin-bottom: 0;
+  .info {
+    &__header,
+    &__data {
+      display: block;
+      color: $core-fleet-black;
+      font-size: $x-small;
+      text-align: center;
     }
 
-    .input-field {
-      padding-left: 44px;
-    }
-
-    .fleeticon {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: $medium;
-      color: $ui-fleet-black-25;
-    }
-  }
-
-  &__create-query {
-    display: flex;
-    align-items: center;
-
-    span {
-      margin: 15px;
+    &__header {
       font-weight: $bold;
     }
-  }
-
-  &__custom-query-button {
-    font-size: $x-small;
   }
 }

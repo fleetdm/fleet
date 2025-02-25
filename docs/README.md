@@ -4,10 +4,10 @@ Welcome to the documentation for Fleet, the lightweight management platform for 
 
 > You can also read the Fleet docs over at https://fleetdm.com/docs.
 
-### [Using Fleet](./Using-Fleet/README.md)
+### [Using Fleet](./Using%20Fleet/README.md)
 Resources for using the Fleet UI, fleetctl CLI, and Fleet REST API.
 
-### [Deploying](./Deploying/README.md)
+### [Deploying](./Deploy/README.md)
 Resources for installing Fleet's infrastructure dependencies, configuring Fleet, deploying osquery to hosts, and viewing example deployment scenarios.
 
 ### [Contributing](./Contributing/README.md)

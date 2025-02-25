@@ -1,105 +1,104 @@
 /* eslint-disable react/prop-types */
 import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
 import { AppContext } from "context/app";
-import { IQuery } from "interfaces/query";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
+import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
-import Button from "components/buttons/Button";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+
 import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
-
-interface IQueryTableData extends IQuery {
-  performance: string;
-  platforms: string[];
-}
-interface IQueriesTableProps {
-  queriesList: IQueryTableData[] | null;
+export interface IQueriesTableProps {
+  queries: IEnhancedQuery[] | null;
+  totalQueriesCount: number | undefined;
+  hasNextResults: boolean;
+  curTeamScopeQueriesPresent: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
-  onCreateQueryClick: () => void;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    platform?: string;
+    platform?: string; // which targeted platform to filter queries by
     page?: string;
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
     team_id?: string;
-    inherited_order_key?: string;
-    inherited_order_direction?: "asc" | "desc";
-    inherited_page?: string;
   };
-  isInherited?: boolean;
   currentTeamId?: number;
+  isPremiumTier?: boolean;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_PLATFORM = "all";
+// all platforms
+const DEFAULT_PLATFORM: SelectedPlatform = "all";
 
 const PLATFORM_FILTER_OPTIONS = [
   {
     disabled: false,
     label: "All platforms",
     value: "all",
-    helpText: "All queries.",
   },
   {
     disabled: false,
     label: "macOS",
     value: "darwin",
-    helpText: "Queries that are compatible with macOS operating systems.",
   },
   {
     disabled: false,
     label: "Windows",
     value: "windows",
-    helpText: "Queries that are compatible with Windows operating systems.",
   },
   {
     disabled: false,
     label: "Linux",
     value: "linux",
-    helpText: "Queries that are compatible with Linux operating systems.",
-  },
-  {
-    disabled: false,
-    label: "ChromeOS",
-    value: "chrome",
-    helpText: "Queries that are compatible with Chromebooks.",
   },
 ];
 
 const QueriesTable = ({
-  queriesList,
+  queries,
+  totalQueriesCount,
+  hasNextResults,
+  curTeamScopeQueriesPresent,
   isLoading,
   onDeleteQueryClick,
-  onCreateQueryClick,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
   router,
   queryParams,
-  isInherited = false,
   currentTeamId,
+  isPremiumTier,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
   // Functions to avoid race conditions
+  // TODO - confirm these are still necessary
   const initialSearchQuery = (() => queryParams?.query ?? "")();
   const initialSortHeader = (() =>
     (queryParams?.order_key as "name" | "updated_at" | "author") ??
@@ -107,36 +106,27 @@ const QueriesTable = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPlatform = (() =>
-    (queryParams?.platform as "all" | "windows" | "linux" | "darwin") ??
-    DEFAULT_PLATFORM)();
   const initialPage = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
-  const initialInheritedSortHeader = (() =>
-    (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    DEFAULT_SORT_HEADER)();
-  const initialInheritedSortDirection = (() =>
-    (queryParams?.inherited_order_direction as "asc" | "desc") ??
-    DEFAULT_SORT_DIRECTION)();
-  const initialInheritedPage = (() =>
-    queryParams && queryParams.inherited_page
-      ? parseInt(queryParams?.inherited_page, 10)
-      : 0)();
 
-  // Never set as state as URL is source of truth
+  // Source of truth is state held within TableContainer. That state is initialized using URL
+  // params, then subsequent updates to that state are pushed to the URL.
+  // TODO - remove extraneous defintions around these values
   const searchQuery = initialSearchQuery;
-  const platform = initialPlatform;
-  const page = isInherited ? initialInheritedPage : initialPage;
-  const sortDirection = isInherited
-    ? initialInheritedSortDirection
-    : initialSortDirection;
-  const sortHeader = isInherited
-    ? initialInheritedSortHeader
-    : initialSortHeader;
+  const page = initialPage;
+  const sortDirection = initialSortDirection;
+  const sortHeader = initialSortHeader;
+
+  const targetedPlatformParam = queryParams?.platform;
+  const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
+    targetedPlatformParam
+  )
+    ? targetedPlatformParam
+    : DEFAULT_PLATFORM;
 
   // TODO: Look into useDebounceCallback with dependencies
   const onQueryChange = useCallback(
-    async (newTableQuery: ITableQueryData) => {
+    (newTableQuery: ITableQueryData) => {
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
@@ -144,195 +134,174 @@ const QueriesTable = ({
         sortHeader: newSortHeader,
       } = newTableQuery;
 
-      // Rebuild queryParams to dispatch new browser location to react-router
-      const newQueryParams: { [key: string]: string | number | undefined } = {};
-
-      // Updates main query table URL params
-      // No change to inherited query table URL params
-      if (!isInherited) {
-        newQueryParams.order_key = newSortHeader;
-        newQueryParams.order_direction = newSortDirection;
-        newQueryParams.platform = platform; // must set from URL
-        newQueryParams.page = newPageIndex;
-        newQueryParams.query = newSearchQuery;
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== sortDirection ||
-          newSortHeader !== sortHeader ||
-          newSearchQuery !== searchQuery
-        ) {
-          newQueryParams.page = "0";
-        }
+      const newQueryParams: Record<string, string | number | undefined> = {};
+      newQueryParams.order_key = newSortHeader;
+      newQueryParams.order_direction = newSortDirection;
+      newQueryParams.platform =
+        curTargetedPlatformFilter === "all"
+          ? undefined
+          : curTargetedPlatformFilter;
+      newQueryParams.page = newPageIndex;
+      newQueryParams.query = newSearchQuery;
+      // Reset page number to 0 for new filters
+      if (
+        newSortDirection !== sortDirection ||
+        newSortHeader !== sortHeader ||
+        newSearchQuery !== searchQuery
+      ) {
+        newQueryParams.page = "0";
       }
-
-      // Updates inherited query table URL params
-      // No change to main query table URL params
-      if (isInherited) {
-        newQueryParams.inherited_order_key = newSortHeader;
-        newQueryParams.inherited_order_direction = newSortDirection;
-        newQueryParams.inherited_page = newPageIndex;
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== initialInheritedSortDirection ||
-          newSortHeader !== initialInheritedSortHeader
-        ) {
-          newQueryParams.inherited_page = "0";
-        }
-      }
-
       newQueryParams.team_id = queryParams?.team_id;
+
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.replace(locationPath);
+      router?.push(locationPath);
     },
-    [sortHeader, sortDirection, searchQuery, platform, router, page]
+    [
+      curTargetedPlatformFilter,
+      sortDirection,
+      sortHeader,
+      searchQuery,
+      queryParams,
+      router,
+    ]
   );
 
-  const onClientSidePaginationChange = useCallback(
-    (pageIndex: number) => {
-      const newQueryParams = isInherited
-        ? {
-            ...queryParams,
-            inherited_page: pageIndex, // update inherited page index
-            query: searchQuery,
-          }
-        : {
-            ...queryParams,
-            page: pageIndex, // update main table index
-            query: searchQuery,
-          };
+  const emptyParams: IEmptyTableProps = {
+    graphicName: "empty-queries",
+    header: "You don't have any queries",
+  };
 
-      const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: newQueryParams,
-      });
-      router?.replace(locationPath);
-    },
-    [platform, searchQuery, sortDirection, sortHeader] // Dependencies required for correct variable state
-  );
-
-  const emptyState = () => {
-    const emptyQueries: IEmptyTableProps = {
-      graphicName: "empty-queries",
-      header: "You don't have any queries",
-      info: "A query is a specific question you can ask about your devices.",
-    };
-    if (searchQuery) {
-      delete emptyQueries.graphicName;
-      emptyQueries.header = "No queries match the current search criteria";
-      emptyQueries.info =
-        "Expecting to see queries? Try again in a few seconds as the system catches up.";
-    } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-      emptyQueries.additionalInfo = (
-        <>
-          Create a new query, or{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-            text="import Fleet’s standard query library"
-            newTab
-          />
-        </>
-      );
-      emptyQueries.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${baseClass}__create-button`}
-          onClick={onCreateQueryClick}
-        >
-          Create new query
-        </Button>
-      );
+  if (isPremiumTier) {
+    if (
+      typeof currentTeamId === "undefined" ||
+      currentTeamId === null ||
+      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+    ) {
+      emptyParams.header += " that apply to all teams";
+    } else {
+      emptyParams.header += " that apply to this team";
     }
+  }
 
-    return emptyQueries;
-  };
-
-  const handlePlatformFilterDropdownChange = (platformSelected: string) => {
-    router?.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
-        queryParams: {
-          ...queryParams,
-          page: 0,
-          platform: platformSelected,
-        },
-      })
+  if (searchQuery || curTargetedPlatformFilter !== "all") {
+    delete emptyParams.graphicName;
+    emptyParams.header = "No matching queries";
+    emptyParams.info = "No queries match the current filters.";
+  } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
+    emptyParams.additionalInfo = (
+      <>
+        Create a new query, or{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/standard-query-library"
+          text="import Fleet's standard query library"
+          newTab
+        />
+      </>
     );
+  }
+
+  const handlePlatformFilterDropdownChange = useCallback(
+    (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
+      router?.push(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_QUERIES,
+          queryParams: {
+            ...queryParams,
+            page: 0,
+            platform:
+              // separate URL & API 0-values of `platform` (undefined) from dropdown
+              // 0-value of "all"
+              selectedTargetedPlatform?.value === "all"
+                ? undefined
+                : selectedTargetedPlatform?.value,
+          },
+        })
+      );
+    },
+    [queryParams, router]
+  );
+
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.QUERY_DETAILS(row.original.id, currentTeamId);
+
+      router && router.push(path);
+    }
   };
 
-  const renderPlatformDropdown = () => {
+  const renderPlatformDropdown = useCallback(() => {
     return (
-      <Dropdown
-        value={platform}
+      <DropdownWrapper
+        name="platform-dropdown"
+        value={curTargetedPlatformFilter}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
-        searchable={false}
         onChange={handlePlatformFilterDropdownChange}
-        tableFilterDropdown
+        variant="table-filter"
       />
     );
-  };
+  }, [curTargetedPlatformFilter, queryParams, router]);
 
   const columnConfigs = useMemo(
     () =>
       currentUser &&
-      generateColumnConfigs({ currentUser, isInherited, currentTeamId }),
-    [currentUser, isInherited, currentTeamId]
+      generateColumnConfigs({
+        currentUser,
+        currentTeamId,
+        omitSelectionColumn: !curTeamScopeQueriesPresent,
+      }),
+    [currentUser, currentTeamId, curTeamScopeQueriesPresent]
   );
 
   const searchable =
-    !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
+    (totalQueriesCount ?? 0) > 0 || !!targetedPlatformParam || !!searchQuery;
 
-  return columnConfigs && !isLoading ? (
-    <div className={`${baseClass}`}>
-      <TableContainer
-        disableCount={isInherited}
-        resultsTitle="queries"
-        columnConfigs={columnConfigs}
-        data={queriesList}
-        filters={{ name: isInherited ? "" : searchQuery }}
-        isLoading={isLoading}
-        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
-        defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={isInherited ? "" : searchQuery}
-        defaultPageIndex={page}
-        pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name"
-        onQueryChange={onQueryChange}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
-          })
-        }
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        searchable={searchable}
-        searchQueryColumn="name"
-        customControl={
-          searchable && !isInherited ? renderPlatformDropdown : undefined
-        }
-        isClientSidePagination
-        onClientSidePaginationChange={onClientSidePaginationChange}
-        isClientSideFilter
-        primarySelectAction={{
-          name: "delete query",
-          buttonText: "Delete",
-          iconSvg: "trash",
-          variant: "text-icon",
-          onActionButtonClick: onDeleteQueryClick,
-        }}
-        selectedDropdownFilter={!isInherited ? platform : undefined}
-      />
-    </div>
-  ) : (
-    <></>
+  const trimmedSearchQuery = searchQuery.trim();
+
+  return (
+    columnConfigs && (
+      <div className={`${baseClass}`}>
+        <TableContainer
+          resultsTitle="queries"
+          columnConfigs={columnConfigs}
+          data={queries}
+          // won't ever actually be loading, see render condition above
+          isLoading={isLoading}
+          defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+          defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
+          defaultSearchQuery={trimmedSearchQuery}
+          defaultPageIndex={page}
+          disableNextPage={!hasNextResults}
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          primarySelectAction={{
+            name: "delete query",
+            buttonText: "Delete",
+            iconSvg: "trash",
+            variant: "text-icon",
+            onActionButtonClick: onDeleteQueryClick,
+          }}
+          emptyComponent={() => EmptyTable(emptyParams)}
+          renderCount={() =>
+            ((totalQueriesCount || searchQuery) && (
+              <TableCount name="queries" count={totalQueriesCount} />
+            )) ||
+            null
+          }
+          inputPlaceHolder="Search by name"
+          onQueryChange={onQueryChange}
+          searchable={searchable}
+          customControl={searchable ? renderPlatformDropdown : undefined}
+          disableMultiRowSelect={!curTeamScopeQueriesPresent}
+          onClickRow={handleRowSelect}
+          selectedDropdownFilter={curTargetedPlatformFilter}
+        />
+      </div>
+    )
   );
 };
 

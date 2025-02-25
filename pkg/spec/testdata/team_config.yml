@@ -17,11 +17,31 @@ queries:
     automations_enabled: true
     logging: snapshot
 policies:
-  - path: ./top.policies.yml
-  - path: ./top.policies2.yml
+  - path: ./policies/policies.yml
+  - path: ./policies/policies2.yml
   - path: ./empty.yml
-  - name: 😊😊 Failing policy
+  - name: 😊😊 Failing $POLICY
     platform: linux
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - path: ./team_install_software.policies.yml
+  - name: Slack on macOS is installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app';
+    install_software:
+      app_store_id: "123456"
+  - name: Script run policy
+    platform: linux
+    description: This should run a script on failure
+    query: SELECT * from osquery_info;
+    run_script:
+      path: ./lib/collect-fleetd-logs.sh
+  - path: ./policies/script-policy.yml
+software:
+  app_store_apps:
+    - app_store_id: "123456"
+  packages:
+    - path: ./microsoft-teams.pkg.software.yml
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true

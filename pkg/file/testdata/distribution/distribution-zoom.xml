@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+  <pkg-ref id="us.zoom.pkg.videomeeting"/>
+  <title>Zoom Workplace</title>
+  <options hostArchitectures="x86_64,arm64"/>
+  <options customize="never" rootVolumeOnly="true"/>
+  <options allow-external-scripts="false"/>
+  <welcome file="Welcome.rtf"/>
+  <!--    
+    <readme file="ReadMe.rtf"/>
+-->
+  <!--
+    <background file="background.png" scaling="proportional" alignment="bottomleft"/>
+-->
+  <allowed-os-versions>
+    <os-version min="10.13"/>
+  </allowed-os-versions>
+  <pkg-ref id="us.zoom.pkg.videomeeting">
+    <must-close>
+      <app id="us.zoom.xos"/>
+    </must-close>
+    <bundle-version>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.ZoomKit" path="zoom.us.app/Contents/Frameworks/ZoomKit.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSbee.zVideoUI" path="zoom.us.app/Contents/Frameworks/zVideoUI.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.zAutoUpdate" path="zoom.us.app/Contents/Frameworks/zAutoUpdate.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11(35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.ZoomSetting" path="zoom.us.app/Contents/Frameworks/ZoomSetting.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.util" path="zoom.us.app/Contents/Frameworks/util.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.cmmlib" path="zoom.us.app/Contents/Frameworks/cmmlib.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="zoom.us.xmpp-framework" path="zoom.us.app/Contents/Frameworks/xmpp_framework.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="com.zoom.annoter" path="zoom.us.app/Contents/Frameworks/annoter.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.ZoomUnit" path="zoom.us.app/Contents/Frameworks/ZoomUnit.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="saasbee.nydus" path="zoom.us.app/Contents/Frameworks/nydus.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.Transcode" path="zoom.us.app/Contents/Frameworks/Transcode.app"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.zSipCallApp" path="zoom.us.app/Contents/Frameworks/zSipCallApp.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.asproxy" path="zoom.us.app/Contents/Frameworks/asproxy.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="zoom.us.zData" path="zoom.us.app/Contents/Frameworks/zData.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="com.SaasBee.module.PTUI" path="zoom.us.app/Contents/Frameworks/zChatUI.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.tp" path="zoom.us.app/Contents/Frameworks/tp.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.xos" path="zoom.us.app"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.zPTApp" path="zoom.us.app/Contents/Frameworks/zPTApp.bundle"/>
+      <bundle CFBundleShortVersionString="3.22.3" CFBundleVersion="3.22.3" id="zoom.us.protobuf" path="zoom.us.app/Contents/Frameworks/protobuf.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSbee.mcm" path="zoom.us.app/Contents/Frameworks/mcm.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.zWebService" path="zoom.us.app/Contents/Frameworks/zWebService.bundle"/>
+      <bundle CFBundleShortVersionString="libcurl 8.4.0" CFBundleVersion="8.4.0" id="se.curl.libcurl" path="zoom.us.app/Contents/Frameworks/curl64.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSbee.ssb_sdk" path="zoom.us.app/Contents/Frameworks/ssb_sdk.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="zoom.mediabox" path="zoom.us.app/Contents/Frameworks/zmb.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="zoom.us.zmLoader" path="zoom.us.app/Contents/Frameworks/zmLoader.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.zSipSdk" path="zoom.us.app/Contents/Frameworks/zSipSdk.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="saasbee.zealot" path="zoom.us.app/Contents/Frameworks/zlt.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.zMacRes" path="zoom.us.app/Contents/Frameworks/zMacRes.bundle"/>
+      <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1.0" id="zoom.us.ZoomAudioDevice" path="zoom.us.app/Contents/PlugIns/ZoomAudioDevice.driver"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="com.saasbee.-.viper" path="zoom.us.app/Contents/Frameworks/viper.framework"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="SaaSBee.zVideoApp" path="zoom.us.app/Contents/Frameworks/zVideoApp.bundle"/>
+      <bundle CFBundleShortVersionString="6.0.11 (35001)" CFBundleVersion="6.0.11.35001" id="us.zoom.airhost" path="zoom.us.app/Contents/Frameworks/airhost.app"/>
+    </bundle-version>
+  </pkg-ref>
+  <choices-outline>
+    <line choice="default">
+      <line choice="us.zoom.pkg.videomeeting"/>
+    </line>
+  </choices-outline>
+  <choice id="default"/>
+  <choice id="us.zoom.pkg.videomeeting" visible="false">
+    <pkg-ref id="us.zoom.pkg.videomeeting"/>
+  </choice>
+  <pkg-ref id="us.zoom.pkg.videomeeting" version="6.0.11.35001" onConclusion="none" installKBytes="570659">#zoomus.pkg</pkg-ref>
+  <product version="6.0.11.35001"/>
+</installer-gui-script>

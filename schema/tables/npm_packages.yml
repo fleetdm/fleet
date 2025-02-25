@@ -6,7 +6,7 @@ columns:
   - name: mount_namespace_id
     platforms:
       - linux
-examples: >-
+examples: |-
   List the author, description and more information about the NPM package called `webpack`, if installed:
 
   ```sql

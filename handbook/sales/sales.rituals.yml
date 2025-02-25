@@ -1,21 +1,21 @@
 # https://github.com/fleetdm/fleet/pull/13084
-
-
-
--
+ -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly" # must be supported by
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-sales" ] # label to be applied to issue
     repo: "confidential"
--
-  task: "Review rep activity"
-  startedOn: "2023-09-18"
-  frequency: "Monthly"
-  description: "https://fleetdm.com/handbook/customers#review-rep-activity"
-  moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity"
+ -
+  task: "Review Salesforce opportunities"
+  startedOn: "2024-12-02"
+  frequency: "Weekly"
+  description: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "alexmitchelliii"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-sales" ] # label to be applied to issue
+    repo: "confidential"

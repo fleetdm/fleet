@@ -1,1 +1,0 @@
-* Fixed an issue with `mdm.enable_disk_encryption` where a `null` JSON value caused issues with MDM profiles in the `PATCH /api/v1/fleet/config` endpoint.

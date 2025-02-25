@@ -4,7 +4,7 @@
 
 Fleet is participating in Black Hat, Security B-Sides, and DEF CON 31 this year in Las Vegas, with representation by two of our key team members: Marcos Oviedo and Zach Wasserman.
 
-Marcos, a Senior Software Engineer at Fleet, will join Zach, Fleet's Co-founder, and CTO, to present a discussion at Black Hat on "Windows Agentless C2: (Ab)using the MDM Client Stack." The talk will explore the potential of an agentless Command and Control (C2) system using the Mobile Device Management (MDM) client stack in Windows. This new approach aims to sidestep the traditional challenges associated with agent-based C2 systems, including detection, persistence, and maintenance.
+Marcos, a Senior Software Engineer at Fleet, will join Zach, Fleet's Co-founder, to present a discussion at Black Hat on "Windows Agentless C2: (Ab)using the MDM Client Stack." The talk will explore the potential of an agentless Command and Control (C2) system using the Mobile Device Management (MDM) client stack in Windows. This new approach aims to sidestep the traditional challenges associated with agent-based C2 systems, including detection, persistence, and maintenance.
 
 Zach will also deliver a talk at Security B-Sides Las Vegas titled "Open Source GitOps for Detection Engineering." The discussion will introduce an open-source GitOps framework for managing detection rules and policies. By utilizing Git as a source of truth, this framework can provide a more effective and transparent method for managing detection infrastructures.
 

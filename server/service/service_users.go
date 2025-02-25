@@ -38,6 +38,9 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
+	if !license.IsPremium() {
+		p.MFAEnabled = ptr.Bool(false)
+	}
 
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
@@ -54,7 +57,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 		// In case of invites the user created herself.
 		adminUser = user
 	}
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		adminUser,
 		fleet.ActivityTypeCreatedUser{
@@ -65,7 +68,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	); err != nil {
 		return nil, err
 	}
-	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, nil, nil, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user); err != nil {
 		return nil, err
 	}
 

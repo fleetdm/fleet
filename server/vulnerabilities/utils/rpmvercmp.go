@@ -64,14 +64,14 @@ func (s segment) compare(b segment) int {
 
 	// Both are numeric, in which case we compare
 	// their numeric values
-	if s.number != nil && b.number != nil {
+	if s.number != nil && b.number != nil { //nolint:gocritic // ignore ifElseChain
 		if *s.number == *b.number {
 			return 0
 		} else if *s.number < *b.number {
 			return -1
-		} else {
-			return 1
 		}
+
+		return 1
 		// 'a' is a number seg, 'b' is a letter seg,
 		// numbers are always greater than letters
 	} else if s.number != nil && b.number == nil {
@@ -81,12 +81,12 @@ func (s segment) compare(b segment) int {
 		return -1
 		// Both segs are letters, then we just
 		// compare them
-	} else {
-		if s.letters == b.letters {
-			return 0
-		}
-		return strings.Compare(s.letters, b.letters)
 	}
+
+	if s.letters == b.letters {
+		return 0
+	}
+	return strings.Compare(s.letters, b.letters)
 }
 
 // Returns the next maximal alphabetic or numeric segment,

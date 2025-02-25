@@ -8,7 +8,7 @@ module Opendkim =
 
   (*
     The Dataset spec is so broad as to encompass any string (particularly the
-    degenerate 'single literal string' case of a comma separated list with
+    degenerate 'single literal string' case of a comma-separated list with
     only one item).  So treat them as 'String' types, and it's up to the user to
     format them correctly.  Given that many of the variants include file paths
     etc, it's impossible to validate for 'correctness' anyway

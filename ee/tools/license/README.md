@@ -12,7 +12,7 @@ Install the JS dependencies:
 yarn
 ```
 
-Put the private key and passphrase into files (avoid using shell commands to prevent secrets from leaking into shell history). They are in the "Licensing" Vault in 1Password. Speak to @zwass or @mikermcneil if you need to get access to these secrets.
+Put the private key and passphrase into files (avoid using shell commands to prevent secrets from leaking into shell history). They are in the "Licensing" Vault in 1Password. Speak to @lukeheath or @mikermcneil if you need to get access to these secrets.
 
 ```sh
 nano key.pem

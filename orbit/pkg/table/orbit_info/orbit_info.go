@@ -19,19 +19,29 @@ type Extension struct {
 	orbitChannel    string
 	osquerydChannel string
 	desktopChannel  string
+	dektopVersion   string
 	trw             *token.ReadWriter
+	scriptsEnabled  func() bool
+	updateURL       string
 }
 
 var _ orbit_table.Extension = (*Extension)(nil)
 
-func New(orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, trw *token.ReadWriter, startTime time.Time) *Extension {
+func New(
+	orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
+	startTime time.Time, scriptsEnabled func() bool,
+	updateURL string,
+) *Extension {
 	return &Extension{
 		startTime:       startTime,
 		orbitClient:     orbitClient,
 		orbitChannel:    orbitChannel,
 		osquerydChannel: osquerydChannel,
 		desktopChannel:  desktopChannel,
+		dektopVersion:   desktopVersion,
 		trw:             trw,
+		scriptsEnabled:  scriptsEnabled,
+		updateURL:       updateURL,
 	}
 }
 
@@ -50,7 +60,10 @@ func (o Extension) Columns() []table.ColumnDefinition {
 		table.TextColumn("orbit_channel"),
 		table.TextColumn("osqueryd_channel"),
 		table.TextColumn("desktop_channel"),
+		table.TextColumn("desktop_version"),
 		table.BigIntColumn("uptime"),
+		table.IntegerColumn("scripts_enabled"),
+		table.TextColumn("update_url"),
 	}
 }
 
@@ -73,6 +86,17 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		}
 	}
 
+	boolToInt := func(b bool) int64 {
+		// Fast implementation according to https://0x0f.me/blog/golang-compiler-optimization/
+		var i int64
+		if b {
+			i = 1
+		} else {
+			i = 0
+		}
+		return i
+	}
+
 	return []map[string]string{{
 		"version":             v,
 		"device_auth_token":   token,
@@ -81,6 +105,9 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"orbit_channel":       o.orbitChannel,
 		"osqueryd_channel":    o.osquerydChannel,
 		"desktop_channel":     o.desktopChannel,
+		"desktop_version":     o.dektopVersion,
 		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
+		"scripts_enabled":     strconv.FormatInt(boolToInt(o.scriptsEnabled()), 10),
+		"update_url":          o.updateURL,
 	}}, nil
 }

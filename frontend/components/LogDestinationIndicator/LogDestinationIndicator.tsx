@@ -5,6 +5,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ILogDestinationIndicatorProps {
   logDestination: string;
+  excludeTooltip?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -16,7 +17,8 @@ const generateClassTag = (rawValue: string): string => {
 
 const LogDestinationIndicator = ({
   logDestination,
-}: ILogDestinationIndicatorProps): JSX.Element => {
+  excludeTooltip = false,
+}: ILogDestinationIndicatorProps) => {
   const classTag = generateClassTag(logDestination);
   const statusClassName = classnames(
     "log-destination-indicator",
@@ -60,7 +62,7 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a query runs, the data is sent to <br />
-            Amazon Kinesis Data Firehose.`
+            Amazon Kinesis Data Firehose.
           </>
         );
       case "kinesis":
@@ -81,7 +83,7 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a query runs, the data is <br /> sent to Google Cloud Pub
-            / Sub.`
+            / Sub.
           </>
         );
       case "kafta":
@@ -108,7 +110,9 @@ const LogDestinationIndicator = ({
     }
   };
 
-  return (
+  return excludeTooltip ? (
+    <>{readableLogDestination()}</>
+  ) : (
     <TooltipWrapper tipContent={tooltipText()} className={statusClassName}>
       {readableLogDestination()}
     </TooltipWrapper>

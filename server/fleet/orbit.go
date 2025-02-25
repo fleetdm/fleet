@@ -8,7 +8,12 @@ import "encoding/json"
 type OrbitConfigNotifications struct {
 	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
 	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
-	NeedsMDMMigration       bool `json:"needs_mdm_migration,omitempty"`
+
+	// NeedsMDMMigration is set to true if MDM is enabled for the host's
+	// platform, MDM migration is enabled for that platform, and the host is
+	// eligible for such a migration (e.g. it is enrolled in a third-party MDM
+	// solution).
+	NeedsMDMMigration bool `json:"needs_mdm_migration,omitempty"`
 
 	// NeedsProgrammaticWindowsMDMEnrollment is sent as true if Windows MDM is
 	// enabled and the device should be enrolled as far as the server knows (e.g.
@@ -33,17 +38,38 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
+	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
+
+	// RunSetupExperience indicates whether or not Orbit should run the Fleet setup experience
+	// during macOS Setup Assistant.
+	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
+
+	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk encryption data
+	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
 }
 
 type OrbitConfig struct {
-	Flags         json.RawMessage          `json:"command_line_startup_flags,omitempty"`
-	Extensions    json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
-	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
+	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
+	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
+	Extensions       json.RawMessage          `json:"extensions,omitempty"`
+	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
+	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+}
+
+type OrbitConfigReceiver interface {
+	Run(*OrbitConfig) error
+}
+
+type OrbitConfigReceiverFunc func(cfg *OrbitConfig) error
+
+func (f OrbitConfigReceiverFunc) Run(cfg *OrbitConfig) error {
+	return f(cfg)
 }
 
 // OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.
@@ -73,6 +99,10 @@ type OrbitHostInfo struct {
 	//
 	// If not set, then the HardwareUUID is used/set as the osquery identifier.
 	OsqueryIdentifier string
+	// ComputerName is the device's friendly name (optional).
+	ComputerName string
+	// HardwareModel is the device's hardware model. For example: Standard PC (Q35 + ICH9, 2009)
+	HardwareModel string
 }
 
 // ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.

@@ -43,7 +43,7 @@ func AddSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
@@ -75,7 +75,7 @@ func UpdateSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
@@ -86,7 +86,7 @@ func UpdateSecret(secret string) error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(update))
 
@@ -108,12 +108,11 @@ func GetSecret() (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	var query C.CFMutableDictionaryRef
-	query = C.CFDictionaryCreateMutable(
+	query := C.CFDictionaryCreateMutable(
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 
@@ -123,7 +122,7 @@ func GetSecret() (string, error) {
 	C.CFDictionaryAddValue(query, unsafe.Pointer(C.kSecAttrLabel), unsafe.Pointer(serviceStringRef))
 
 	var data C.CFTypeRef
-	status := C.SecItemCopyMatching(C.CFDictionaryRef(query), &data)
+	status := C.SecItemCopyMatching(C.CFDictionaryRef(query), &data) //nolint:gocritic // dubSubExpr false positive
 	if status != C.errSecSuccess {
 		if status == C.errSecItemNotFound {
 			return "", nil
@@ -146,7 +145,7 @@ func deleteSecret() error {
 		C.kCFAllocatorDefault,
 		0,
 		&C.kCFTypeDictionaryKeyCallBacks,
-		&C.kCFTypeDictionaryValueCallBacks,
+		&C.kCFTypeDictionaryValueCallBacks, //nolint:gocritic // dubSubExpr false positive
 	)
 	defer C.CFRelease(C.CFTypeRef(query))
 

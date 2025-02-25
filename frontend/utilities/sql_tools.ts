@@ -3,11 +3,11 @@ import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
-  OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
-  SUPPORTED_PLATFORMS,
-  SupportedPlatform,
+  QUERYABLE_PLATFORMS,
+  QueryablePlatform,
 } from "interfaces/platform";
+import { TableSchemaPlatform } from "interfaces/osquery_table";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -15,10 +15,10 @@ type IAstNode = Record<string | number | symbol, unknown>;
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
   name: string;
-  platforms: OsqueryPlatform[];
+  platforms: TableSchemaPlatform[];
 }
 
-type IPlatformDictionary = Record<string, OsqueryPlatform[]>;
+type IPlatformDictionary = Record<string, TableSchemaPlatform[]>;
 
 const platformsByTableDictionary: IPlatformDictionary = (osqueryTablesAvailable as IOsqueryTable[]).reduce(
   (dictionary: IPlatformDictionary, osqueryTable) => {
@@ -57,9 +57,9 @@ const _visit = (
 
 const filterCompatiblePlatforms = (
   sqlTables: string[]
-): SupportedPlatform[] => {
+): QueryablePlatform[] => {
   if (!sqlTables.length) {
-    return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
+    return [...QUERYABLE_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
 
   const compatiblePlatforms = intersection(
@@ -68,7 +68,7 @@ const filterCompatiblePlatforms = (
     )
   );
 
-  return SUPPORTED_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
+  return QUERYABLE_PLATFORMS.filter((p) => compatiblePlatforms.includes(p));
 };
 
 export const parseSqlTables = (
@@ -147,7 +147,7 @@ export const checkTable = (
 export const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): { platforms: SupportedPlatform[] | null; error: Error | null } => {
+): { platforms: QueryablePlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     // get tables from str

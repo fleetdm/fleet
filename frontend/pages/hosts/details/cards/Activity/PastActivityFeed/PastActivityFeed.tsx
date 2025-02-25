@@ -1,23 +1,24 @@
 import React from "react";
 
-import { IActivity } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import { IHostPastActivity } from "interfaces/activity";
+import { IHostPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import PastActivity from "../PastActivity/PastActivity";
-import { ShowActivityDetailsHandler } from "../Activity";
+
+import { pastActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "past-activity-feed";
 
 interface IPastActivityFeedProps {
-  activities?: IActivitiesResponse;
+  activities?: IHostPastActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -25,7 +26,7 @@ interface IPastActivityFeedProps {
 const PastActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
   onNextPage,
   onPreviousPage,
 }: IPastActivityFeedProps) => {
@@ -43,7 +44,7 @@ const PastActivityFeed = ({
     return (
       <EmptyFeed
         title="No activity"
-        message="When a script runs on a host, it shows up here."
+        message="Completed actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );
@@ -52,9 +53,18 @@ const PastActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IActivity) => (
-          <PastActivity activity={activity} onDetailsClick={onDetailsClick} />
-        ))}
+        {activitiesList.map((activity: IHostPastActivity) => {
+          const ActivityItemComponent = pastActivityComponentMap[activity.type];
+          return (
+            <ActivityItemComponent
+              key={activity.id}
+              tab="past"
+              activity={activity}
+              hideCancel
+              onShowDetails={onShowDetails}
+            />
+          );
+        })}
       </div>
       <div className={`${baseClass}__pagination`}>
         <Button

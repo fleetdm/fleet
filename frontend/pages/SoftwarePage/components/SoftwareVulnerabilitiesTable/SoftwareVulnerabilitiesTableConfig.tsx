@@ -10,7 +10,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
@@ -49,7 +48,6 @@ interface IDataColumn {
 
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean,
   router: InjectedRouter,
   teamId?: number
 ): IDataColumn[] => {
@@ -69,19 +67,8 @@ const generateTableConfig = (
           cveName
         )}?${teamQueryParam}`;
 
-        const onClickCVE = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareVulnerabilityDetailsPath);
-        };
-
         return (
-          <LinkCell
-            value={cveName}
-            path={softwareVulnerabilityDetailsPath}
-            customOnClick={onClickCVE}
-          />
+          <LinkCell value={cveName} path={softwareVulnerabilityDetailsPath} />
         );
       },
     },
@@ -90,12 +77,12 @@ const generateTableConfig = (
       accessor: "cvss_score",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             tipContent={
               <>
-                The worst case impact across different environments (CVSS base
-                score).
+                The worst case impact across different environments (CVSS
+                version 3.x base score).
               </>
             }
           >
@@ -105,10 +92,9 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -121,7 +107,7 @@ const generateTableConfig = (
       accessor: "epss_probability",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             className="epss_probability"
             tipContent={
@@ -131,6 +117,7 @@ const generateTableConfig = (
                 This data is reported by FIRST.org.
               </>
             }
+            fixedPositionStrategy
           >
             Probability of exploit
           </TooltipWrapper>
@@ -138,10 +125,9 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -157,7 +143,7 @@ const generateTableConfig = (
       accessor: "cve_published",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
+        const titleWithTooltip = (
           <TooltipWrapper
             tipContent={
               <>
@@ -172,10 +158,9 @@ const generateTableConfig = (
         return (
           <>
             <HeaderCell
-              value={titleWithToolTip}
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -194,13 +179,21 @@ const generateTableConfig = (
       accessor: "created_at",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithTooltip = (
+          <TooltipWrapper
+            tipContent={
+              <>The date this vulnerability first appeared on a host.</>
+            }
+          >
+            Detected
+          </TooltipWrapper>
+        );
         return (
           <>
             <HeaderCell
-              value="Detected"
+              value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -243,7 +236,8 @@ const generateTableConfig = (
     return tableHeaders.filter(
       (header) =>
         header.accessor !== "epss_probability" &&
-        header.accessor !== "cve_published"
+        header.accessor !== "cve_published" &&
+        header.accessor !== "cvss_score"
     );
   }
 

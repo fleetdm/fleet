@@ -1,0 +1,10 @@
+.advanced-options-form {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  &__accordion-title {
+    // use this so we dont center the text.
+    justify-content: normal;
+  }
+}

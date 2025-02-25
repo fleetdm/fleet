@@ -1,7 +1,11 @@
-# This workflow tests packaging of Fleet-osquery with the
-# `fleetctl package` command. It fetches the targets: orbit,
-# osquery and fleet-desktop from the default (Fleet's) TUF server,
-# https://tuf.fleetctl.com.
+# This workflow tests packaging of fleetd with the
+# `fleetctl package` command.
+#
+# It fetches the targets: orbit, osquery and fleet-desktop from the default
+# (Fleet's) TUF server, https://tuf.fleetctl.com.
+#
+# Docker and colima are extremely unreliable on macOS Github runners
+# thus this workflow is not testing MSI package generation on macOS.
 name: Test packaging
 
 on:
@@ -10,11 +14,20 @@ on:
       - main
       - patch-*
       - prepare-*
+    paths:
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
+      - 'tools/fleetctl-docker/**'
+      - 'tools/wix-docker/**'
+      - 'tools/bomutils-docker/**'
+      - '.github/workflows/test-packaging.yml'
   pull_request:
     paths:
       - 'cmd/fleetctl/**.go'
       - 'pkg/**.go'
-      - 'server/service/**.go'
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
@@ -42,82 +55,78 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        go-version: ['${{ vars.GO_VERSION }}']
+        os: [ubuntu-latest, macos-15]
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    # Docker needs to be installed manually on macOS.
-    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
-    - name: Install Docker
-      timeout-minutes: 20
-      if: matrix.os == 'macos-latest'
-      run: |
-        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
-        brew install --cask docker.rb
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
-          sleep 1;
-        done
-        echo "Docker is ready."
+      - name: Pull fleetdm/wix
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        # Run in background while other steps complete to speed up the workflow
+        run: |
+          docker pull fleetdm/wix:latest &
 
-    - name: Pull fleetdm/wix
-      # Run in background while other steps complete to speed up the workflow
-      run: docker pull fleetdm/wix:latest &
+      - name: Pull fleetdm/bomutils
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        # Run in background while other steps complete to speed up the workflow
+        run: |
+          docker pull fleetdm/bomutils:latest &
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: "go.mod"
 
-    - name: Install wine and wix
-      if: matrix.os == 'macos-latest'
-      run: |
-        ./scripts/macos-install-wine.sh
-        wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
-        mkdir wix
-        unzip wix.zip -d wix
-        rm -f wix.zip
-        echo wix installed at $(pwd)/wix
+      - name: Install wine and wix
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          ./scripts/macos-install-wine.sh -n
+          wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
+          mkdir wix
+          unzip wix.zip -d wix
+          rm -f wix.zip
+          echo wix installed at $(pwd)/wix
 
-      # It seems faster not to cache Go dependencies
-    - name: Install Go Dependencies
-      run: make deps-go
+        # It seems faster not to cache Go dependencies
+      - name: Install Go Dependencies
+        run: make deps-go
 
-    - name: Build fleetctl
-      run: make fleetctl
+      - name: Build fleetctl
+        run: make fleetctl
 
-    - name: Build DEB
-      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+      - name: Build DEB
+        run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
-    - name: Build DEB with Fleet Desktop
-      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      - name: Build DEB with Fleet Desktop
+        run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
-    - name: Build RPM
-      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      - name: Build RPM
+        run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
 
-    - name: Build RPM with Fleet Desktop
-      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      - name: Build RPM with Fleet Desktop
+        run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
-    - name: Build MSI
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+      - name: Build MSI
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
-    - name: Build MSI with Fleet Desktop
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      - name: Build MSI with Fleet Desktop
+        if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
-    - name: Build PKG
-      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+      - name: Build PKG
+        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
 
-    - name: Build PKG with Fleet Desktop
-      run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      - name: Build PKG with Fleet Desktop
+        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
-    - name: Build MSI (using local Wix)
-      if: matrix.os == 'macos-latest'
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix
+      - name: Build MSI on macOS (using local Wix)
+        if: startsWith(matrix.os, 'macos')
+        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix

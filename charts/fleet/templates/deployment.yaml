@@ -33,7 +33,7 @@ spec:
       - name: fleet
         command: [/usr/bin/fleet]
         args: ["serve"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
         ports:
         - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}
@@ -95,6 +95,13 @@ spec:
           - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
           {{- end }}
+          {{- end }}
+          {{- if .Values.fleet.license.secretName }}
+          - name: FLEET_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                key: {{ .Values.fleet.license.licenseKey }}
+                name: {{ .Values.fleet.license.secretName }}
           {{- end }}
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
@@ -262,10 +269,34 @@ spec:
             value: "{{ .Values.osquery.logging.pubsub.resultTopic }}"
           {{- end }}
           ## END OSQUERY SECTION
+
+          ## BEGIN VULNERABILITY PROCESSING
+          # Disable vulnerability processing in the main deployment when the
+          # dedicated cron is setup to reduce total cpu/memory utilization
+          {{- if .Values.vulnProcessing.dedicated }}
+          - name: FLEET_VULNERABILITIES_DISABLE_SCHEDULE
+            value: "true"
+          {{- end }}
+          ## END Vulnerability Processing
+
           ## APPEND ENVIRONMENT VARIABLES FROM VALUES
           {{- range $key, $value := .Values.environments }}
           - name: {{ $key }}
             value: {{ $value | quote }}
+          {{- end }}
+          ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+          {{- range .Values.envsFrom }}
+          - name: {{ .name }}
+            valueFrom:
+          {{- if .valueFrom.configMapKeyRef }}
+              configMapKeyRef:
+                name: {{ .valueFrom.configMapKeyRef.name }}
+                key: {{ .valueFrom.configMapKeyRef.key }}
+          {{- else if .valueFrom.secretKeyRef }}
+              secretKeyRef:
+                name: {{ .valueFrom.secretKeyRef.name }}
+                key: {{ .valueFrom.secretKeyRef.key }}
+          {{- end }}
           {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
@@ -314,7 +345,7 @@ spec:
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
-        image: "gcr.io/cloudsql-docker/gce-proxy:{{ .Values.gke.cloudSQL.imageTag }}"
+        image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
         command:
         - "/cloud_sql_proxy"
         - "-verbose={{ .Values.gke.cloudSQL.verbose}}"

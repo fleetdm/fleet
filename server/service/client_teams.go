@@ -52,10 +52,14 @@ func (c *Client) DeleteTeam(teamID uint) error {
 
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
-func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
-	err := c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	params := map[string]interface{}{"specs": specs}
+	if opts.DryRun && opts.DryRunAssumptions != nil {
+		params["dry_run_assumptions"] = opts.DryRunAssumptions
+	}
+	err := c.authenticatedRequestWithQuery(params, verb, path, &responseBody, opts.RawQuery())
 	if err != nil {
 		return nil, err
 	}
@@ -64,24 +68,66 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions
 
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
-func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplyTeamSpecOptions) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err
 	}
 	query.Add("team_name", tmName)
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
+	}
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
 }
 
 // ApplyTeamScripts sends the list of scripts to be applied for the specified
 // team.
-func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	query.Add("team_name", tmName)
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
+
+	var resp batchSetScriptsResponse
+	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
+	return resp.Scripts, err
+}
+
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	query.Add("team_name", tmName)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
+}
+
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	query.Add("team_name", tmName)
+	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
+}
+
+func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return nil, err
+	}
+	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
+}
+
+func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) ([]fleet.VPPAppResponse, error) {
+	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
+	var appsResponse batchAssociateAppStoreAppsResponse
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, &appsResponse, query.Encode())
+	if err != nil {
+		return nil, err
+	}
+	return appsResponse.Apps, nil
 }

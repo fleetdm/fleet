@@ -33,9 +33,21 @@ columns:
     type: text
     required: false
     description: The Update Framework update channel used for the Fleet Desktop executable.
+  - name: desktop_version
+    type: text
+    required: false
+    description: The version of the fleet-desktop instance. Blank if fleet-desktop is not installed.
   - name: uptime
     type: bigint
     required: false
     description: Uptime of the orbit process in seconds.
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+  - name: scripts_enabled
+    type: integer
+    required: false
+    description: 1 if running scripts is enabled, 0 if disabled.
+  - name: update_url
+    type: text
+    required: false
+    description: The Update Framework server URL.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

@@ -49,7 +49,7 @@ const (
 )
 
 func getPercentileQuery(aggregate fleet.AggregatedStatsType, time string, percentile string) string {
-	switch aggregate {
+	switch aggregate { //nolint:gocritic // ignore singleCaseSwitch
 	case fleet.AggregatedStatsTypeScheduledQuery:
 		return fmt.Sprintf(scheduledQueryPercentileQuery, time, percentile)
 	}
@@ -95,20 +95,22 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 
 // CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
 func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
-	tx := ds.writer(ctx)
+	// Before calling this method to update stats after a live query, we make sure the reader (replica) is up-to-date with the latest stats.
+	// We are using the reader because the below SELECT queries are expensive, and we don't want to impact the performance of the writer.
+	reader := ds.reader(ctx)
 	var totalExecutions int
 	statsMap := make(map[string]interface{})
 
 	// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
 	// so I went for the simpler approach first, we can optimize later
-	if err := setP50AndP95Map(ctx, tx, aggregate, "user_time", queryID, statsMap); err != nil {
+	if err := setP50AndP95Map(ctx, reader, aggregate, "user_time", queryID, statsMap); err != nil {
 		return err
 	}
-	if err := setP50AndP95Map(ctx, tx, aggregate, "system_time", queryID, statsMap); err != nil {
+	if err := setP50AndP95Map(ctx, reader, aggregate, "system_time", queryID, statsMap); err != nil {
 		return err
 	}
 
-	err := sqlx.GetContext(ctx, tx, &totalExecutions, getTotalExecutionsQuery(aggregate), queryID)
+	err := sqlx.GetContext(ctx, reader, &totalExecutions, getTotalExecutionsQuery(aggregate), queryID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting total executions for %s %d", aggregate, queryID)
 	}
@@ -122,7 +124,8 @@ func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context
 	// NOTE: this function gets called for query and scheduled_query, so the id
 	// refers to a query/scheduled_query id, and it never computes "global"
 	// stats. For that reason, we always set global_stats=0.
-	_, err = tx.ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`
 		INSERT INTO aggregated_stats(id, type, global_stats, json_value)
 		VALUES (?, ?, 0, ?)
@@ -137,7 +140,7 @@ func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context
 }
 
 func getTotalExecutionsQuery(aggregate fleet.AggregatedStatsType) string {
-	switch aggregate {
+	switch aggregate { //nolint:gocritic // ignore singleCaseSwitch
 	case fleet.AggregatedStatsTypeScheduledQuery:
 		return scheduledQueryTotalExecutions
 	}

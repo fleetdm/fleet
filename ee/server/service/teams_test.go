@@ -13,7 +13,7 @@ func TestObfuscateSecrets(t *testing.T) {
 		r := make([]*fleet.Team, 0, n)
 		for i := 1; i <= n; i++ {
 			r = append(r, &fleet.Team{
-				ID: uint(i),
+				ID: uint(i), //nolint:gosec // dismiss G115
 				Secrets: []*fleet.EnrollSecret{
 					{Secret: "abc"},
 					{Secret: "123"},

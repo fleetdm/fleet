@@ -24,6 +24,7 @@ const DEFAULT_SCRIPT_RESULT_MOCK: IScriptResultResponse = {
   runtime: 0,
   host_timeout: false,
   script_id: 1,
+  created_at: "2020-01-01T00:00:00.000Z",
 };
 
 export const createMockScriptResult = (

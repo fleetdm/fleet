@@ -1,0 +1,91 @@
+.self-service-item {
+  &__item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__item-topline {
+    display: flex;
+    flex-direction: row;
+    height: 66px;
+    align-items: center;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  &__item-icon {
+    display: flex;
+  }
+
+  &__item-name-version {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 64px;
+    overflow: hidden;
+  }
+
+  &__item-name {
+    font-size: $x-small;
+    font-weight: $bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
+  }
+
+  &__item-version {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: nowrap;
+  }
+
+  &__item-status-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid $ui-fleet-black-10;
+  }
+
+  &__item-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__item-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__status-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__status-with-tooltip {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-small;
+
+    span {
+      font-size: $x-small;
+    }
+  }
+
+  &__item-action-button {
+    height: auto;
+  }
+}

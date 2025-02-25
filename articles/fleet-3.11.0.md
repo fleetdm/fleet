@@ -14,7 +14,7 @@ For the complete summary of changes and release binaries check out the [release 
 
 Fleet is utilized by organizations with up to hundreds of thousands of endpoints. As a result, we’re constantly looking for areas to improve performance. Changes introduced in Fleet 3.11.0 reduce the MySQL CPU usage by ~ 33%.
 
-These performance improvements are the result of batching the updates of the last time a host has connected to the server. For more details on these changes, check out the [pull request](https://github.com/fleetdm/fleet/pull/633) from our CTO, [Zach Wasserman](https://medium.com/u/b0291119b263?source=post_page-----25d5a1efe19c--------------------------------).
+These performance improvements are the result of batching the updates of the last time a host has connected to the server. For more details on these changes, check out the [pull request](https://github.com/fleetdm/fleet/pull/633) from our Cofounder, [Zach Wasserman](https://medium.com/u/b0291119b263?source=post_page-----25d5a1efe19c--------------------------------).
 
 ## Software inventory
 

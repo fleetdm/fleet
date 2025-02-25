@@ -1,0 +1,67 @@
+name: Check automated documentation is up-to-date
+
+# This action is used to check that auto-generated documentation is up-to-date.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "**.go"
+      - ".github/workflows/check-automated-doc.yml"
+      - "schema/tables/**"
+      - "schema/osquery_fleet_schema.json"
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  check-doc-gen:
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Verify golang generated documentation is up-to-date
+        run: |
+          make generate-doc
+          if [[ $(git diff) ]]; then
+            echo "❌ fail: uncommited changes"
+            echo "please run 'make generate-doc' and commit the changes"
+            git --no-pager diff
+            exit 1
+          fi
+
+      - name: Verify osquery table JSON schema is up-to-date
+        run: |
+          cd website
+          npm install
+          ./node_modules/sails/bin/sails.js run generate-merged-schema
+          if [[ $(git diff) ]]; then
+            echo "❌ fail: uncommited changes"
+            echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
+            exit 1
+          fi

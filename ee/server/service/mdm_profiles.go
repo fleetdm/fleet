@@ -33,6 +33,8 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<false/>
 			<key>DeferForceAtUserLoginMaxBypassAttempts</key>
 			<integer>1</integer>
+			<key>ForceEnableInSetupAssistant</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>EncryptCertPayloadUUID</key>

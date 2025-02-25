@@ -20,7 +20,14 @@ controls: # Controls added to "No team"
   macos_updates:
     deadline: null
     minimum_version: null
+  ios_updates:
+    deadline: null
+    minimum_version: null
+  ipados_updates:
+    deadline: null
+    minimum_version: null
   windows_enabled_and_configured: true
+  windows_migration_enabled: false
   windows_updates:
     deadline_days: null
     grace_period_days: null
@@ -101,6 +108,7 @@ org_settings:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_report_cap: 2000
     query_reports_disabled: false
     scripts_disabled: false
     server_url: https://fleet.example.com
@@ -171,6 +179,9 @@ org_settings:
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings: # Applies to all teams
     host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 30
   features: # Features added to all teams
     enable_host_users: true
     enable_software_inventory: true

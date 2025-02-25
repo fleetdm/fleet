@@ -1,14 +1,17 @@
 name: vscode_extensions
 description: Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/). 
-examples: >-
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN vscode_extensions USING (uid);
+  ```
+
+
   List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.
   
   ```
-
   SELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);
-
   ```
-notes: Querying this table requires joining against the `users` table.
+notes: Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
 columns:
 - name: name
   description: Extension Name

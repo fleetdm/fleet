@@ -1,10 +1,8 @@
 name: cups_destinations
-examples: >-
+examples: |-
   Identify the types of printers connected to computers. This query works for
   both network and local printers.
 
   ```
-
   SELECT * FROM cups_destinations WHERE option_"name"='printer-info';
-
   ```

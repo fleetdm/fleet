@@ -3,7 +3,7 @@ package allmulti
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 func (ms *MultiAllStorage) RetrieveMigrationCheckins(ctx context.Context, c chan<- interface{}) error {

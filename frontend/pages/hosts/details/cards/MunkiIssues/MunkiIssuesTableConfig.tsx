@@ -1,7 +1,7 @@
 import React from "react";
 import { capitalize } from "lodash";
 
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { formatDistanceToNowStrict } from "date-fns";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";

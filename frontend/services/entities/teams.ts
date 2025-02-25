@@ -5,7 +5,7 @@ import { pick } from "lodash";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { IIntegrations } from "interfaces/integration";
+import { ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
   INewTeamUsersBody,
@@ -39,9 +39,17 @@ export interface ITeamFormData {
 export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
   mdm: {
     macos_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ios_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
       minimum_version: string;
       deadline: string;
     };
@@ -59,6 +67,10 @@ export interface IUpdateTeamFormData {
 export default {
   create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
+
+    if (formData.name) {
+      formData.name = formData.name.trim();
+    }
 
     return sendRequest("POST", TEAMS, formData);
   },
@@ -112,13 +124,13 @@ export default {
     const path = `${TEAMS}/${teamId}`;
     const requestBody: Record<string, unknown> = {};
     if (name) {
-      requestBody.name = name;
+      requestBody.name = name.trim();
     }
     if (webhook_settings) {
       requestBody.webhook_settings = webhook_settings;
     }
     if (integrations) {
-      const { jira, zendesk } = integrations;
+      const { jira, zendesk, google_calendar } = integrations;
       const teamIntegrationProps = [
         "enable_failing_policies",
         "group_id",
@@ -128,6 +140,7 @@ export default {
       requestBody.integrations = {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+        google_calendar,
       };
     }
     if (mdm) {
@@ -139,6 +152,16 @@ export default {
 
     return sendRequest("PATCH", path, requestBody);
   },
+
+  /**
+   * updates the team config. This can take any partial data that is in the team config.
+   */
+  updateConfig: (data: any, teamId: number): Promise<ITeamConfig> => {
+    const { TEAMS } = endpoints;
+    const path = `${TEAMS}/${teamId}`;
+    return sendRequest("PATCH", path, data);
+  },
+
   addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(

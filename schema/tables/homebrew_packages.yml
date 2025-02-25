@@ -1,12 +1,10 @@
 name: homebrew_packages
-examples: >-
+examples: |-
   Check the version of a package installed via homebrew. This example checks the
   version of ffmeg, which should be replaced by the actual package you want to
   check for. This is useful for finding problematic or vulnerable installs,
   though Fleet will detect vulnerable packages automatically.
 
   ```
-
   SELECT version FROM homebrew_packages WHERE name = 'ffmpeg';
-
   ```

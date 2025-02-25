@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/assert"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -66,15 +66,14 @@ func TestClone(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			clone, err := tc.src.Clone()
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, clone)
+			require.Equal(t, tc.want, clone)
 
 			// ensure that writing to src does not alter the cloned value (i.e. that
 			// the nested fields are deeply cloned too).
-			switch src := tc.src.(type) {
-			case *fleet.AppConfig:
+			if src, ok := tc.src.(*fleet.AppConfig); ok {
 				if len(src.ServerSettings.DebugHostIDs) > 0 {
 					src.ServerSettings.DebugHostIDs[0] = 999
-					assert.NotEqual(t, src.ServerSettings.DebugHostIDs, clone.(*fleet.AppConfig).ServerSettings.DebugHostIDs)
+					require.NotEqual(t, src.ServerSettings.DebugHostIDs, clone.(*fleet.AppConfig).ServerSettings.DebugHostIDs)
 				}
 			}
 		})
@@ -111,7 +110,7 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotEmpty(t, data)
-		assert.Equal(t, json.RawMessage(`"TestCachedAppConfig"`), *data.Features.AdditionalQueries)
+		require.Equal(t, json.RawMessage(`"TestCachedAppConfig"`), *data.Features.AdditionalQueries)
 	})
 
 	t.Run("AppConfig", func(t *testing.T) {
@@ -130,12 +129,12 @@ func TestCachedAppConfig(t *testing.T) {
 			},
 		}))
 
-		assert.True(t, mockedDS.SaveAppConfigFuncInvoked)
+		require.True(t, mockedDS.SaveAppConfigFuncInvoked)
 
 		ac, err := ds.AppConfig(context.Background())
 		require.NoError(t, err)
 		require.NotNil(t, ac.Features.AdditionalQueries)
-		assert.Equal(t, json.RawMessage(`"NewSAVED"`), *ac.Features.AdditionalQueries)
+		require.Equal(t, json.RawMessage(`"NewSAVED"`), *ac.Features.AdditionalQueries)
 	})
 
 	t.Run("External SaveAppConfig gets caught", func(t *testing.T) {
@@ -152,7 +151,7 @@ func TestCachedAppConfig(t *testing.T) {
 		ac, err := ds.AppConfig(context.Background())
 		require.NoError(t, err)
 		require.NotNil(t, ac.Features.AdditionalQueries)
-		assert.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.Features.AdditionalQueries)
+		require.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.Features.AdditionalQueries)
 	})
 }
 
@@ -560,7 +559,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	testMDMConfig := fleet.TeamMDM{
 		EnableDiskEncryption: true,
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -619,7 +618,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	// saving a team updates config in cache
 	updateMDMConfig := fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("13.13.13"),
 			Deadline:       optjson.SetString("2022-03-01"),
 		},
@@ -745,4 +744,107 @@ func TestCachedResultCountForQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testCount, c3)
 	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
+}
+
+func TestGetAllMDMConfigAssetsByName(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS)
+
+	assetNames := []fleet.MDMAssetName{"asset1", "asset2", "asset3"}
+	assetMap := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+		"asset1": {Name: "asset1", Value: []byte("value1")},
+		"asset2": {Name: "asset2", Value: []byte("value2")},
+		"asset3": {Name: "asset2", Value: []byte("value3")},
+	}
+	assetHashes := map[fleet.MDMAssetName]string{
+		"asset1": "hash1",
+		"asset2": "hash2",
+		"asset3": "hash3",
+	}
+
+	mockedDS.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+		result := map[fleet.MDMAssetName]string{}
+		for _, n := range assetNames {
+			result[n] = assetHashes[n]
+		}
+		return result, nil
+	}
+
+	mockedDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		result := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+		for _, n := range assetNames {
+			result[n] = assetMap[n]
+		}
+		return result, nil
+	}
+
+	// returns cached assets if hashes match
+	result, err := ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"asset1", "asset2"}, nil)
+	require.NoError(t, err)
+
+	require.True(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+	require.True(t, mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked)
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
+	require.Equal(t, assetMap["asset1"], result["asset1"])
+	require.Equal(t, assetMap["asset2"], result["asset2"])
+	require.NotContains(t, result, "asset3")
+
+	result, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"asset1", "asset2"}, nil)
+	require.NoError(t, err)
+	require.False(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+	require.True(t, mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked)
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
+	require.Equal(t, assetMap["asset1"], result["asset1"])
+	require.Equal(t, assetMap["asset2"], result["asset2"])
+	require.NotContains(t, result, "asset3")
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
+
+	// fetches missing assets from the db
+	result, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"asset1", "asset2", "asset3"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, assetMap["asset1"], result["asset1"])
+	require.Equal(t, assetMap["asset2"], result["asset2"])
+	require.Equal(t, assetMap["asset3"], result["asset3"])
+	require.True(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+	require.True(t, mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked)
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
+
+	// fetches updated assets from the db
+	assetHashes["asset1"] = "newhash"
+	assetMap["asset1"] = fleet.MDMConfigAsset{Name: "asset1", Value: []byte("newvalue")}
+	result, err = ds.GetAllMDMConfigAssetsByName(context.Background(), assetNames, nil)
+	require.NoError(t, err)
+	require.Equal(t, assetMap["asset1"], result["asset1"])
+	require.Equal(t, assetMap["asset2"], result["asset2"])
+	require.Equal(t, assetMap["asset3"], result["asset3"])
+	require.True(t, mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked)
+	require.True(t, mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked)
+	mockedDS.GetAllMDMConfigAssetsByNameFuncInvoked = false
+	mockedDS.GetAllMDMConfigAssetsHashesFuncInvoked = false
+
+	// passes errors fetching assets from downstream
+	mockedDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return nil, errors.New("error fetching assets")
+	}
+
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"not exists"}, nil)
+	require.Error(t, err)
+	require.Equal(t, "error fetching assets", err.Error())
+
+	// passes errors fetching hashes from downstream
+	mockedDS.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+		return nil, errors.New("error fetching hashes")
+	}
+
+	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"not exists"}, nil)
+	require.Error(t, err)
+	require.Equal(t, "error fetching hashes", err.Error())
 }

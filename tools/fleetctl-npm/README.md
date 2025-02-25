@@ -1,4 +1,4 @@
-[![banner-fleet-cloud-city](https://user-images.githubusercontent.com/618009/98254443-eaf21100-1f41-11eb-9e2c-63a0545601f3.jpg)](https://fleetdm.com)
+![fleet-banner](https://github.com/user-attachments/assets/fa90b8b2-cb3e-4277-a561-5719968c4bbd)
 
 Use the `fleetctl` CLI to interact with Fleet, the lightweight telemetry platform for servers and workstations. Have a look at the [Fleet README](https://github.com/fleetdm/fleet#readme) for more information.
 
@@ -6,6 +6,8 @@ Use the `fleetctl` CLI to interact with Fleet, the lightweight telemetry platfor
 
 From the command line, install `fleetctl` with `npm install -g fleetctl`.
 
+See the [documentation on enrolling hosts](https://fleetdm.com/guides/enroll-hosts#cli) for additional requirements for using `fleetctl package`.
+
 ## Usage
 
-See the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-CLI) or `fleetctl --help` for usage instructions. 
+See the [fleetctl documentation](https://fleetdm.com/guides/fleetctl) or `fleetctl --help` for usage instructions. 

@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -18,7 +19,24 @@ import (
 // redisc.Cluster, so both can satisfy the same interface.
 type standalonePool struct {
 	*redis.Pool
-	addr string
+	addr            string
+	connWaitTimeout time.Duration
+}
+
+func (p *standalonePool) Get() redis.Conn {
+	if p.connWaitTimeout <= 0 {
+		return p.Pool.Get()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), p.connWaitTimeout)
+	defer cancel()
+
+	// GetContext always returns an "errorConn" as valid connection when there is
+	// an error, so there's no need to care about the second return value (as for
+	// the no-wait case, the errorConn will fail on first use with the actual
+	// error).
+	conn, _ := p.Pool.GetContext(ctx)
+	return conn
 }
 
 func (p *standalonePool) Stats() map[string]redis.PoolStats {
@@ -83,10 +101,7 @@ func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 			// not a Redis Cluster setup, use a standalone Redis pool
 			pool, _ := cluster.CreatePool(config.Server, cluster.DialOptions...)
 			cluster.Close()
-			// never wait for a connection in a non-cluster pool as it can block
-			// indefinitely.
-			pool.Wait = false
-			return &standalonePool{pool, config.Server}, nil
+			return &standalonePool{pool, config.Server, config.ConnWaitTimeout}, nil
 		}
 		return nil, fmt.Errorf("refresh cluster: %w", err)
 	}
@@ -315,7 +330,8 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 					}
 
 					if conf.ConnectRetryAttempts > 0 {
-						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), uint64(conf.ConnectRetryAttempts))
+						boff := backoff.WithMaxRetries(backoff.NewExponentialBackOff(),
+							uint64(conf.ConnectRetryAttempts)) //nolint:gosec // G115 false positive
 						if err := backoff.Retry(op, boff); err != nil {
 							return nil, err
 						}

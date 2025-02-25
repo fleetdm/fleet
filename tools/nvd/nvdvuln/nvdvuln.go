@@ -69,6 +69,12 @@ func main() {
 		}
 	}
 
+	// All macOS apps are expected to have a bundle identifier, which influences CPE generation.
+	if softwareSource != nil && *softwareSource == "apps" && softwareBundleIdentifier != nil && *softwareBundleIdentifier == "" {
+		printf("Must set --software_bundle_identifier for macOS apps when specifying -software_source apps\n")
+		return
+	}
+
 	if err := os.MkdirAll(*dbDir, os.ModePerm); err != nil {
 		panic(err)
 	}
@@ -76,7 +82,7 @@ func main() {
 	if *debug {
 		// Sample the process CPU and memory usage every second
 		// and store it on a file under the dbDir.
-		process, err := process.NewProcess(int32(os.Getpid()))
+		myProcess, err := process.NewProcess(int32(os.Getpid())) //nolint:gosec // dismiss G115
 		if err != nil {
 			panic(err)
 		}
@@ -87,19 +93,17 @@ func main() {
 		defer cpuAndMemFile.Close()
 		go func() {
 			for {
-				select {
-				case <-time.After(1 * time.Second):
-					cpuPercent, err := process.CPUPercent()
-					if err != nil {
-						panic(err)
-					}
-					memInfo, err := process.MemoryInfo()
-					if err != nil {
-						panic(err)
-					}
-					now := time.Now().UTC().Format("15:04:05")
-					fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
+				time.Sleep(time.Second)
+				cpuPercent, err := myProcess.CPUPercent()
+				if err != nil {
+					panic(err)
 				}
+				memInfo, err := myProcess.MemoryInfo()
+				if err != nil {
+					panic(err)
+				}
+				now := time.Now().UTC().Format("15:04:05")
+				fmt.Fprintf(cpuAndMemFile, "%s %.2f %.2f\n", now, cpuPercent, float64(memInfo.RSS)/1024.0/1024.0)
 			}
 		}()
 	}
@@ -181,6 +185,14 @@ func main() {
 		return true, nil
 	}
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		return nil
+	}
+
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 		return nil
 	}
 
@@ -267,10 +279,7 @@ type softwareIterator struct {
 }
 
 func (s *softwareIterator) Next() bool {
-	if s.i >= len(s.software) {
-		return false
-	}
-	return true
+	return s.i < len(s.software)
 }
 
 func (s *softwareIterator) Value() (*fleet.Software, error) {

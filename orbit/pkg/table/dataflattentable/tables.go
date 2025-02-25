@@ -9,10 +9,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type DataSourceType int
@@ -28,7 +27,7 @@ const (
 )
 
 type Table struct {
-	logger    log.Logger
+	logger    zerolog.Logger
 	tableName string
 
 	flattenFileFunc  func(string, ...dataflatten.FlattenOpts) ([]dataflatten.Row, error)
@@ -41,7 +40,7 @@ type Table struct {
 }
 
 // AllTablePlugins is a helper to return all the expected flattening tables.
-func AllTablePlugins(logger log.Logger) []osquery.OsqueryPlugin {
+func AllTablePlugins(logger zerolog.Logger) []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		TablePlugin(logger, JsonType),
 		TablePlugin(logger, XmlType),
@@ -51,7 +50,7 @@ func AllTablePlugins(logger log.Logger) []osquery.OsqueryPlugin {
 	}
 }
 
-func TablePlugin(logger log.Logger, dataSourceType DataSourceType) osquery.OsqueryPlugin {
+func TablePlugin(logger zerolog.Logger, dataSourceType DataSourceType) osquery.OsqueryPlugin {
 	columns := Columns(table.TextColumn("path"))
 
 	t := &Table{
@@ -101,11 +100,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 			for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 				subresults, err := t.generatePath(filePath, dataQuery)
 				if err != nil {
-					level.Info(t.logger).Log(
-						"msg", "failed to get data for path",
-						"path", filePath,
-						"err", err,
-					)
+					t.logger.Info().Err(err).Str("path", filePath).Msg("failed to get data for path")
 					continue
 				}
 
@@ -125,7 +120,7 @@ func (t *Table) generatePath(filePath string, dataQuery string) ([]map[string]st
 
 	data, err := t.flattenFileFunc(filePath, flattenOpts...)
 	if err != nil {
-		level.Info(t.logger).Log("msg", "failure parsing file", "file", filePath)
+		t.logger.Info().Err(err).Str("file", filePath).Msg("failure parsing file")
 		return nil, fmt.Errorf("parsing data: %w", err)
 	}
 

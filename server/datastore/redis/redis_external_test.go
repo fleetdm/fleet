@@ -364,3 +364,74 @@ func TestReadTimeout(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "i/o timeout")
 }
+
+func TestRedisConnWaitTime(t *testing.T) {
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedisWithConfig(t, "zz", false, false, false, redis.PoolConfig{ConnWaitTimeout: 2 * time.Second, MaxOpenConns: 2})
+
+		conn1 := pool.Get()
+		defer conn1.Close()
+		conn2 := pool.Get()
+		defer conn2.Close()
+
+		// no more connections available, requesting another will wait and fail after 2s
+		start := time.Now()
+		conn3 := pool.Get()
+		_, err := conn3.Do("PING")
+		conn3.Close()
+		require.Error(t, err)
+		require.GreaterOrEqual(t, time.Since(start), 2*time.Second)
+
+		// request another one but this time close an open connection after a second
+		go func() {
+			time.Sleep(time.Second)
+			conn1.Close()
+		}()
+
+		start = time.Now()
+		conn4 := pool.Get()
+		_, err = conn4.Do("PING")
+		conn4.Close()
+		require.NoError(t, err)
+		require.Less(t, time.Since(start), 2*time.Second)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedisWithConfig(t, "wait-timeout-", true, false, false, redis.PoolConfig{ConnWaitTimeout: 2 * time.Second, MaxOpenConns: 2})
+
+		conn1 := pool.Get()
+		defer conn1.Close()
+		conn2 := pool.Get()
+		defer conn2.Close()
+
+		// bind the connections to the same node by requesting the same key, both connections
+		// will now be used from the same pool.
+		_, err := conn1.Do("GET", "wait-timeout-a")
+		require.NoError(t, err)
+		_, err = conn2.Do("GET", "wait-timeout-a")
+		require.NoError(t, err)
+
+		// no more connections available, requesting another will wait and fail after 2s
+		start := time.Now()
+		conn3 := pool.Get()
+		defer conn3.Close()
+		_, err = conn3.Do("GET", "wait-timeout-a")
+		conn3.Close()
+		require.Error(t, err)
+		require.GreaterOrEqual(t, time.Since(start), 2*time.Second)
+
+		// request another one but this time close an open connection after a second
+		go func() {
+			time.Sleep(time.Second)
+			conn1.Close()
+		}()
+
+		start = time.Now()
+		conn4 := pool.Get()
+		defer conn4.Close()
+		_, err = conn4.Do("GET", "wait-timeout-a")
+		conn4.Close()
+		require.NoError(t, err)
+		require.Less(t, time.Since(start), 2*time.Second)
+	})
+}

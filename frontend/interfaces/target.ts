@@ -30,10 +30,14 @@ export interface ISelectHost extends IHost {
 
 export interface ISelectLabel extends ILabelSummary {
   target_type?: string;
+  display_text?: string;
+  query?: string;
+  count?: number;
 }
 
 export interface ISelectTeam extends ITeam {
   target_type?: string;
+  display_text?: string;
 }
 
 export type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;

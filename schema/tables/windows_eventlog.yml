@@ -1,5 +1,5 @@
 name: windows_eventlog
-examples: >-
+examples: |-
   Tracking user account changes is a key part of both detection & incident response. This query lists all Windows Eventlogs from the Security channel with an EventID of 4720 - A user account was created. There are many other relevant EventIDs that should be monitored as well: 
 
   - [4722: Account enabled](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4722)
@@ -10,12 +10,10 @@ examples: >-
   
   
   ```
-  
-  SELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'"
-  
+  SELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'
   ```
   
-notes: >-
+notes: |-
   * This is not an evented table - instead, it pulls directly from the local system's existing eventlogs. 
 
   * The information returned in the `data` column will be JSON formatted, which will require additional parsing.  

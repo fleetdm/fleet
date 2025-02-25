@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -191,6 +192,9 @@ func TestMultipleSchedules(t *testing.T) {
 }
 
 func TestMultipleJobsInOrder(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobs := make(chan int)
@@ -210,11 +214,15 @@ func TestMultipleJobsInOrder(t *testing.T) {
 		}),
 		WithJob("test_job_2", func(ctx context.Context) error {
 			jobs <- 2
-			return errors.New("test_job_2")
+			return errors.New("whoops")
 		}),
 		WithJob("test_job_3", func(ctx context.Context) error {
 			jobs <- 3
 			return nil
+		}),
+		WithJob("test_job_4", func(ctx context.Context) error {
+			jobs <- 4
+			panic("oh no")
 		}),
 	)
 	s.Start()
@@ -232,7 +240,7 @@ func TestMultipleJobsInOrder(t *testing.T) {
 					return fmt.Errorf("mismatch id: %d vs %d", job, i)
 				}
 				i++
-				if i == 4 {
+				if i == 5 {
 					i = 1
 				}
 			case <-time.After(5 * time.Second):
@@ -252,6 +260,19 @@ func TestMultipleJobsInOrder(t *testing.T) {
 
 	err := g.Wait()
 	require.NoError(t, err)
+
+	// There should be errors from 2 jobs.
+	require.Equal(t, 2, len(s.errors))
+
+	// Check that the correct 2 jobs have errors.
+	test_job_2_err, ok := s.errors["test_job_2"]
+	require.True(t, ok)
+	test_job_4_err, ok := s.errors["test_job_4"]
+	require.True(t, ok)
+
+	// Check the errors that were returned.
+	require.Equal(t, "whoops", test_job_2_err.Error())
+	require.Contains(t, test_job_4_err.Error(), "oh no\n")
 }
 
 func TestConfigReloadCheck(t *testing.T) {
@@ -297,6 +318,8 @@ func TestConfigReloadCheck(t *testing.T) {
 }
 
 func TestJobPanicRecover(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobRan := false
@@ -590,6 +613,7 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 }
 
 func TestTriggerSingleInstance(t *testing.T) {
+	t.Parallel()
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	name := "test_trigger_single_instance"
@@ -756,7 +780,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 		}()
 
 		<-timer.C
-		require.Equal(t, uint32(c.jobsExpected), atomic.LoadUint32(&jobsRun))
+		require.EqualValues(t, c.jobsExpected, atomic.LoadUint32(&jobsRun))
 		cancelFunc()
 	}
 }

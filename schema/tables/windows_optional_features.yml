@@ -1,9 +1,7 @@
 name: windows_optional_features
-examples: >-
+examples: |-
   SMBv1 is deprecated and has known, unpatched vulnerablities; it should be disabled whenever possible. This query lists enabled SMBv1 services (client and/or server).
   
   ```
-     
-   SELECT name,caption,statename FROM windows_optional_features WHERE name LIKE 'SMB1Protocol%' AND state = 1;
-
+  SELECT name,caption,statename FROM windows_optional_features WHERE name LIKE 'SMB1Protocol%' AND state = 1;
   ```

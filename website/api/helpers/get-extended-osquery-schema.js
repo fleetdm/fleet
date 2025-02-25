@@ -11,6 +11,10 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to include a lastModifiedAt value for each table.',
+    },
+    githubAccessToken: {
+      type: 'string',
+      description: 'A github token used to authenticate requests to the GitHub API'
     }
   },
 
@@ -25,13 +29,11 @@ module.exports = {
   },
 
 
-  fn: async function ({includeLastModifiedAtValue}) {
+  fn: async function ({includeLastModifiedAtValue, githubAccessToken}) {
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
-
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
-
     require('assert')(sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation;
 
@@ -41,6 +43,14 @@ module.exports = {
     let rawOsqueryTablesLastModifiedAt;
     if(includeLastModifiedAtValue) {
       // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
+      let baseHeadersForGithubRequests = {
+        'User-Agent': 'fleet-schema-builder',
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      // If a GitHub access token was provided, add it to the headers.
+      if(githubAccessToken){
+        baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+      }
       let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
         url: 'https://api.github.com/repos/osquery/osquery-site/commits',
         data: {
@@ -48,10 +58,7 @@ module.exports = {
           page: 1,
           per_page: 1,//eslint-disable-line camelcase
         },
-        headers: {
-          'User-Agent': 'fleet-schema-builder',
-          'Accept': 'application/vnd.github.v3+json',
-        },
+        headers: baseHeadersForGithubRequests
       }).intercept((err)=>{
         return new Error(`When trying to send a request to GitHub get a timestamp of the last commit to the osqeury schema JSON, an error occurred. Full error: ${util.inspect(err)}`);
       });
@@ -116,7 +123,7 @@ module.exports = {
         expandedTableToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(expandedTableToPush.name);
         // Since we don't have a Fleet override for this table, we'll set the fleetRepoUrl for this table to be a link to create the Fleet override table YAML.
         // This is done by adding a 'filename' and 'value' as search parameters to a url that creates a new folder in the schema/tables/ folder.
-        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: | # (required) string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: | # (optional) string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\nnotes: | # (optional) string - Notes about this table. Note: This field supports markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
+        let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: |- # (required) string - The description for this table. Note: this field supports Markdown\n\t# Add description here\nexamples: |- # (optional) string - An example query for this table. Note: This field supports Markdown\n\t# Add examples here\nnotes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description. Note: this field supports Markdown\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
 
         expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema?filename='+encodeURIComponent('tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
 
@@ -133,6 +140,9 @@ module.exports = {
           // Examples are parsed as markdown, so we wrap the example in a code
           // fence so it renders as a code block.
           expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+        } else {
+          // If this table has an examples value that is an empty array, we'll completly remove it from the merged schema.
+          delete expandedTableToPush.examples;
         }
         if(includeLastModifiedAtValue) {
           expandedTableToPush.lastModifiedAt = rawOsqueryTablesLastModifiedAt;
@@ -158,6 +168,16 @@ module.exports = {
             throw new Error(`Could not merge osquery schema with Fleet overrides. The Fleet override for the "${fleetOverridesForTable.name}" table located at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverridesForTable.name+'.yml')} has an invalid "examples". To resolve, change the "examples" for this table to be a string.`);
           } else {
             expandedTableToPush.examples = _.clone(fleetOverridesForTable.examples);
+          }
+        } else {
+          // If the override file does not contain an 'examples' value, we'll use the last example from the osquery schema (See above for more information about the reasoning behind this)
+          let examplesFromOsquerySchema = expandedTableToPush.examples;
+          if (examplesFromOsquerySchema.length > 0) {
+            // Examples are parsed as markdown, so we wrap the example in a code fence so it renders as a code block.
+            expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+          } else {
+            // If this table has an examples value that is an empty array, we'll completly remove it from the merged schema.
+            delete expandedTableToPush.examples;
           }
         }
         if(fleetOverridesForTable.notes !== undefined) {
@@ -199,10 +219,6 @@ module.exports = {
           } else {// If the Fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
             let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});
             if(!columnHasFleetOverrides) {// If this column has no Fleet overrides, we'll add it to the final schema unchanged
-              let columnWithNoOverrides = _.clone(osquerySchemaColumn);
-              if(osquerySchemaColumn.type !== undefined) {
-                columnWithNoOverrides.type = osquerySchemaColumn.type.toUpperCase();
-              }
               mergedTableColumns.push(osquerySchemaColumn);
             } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
               let fleetColumn = _.clone(osquerySchemaColumn);
@@ -227,16 +243,13 @@ module.exports = {
                 }
               }
               if(columnHasFleetOverrides.type !== undefined) {
-                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toUpperCase());
+                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toLowerCase());
               }
               if(columnHasFleetOverrides.required !== undefined) {
                 fleetColumn.required = _.clone(columnHasFleetOverrides.required);
               }
               if(columnHasFleetOverrides.hidden !== true) { // If the overrides don't explicitly hide a column, we'll set the value to false to make sure the column is visible on fleetdm.com
                 fleetColumn.hidden = false;
-              }
-              if(columnHasFleetOverrides.requires_user_context) {
-                fleetColumn.requires_user_context = true; // eslint-disable-line camelcase
               }
               mergedTableColumns.push(fleetColumn);
             }
@@ -269,6 +282,7 @@ module.exports = {
                 if(typeof overrideColumnToAdd.type !== 'string') {
                   throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "type" for the "${fleetOverrideColumn.name}" column of the "${fleetOverridesForTable.name}" table is an invalid type (${typeof fleetOverrideColumn.type}). To resolve, change the value of a column's "type" to be a string.`);
                 }//•
+                overrideColumnToAdd.type = overrideColumnToAdd.type.toLowerCase();
               } else {
                 throw new Error(`The osquery tables could not be merged with the Fleet overrides. The "${fleetOverrideColumn.name}" column added to the merged schema for the "${fleetOverridesForTable.name}" table is missing a "type" in the Fleet overrides schema. To resolve, add a type for this column to the Fleet overrides schema.`);
               }
@@ -340,6 +354,7 @@ module.exports = {
             } else if(typeof columnToValidate.type !== 'string') {
               throw new Error(`Could not add a table from the Fleet overrides schema. The "type" of the "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} has an invalid value. (expected a string, but got a ${typeof columnToValidate.type}) To resolve, change the value of the column's "type" be a string.`);
             }//•
+            columnToValidate.type = columnToValidate.type.toLowerCase();
 
             if(!columnToValidate.description) {
               throw new Error(`Could not add a new table from the Fleet overrides schema. The "${columnToValidate.name}" column of the "${fleetOverrideToPush.name}" table is missing a "description". To resolve add a "description" property to the "${columnToValidate.name}" column at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}`);

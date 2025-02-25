@@ -1,11 +1,9 @@
 name: docker_containers
-examples: >-
+examples: |-
   Identify containers that are running with high privileges.
 
   ```
-
   SELECT state, status, image, image_id FROM docker_containers WHERE privileged='1';
-
   ```
 columns:
   - name: cgroup_namespace

@@ -1,28 +1,18 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import IntegrationsPage from "./IntegrationsPage";
 
-// TODO: figure out how to mock the router properly.
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
-
 describe("Integrations Page", () => {
+  // TODO: change this test to cover rendering all other sections displayed.
   it("renders the MDM sidenav and content if MDM feature is enabled", () => {
+    const mockRouter = createMockRouter();
+
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
-        app: { isMdmEnabledAndConfigured: true },
+        app: { isMacMdmEnabledAndConfigured: true },
       },
     });
 

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )

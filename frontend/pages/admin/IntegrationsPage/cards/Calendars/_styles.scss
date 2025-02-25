@@ -1,0 +1,67 @@
+.calendars-integration {
+  &__page-description {
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
+  p {
+    margin: $pad-large 0;
+  }
+
+  ui {
+    margin-block-start: $pad-small;
+  }
+
+  ul {
+    margin: 0;
+  }
+
+  li {
+    margin: $pad-small 0;
+  }
+
+  .card {
+    margin-top: $pad-small;
+  }
+
+  &__configuration {
+    button {
+      align-self: flex-end;
+    }
+  }
+
+  &__api-key-json {
+    font-family: "SourceCodePro", $monospace;
+    min-width: 100%; // resize vertically only
+    height: 294px;
+    font-size: $x-small;
+  }
+
+  #oauth-scopes {
+    font-family: "SourceCodePro", $monospace;
+    color: $core-fleet-black;
+    min-height: 80px;
+    padding: $pad-medium;
+    padding-right: $pad-xxlarge;
+    resize: none;
+  }
+
+  &__oauth-scopes-copy-icon-wrapper {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    position: relative;
+    top: 36px;
+    right: 16px;
+    height: 0;
+    gap: 0.5rem;
+  }
+
+  &__copy-message {
+    @include copy-message;
+  }
+
+  &__code {
+    font-family: "SourceCodePro", $monospace;
+  }
+}

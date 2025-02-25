@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -46,11 +48,23 @@ INSERT INTO nano_cert_auth_associations (id, sha256, cert_not_valid_after) VALUE
 ON DUPLICATE KEY
 UPDATE
 	sha256 = VALUES(sha256),
-	cert_not_valid_after = VALUES(cert_not_valid_after),
-	renew_command_uuid = NULL;`,
+	cert_not_valid_after = VALUES(cert_not_valid_after)`,
 		r.ID,
 		strings.ToLower(hash),
 		certNotValidAfter,
 	)
 	return err
+}
+
+func (s *MySQLStorage) EnrollmentFromHash(ctx context.Context, hash string) (string, error) {
+	var id string
+	err := s.db.QueryRowContext(
+		ctx,
+		`SELECT id FROM cert_auth_associations WHERE sha256 = ? LIMIT 1;`,
+		hash,
+	).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
 }

@@ -10,12 +10,14 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { ICampaign } from "interfaces/campaign";
+import { SUPPORT_LINK } from "utilities/constants";
+import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
@@ -67,7 +69,9 @@ const QueryResults = ({
   const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
     []
   );
-  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
+  const [errorColumnConfigs, setErrorColumnConfigs] = useState<
+    Column<ICampaignError>[]
+  >([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -99,7 +103,7 @@ const QueryResults = ({
         setResultsColumnConfigs(newResultsColumnConfigs);
       }
     }
-  }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+  }, [queryResults, lastEditedQueryBody]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
     if (errorColumnConfigs?.length === 0 && !!errors?.length) {
@@ -161,6 +165,18 @@ const QueryResults = ({
     );
   };
 
+  const renderCount = useCallback(
+    (tableType: "errors" | "results") => {
+      const count =
+        tableType === "results"
+          ? filteredResults.length
+          : filteredErrors.length;
+
+      return <TableCount name={tableType} count={count} />;
+    },
+    [filteredResults.length, filteredErrors.length]
+  );
+
   const renderTableButtons = (tableType: "results" | "errors") => {
     return (
       <div className={`${baseClass}__results-cta`}>
@@ -213,8 +229,9 @@ const QueryResults = ({
           resultsTitle={tableType}
           customControl={() => renderTableButtons(tableType)}
           setExportRows={
-            tableType === "errors" ? setFilteredErrors : setFilteredResults
+            tableType === "results" ? setFilteredResults : setFilteredErrors
           }
+          renderCount={() => renderCount(tableType)}
         />
       </div>
     );
@@ -257,13 +274,7 @@ const QueryResults = ({
       {isQueryClipped && (
         <InfoBanner
           color="yellow"
-          cta={
-            <CustomLink
-              url="https://www.fleetdm.com/support"
-              text="Get help"
-              newTab
-            />
-          }
+          cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
             <b>Results clipped.</b> A sample of this query&apos;s results and

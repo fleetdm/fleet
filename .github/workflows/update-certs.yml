@@ -25,6 +25,11 @@ jobs:
       pull-requests: write  # for peter-evans/create-pull-request to create a PR
     runs-on: ubuntu-latest
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: Checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
 
@@ -46,6 +51,7 @@ jobs:
         branch: update-ca-certs
         delete-branch: true
         title: Update Orbit CA certs [automated]
+        reviewers: lukeheath,georgekarrv,sharon-fdm
         commit-message: |
           Update Orbit CA certs [automated]
 

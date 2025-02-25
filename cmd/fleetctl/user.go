@@ -23,6 +23,7 @@ const (
 	emailFlagName      = "email"
 	nameFlagName       = "name"
 	ssoFlagName        = "sso"
+	mfaFlagName        = "mfa"
 	apiOnlyFlagName    = "api-only"
 	csvFlagName        = "csv"
 )
@@ -67,6 +68,10 @@ func createUserCommand() *cli.Command {
 				Usage: "Enable user login via SSO",
 			},
 			&cli.BoolFlag{
+				Name:  mfaFlagName,
+				Usage: "Require email verification on login (not applicable to SSO users)",
+			},
+			&cli.BoolFlag{
 				Name:  apiOnlyFlagName,
 				Usage: "Make \"API-only\" user",
 			},
@@ -94,13 +99,18 @@ func createUserCommand() *cli.Command {
 			email := c.String(emailFlagName)
 			name := c.String(nameFlagName)
 			sso := c.Bool(ssoFlagName)
+			mfa := c.Bool(mfaFlagName)
 			apiOnly := c.Bool(apiOnlyFlagName)
 			globalRoleString := c.String(globalRoleFlagName)
 			teamStrings := c.StringSlice(teamFlagName)
 
+			if mfa && sso {
+				return errors.New("email verification on login is not applicable to SSO users")
+			}
+
 			var globalRole *string
 			var teams []fleet.UserTeam
-			if globalRoleString != "" && len(teamStrings) > 0 {
+			if globalRoleString != "" && len(teamStrings) > 0 { //nolint:gocritic // ignore ifElseChain
 				return errors.New("Users may not have global_role and teams.")
 			} else if globalRoleString == "" && len(teamStrings) == 0 {
 				globalRole = ptr.String(fleet.RoleObserver)
@@ -123,7 +133,7 @@ func createUserCommand() *cli.Command {
 						return fmt.Errorf("'%s' is not a valid team role", parts[1])
 					}
 
-					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115
 				}
 			}
 
@@ -160,11 +170,12 @@ func createUserCommand() *cli.Command {
 			force_reset := !sso && !apiOnly
 
 			// password requirements are validated as part of `CreateUser`
-			err = client.CreateUser(fleet.UserPayload{
+			sessionKey, err := client.CreateUser(fleet.UserPayload{
 				Password:                 &password,
 				Email:                    &email,
 				Name:                     &name,
 				SSOEnabled:               &sso,
+				MFAEnabled:               &mfa,
 				AdminForcedPasswordReset: &force_reset,
 				APIOnly:                  &apiOnly,
 				GlobalRole:               globalRole,
@@ -172,6 +183,10 @@ func createUserCommand() *cli.Command {
 			})
 			if err != nil {
 				return fmt.Errorf("Failed to create user: %w", err)
+			}
+
+			if apiOnly && sessionKey != nil && *sessionKey != "" {
+				fmt.Fprintf(c.App.Writer, "Success! The API token for your new user is: %s\n", *sessionKey)
 			}
 
 			return nil
@@ -208,7 +223,6 @@ func createBulkUsersCommand() *cli.Command {
 			}
 			defer csvFile.Close()
 			csvLines, err := csv.NewReader(csvFile).ReadAll()
-
 			if err != nil {
 				return err
 			}
@@ -234,7 +248,7 @@ func createBulkUsersCommand() *cli.Command {
 				var globalRole *string
 				var teams []fleet.UserTeam
 
-				if globalRoleString != "" && len(teamStrings) > 0 && teamStrings[0] != "" {
+				if globalRoleString != "" && len(teamStrings) > 0 && teamStrings[0] != "" { //nolint:gocritic // ignore ifElseChain
 					return errors.New("Users may not have global_role and teams.")
 				} else if globalRoleString == "" && (len(teamStrings) == 0 || teamStrings[0] == "") {
 					globalRole = ptr.String(fleet.RoleObserver)
@@ -257,7 +271,8 @@ func createBulkUsersCommand() *cli.Command {
 							return fmt.Errorf("'%s' is not a valid team role", parts[1])
 						}
 
-						teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]})
+						teams = append(teams,
+							fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115
 					}
 				}
 
@@ -278,7 +293,7 @@ func createBulkUsersCommand() *cli.Command {
 			}
 
 			for _, user := range users {
-				err = client.CreateUser(user)
+				_, err = client.CreateUser(user)
 				if err != nil {
 					return fmt.Errorf("Failed to create user: %w", err)
 				}
@@ -351,7 +366,6 @@ func deleteBulkUsersCommand() *cli.Command {
 			}
 			defer csvFile.Close()
 			csvLines, err := csv.NewReader(csvFile).ReadAll()
-
 			if err != nil {
 				return err
 			}
@@ -362,10 +376,10 @@ func deleteBulkUsersCommand() *cli.Command {
 				}
 			}
 			return nil
-
 		},
 	}
 }
+
 func generateRandomPassword() (string, error) {
 	password, err := password.Generate(20, 2, 2, false, true)
 	if err != nil {

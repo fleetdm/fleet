@@ -13,8 +13,16 @@ export const isPremiumTier = (config: IConfig): boolean => {
   return config.license.tier === "premium";
 };
 
-export const isMdmEnabledAndConfigured = (config: IConfig): boolean => {
+export const isMacMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.enabled_and_configured);
+};
+
+export const isWindowsMdmEnabledAndConfigured = (config: IConfig): boolean => {
+  return Boolean(config.mdm.windows_enabled_and_configured);
+};
+
+export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
+  return Boolean(config.mdm.android_enabled_and_configured);
 };
 
 export const isGlobalAdmin = (user: IUser): boolean => {
@@ -142,12 +150,15 @@ export default {
   isSandboxMode,
   isFreeTier,
   isPremiumTier,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
+  isWindowsMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
   isOnGlobalTeam,
   isTeamObserver,
+  isTeamObserverPlus,
   isTeamMaintainer,
   isTeamMaintainerOrTeamAdmin,
   isAnyTeamObserverPlus,

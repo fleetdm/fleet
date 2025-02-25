@@ -4,13 +4,6 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
-	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/facebookincubator/nvdtools/wfn"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
-	"github.com/pandatix/nvdapi/common"
-	"github.com/pandatix/nvdapi/v2"
 	"io"
 	"log"
 	"log/slog"
@@ -18,13 +11,21 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
+	"github.com/pandatix/nvdapi/common"
+	"github.com/pandatix/nvdapi/v2"
 )
 
 const (
-	httpClientTimeout       = 2 * time.Minute
+	httpClientTimeout       = 3 * time.Minute
 	waitTimeBetweenRequests = 6 * time.Second
-	waitTimeForRetry        = 30 * time.Second
-	maxRetryAttempts        = 10
+	waitTimeForRetry        = 10 * time.Second
+	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 )
 
@@ -41,7 +42,7 @@ func main() {
 	slog.SetDefault(slog.New(logHandler))
 
 	if apiKey == "" {
-		log.Fatal(fmt.Sprintf("Must set %v environment variable", apiKeyEnvVar))
+		log.Fatalf("Must set %v environment variable", apiKeyEnvVar)
 	}
 
 	cwd, err := os.Getwd()
@@ -108,12 +109,12 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 
 	// Sanity check
 	if totalResults <= 1 || len(cpes) != totalResults {
-		log.Fatal(fmt.Sprintf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes)))
+		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
 
-	dbPath := filepath.Join(resultPath, fmt.Sprint("cpe.sqlite"))
+	dbPath := filepath.Join(resultPath, "cpe.sqlite")
 	err = nvd.GenerateCPEDB(dbPath, cpes)
 	panicIf(err)
 

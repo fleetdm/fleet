@@ -7,7 +7,7 @@ import Info from "./cards/Info";
 import WebAddress from "./cards/WebAddress";
 import Sso from "./cards/Sso";
 import Smtp from "./cards/Smtp";
-import HostStatusWebhook from "./cards/HostStatusWebhook";
+import GlobalHostStatusWebhook from "./cards/GlobalHostStatusWebhook";
 import Statistics from "./cards/Statistics";
 import FleetDesktop from "./cards/FleetDesktop";
 import Advanced from "./cards/Advanced";
@@ -48,7 +48,7 @@ const ORG_SETTINGS_NAV_ITEMS: ISideNavItem<IAppConfigFormProps>[] = [
     title: "Host status webhook",
     urlSection: "host-status-webhook",
     path: PATHS.ADMIN_ORGANIZATION_HOST_STATUS_WEBHOOK,
-    Card: HostStatusWebhook,
+    Card: GlobalHostStatusWebhook,
   },
   {
     title: "Usage statistics",

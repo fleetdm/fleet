@@ -10,10 +10,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -24,103 +22,64 @@ import (
 // It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
 // with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
-	configFetcher OrbitConfigFetcher
-	opt           FlagUpdateOptions
-	cancel        chan struct{}
+	triggerOrbitRestart func(reason string)
+	opt                 FlagUpdateOptions
 }
 
 // FlagUpdateOptions is options provided for the flag update runner
 type FlagUpdateOptions struct {
-	// CheckInterval is the interval to check for updates
-	CheckInterval time.Duration
 	// RootDir is the root directory for orbit state
 	RootDir string
 }
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagRunner(configFetcher OrbitConfigFetcher, opt FlagUpdateOptions) *FlagRunner {
+func NewFlagReceiver(triggerOrbitRestart func(reason string), opt FlagUpdateOptions) *FlagRunner {
 	return &FlagRunner{
-		configFetcher: configFetcher,
-		opt:           opt,
-		cancel:        make(chan struct{}),
+		triggerOrbitRestart: triggerOrbitRestart,
+		opt:                 opt,
 	}
-}
-
-// Execute starts the loop checking for updates
-func (r *FlagRunner) Execute() error {
-	log.Debug().Msg("starting flag updater")
-
-	ticker := time.NewTicker(r.opt.CheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.cancel:
-			return nil
-		case <-ticker.C:
-			log.Debug().Msg("calling flags update")
-			didUpdate, err := r.DoFlagsUpdate()
-			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "flags updates failed")
-			}
-			if didUpdate {
-				log.Info().Msg("flags updated, exiting")
-				return nil
-			}
-			ticker.Reset(r.opt.CheckInterval)
-		}
-	}
-}
-
-// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
-func (r *FlagRunner) Interrupt(err error) {
-	close(r.cancel)
-	log.Error().Err(err).Msg("interrupt for flags updater")
 }
 
 // DoFlagsUpdate checks for update of flags from Fleet
 // It gets the flags from the Fleet server, and compares them to locally stored flagfile (if it exists)
 // If the flag comparison from disk and server are not equal, it writes the flags to disk, and returns true
-func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
+func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 	flagFileExists := true
 
 	// first off try and read osquery.flags from disk
 	osqueryFlagMapFromFile, err := readFlagFile(r.opt.RootDir)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return false, err
+			return err
 		}
 		// flag file may not exist on disk on first "boot"
 		flagFileExists = false
 	}
 
-	// next GetConfig from Fleet API
-	config, err := r.configFetcher.GetConfig()
-	if err != nil {
-		return false, fmt.Errorf("error getting flags from fleet: %w", err)
-	}
 	if len(config.Flags) == 0 {
 		// command_line_flags not set in YAML, nothing to do
-		return false, nil
+		return nil
 	}
 
 	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
 	if err != nil {
-		return false, fmt.Errorf("error parsing flags: %w", err)
+		return fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	// compare both flags, if they are equal, nothing to do
 	if flagFileExists && reflect.DeepEqual(osqueryFlagMapFromFile, osqueryFlagMapFromFleet) {
-		return false, nil
+		return nil
 	}
 
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(r.opt.RootDir, osqueryFlagMapFromFleet)
 	if err != nil {
-		return false, fmt.Errorf("error writing flags to disk: %w", err)
+		return fmt.Errorf("error writing flags to disk: %w", err)
 	}
-	return true, nil
+
+	r.triggerOrbitRestart("osquery flags updated")
+	return nil
 }
 
 // ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
@@ -129,76 +88,32 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 // It uses an an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
 // with ExtensionUpdateOptions and updateRunner to connect to Fleet.
 type ExtensionRunner struct {
-	configFetcher OrbitConfigFetcher
-	opt           ExtensionUpdateOptions
-	cancel        chan struct{}
-	updateRunner  *Runner
+	opt                 ExtensionUpdateOptions
+	updateRunner        *Runner
+	triggerOrbitRestart func(reason string)
 }
 
 // ExtensionUpdateOptions is options provided for the extensions fetch/update runner
 type ExtensionUpdateOptions struct {
-	// CheckInterval is the interval to check for updates
-	CheckInterval time.Duration
 	// RootDir is the root directory for orbit state
 	RootDir string
 }
 
 // NewExtensionConfigUpdateRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewExtensionConfigUpdateRunner(configFetcher OrbitConfigFetcher, opt ExtensionUpdateOptions, updateRunner *Runner) *ExtensionRunner {
+func NewExtensionConfigUpdateRunner(opt ExtensionUpdateOptions, updateRunner *Runner, triggerOrbitRestart func(reason string)) *ExtensionRunner {
 	return &ExtensionRunner{
-		configFetcher: configFetcher,
-		opt:           opt,
-		cancel:        make(chan struct{}),
-		updateRunner:  updateRunner,
+		opt:                 opt,
+		updateRunner:        updateRunner,
+		triggerOrbitRestart: triggerOrbitRestart,
 	}
-}
-
-// Execute starts the loop checking for updates
-func (r *ExtensionRunner) Execute() error {
-	log.Debug().Msg("starting extension runner")
-
-	ticker := time.NewTicker(r.opt.CheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.cancel:
-			return nil
-		case <-ticker.C:
-			log.Debug().Msg("calling /config API to fetch/update extensions")
-			extensionsCleared, err := r.DoExtensionConfigUpdate()
-			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "ext update failed")
-			}
-			if extensionsCleared {
-				log.Info().Msg("extensions were cleared on the server")
-				return nil
-			}
-		}
-		ticker.Reset(r.opt.CheckInterval)
-	}
-}
-
-// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
-func (r *ExtensionRunner) Interrupt(err error) {
-	close(r.cancel)
-	log.Error().Err(err).Msg(("interrupt extension runner"))
 }
 
 // DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet
 // It parses the extensions, computes the local hash, and writes the binary path to extension.load file
 //
-// It returns a (bool, error), where bool indicates whether orbit should restart
-// It only returns (true, nil) when extensions were previously configured and now are cleared
-func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
-	// call "/config" API endpoint to grab orbit configs from Fleet
-	config, err := r.configFetcher.GetConfig()
-	if err != nil {
-		// we do not want orbit to restart
-		return false, fmt.Errorf("extensionsUpdate: error getting extensions config from fleet: %w", err)
-	}
-
+// It will only trigger a orbit restart when extensions were previously configured and now are cleared.
+func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
 	if len(config.Extensions) == 0 {
 		// Extensions from Fleet is empty
@@ -209,8 +124,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
 		case errors.Is(err, os.ErrNotExist):
 			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
-			// we do not want orbit to restart
-			return false, nil
+			return nil
 		case err == nil:
 			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
 			// osquery can't startup without the extensions that were previously loaded
@@ -218,28 +132,24 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 			if stat.Size() > 0 {
 				err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
 				if err != nil {
-					// we do not want orbit to restart
-					return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
+					return fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
 				}
-				// we want to return true here, and restart with the empty extensions.load file
-				// so that we "unload" the previously loaded extensions
-				return true, nil
+				// Restart with the empty extensions.load file so that we "unload" the previously loaded extensions.
+				r.triggerOrbitRestart("unloading extensions")
+				return nil
 			}
-			// we do not want orbit to restart
-			return false, nil
+			return nil
 		default:
-			// we do not want orbit to restart, just log the error
-			return false, fmt.Errorf("stat file: %s", extensionAutoLoadFile)
+			return fmt.Errorf("stat file: %s", extensionAutoLoadFile)
 		}
 	}
 
 	log.Debug().Str("extensions", string(config.Extensions)).Msg("received extensions configuration")
 
 	var extensions fleet.Extensions
-	err = json.Unmarshal(config.Extensions, &extensions)
+	err := json.Unmarshal(config.Extensions, &extensions)
 	if err != nil {
-		// we do not want orbit to restart
-		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
+		return fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
 	// Filter out extensions not targeted to this OS.
@@ -254,7 +164,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 
 		// All Windows executables must end with `.exe`.
 		if runtime.GOOS == "windows" {
-			filename = filename + ".exe"
+			filename += ".exe"
 		}
 
 		// we don't want path traversal and the like in the filename
@@ -282,23 +192,20 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {
 			// Consider this a non-fatal error since it will be common to be offline
 			// or otherwise unable to retrieve the metadata.
-			return false, fmt.Errorf("update metadata: %w", err)
+			return fmt.Errorf("update metadata: %w", err)
 		}
 
 		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
-			// we do not want orbit to restart
-			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
+			return fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
 
 		sb.WriteString(path + "\n")
 	}
 	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
-		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
+		return fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
-	// we do not want orbit to restart
-	// runner.UpdateAction() will fetch the new targets and restart for us if needed
-	return false, nil
+	return nil
 }
 
 // getFlagsFromJSON converts a json document of the form

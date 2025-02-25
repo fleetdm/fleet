@@ -20,6 +20,7 @@ spec:
   detail_updated_at: "0001-01-01T00:00:00Z"
   display_text: test_host
   distributed_interval: 0
+  fleet_desktop_version: null
   gigs_disk_space_available: 0
   gigs_total_disk_space: 0
   hardware_model: ""
@@ -36,11 +37,14 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    dep_profile_error: false
     encryption_key_available: false
     enrollment_status: null
     name: ""
     server_url: null
+    connected_to_fleet: null
   memory: 0
+  orbit_version: null
   os_version: ""
   osquery_version: ""
   pack_stats: null
@@ -53,6 +57,7 @@ spec:
   primary_mac: ""
   refetch_requested: false
   refetch_critical_queries_until: null
+  scripts_enabled: null
   seen_time: "0001-01-01T00:00:00Z"
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
@@ -93,9 +98,11 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    dep_profile_error: false
     encryption_key_available: false
     enrollment_status: null
     server_url: null
+    connected_to_fleet: null
   memory: 0
   os_version: ""
   osquery_version: ""

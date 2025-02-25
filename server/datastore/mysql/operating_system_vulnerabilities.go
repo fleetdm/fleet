@@ -36,7 +36,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 
 	var sqlstmt string
 
-	if includeCVSS == true {
+	if includeCVSS {
 		sqlstmt = `
 			SELECT DISTINCT
 				osv.cve,
@@ -45,7 +45,8 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				cm.cisa_known_exploit,
 				cm.published as cve_published,
 				cm.description,
-				osv.resolved_in_version
+				osv.resolved_in_version,
+				osv.created_at
 			FROM operating_system_vulnerabilities osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			WHERE osv.operating_system_id IN (
@@ -55,7 +56,8 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 	} else {
 		sqlstmt = `
 			SELECT DISTINCT
-				osv.cve
+				osv.cve,
+				osv.created_at
 			FROM operating_system_vulnerabilities osv
 			WHERE osv.operating_system_id IN (
 				SELECT id FROM operating_systems WHERE name = ? AND version = ?
@@ -121,7 +123,7 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		return false, ctxerr.Wrap(ctx, err, "insert operating system vulnerability")
 	}
 
-	return insertOnDuplicateDidInsert(res), nil
+	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
 func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {

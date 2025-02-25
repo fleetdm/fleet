@@ -1,10 +1,8 @@
 name: keychain_acls
-examples: >-
+examples: |-
   Identify keychain items with permissions granted to Applications at the system
   or user level.
 
   ```
-
   SELECT * FROM keychain_acls WHERE path LIKE '/System/Applications/%%' OR path LIKE '/Users/%%/Applications/%%';
-
   ```

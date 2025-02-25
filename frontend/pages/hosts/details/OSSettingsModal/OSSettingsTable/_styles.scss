@@ -1,7 +1,41 @@
 .os-settings-table {
+  // stylings for the table cells. This was the explicit width we want
+  // for these cells in the table. Total width of the table cell will be
+  // 240px including the padding.
+  .data-table-block .data-table {
+    &__wrapper {
+      width: initial;
+    }
+    tbody td {
+      .os-settings-name-cell {
+        width: 135px;
+        max-width: none;
+      }
+      .os-settings-status-cell {
+        width: 200px;
+      }
+      .os-settings-error-cell {
+        width: 237px;
+      }
+    }
+  }
+
   .statusText {
     &__cell {
       white-space: nowrap;
+    }
+  }
+
+  // row hover effect for resend button. we dont want this behavior when the
+  // button is resending
+  .resend-link:not(.os-settings-error-cell__resending) {
+    opacity: 0;
+    transition: opacity 250ms;
+  }
+
+  tr:hover {
+    .resend-link:not(.os-settings-error-cell__resending) {
+      opacity: 1;
     }
   }
 }

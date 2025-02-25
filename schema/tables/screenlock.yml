@@ -2,9 +2,11 @@ name: screenlock
 platforms:
   - darwin
   - chrome
-description: >-
+description: |-
   Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.  For macOS, this table will return no results if osquery is running as root.
-notes: |
+notes: |-
   - For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.
+
   - For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+  
   - For ChromeOS, this table is only available for Chrome 73+.

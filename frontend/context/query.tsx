@@ -4,7 +4,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { QueryLoggingOption } from "interfaces/schedulable_query";
 import {
   DEFAULT_TARGETS,
@@ -25,11 +25,12 @@ type InitialStateType = {
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
   lastEditedQueryFrequency: number;
-  lastEditedQueryPlatforms: SelectedPlatformString;
+  lastEditedQueryAutomationsEnabled: boolean;
+  lastEditedQueryPlatforms: CommaSeparatedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
   lastEditedQueryDiscardData: boolean;
-  editingExistingQuery: boolean;
+  editingExistingQuery?: boolean;
   selectedQueryTargets: ITarget[]; // Mimicks old selectedQueryTargets still used for policies for SelectTargets.tsx and running a live query
   selectedQueryTargetsByType: ISelectedTargetsByType; // New format by type for cleaner app wide state
   setLastEditedQueryId: (value: number | null) => void;
@@ -38,7 +39,8 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setLastEditedQueryFrequency: (value: number) => void;
-  setLastEditedQueryPlatforms: (value: SelectedPlatformString) => void;
+  setLastEditedQueryAutomationsEnabled: (value: boolean) => void;
+  setLastEditedQueryPlatforms: (value: CommaSeparatedPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
   setLastEditedQueryDiscardData: (value: boolean) => void;
@@ -59,11 +61,12 @@ const initialState = {
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
   lastEditedQueryFrequency: DEFAULT_QUERY.interval,
+  lastEditedQueryAutomationsEnabled: DEFAULT_QUERY.automations_enabled,
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
   lastEditedQueryLoggingType: DEFAULT_QUERY.logging,
   lastEditedQueryDiscardData: DEFAULT_QUERY.discard_data,
-  editingExistingQuery: DEFAULT_QUERY.editingExistingQuery,
+  editingExistingQuery: DEFAULT_QUERY.editingExistingQuery ?? false,
   selectedQueryTargets: DEFAULT_TARGETS,
   selectedQueryTargetsByType: DEFAULT_TARGETS_BY_TYPE,
   setLastEditedQueryId: () => null,
@@ -72,6 +75,7 @@ const initialState = {
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
   setLastEditedQueryFrequency: () => null,
+  setLastEditedQueryAutomationsEnabled: () => null,
   setLastEditedQueryPlatforms: () => null,
   setLastEditedQueryMinOsqueryVersion: () => null,
   setLastEditedQueryLoggingType: () => null,
@@ -125,6 +129,10 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryFrequency === "undefined"
             ? state.lastEditedQueryFrequency
             : action.lastEditedQueryFrequency,
+        lastEditedQueryAutomationsEnabled:
+          typeof action.lastEditedQueryAutomationsEnabled === "undefined"
+            ? state.lastEditedQueryAutomationsEnabled
+            : action.lastEditedQueryAutomationsEnabled,
         lastEditedQueryPlatforms:
           typeof action.lastEditedQueryPlatforms === "undefined"
             ? state.lastEditedQueryPlatforms
@@ -180,6 +188,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency: state.lastEditedQueryFrequency,
+    lastEditedQueryAutomationsEnabled: state.lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
     lastEditedQueryLoggingType: state.lastEditedQueryLoggingType,
@@ -223,6 +232,14 @@ const QueryProvider = ({ children }: Props) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryFrequency,
+      });
+    },
+    setLastEditedQueryAutomationsEnabled: (
+      lastEditedQueryAutomationsEnabled: boolean
+    ) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryAutomationsEnabled,
       });
     },
     setLastEditedQueryPlatforms: (lastEditedQueryPlatforms: string) => {

@@ -1,13 +1,11 @@
 name: dns_resolvers
-examples: >-
+examples: |-
   Identify computers that are using an external DNS server instead of an
   internal one. This query also removes null and empty strings that can be
   returned by this table.
 
   ```
-
   SELECT address FROM dns_resolvers WHERE type='nameserver' AND address NOT LIKE '192.168%%' AND address NOT LIKE '172.16%%' AND address NOT LIKE '172.17%%' AND address NOT LIKE '172.18%%' AND address NOT LIKE '172.19%%' AND address NOT LIKE '172.20%%' AND address NOT LIKE '172.21%%' AND address NOT LIKE '172.22%%' AND address NOT LIKE '172.23%%' AND address NOT LIKE '10.%%'  AND address NOT LIKE '127.%%' AND address IS NOT NULL AND address IS NOT ' ' AND address IS NOT ''; 
-
   ```
 columns:
   - name: pid_with_namespace

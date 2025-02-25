@@ -13,8 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 )
 
@@ -116,7 +116,7 @@ by an exit code of zero.`,
 					return err
 				}
 			}
-			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Now().Sub(start))
+			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Since(start))
 
 			return
 		},
@@ -181,6 +181,12 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 			Name: "cron_sync_hosts_software_titles",
 			VulnFunc: func(ctx context.Context) error {
 				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
+			},
+		},
+		{
+			Name: "update_host_issues_vulnerabilities_counts",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.UpdateHostIssuesVulnerabilities(ctx)
 			},
 		},
 	}

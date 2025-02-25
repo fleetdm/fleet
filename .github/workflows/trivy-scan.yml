@@ -1,0 +1,71 @@
+name: Trivy vulnerability scan
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.tf"
+  pull_request:
+    paths:
+      - "**.tf"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *" # Nightly 4AM UTC
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+env:
+  AWS_REGION: us-east-2
+  AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    permissions:
+      id-token: write # for aws-actions/configure-aws-credentials
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+    name: Trivy sarif report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{env.AWS_IAM_ROLE}}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@062f2592684a31eb3aa050cc61e7ca1451cecd3d # 0.18.0
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          scan-type: "fs"
+          ignore-unfixed: false
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM,LOW"
+          trivyignores: ".trivyignore"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@8a470fddafa5cbb6266ee11b37ef4d8aae19c571 # v3.24.6
+        with:
+          sarif_file: "trivy-results.sarif"

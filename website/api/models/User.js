@@ -202,6 +202,81 @@ without necessarily having a billing card.`
       defaultsTo: false
     },
 
+    primaryBuyingSituation: {
+      type: 'string',
+      description: 'The primary buying situation the user selected when they signed up.',
+      extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
+      isIn: [
+        'eo-security',
+        'eo-it',
+        'mdm',
+        'vm',
+      ]
+    },
+
+    lastSubmittedGetStartedQuestionnaireStep: {
+      type: 'string',
+      description: 'The last step the user reached in the get started form.',
+      defaultsTo: 'start',
+    },
+
+    getStartedQuestionnaireAnswers: {
+      type: 'json',
+      description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
+    },
+
+    psychologicalStage: {
+      type: 'string',
+      description: 'This user\'s psychological stage based on the answers to the get started questionnaire.',
+      isIn: [
+        '1 - Unaware',
+        '2 - Aware',
+        '3 - Intrigued',
+        '4 - Has use case',
+        '5 - Personally confident',
+        '6 - Has team buy-in'
+      ],
+      defaultsTo: '2 - Aware'
+    },
+
+    psychologicalStageLastChangedAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s psychological stage changed.',
+      extendedDescription: 'Used when deciding whether or not to send a nuture email to this user',
+    },
+
+    stageThreeNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    stageFourNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    stageFiveNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    fleetPremiumTrialLicenseKey: {
+      type: 'string',
+      description: 'A Fleet Premium license key that was generated for this user when they progressed through the get started questionnaire.',
+    },
+
+    fleetPremiumTrialLicenseKeyExpiresAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s Fleet Premium trial license key expires.',
+    },
+
+    canUseQueryGenerator: {
+      type: 'boolean',
+      description: 'Whether or not this user can access the query generator page',
+      defaultsTo: false,
+    },
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

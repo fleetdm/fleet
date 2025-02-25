@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <pkg-ref id="com.airtame.airtame-application">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="4.10.1" CFBundleVersion="4.10.1.3500" id="com.airtame.airtame-application" path="Airtame.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <product id="com.airtame.airtame-application" version="4.10.1"/>
+    <title>Airtame</title>
+    <options customize="never" require-scripts="false" hostArchitectures="x86_64"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="10.15"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.airtame.airtame-application"/>
+        </line>
+    </choices-outline>
+    <choice id="default" title="Airtame" versStr="4.10.1"/>
+    <choice id="com.airtame.airtame-application" title="Airtame" visible="false">
+        <pkg-ref id="com.airtame.airtame-application"/>
+    </choice>
+    <pkg-ref id="com.airtame.airtame-application" version="4.10.1" onConclusion="none" installKBytes="273994">#com.airtame.airtame-application.pkg</pkg-ref>
+    <domains enable_anywhere="true" enable_currentUserHome="false" enable_localSystem="true"/>
+</installer-gui-script> 

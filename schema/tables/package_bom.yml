@@ -1,10 +1,12 @@
 name: package_bom
-examples: >-
-  List the bill of materials of a package. The receipts directory contains
-  packages to installed applications.
+description: The "bill of materials" (`.bom`) file in a macOS installer package (`.pkg`) lists all files installed by the package. The `package_bom` osquery table collects the data from the `.bom` files created in `/private/var/db/receipts` by macOS when a `.pkg` file is executed.
+examples: |-
+  This query collects the filepath and time of installation for the libVFXCore.dylib (Dynamic Library) file installed as part of Xcode.app:
 
   ```
-
-  SELECT * FROM package_bom WHERE path='/private/var/db/receipts/com.yubico.ykman.bom';
-
+  SELECT filepath,modified_time FROM package_bom WHERE path='/private/var/db/receipts/com.apple.pkg.Xcode.bom' AND filepath LIKE '%libVFXCore.dylib';
   ```
+notes: |-
+  Keeping track of files installed by applications is critical for upholding software management best security practices.
+
+  Apple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)

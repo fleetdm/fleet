@@ -49,6 +49,8 @@ It’s very important to understand how a table will be used. If rows are insert
 
 This approach has a caveat. It introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
 
+When using transactions, the above `INSERT` race condition may [cause a deadlock](https://victoronsoftware.com/posts/mysql-upsert-deadlock/). The simplest solution is to retry the failing transaction. However, another solution may be needed if such deadlocks happen too often.
+
 This is subtle, but an insert will update indexes, check constraints, etc. At the same time, an update might sometimes not do any of that, depending on what is being updated.
 
 While not a performance GOTCHA, if you do use `INSERT … ON DUPLICATE KEY UPDATE`, beware that LastInsertId will return non-zero only if the INSERT portion happens. [If an update happens, the LastInsertId will be 0](https://github.com/fleetdm/fleet/blob/1aff4a4231ccff4d80889b46b57ed12c5ba1ae14/server/datastore/mysql/mysql.go#L925-L953).

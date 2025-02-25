@@ -1,7 +1,7 @@
 .manual-enroll-mdm-modal {
   @include enroll-mdm-modal;
 
-  &__error-message {
-    margin: $pad-xxxlarge;
+  &__download-button {
+    margin-top: 12px;
   }
 }

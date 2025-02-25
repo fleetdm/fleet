@@ -15,12 +15,12 @@ var DefaultOptions = defaultOptions
 
 var (
 	DarwinTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "macos",
 			Channel:    "stable",
 			TargetFile: "orbit",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:             "macos-app",
 			Channel:              "stable",
 			TargetFile:           "osqueryd.app.tar.gz",
@@ -29,25 +29,38 @@ var (
 	}
 
 	LinuxTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "linux",
 			Channel:    "stable",
 			TargetFile: "orbit",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:   "linux",
 			Channel:    "stable",
 			TargetFile: "osqueryd",
 		},
 	}
 
+	LinuxArm64Targets = Targets{
+		constant.OrbitTUFTargetName: TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		constant.OsqueryTUFTargetName: TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "osqueryd",
+		},
+	}
+
 	WindowsTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "windows",
 			Channel:    "stable",
 			TargetFile: "orbit.exe",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:   "windows",
 			Channel:    "stable",
 			TargetFile: "osqueryd.exe",
@@ -82,6 +95,20 @@ var (
 		},
 	}
 
+	DesktopLinuxArm64Target = TargetInfo{
+		Platform:             "linux-arm64",
+		Channel:              "stable",
+		TargetFile:           "desktop.tar.gz",
+		ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
+		CustomCheckExec: func(execPath string) error {
+			cmd := exec.Command(execPath, "--help")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("exec new version: %s: %w", string(out), err)
+			}
+			return nil
+		},
+	}
+
 	NudgeMacOSTarget = TargetInfo{
 		Platform:             "macos",
 		Channel:              "stable",
@@ -94,5 +121,11 @@ var (
 		Channel:              "stable",
 		TargetFile:           "swiftDialog.app.tar.gz",
 		ExtractedExecSubPath: []string{"Dialog.app", "Contents", "MacOS", "Dialog"},
+	}
+
+	EscrowBuddyMacOSTarget = TargetInfo{
+		Platform:   "macos",
+		Channel:    "stable",
+		TargetFile: "escrowBuddy.pkg",
 	}
 )

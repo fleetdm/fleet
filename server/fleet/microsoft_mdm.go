@@ -857,6 +857,43 @@ type SyncML struct {
 	Raw []byte `xml:"-"`
 }
 
+type EnrichedSyncML struct {
+	*SyncML
+	CmdRefUUIDToStatus  map[string]SyncMLCmd
+	CmdRefUUIDToResults map[string]SyncMLCmd
+	CmdRefUUIDs         []string
+}
+
+func (e EnrichedSyncML) HasCommands() bool {
+	return len(e.CmdRefUUIDs) > 0
+}
+
+func NewEnrichedSyncML(syncML *SyncML) EnrichedSyncML {
+	result := EnrichedSyncML{
+		SyncML:              syncML,
+		CmdRefUUIDToStatus:  make(map[string]SyncMLCmd),
+		CmdRefUUIDToResults: make(map[string]SyncMLCmd),
+	}
+	for _, protoOp := range result.SyncML.GetOrderedCmds() {
+		// results and status should contain a command they're referencing
+		cmdRef := protoOp.Cmd.CmdRef
+		if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
+			continue
+		}
+
+		switch protoOp.Verb {
+		case CmdStatus:
+			result.CmdRefUUIDToStatus[*cmdRef] = protoOp.Cmd
+		case CmdResults:
+			result.CmdRefUUIDToResults[*cmdRef] = protoOp.Cmd
+		default:
+			continue
+		}
+		result.CmdRefUUIDs = append(result.CmdRefUUIDs, *cmdRef)
+	}
+	return result
+}
+
 type SyncHdr struct {
 	VerDTD    string   `xml:"VerDTD"`
 	VerProto  string   `xml:"VerProto"`
@@ -969,8 +1006,12 @@ type SyncMLCmd struct {
 	// which can be found under <Atomic> elements.
 	//
 	// NOTE: in theory Atomics can have anything except Get verbs, but
-	// for the moment we're not allowing anything besides Replaces
+	// for the moment we're not allowing anything besides Replaces and Adds
 	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
+
+	// AddCommands is a catch-all for any nested <Add> commands,
+	// which can be found under <Atomic> elements.
+	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1406,11 +1447,12 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	var pld WindowsMDMAccessTokenPayload
 	pld.Type = typeID
 
-	if typeID == WindowsMDMProgrammaticEnrollmentType {
+	switch typeID {
+	case WindowsMDMProgrammaticEnrollmentType:
 		pld.Payload.OrbitNodeKey = payload
-	} else if typeID == WindowsMDMAutomaticEnrollmentType {
+	case WindowsMDMAutomaticEnrollmentType:
 		pld.Payload.AuthToken = payload
-	} else {
+	default:
 		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
 	}
 
@@ -1450,7 +1492,7 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // MDMWindowsProfilePayload for a command that was used to deliver a
 // configuration profile.
 //
-// Profiles are groups of `<Replace>` commands wrapped in an `<Atomic>`, both
+// Profiles are groups of `<Replace>` or `<Add>` commands wrapped in an `<Atomic>`, both
 // the top-level atomic and each replace have different CmdID values and Status
 // responses. For example a profile might look like:
 //
@@ -1504,22 +1546,29 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 //   - The detail of the resulting command should be an aggregate of all the
 //     status responses of every nested `Replace` operation
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
-	cmd MDMWindowsCommand,
+	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
+	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmd.CommandUUID]
+	status, ok := statuses[cmdWithSecret.CommandUUID]
 	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
+		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 	}
 	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
 	var details []string
 	if status.Data != nil && commandStatus == MDMDeliveryFailed {
 		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
+		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
 			return nil, err
 		}
 		for _, nested := range syncML.ReplaceCommands {
+			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+			}
+		}
+
+		for _, nested := range syncML.AddCommands {
 			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
 				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
 			}
@@ -1531,7 +1580,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		Status:        &commandStatus,
 		OperationType: "",
 		Detail:        detail,
-		CommandUUID:   cmd.CommandUUID,
+		CommandUUID:   cmdWithSecret.CommandUUID,
 	}, nil
 }
 

@@ -18,6 +18,9 @@
 		"uuid": "",
 		"platform": "",
 		"osquery_version": "",
+		"orbit_version": null,
+		"fleet_desktop_version": null,
+		"scripts_enabled": null,
 		"os_version": "",
 		"build": "",
 		"platform_like": "",
@@ -42,10 +45,12 @@
 		"config_tls_refresh": 0,
 		"logger_tls_period": 0,
 		"mdm": {
+			"dep_profile_error": false,
 			"encryption_key_available": false,
 			"enrollment_status": null,
 			"name": "",
-			"server_url": null
+			"server_url": null,
+			"connected_to_fleet": null
 		},
 		"team_id": null,
 		"pack_stats": null,
@@ -88,6 +93,9 @@
 		"uuid": "",
 		"platform": "",
 		"osquery_version": "",
+		"orbit_version": null,
+		"fleet_desktop_version": null,
+		"scripts_enabled": null,
 		"os_version": "",
 		"build": "",
 		"platform_like": "",
@@ -113,10 +121,12 @@
 		"config_tls_refresh": 0,
 		"logger_tls_period": 0,
 		"mdm": {
+			"dep_profile_error": false,
 			"encryption_key_available": false,
 			"enrollment_status": null,
 			"name": "",
-			"server_url": null
+			"server_url": null,
+			"connected_to_fleet": null
 		},
 		"team_id": null,
 		"pack_stats": null,

@@ -1,41 +1,27 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { IActivityDetails } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import { IHostUpcomingActivity } from "interfaces/activity";
+import {
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
+} from "services/entities/activities";
 
 import Card from "components/Card";
 import TabsWrapper from "components/TabsWrapper";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
 const baseClass = "activity-card";
 
-export interface IShowActivityDetailsData {
-  type: string;
-  details?: IActivityDetails;
-}
-
-export type ShowActivityDetailsHandler = (
-  data: IShowActivityDetailsData
-) => void;
-
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      position="top-start"
-      tipContent={
-        <>
-          Upcoming activities will run as listed. Failure of one activity won’t
-          cancel other activities.
-          <br />
-          <br />
-          Currently, only scripts are guaranteed to run in order.
-        </>
-      }
+      tipContent="Failure of one activity won't cancel other activities."
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
@@ -45,7 +31,7 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
-  activities?: IActivitiesResponse;
+  activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
   upcomingCount: number;
@@ -53,6 +39,7 @@ interface IActivityProps {
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
 }
 
 const Activity = ({
@@ -65,10 +52,15 @@ const Activity = ({
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onCancel,
 }: IActivityProps) => {
-  // TODO: add count to upcoming activities tab when available via API
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card
+      borderRadiusSize="xxlarge"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner />
@@ -93,8 +85,8 @@ const Activity = ({
           </TabList>
           <TabPanel>
             <PastActivityFeed
-              activities={activities}
-              onDetailsClick={onShowDetails}
+              activities={activities as IHostPastActivitiesResponse | undefined}
+              onShowDetails={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
@@ -103,8 +95,11 @@ const Activity = ({
           <TabPanel>
             <UpcomingTooltip />
             <UpcomingActivityFeed
-              activities={activities}
-              onDetailsClick={onShowDetails}
+              activities={
+                activities as IHostUpcomingActivitiesResponse | undefined
+              }
+              onShowDetails={onShowDetails}
+              onCancel={onCancel}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}

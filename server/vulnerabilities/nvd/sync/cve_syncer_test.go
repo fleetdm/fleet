@@ -3,17 +3,22 @@ package nvdsync
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/go-kit/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pandatix/nvdapi/v2"
@@ -26,6 +31,7 @@ var (
 )
 
 func TestStoreCVEsLegacyFormat(t *testing.T) {
+	t.Parallel()
 	year := 2023
 	t.Run(fmt.Sprintf("%d", year), func(t *testing.T) {
 		// Load CVEs from legacy feed.
@@ -52,7 +58,7 @@ func TestStoreCVEsLegacyFormat(t *testing.T) {
 			matched               = 0
 		)
 		for _, api20Vuln := range api20CVEs {
-			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln, log.NewNopLogger())
+			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln.CVE, log.NewNopLogger())
 			legacyVuln, ok := legacyVulns[*api20Vuln.CVE.ID]
 			if !ok {
 				vulnsNotFoundInLegacy = append(vulnsNotFoundInLegacy, *api20Vuln.CVE.ID)
@@ -139,4 +145,145 @@ func sortChildren(children []*schema.NVDCVEFeedJSON10DefNode) {
 	sort.Slice(children, func(i, j int) bool {
 		return childrenHash(*children[i]) < childrenHash(*children[j])
 	})
+}
+
+func TestEnhanceNVDwithVulncheck(t *testing.T) {
+	// gzip the vulncheck data
+	testDataPath := filepath.Join("testdata", "cve", "vulncheck_test_data")
+	nvdFile := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
+	vulncheckFile1 := filepath.Join(testDataPath, "nvdcve-2.0-122.json")
+	vulncheckFile2 := filepath.Join(testDataPath, "nvdcve-2.0-121.json")
+	gzipFile1 := filepath.Join(testDataPath, "nvdcve-2.0-122.json.gz")
+	gzipFile2 := filepath.Join(testDataPath, "nvdcve-2.0-121.json.gz")
+	zFile := filepath.Join(testDataPath, "vulncheck.zip")
+
+	// backup the original data to new directory
+	backupPath := filepath.Join(testDataPath, "backup")
+	err := os.MkdirAll(backupPath, os.ModePerm)
+	require.NoError(t, err)
+
+	err = copyFile(nvdFile, filepath.Join(backupPath, "nvdcve-1.1-2024.json"))
+	require.NoError(t, err)
+
+	err = copyFile(vulncheckFile1, filepath.Join(backupPath, "nvdcve-2.0-122.json"))
+	require.NoError(t, err)
+
+	err = copyFile(vulncheckFile2, filepath.Join(backupPath, "nvdcve-2.0-121.json"))
+	require.NoError(t, err)
+
+	// compress the vulncheck file to mimic the real data
+	err = CompressFile(vulncheckFile1, gzipFile1)
+	require.NoError(t, err)
+
+	err = CompressFile(vulncheckFile2, gzipFile2)
+	require.NoError(t, err)
+
+	err = zipFiles([]string{gzipFile1, gzipFile2}, zFile)
+	require.NoError(t, err)
+
+	defer func() {
+		// restore the original data
+		err := copyFile(filepath.Join(backupPath, "nvdcve-1.1-2024.json"), filepath.Join(testDataPath, "nvdcve-1.1-2024.json"))
+		require.NoError(t, err)
+
+		err = copyFile(filepath.Join(backupPath, "nvdcve-2.0-122.json"), filepath.Join(testDataPath, "nvdcve-2.0-122.json"))
+		require.NoError(t, err)
+
+		err = copyFile(filepath.Join(backupPath, "nvdcve-2.0-121.json"), filepath.Join(testDataPath, "nvdcve-2.0-121.json"))
+		require.NoError(t, err)
+
+		err = os.RemoveAll(backupPath)
+		require.NoError(t, err)
+
+		err = os.Remove(gzipFile1)
+		require.NoError(t, err)
+
+		err = os.Remove(gzipFile2)
+		require.NoError(t, err)
+
+		err = os.Remove(zFile)
+		require.NoError(t, err)
+	}()
+
+	syncer, err := NewCVE(testDataPath)
+	require.NoError(t, err)
+
+	err = syncer.processVulnCheckFile("vulncheck.zip")
+	require.NoError(t, err)
+
+	// compare the enhanced data with the expected data
+	enhancedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024.json")
+	expectedDataPath := filepath.Join(testDataPath, "nvdcve-1.1-2024-expected.json")
+	enhancedData, err := os.ReadFile(enhancedDataPath)
+	require.NoError(t, err)
+	expectedData, err := os.ReadFile(expectedDataPath)
+	require.NoError(t, err)
+
+	require.Equal(t, string(expectedData), string(enhancedData))
+}
+
+func TestFetchVulnCheckDownloadURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(`{"data": [{"url": "http://example.com/vulncheck.zip"}]}`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	syncer, err := NewCVE("foo")
+	require.NoError(t, err)
+
+	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
+		os.Setenv("VULNCHECK_API_KEY", "foo")
+	}
+
+	url, err := syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
+	require.NoError(t, err)
+
+	require.Equal(t, "http://example.com/vulncheck.zip", url)
+}
+
+func TestFetchVulnCheckDownloadURLWithRetries(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	syncer, err := NewCVE("foo")
+	require.NoError(t, err)
+
+	syncer.MaxTryAttempts = 3
+	syncer.WaitTimeForRetry = 5 * time.Millisecond
+
+	if _, ok := os.LookupEnv("VULNCHECK_API_KEY"); !ok {
+		os.Setenv("VULNCHECK_API_KEY", "foo")
+	}
+
+	_, err = syncer.fetchVulnCheckDownloadURL(context.Background(), server.URL)
+	require.Error(t, err)
+}
+
+func copyFile(src, dst string) error {
+	// Open the source file for reading
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	// Create the destination file with write and read permissions
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	// Copy the contents of the source file to the destination file
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Ensure that the copied contents are flushed to stable storage
+	return destFile.Sync()
 }

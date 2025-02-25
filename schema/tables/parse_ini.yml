@@ -1,0 +1,29 @@
+name: parse_ini
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+description: Parse a file as INI configuration.
+platforms: 
+  - darwin
+  - windows
+  - linux
+evented: false
+columns:
+  - name: path
+    description: Path of the file to read.
+    required: true
+    type: text
+  - name: fullkey
+    description: Key including any parent keys.
+    type: text
+    required: false
+  - name: parent
+    description: Parent key when keys are nested in the document.
+    required: false
+    type: text
+  - name: key
+    description: JSON key or array index.
+    required: false
+    type: text
+  - name: value
+    description: JSON value
+    required: false
+    type: text  

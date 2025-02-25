@@ -11,8 +11,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/rs/zerolog"
 )
 
 // Exec is a wrapper over exec.CommandContext. It does a couple of
@@ -23,7 +22,7 @@ import (
 //  3. It moves the stderr into the return error, if needed.
 //
 // This is not suitable for high performance work -- it allocates new buffers each time.
-func Exec(ctx context.Context, logger log.Logger, timeoutSeconds int, possibleBins []string, args []string, includeStderr bool) ([]byte, error) {
+func Exec(ctx context.Context, log zerolog.Logger, timeoutSeconds int, possibleBins []string, args []string, includeStderr bool) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 
@@ -42,10 +41,7 @@ func Exec(ctx context.Context, logger log.Logger, timeoutSeconds int, possibleBi
 			cmd.Stderr = &stderr
 		}
 
-		level.Debug(logger).Log(
-			"msg", "execing",
-			"cmd", cmd.String(),
-		)
+		log.Debug().Str("cmd", cmd.String()).Msg("execing")
 
 		switch err := cmd.Run(); {
 		case err == nil:
@@ -55,7 +51,7 @@ func Exec(ctx context.Context, logger log.Logger, timeoutSeconds int, possibleBi
 			continue
 		default:
 			// an actual error
-			return nil, fmt.Errorf("exec '%s'. Got: '%s': %w", cmd.String(), string(stderr.Bytes()), err)
+			return nil, fmt.Errorf("exec '%s'. Got: '%s': %w", cmd.String(), stderr.String(), err)
 		}
 
 	}

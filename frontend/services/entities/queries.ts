@@ -6,15 +6,44 @@ import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import { SelectedPlatform } from "interfaces/platform";
 
-// Mock API requests to be used in developing FE for #7765 in parallel with BE development
-// import { sendRequest } from "services/mock_service/service/service";
+export interface ILoadQueriesParams {
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
+  targetedPlatform?: SelectedPlatform;
+}
+export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
+  scope: "queries";
+}
+
+export interface IQueriesResponse {
+  queries: ISchedulableQuery[];
+  count: number;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
 
 export default {
   create: (createQueryRequestBody: ICreateQueryRequestBody) => {
     const { QUERIES } = endpoints;
+    if (createQueryRequestBody.name) {
+      createQueryRequestBody.name = createQueryRequestBody.name.trim();
+    }
 
     return sendRequest("POST", QUERIES, createQueryRequestBody);
   },
@@ -35,14 +64,41 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (teamId?: number) => {
+  loadAll: ({
+    teamId,
+    page,
+    perPage,
+    query,
+    orderDirection,
+    orderKey,
+    mergeInherited,
+    // FE logic uses less ambiguous `targetedPlatform`, while API expects `platform` for alignment
+    // with other API conventions and database `queries.platform` column
+    targetedPlatform: platform,
+  }: IQueryKeyQueriesLoadAll): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
-    const path = `${QUERIES}`;
+
+    const snakeCaseParams = convertParamsToSnakeCase({
+      teamId,
+      page,
+      perPage,
+      query,
+      orderDirection,
+      orderKey,
+      mergeInherited,
+      platform,
+    });
+
+    // API expects "macos" instead of "darwin"
+    if (snakeCaseParams.platform === "darwin") {
+      snakeCaseParams.platform = "macos";
+    }
+
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
 
     return sendRequest(
       "GET",
-      queryString ? path.concat(`?${queryString}`) : path
+      queryString ? QUERIES.concat(`?${queryString}`) : QUERIES
     );
   },
   run: async ({
@@ -79,6 +135,9 @@ export default {
   update: (id: number, updateParams: IModifyQueryRequestBody) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
+    if (updateParams.name) {
+      updateParams.name = updateParams.name.trim();
+    }
 
     return sendRequest("PATCH", path, updateParams);
   },

@@ -24,7 +24,7 @@ func TestUp_20230515144206(t *testing.T) {
 
 	err = db.Get(&asst, `SELECT id, profile_uuid FROM mdm_apple_default_setup_assistants WHERE id = ?`, id)
 	require.NoError(t, err)
-	require.Equal(t, assistant{ID: uint(id), ProfileUUID: "abc"}, asst)
+	require.Equal(t, assistant{ID: uint(id), ProfileUUID: "abc"}, asst) //nolint:gosec // dismiss G115
 
 	// create a team
 	r, err = db.Exec(`INSERT INTO teams (name) VALUES (?)`, "Test Team")
@@ -38,5 +38,5 @@ func TestUp_20230515144206(t *testing.T) {
 
 	err = db.Get(&asst, `SELECT id, profile_uuid FROM mdm_apple_default_setup_assistants WHERE id = ?`, id)
 	require.NoError(t, err)
-	require.Equal(t, assistant{ID: uint(id), ProfileUUID: "def"}, asst)
+	require.Equal(t, assistant{ID: uint(id), ProfileUUID: "def"}, asst) //nolint:gosec // dismiss G115
 }

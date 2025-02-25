@@ -60,7 +60,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	OR
 	(
 		/* 'All hosts' builtin label was selected. */
-		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = 6 AND label_id IN (? /* queryLabelIDs */))
+		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = (SELECT id from labels WHERE name = 'All Hosts') AND label_id IN (? /* queryLabelIDs */))
 	)
 	OR
 	(
@@ -85,7 +85,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 		AND
 		/* A team filter was not specified OR if it was specified then the host must be a
 		 * member of one of the teams. */
-		(? /* !teamsSpecified */ OR team_id IN (? /* queryTeamIDs */))
+		(? /* !teamsSpecified */ OR team_id IN (? /* queryTeamIDs */) %s)
 	)
 )`
 
@@ -95,21 +95,26 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	// all situations (no need to remove the clause when there are no values)
 	queryLabelIDs := []int{-1}
 	for _, id := range targets.LabelIDs {
-		queryLabelIDs = append(queryLabelIDs, int(id))
+		queryLabelIDs = append(queryLabelIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 	queryHostIDs := []int{-1}
 	for _, id := range targets.HostIDs {
-		queryHostIDs = append(queryHostIDs, int(id))
+		queryHostIDs = append(queryHostIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 	queryTeamIDs := []int{-1}
+	extraTeamIDCondition := ""
 	for _, id := range targets.TeamIDs {
-		queryTeamIDs = append(queryTeamIDs, int(id))
+		if id == 0 {
+			extraTeamIDCondition = "OR team_id IS NULL"
+			continue
+		}
+		queryTeamIDs = append(queryTeamIDs, int(id)) //nolint:gosec // dismiss G115
 	}
 
 	labelsSpecified := len(queryLabelIDs) > 1
-	teamsSpecified := len(queryTeamIDs) > 1
+	teamsSpecified := len(queryTeamIDs) > 1 || extraTeamIDCondition != ""
 
-	return queryTargetLogicCondition, []interface{}{
+	return fmt.Sprintf(queryTargetLogicCondition, extraTeamIDCondition), []interface{}{
 		queryHostIDs,
 		queryLabelIDs,
 		labelsSpecified, teamsSpecified,

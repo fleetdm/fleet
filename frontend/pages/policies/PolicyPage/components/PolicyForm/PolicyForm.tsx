@@ -15,11 +15,11 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { OsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
@@ -29,7 +29,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
 const baseClass = "policy-form";
@@ -39,8 +40,6 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
-  isTeamAdmin: boolean;
-  isTeamMaintainer: boolean;
   isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
@@ -50,6 +49,11 @@ interface IPolicyFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
+  isFetchingAutofillDescription: boolean;
+  isFetchingAutofillResolution: boolean;
+  onClickAutofillDescription: () => Promise<void>;
+  onClickAutofillResolution: () => Promise<void>;
+  resetAiAutofillData: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -69,8 +73,6 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
-  isTeamAdmin,
-  isTeamMaintainer,
   isTeamObserver,
   isUpdatingPolicy,
   onCreatePolicy,
@@ -80,6 +82,11 @@ const PolicyForm = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   backendValidators,
+  isFetchingAutofillDescription,
+  isFetchingAutofillResolution,
+  onClickAutofillDescription,
+  onClickAutofillResolution,
+  resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -93,7 +100,6 @@ const PolicyForm = ({
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
-    policyTeamId,
     lastEditedQueryId,
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -112,15 +118,21 @@ const PolicyForm = ({
 
   const {
     currentUser,
+    currentTeam,
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
-    isSandboxMode,
     config,
   } = useContext(AppContext);
+
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const aiFeaturesDisabled =
+    config?.server_settings.ai_features_disabled || false;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
@@ -136,9 +148,17 @@ const PolicyForm = ({
     setCompatiblePlatforms,
   } = platformCompatibility;
 
+  const platformSelectorDisabled =
+    isFetchingAutofillDescription ||
+    isFetchingAutofillResolution ||
+    gitOpsModeEnabled;
+
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
-    baseClass
+    baseClass,
+    platformSelectorDisabled,
+    storedPolicy?.install_software,
+    currentTeam?.id
   );
 
   const {
@@ -154,8 +174,6 @@ const PolicyForm = ({
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
-
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -178,8 +196,7 @@ const PolicyForm = ({
     !isEditMode || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
-    (isTeamMaintainer && policyTeamId === storedPolicy?.team_id); // team maintainer cannot save global policy
+    isTeamMaintainerOrTeamAdmin;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -200,8 +217,9 @@ const PolicyForm = ({
     });
   };
 
-  const onChangePolicy = (sqlString: string) => {
+  const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
   };
 
   const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -231,17 +249,16 @@ const PolicyForm = ({
       });
     }
 
-    let selectedPlatforms: OsqueryPlatform[] = [];
-    if (isEditMode || defaultPolicy) {
-      selectedPlatforms = getSelectedPlatforms();
-    } else {
+    let selectedPlatforms = getSelectedPlatforms();
+    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
+      // If no platforms are selected, default to all compatible platforms
       selectedPlatforms = getCompatiblePlatforms();
       setSelectedPlatforms(selectedPlatforms);
     }
 
     const newPlatformString = selectedPlatforms.join(
       ","
-    ) as SelectedPlatformString;
+    ) as CommaSeparatedPlatformString;
 
     if (!defaultPolicy) {
       setLastEditedQueryPlatform(newPlatformString);
@@ -295,7 +312,7 @@ const PolicyForm = ({
     }
 
     return (
-      <Button variant="small-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
           <Icon name="info" size="small" />
           Show schema
@@ -304,48 +321,86 @@ const PolicyForm = ({
     );
   };
 
-  const policyNameClasses = classnames("policy-name-wrapper", {
+  const editName = () => {
+    if (!isEditingName) {
+      setIsEditingName(true);
+    }
+  };
+
+  const editDescription = () => {
+    if (!isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  };
+
+  const editResolution = () => {
+    if (!isEditingResolution) {
+      setIsEditingResolution(true);
+    }
+  };
+
+  const policyNameWrapperBase = "policy-name-wrapper";
+  const policyNameWrapperClasses = classnames(policyNameWrapperBase, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const policyDescriptionClasses = classnames("policy-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const policyDescriptionWrapperBase = "policy-description-wrapper";
+  const policyDescriptionWrapperClasses = classnames(
+    policyDescriptionWrapperBase,
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
-  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
-    [`${baseClass}--editing`]: isEditingResolution,
-  });
+  const policyResolutionWrapperBase = "policy-resolution-wrapper";
+  const policyResolutionWrapperClasses = classnames(
+    policyResolutionWrapperBase,
+    {
+      [`${baseClass}--editing`]: isEditingResolution,
+    }
+  );
 
   const renderName = () => {
     if (isEditMode) {
       return (
-        <>
-          <div className={policyNameClasses}>
-            <AutoSizeInputField
-              name="policy-name"
-              placeholder="Add name here"
-              value={lastEditedQueryName}
-              hasError={errors && errors.name}
-              inputClassName={`${baseClass}__policy-name`}
-              maxLength="160"
-              onChange={setLastEditedQueryName}
-              onFocus={() => setIsEditingName(true)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingName}
-            />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingName(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingName ? "hide" : ""}`}
-              />
-            </Button>
-          </div>
-        </>
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={16}
+          renderChildren={(disableChildren) => {
+            const classes = classnames(policyNameWrapperClasses, {
+              [`${policyNameWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
+            });
+            return (
+              <div
+                className={classes}
+                onFocus={() => setIsEditingName(true)}
+                onBlur={() => setIsEditingName(false)}
+                onClick={editName}
+              >
+                <AutoSizeInputField
+                  name="policy-name"
+                  placeholder="Add name here"
+                  value={lastEditedQueryName}
+                  hasError={errors && errors.name}
+                  inputClassName={`${baseClass}__policy-name ${
+                    !lastEditedQueryName ? "no-value" : ""
+                  }
+              `}
+                  maxLength={160}
+                  onChange={setLastEditedQueryName}
+                  onKeyPress={onInputKeypress}
+                  isFocused={isEditingName}
+                  disableTabability={disableChildren}
+                />
+                <Icon
+                  name="pencil"
+                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                  size="small-medium"
+                />
+              </div>
+            );
+          }}
+        />
       );
     }
 
@@ -361,32 +416,42 @@ const PolicyForm = ({
   const renderDescription = () => {
     if (isEditMode) {
       return (
-        <>
-          <div className={policyDescriptionClasses}>
-            <AutoSizeInputField
-              name="policy-description"
-              placeholder="Add description here."
-              value={lastEditedQueryDescription}
-              inputClassName={`${baseClass}__policy-description`}
-              maxLength="250"
-              onChange={setLastEditedQueryDescription}
-              onFocus={() => setIsEditingDescription(true)}
-              onBlur={() => setIsEditingDescription(false)}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingDescription}
-            />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingDescription(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-              />
-            </Button>
-          </div>
-        </>
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={16}
+          renderChildren={(disableChildren) => {
+            const classes = classnames(policyDescriptionWrapperClasses, {
+              [`${policyDescriptionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
+            });
+            return (
+              <div
+                className={classes}
+                onFocus={() => setIsEditingDescription(true)}
+                onBlur={() => setIsEditingDescription(false)}
+                onClick={editDescription}
+              >
+                <AutoSizeInputField
+                  name="policy-description"
+                  placeholder="Add description here."
+                  value={lastEditedQueryDescription}
+                  inputClassName={`${baseClass}__policy-description ${
+                    !lastEditedQueryDescription ? "no-value" : ""
+                  }`}
+                  maxLength={250}
+                  onChange={setLastEditedQueryDescription}
+                  onKeyPress={onInputKeypress}
+                  isFocused={isEditingDescription}
+                  disableTabability={disableChildren}
+                />
+                <Icon
+                  name="pencil"
+                  className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                  size="small-medium"
+                />
+              </div>
+            );
+          }}
+        />
       );
     }
 
@@ -398,30 +463,42 @@ const PolicyForm = ({
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
           <div className="form-field__label">Resolve:</div>
-          <div className={policyResolutionClasses}>
-            <AutoSizeInputField
-              name="policy-resolution"
-              placeholder="Add resolution here."
-              value={lastEditedQueryResolution}
-              inputClassName={`${baseClass}__policy-resolution`}
-              maxLength="500"
-              onChange={setLastEditedQueryResolution}
-              onFocus={() => setIsEditingResolution(true)}
-              onBlur={() => setIsEditingResolution(false)}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingResolution}
-            />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingResolution(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
-              />
-            </Button>
-          </div>
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={16}
+            renderChildren={(disableChildren) => {
+              const classes = classnames(policyResolutionWrapperClasses, {
+                [`${policyResolutionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
+              });
+              return (
+                <div
+                  className={classes}
+                  onFocus={() => setIsEditingResolution(true)}
+                  onBlur={() => setIsEditingResolution(false)}
+                  onClick={editResolution}
+                >
+                  <AutoSizeInputField
+                    name="policy-resolution"
+                    placeholder="Add resolution here."
+                    value={lastEditedQueryResolution}
+                    inputClassName={`${baseClass}__policy-resolution ${
+                      !lastEditedQueryResolution ? "no-value" : ""
+                    }`}
+                    maxLength={500}
+                    onChange={setLastEditedQueryResolution}
+                    onKeyPress={onInputKeypress}
+                    isFocused={isEditingResolution}
+                    disableTabability={disableChildren}
+                  />
+                  <Icon
+                    name="pencil"
+                    className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+                    size="small-medium"
+                  />
+                </div>
+              );
+            }}
+          />
         </div>
       );
     }
@@ -443,18 +520,13 @@ const PolicyForm = ({
   const renderCriticalPolicy = () => {
     return (
       <div className="critical-checkbox-wrapper">
-        {isSandboxMode && (
-          <PremiumFeatureIconWithTooltip
-            tooltipDelayHide={500}
-            tooltipPositionOverrides={{ leftAdj: 84, topAdj: -4 }}
-          />
-        )}
         <Checkbox
           name="critical-policy"
           className="critical-policy"
           onChange={(value: boolean) => setLastEditedQueryCritical(value)}
           value={lastEditedQueryCritical}
           isLeftLabel
+          disabled={gitOpsModeEnabled}
         >
           <TooltipWrapper
             tipContent={
@@ -471,8 +543,10 @@ const PolicyForm = ({
     );
   };
 
-  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
-  // And Global Observers and Observer+ of all policies
+  // Non-editable form used for:
+  // Team observers and team observer+ viewing any of their team's policies and any inherited policies
+  // Team admins and team maintainers viewing any inherited policy
+  // And Global observers and global observer+ viewing any team's policies and any inherited policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -500,7 +574,7 @@ const PolicyForm = ({
         onClick={() => setShowQueryEditor(!showQueryEditor)}
       />
       {showQueryEditor && (
-        <FleetAce
+        <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
@@ -509,7 +583,7 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
-      {isObserverPlus && ( // Observer+ can run existing policies
+      {(isObserverPlus || isTeamMaintainerOrTeamAdmin) && ( // Team admin, team maintainer and any Observer+ can run a policy
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
@@ -524,8 +598,10 @@ const PolicyForm = ({
     </form>
   );
 
-  // Admin or maintainer
-  const renderEditableQueryForm = () => {
+  // Editable form is used for:
+  // Global admins and global maintainers
+  // Team admins and team maintainers viewing any of their team's policies
+  const renderEditablePolicyForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
@@ -543,7 +619,7 @@ const PolicyForm = ({
             </div>
             <div className="author">{isEditMode && renderAuthor()}</div>
           </div>
-          <FleetAce
+          <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
             label="Query"
@@ -551,51 +627,56 @@ const PolicyForm = ({
             name="query editor"
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-            onChange={onChangePolicy}
+            onChange={onChangePolicySql}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
+            disabled={gitOpsModeEnabled}
           />
-          <span className={`${baseClass}__platform-compatibility`}>
-            {renderPlatformCompatibility()}
-          </span>
-          {(isEditMode || defaultPolicy) && platformSelector.render()}
+          {renderPlatformCompatibility()}
+          {isEditMode && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
             {hasSavePermissions && (
-              <>
-                <span
-                  className={`${baseClass}__button-wrap--tooltip`}
-                  data-tip
-                  data-for="save-policy-button"
-                  data-tip-disable={!isEditMode || isAnyPlatformSelected}
-                >
-                  <Button
-                    variant="brand"
-                    onClick={promptSavePolicy()}
-                    disabled={disableSaveFormErrors}
-                    className="save-loading"
-                    isLoading={isUpdatingPolicy}
-                  >
-                    Save
-                  </Button>
-                </span>
-                <ReactTooltip
-                  className={`${baseClass}__button-wrap--tooltip`}
-                  place="bottom"
-                  effect="solid"
-                  id="save-policy-button"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                >
-                  Select the platform(s) this
-                  <br />
-                  policy will be checked on
-                  <br />
-                  to save or run the policy.
-                </ReactTooltip>
-              </>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  // TODO - update to use TooltipWrapper
+                  <>
+                    <span
+                      className={`${baseClass}__button-wrap--tooltip`}
+                      data-tip
+                      data-for="save-policy-button"
+                      data-tip-disable={!isEditMode || isAnyPlatformSelected}
+                    >
+                      <Button
+                        variant="brand"
+                        onClick={promptSavePolicy()}
+                        disabled={disableSaveFormErrors || disableChildren}
+                        className="save-loading"
+                        isLoading={isUpdatingPolicy}
+                      >
+                        Save
+                      </Button>
+                    </span>
+                    <ReactTooltip
+                      className={`${baseClass}__button-wrap--tooltip`}
+                      place="bottom"
+                      effect="solid"
+                      id="save-policy-button"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                    >
+                      Select the platforms this
+                      <br />
+                      policy will be checked on
+                      <br />
+                      to save or run the policy.
+                    </ReactTooltip>
+                  </>
+                )}
+              />
             )}
+            {/* TODO - update to use TooltipWrapper */}
             <span
               className={`${baseClass}__button-wrap--tooltip`}
               data-tip
@@ -627,7 +708,7 @@ const PolicyForm = ({
                 <>Live queries are disabled in organization settings</>
               ) : (
                 <>
-                  Select the platform(s) this <br />
+                  Select the platforms this <br />
                   policy will be checked on <br />
                   to save or run the policy.
                 </>
@@ -644,6 +725,11 @@ const PolicyForm = ({
             backendValidators={backendValidators}
             platformSelector={platformSelector}
             isUpdatingPolicy={isUpdatingPolicy}
+            aiFeaturesDisabled={aiFeaturesDisabled}
+            isFetchingAutofillDescription={isFetchingAutofillDescription}
+            isFetchingAutofillResolution={isFetchingAutofillResolution}
+            onClickAutofillDescription={onClickAutofillDescription}
+            onClickAutofillResolution={onClickAutofillResolution}
           />
         )}
       </>
@@ -654,10 +740,12 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
+  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+
   const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (policyTeamId === 0 && !isOnGlobalTeam); // Team user viewing inherited policy
+    (!isOnGlobalTeam && isInheritedPolicy); // Team user viewing inherited policy
 
   // Render non-editable form only
   if (noEditPermissions) {
@@ -665,7 +753,7 @@ const PolicyForm = ({
   }
 
   // Render default editable form
-  return renderEditableQueryForm();
+  return renderEditablePolicyForm();
 };
 
 export default PolicyForm;

@@ -1,9 +1,7 @@
 name: launchd
-examples: >-
+examples: |-
   List launch daemons that run an application in the Applications directory.
 
   ```
-
   SELECT * FROM launchd WHERE program LIKE '/Applications/%%' OR program LIKE '/Users/%%/Applications/%%';
-
   ```

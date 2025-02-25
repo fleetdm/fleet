@@ -1,0 +1,78 @@
+.about-card {
+
+  .truncated-tooltip {
+    .about-card__device-mapping__source {
+        color: inherit;
+      }
+  }
+
+  &__used-by {
+    display: flex;
+  }
+
+  &__multiple {
+    max-width: 270px;
+    padding-right: 5px;
+  }
+
+  &__single {
+    max-width: 300px;
+  }
+
+  &__device-mapping {
+    &__source {
+      color: $ui-fleet-black-75;
+    }
+
+    &__more {
+      color: $ui-fleet-black-50;
+    }
+
+    &__primary-user {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      vertical-align: text-bottom;
+    }
+  }
+
+  // Adjusts for edge cases of extra long MDM server URL and used by email
+  .info-flex {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: $pad-medium $pad-xxlarge;
+    max-height: 350px;
+    align-content: flex-start;
+
+    .data-set {
+      min-width: none;
+    }
+
+    dd,
+    .component__tooltip-wrapper__element {
+      max-width: 350px;
+    }
+  
+    @media (min-width: $break-md) {
+      max-height: 250px;
+
+      dd,
+      .component__tooltip-wrapper__element {
+        max-width: 340px;
+      }
+    }
+
+    @media (min-width: $break-lg) {
+      max-height: 200px;
+
+      dd,
+      .component__tooltip-wrapper__element {
+        max-width: 500px;
+      }
+    }
+  }
+
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
+}

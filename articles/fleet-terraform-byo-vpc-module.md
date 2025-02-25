@@ -107,7 +107,7 @@ locals {
 }
 
 module "byo-vpc" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.4.0"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.12.1"
   vpc_config = {
     vpc_id = module.vpc.vpc_id
     networking = {
@@ -147,7 +147,7 @@ Similar to using the root module, it is recommended to at least include the migr
 ```hcl
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -237,7 +237,7 @@ module "vpc" {
 }
 
 module "byo-vpc" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.4.0"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.12.1"
   vpc_config = {
     vpc_id = module.vpc.vpc_id
     networking = {
@@ -265,7 +265,7 @@ module "byo-vpc" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -286,7 +286,7 @@ terraform apply
 
 ```
 
-The BYO-VPC configuration can be fully customized similar to the [Terraform root module](https://github.com/fleetdm/fleet/tree/main/terraform).  See the [BYO-VPC reference](https://github.com/fleetdm/fleet/tree/main/terraform/byo-vpc) for a full list of variables.
+The BYO-VPC configuration can be fully customized similar to the [Terraform root module](https://github.com/fleetdm/fleet-terraform).  See the [BYO-VPC reference](https://github.com/fleetdm/fleet-terraform/tree/main/byo-vpc) for a full list of variables.
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Robert Fairburn">

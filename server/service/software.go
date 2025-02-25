@@ -21,7 +21,7 @@ type listSoftwareRequest struct {
 	fleet.SoftwareListOptions
 }
 
-// DEPRECATED: listSoftwareResponse is the response struct for the deprecated
+// Deprecated: listSoftwareResponse is the response struct for the deprecated
 // listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
 // the latter includes a count of the total number of software items.
 type listSoftwareResponse struct {
@@ -30,10 +30,10 @@ type listSoftwareResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r listSoftwareResponse) error() error { return r.Err }
+func (r listSoftwareResponse) Error() error { return r.Err }
 
-// DEPRECATED: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+// Deprecated: use listSoftwareVersionsEndpoint instead
+func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -63,9 +63,9 @@ type listSoftwareVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r listSoftwareVersionsResponse) error() error { return r.Err }
+func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
-func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
 	// always include pagination for new software versions endpoint (not included by default in
@@ -105,6 +105,15 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 		return nil, nil, err
 	}
 
+	// Vulnerability filters are only available in premium (opt.IncludeCVEScores is only true in premium)
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return nil, nil, fleet.ErrMissingLicense
+	}
+
 	// default sort order to hosts_count descending
 	if opt.ListOptions.OrderKey == "" {
 		opt.ListOptions.OrderKey = "hosts_count"
@@ -134,9 +143,9 @@ type getSoftwareResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r getSoftwareResponse) error() error { return r.Err }
+func (r getSoftwareResponse) Error() error { return r.Err }
 
-func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
@@ -152,7 +161,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		return nil, err
 	}
 
-	if teamID != nil {
+	if teamID != nil && *teamID > 0 {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -206,11 +215,11 @@ type countSoftwareResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countSoftwareResponse) error() error { return r.Err }
+func (r countSoftwareResponse) Error() error { return r.Err }
 
-// DEPRECATED: counts are now included directly in the listSoftwareVersionsResponse. This
+// Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -224,6 +233,21 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
 		return 0, err
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get license")
+	}
+
+	// Vulnerability filters are only available in premium
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return 0, fleet.ErrMissingLicense
+	}
+
+	// required for vulnerability filters
+	if lic.IsPremium() {
+		opt.IncludeCVEScores = true
 	}
 
 	return svc.ds.CountSoftware(ctx, opt)

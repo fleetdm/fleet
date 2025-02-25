@@ -33,7 +33,7 @@ export interface ICampaign {
   };
   id: number;
   query_id: number;
-  query_results: unknown[];
+  query_results: Record<string, unknown>[];
   status: string;
   totals: {
     count: number;

@@ -1,9 +1,7 @@
 name: xprotect_entries
-examples: >-
+examples: |-
   Identify the Bundlore variants Xprotect protects the computer from
 
   ```
-
   SELECT * FROM xprotect_entries WHERE name LIKE 'OSX.Bundlore%';
-  
   ```

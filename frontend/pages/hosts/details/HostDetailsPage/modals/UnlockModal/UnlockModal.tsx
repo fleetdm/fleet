@@ -51,7 +51,10 @@ const UnlockModal = ({
     try {
       await hostAPI.unlockHost(id);
       onSuccess();
-      renderFlash("success", "Host is unlocking!");
+      renderFlash(
+        "success",
+        "Unlocking host or will unlock when it comes online."
+      );
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }

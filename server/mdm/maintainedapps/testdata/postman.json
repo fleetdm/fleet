@@ -1,0 +1,117 @@
+{
+	"token": "postman",
+	"full_token": "postman",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Postman"
+	],
+	"desc": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs.",
+	"homepage": "https://www.postman.com/",
+	"url": "https://dl.pstmn.io/download/version/11.12.0/osx_arm64",
+	"url_specs": {
+		"verified": "dl.pstmn.io/download/version/"
+	},
+	"version": "11.12.0",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "f08acef5bda961130ba19055ee371183f1505a96ea73a1ee0fd41755de9b05ff",
+	"artifacts": [
+		{
+			"app": [
+				"Postman.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Support/com.postmanlabs.mac.ShipIt",
+						"~/Library/Application Support/Postman",
+						"~/Library/Caches/com.postmanlabs.mac",
+						"~/Library/Caches/com.postmanlabs.mac.ShipIt",
+						"~/Library/Caches/Postman",
+						"~/Library/HTTPStorages/com.postmanlabs.mac",
+						"~/Library/Preferences/ByHost/com.postmanlabs.mac.ShipIt.*.plist",
+						"~/Library/Preferences/com.postmanlabs.mac.plist",
+						"~/Library/Saved Application State/com.postmanlabs.mac.savedState"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.13"
+			]
+		}
+	},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5bd28fbb2da3cf0c3ef1009af5fa4f36c6e74cae",
+	"languages": [],
+	"ruby_source_path": "Casks/p/postman.rb",
+	"ruby_source_checksum": {
+		"sha256": "92056b4da6ed15435fb1a668ea1d640aa99aa0e80a8a479ae65750e767555fef"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"sonoma": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"ventura": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"monterey": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"big_sur": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"catalina": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"mojave": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		},
+		"high_sierra": {
+			"url": "https://dl.pstmn.io/download/version/11.12.0/osx64",
+			"sha256": "b84fa38db9d345215ad7e5a07ff9651e293bacbd63bad531b827c8a0daece698"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"postman": 12107
+			},
+			"90d": {
+				"postman": 33679
+			},
+			"365d": {
+				"postman": 131069
+			}
+		}
+	},
+	"generated_date": "2024-09-11"
+}

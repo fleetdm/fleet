@@ -1,7 +1,11 @@
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
+import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
+import Checkbox from "./Checkbox";
+import CheckboxIndeterminate from "./CheckboxIndeterminate";
+import CheckboxUnchecked from "./CheckboxUnchecked";
 import ChevronLeft from "./ChevronLeft";
 import ChevronRight from "./ChevronRight";
 import ChevronUp from "./ChevronUp";
@@ -24,6 +28,7 @@ import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
+import TotalHosts from "./TotalHosts";
 import Lightbulb from "./Lightbulb";
 
 import Apple from "./Apple";
@@ -33,6 +38,8 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
+import iPadOS from "./iPadOS";
+import iOS from "./iOS";
 
 // Status Icons
 import Success from "./Success";
@@ -47,23 +54,36 @@ import Clock from "./Clock";
 import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Sparkles from "./Sparkles";
+import Text from "./Text";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
 import Upload from "./Upload";
 import Refresh from "./Refresh";
+import Install from "./Install";
+import InstallSelfService from "./InstallSelfService";
+import Settings from "./Settings";
+import AutomaticSelfService from "./AutomaticSelfService";
+import User from "./User";
+import InfoOutline from "./InfoOutline";
+import GitOpsMode from "./GitOpsMode";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
+  calendar: Calendar,
   "calendar-check": CalendarCheck,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
   "chevron-up": ChevronUp,
   "chevron-down": ChevronDown,
   check: Check,
+  checkbox: Checkbox,
+  "checkbox-indeterminate": CheckboxIndeterminate,
+  "checkbox-unchecked": CheckboxUnchecked,
   columns: Columns,
   disable: Disable,
   close: Close,
@@ -74,8 +94,10 @@ export const ICON_MAP = {
   "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  "total-hosts": TotalHosts,
   lightbulb: Lightbulb,
   info: Info,
+  "info-outline": InfoOutline,
   more: More,
   plus: Plus,
   policy: Policy,
@@ -84,6 +106,8 @@ export const ICON_MAP = {
   eye: Eye,
   pencil: Pencil,
   search: Search,
+  sparkles: Sparkles,
+  text: Text,
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
@@ -105,11 +129,21 @@ export const ICON_MAP = {
   ubuntu: Ubuntu,
   chrome: Chrome,
   ChromeOS: Chrome,
+  ipados: iPadOS,
+  iPadOS,
+  ios: iOS,
+  iOS,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
   upload: Upload,
   refresh: Refresh,
+  install: Install,
+  "install-self-service": InstallSelfService,
+  settings: Settings,
+  "automatic-self-service": AutomaticSelfService,
+  user: User,
+  "gitops-mode": GitOpsMode,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

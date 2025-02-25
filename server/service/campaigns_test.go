@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/stretchr/testify/require"
 )
 
 type nopLiveQuery struct{}
@@ -28,6 +29,14 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 
 func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
+}
+
+func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	return nil, nil
 }
 
 func TestLiveQueryAuth(t *testing.T) {
@@ -74,7 +83,7 @@ func TestLiveQueryAuth(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1}, nil
 	}
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, names []string) ([]uint, error) {
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
 		return nil, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
@@ -217,14 +226,93 @@ func TestLiveQueryAuth(t *testing.T) {
 			// tests with a team target cannot run the "ByNames" calls, as there's no way
 			// to pass a team target with this call.
 			if tt.teamID == nil {
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query1ObsCanRun.Query, nil, nil, nil)
 				checkAuthErr(t, tt.shouldFailRunNew, err)
 
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
 				checkAuthErr(t, tt.shouldFailRunObsCan, err)
 
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
 				checkAuthErr(t, tt.shouldFailRunObsCannot, err)
+			}
+		})
+	}
+}
+
+func TestLiveQueryLabelValidation(t *testing.T) {
+	ds := new(mock.Store)
+	qr := pubsub.NewInmemQueryResults()
+	svc, ctx := newTestService(t, ds, qr, nopLiveQuery{})
+
+	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	query := &fleet.Query{
+		ID:             1,
+		Name:           "q1",
+		Query:          "SELECT 1",
+		ObserverCanRun: true,
+	}
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		query.ID = 123
+		return query, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false}}, nil
+	}
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+	ds.HostIDsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		return []uint{1}, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
+		return nil, nil
+	}
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{}, nil
+	}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return query, nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		return map[string]uint{"label1": uint(1)}, nil
+	}
+
+	testCases := []struct {
+		name          string
+		labels        []string
+		expectedError string
+	}{
+		{
+			name:          "no labels",
+			labels:        []string{},
+			expectedError: "",
+		},
+		{
+			name:          "invalid label",
+			labels:        []string{"iamnotalabel"},
+			expectedError: "Invalid label name(s): iamnotalabel.",
+		},
+		{
+			name:          "valid label",
+			labels:        []string{"label1"},
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: user})
+			_, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, query.Query, nil, nil, tt.labels)
+
+			if tt.expectedError == "" {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), tt.expectedError)
 			}
 		})
 	}

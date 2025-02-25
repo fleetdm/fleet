@@ -149,24 +149,6 @@ module.exports = {
       fleetLicenseKey: licenseKey,
     });
 
-    // Send a POST request to Zapier
-    await sails.helpers.http.post(
-      'https://hooks.zapier.com/hooks/catch/3627242/blhrvf1/',
-      {
-        'emailAddress': this.req.me.emailAddress,
-        'numberOfHosts': quoteRecord.numberOfHosts,
-        'subscriptionPrice': quoteRecord.quotedPrice,
-        'nextBillingTimestamp': new Date(subscription.current_period_end * 1000).toISOString(),
-        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
-      }
-    )
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user purchased a Fleet Premium license, a lead/contact could not be updated in the CRM for this email address: ${this.req.me.emailAddress}. Raw error: ${err}`);
-      return;
-    });
-
     // Send the order confirmation template email
     await sails.helpers.sendTemplateEmail.with({
       to: this.req.me.emailAddress,
@@ -179,6 +161,23 @@ module.exports = {
         lastName: inputs.lastName ? inputs.lastName : this.req.me.lastName,
       }
     });
+
+    let todayOn = new Date();
+    let isoTimestampForDescription = todayOn.toISOString();
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      organization: this.req.me.organization,
+      contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+      description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${quoteRecord.numberOfHosts} host${quoteRecord.numberOfHosts > 1 ? 's' : ''}.`
+    }).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
+
 
   }
 

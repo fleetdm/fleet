@@ -5,12 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
 var (
@@ -72,7 +73,7 @@ func main() {
 		ReadHeaderTimeout: 3 * time.Second,
 	}
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 }
 

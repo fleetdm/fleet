@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	gws "github.com/gorilla/websocket"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
@@ -74,7 +75,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			}
 
 			// Authenticate with the token
-			vc, err := authViewer(context.Background(), string(token), svc)
+			vc, err := auth.AuthViewer(context.Background(), string(token), svc)
 			if err != nil || !vc.CanPerformActions() {
 				logger.Log("err", err, "msg", "unauthorized viewer")
 				conn.WriteJSONError("unauthorized") //nolint:errcheck

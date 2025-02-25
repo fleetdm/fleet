@@ -10,6 +10,7 @@ interface ITeamHostExpiryToggle {
   globalHostExpiryWindow?: number;
   teamExpiryEnabled: boolean;
   setTeamExpiryEnabled: (value: boolean) => void;
+  gitopsModeEnabled?: boolean;
 }
 
 const TeamHostExpiryToggle = ({
@@ -17,6 +18,7 @@ const TeamHostExpiryToggle = ({
   globalHostExpiryWindow,
   teamExpiryEnabled,
   setTeamExpiryEnabled,
+  gitopsModeEnabled,
 }: ITeamHostExpiryToggle) => {
   const renderHelpText = () =>
     // this will never be rendered while globalHostExpiryWindow is undefined
@@ -48,32 +50,26 @@ const TeamHostExpiryToggle = ({
       <Checkbox
         name="enableHostExpiry"
         onChange={setTeamExpiryEnabled}
-        value={teamExpiryEnabled || globalHostExpiryEnabled}
-        wrapperClassName={
-          globalHostExpiryEnabled
-            ? `${baseClass}__disabled-team-host-expiry-toggle`
-            : ""
-        }
+        value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
+        disabled={globalHostExpiryEnabled || gitopsModeEnabled}
         helpText={renderHelpText()}
         tooltipContent={
-          !globalHostExpiryEnabled && (
-            <>
-              When enabled, allows automatic cleanup of
+          <>
+            When enabled, allows automatic cleanup of
+            <br />
+            hosts that have not communicated with Fleet in
+            <br />
+            the number of days specified in the{" "}
+            <strong>
+              Host expiry
               <br />
-              hosts that have not communicated with Fleet in
-              <br />
-              the number of days specified in the{" "}
-              <strong>
-                Host expiry
-                <br />
-                window
-              </strong>{" "}
-              setting.{" "}
-              <em>
-                (Default: <strong>Off</strong>)
-              </em>
-            </>
-          )
+              window
+            </strong>{" "}
+            setting.{" "}
+            <em>
+              (Default: <strong>Off</strong>)
+            </em>
+          </>
         }
       >
         Enable host expiry

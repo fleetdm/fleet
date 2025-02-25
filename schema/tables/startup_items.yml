@@ -1,9 +1,7 @@
 name: startup_items
-examples: >-
+examples: |-
   List commands executed as user/logon startup items.
   
   ```
-  
   SELECT name, type FROM startup_items WHERE status='enabled';
-  
   ```

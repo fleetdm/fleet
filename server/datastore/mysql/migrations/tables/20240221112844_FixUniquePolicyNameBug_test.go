@@ -5,11 +5,12 @@ import (
 	"crypto/md5" //nolint:gosec // (only used for tests)
 	"encoding/hex"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
-	"testing"
 )
 
 func TestUp_20240221112844(t *testing.T) {
@@ -69,7 +70,7 @@ func TestUp_20240221112844(t *testing.T) {
 
 	gotIDs := make([]int64, len(wantIDs))
 	for i, pc := range policyCheck {
-		if pc.ID == policy1 {
+		if pc.ID == policy1 { //nolint:gocritic // ignore ifelseChain
 			assert.Equal(t, "policy", pc.Name)
 		} else if pc.ID == policy2 {
 			assert.Equal(t, "policy3", pc.Name) // name changed

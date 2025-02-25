@@ -1,0 +1,21 @@
+.editor {
+
+  &__label {
+    font-size: $x-small;
+    font-weight: $bold;
+
+    &--error {
+      color: $core-vibrant-red;
+    }
+  }
+
+  &__help-text {
+    @include help-text;
+  }
+
+  &__error {
+    .ace-fleet {
+      border: 1px solid $core-vibrant-red;
+    }
+  }
+}

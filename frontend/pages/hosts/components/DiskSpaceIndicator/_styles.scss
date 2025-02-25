@@ -1,0 +1,42 @@
+.info-flex,
+.gigs_disk_space_available__cell {
+  white-space: nowrap;
+
+  &__disk-space {
+    display: inline-block;
+    height: 4px;
+    width: 50px;
+    background-color: $ui-fleet-black-10;
+    border-radius: 2px;
+    margin-right: $pad-small;
+    overflow: hidden;
+    margin-bottom: 2px;
+
+    &-wrapper {
+      display: inline-block;
+    }
+
+    &--green {
+      background-color: $ui-success;
+      height: 100%;
+    }
+
+    &--yellow {
+      background-color: $ui-warning;
+      height: 100%;
+    }
+
+    &--red {
+      background-color: $ui-error;
+      height: 100%;
+    }
+  }
+
+  &__data {
+    .disk-space-tooltip {
+      display: block;
+      white-space: normal;
+      max-width: 160px;
+    }
+  }
+}

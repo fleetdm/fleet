@@ -13,6 +13,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,9 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
@@ -165,9 +168,12 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	require.Equal(t, prevActiveConn-1, newActiveConn)
 }
 
-func TestUpdateStats(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds)
+func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
+	t.Cleanup(
+		func() {
+			overwriteLastExecuted = false
+		},
+	)
 	s, ctx := newTestService(t, ds, nil, nil)
 	svc := s.(validationMiddleware).Service.(*Service)
 
@@ -222,10 +228,64 @@ func TestUpdateStats(t *testing.T) {
 		hostIDs = append(hostIDs, i)
 	}
 	tracker.saveStats = true
+	// We overwrite the last executed time to ensure that these stats have a different timestamp than later stats
+	overwriteLastExecuted = true
+	overwriteLastExecutedTime = time.Now().Add(-2 * time.Second).Round(time.Second)
 	svc.updateStats(ctx, queryID, svc.logger, &tracker, false)
 	assert.True(t, tracker.saveStats)
 	assert.Equal(t, 0, len(tracker.stats))
 	assert.True(t, tracker.aggregationNeeded)
+	assert.Equal(t, overwriteLastExecutedTime, tracker.lastStatsEntry.LastExecuted)
+
+	// Aggregate stats
+	svc.updateStats(ctx, queryID, svc.logger, &tracker, true)
+	overwriteLastExecuted = false
+
+	// Check that aggregated stats were created. Since we read aggregated stats from the replica, we may need to wait for it to catch up.
+	var err error
+	var aggStats fleet.AggregatedStats
+	done := make(chan struct{}, 1)
+	go func() {
+		for {
+			aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			if usingReplica && err != nil {
+				time.Sleep(30 * time.Millisecond)
+			} else {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-time.After(2 * time.Second):
+		// We fail the test. Gather information for debug.
+		// Grab stats from primary DB (master)
+		lastErr := ""
+		if err != nil {
+			lastErr = err.Error()
+		}
+		aggStats, err = mysql.GetAggregatedStats(
+			ctxdb.RequirePrimary(ctx, true), svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID,
+		)
+		if err != nil {
+			t.Logf("Error getting aggregated stats from primary DB: %s", err.Error())
+		} else {
+			t.Logf("Aggregated stats from primary DB: totalExecutions=%f %#v", *aggStats.TotalExecutions, aggStats)
+		}
+		replicaStatus, err := ds.ReplicaStatus(ctx)
+		assert.NoError(t, err)
+		t.Logf("Replica status: %v", replicaStatus)
+		t.Fatalf("Timeout waiting for aggregated stats. Last error: %s", lastErr)
+	case <-done:
+		// Continue
+	}
+	require.NoError(t, err)
+	assert.Equal(t, statsBatchSize, int(*aggStats.TotalExecutions))
+	// Sanity checks. Complete testing done in aggregated_stats_test.go
+	assert.True(t, *aggStats.SystemTimeP50 > 0)
+	assert.True(t, *aggStats.SystemTimeP95 > 0)
+	assert.True(t, *aggStats.UserTimeP50 > 0)
+	assert.True(t, *aggStats.UserTimeP95 > 0)
 
 	// Get the stats from DB and make sure they match
 	currentStats, err := svc.ds.GetLiveQueryStats(ctx, queryID, hostIDs)
@@ -242,17 +302,6 @@ func TestUpdateStats(t *testing.T) {
 	assert.Equal(t, mySystemTime, myStat.SystemTime)
 	assert.Equal(t, myMemory, myStat.AverageMemory)
 	assert.Equal(t, myOutputSize, myStat.OutputSize)
-
-	// Aggregate stats
-	svc.updateStats(ctx, queryID, svc.logger, &tracker, true)
-	aggStats, err := mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
-	require.NoError(t, err)
-	assert.Equal(t, statsBatchSize, int(*aggStats.TotalExecutions))
-	// Sanity checks. Complete testing done in aggregated_stats_test.go
-	assert.True(t, *aggStats.SystemTimeP50 > 0)
-	assert.True(t, *aggStats.SystemTimeP95 > 0)
-	assert.True(t, *aggStats.UserTimeP50 > 0)
-	assert.True(t, *aggStats.UserTimeP95 > 0)
 
 	// Write new stats (update) for the same query/hosts
 	myNewWallTime := uint64(15)
@@ -279,8 +328,8 @@ func TestUpdateStats(t *testing.T) {
 				hostID: i,
 				Stats: &fleet.Stats{
 					WallTimeMs: rand.Uint64(),
-					UserTime:   rand.Uint64(),
-					SystemTime: rand.Uint64(),
+					UserTime:   rand.Uint64() % 100, // Keep these values small to ensure the update will be noticeable
+					SystemTime: rand.Uint64() % 100, // Keep these values small to ensure the update will be noticeable
 					Memory:     rand.Uint64(),
 				},
 				outputSize: rand.Uint64(),
@@ -292,6 +341,42 @@ func TestUpdateStats(t *testing.T) {
 	assert.True(t, tracker.saveStats)
 	assert.Equal(t, 0, len(tracker.stats))
 	assert.False(t, tracker.aggregationNeeded)
+
+	// Check that aggregated stats were updated. Since we read aggregated stats from the replica, we may need to wait for it to catch up.
+	var newAggStats fleet.AggregatedStats
+	done = make(chan struct{}, 1)
+	go func() {
+		for {
+			newAggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			if usingReplica && (*aggStats.SystemTimeP50 == *newAggStats.SystemTimeP50 ||
+				*aggStats.SystemTimeP95 == *newAggStats.SystemTimeP95 ||
+				*aggStats.UserTimeP50 == *newAggStats.UserTimeP50 ||
+				*aggStats.UserTimeP95 == *newAggStats.UserTimeP95) {
+				time.Sleep(30 * time.Millisecond)
+			} else {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for aggregated stats")
+	case <-done:
+		// Continue
+	}
+
+	require.NoError(t, err)
+	assert.Equal(t, statsBatchSize*2, int(*newAggStats.TotalExecutions))
+	// Sanity checks. Complete testing done in aggregated_stats_test.go
+	assert.True(t, *newAggStats.SystemTimeP50 > 0)
+	assert.True(t, *newAggStats.SystemTimeP95 > 0)
+	assert.True(t, *newAggStats.UserTimeP50 > 0)
+	assert.True(t, *newAggStats.UserTimeP95 > 0)
+	assert.NotEqual(t, *aggStats.SystemTimeP50, *newAggStats.SystemTimeP50)
+	assert.NotEqual(t, *aggStats.SystemTimeP95, *newAggStats.SystemTimeP95)
+	assert.NotEqual(t, *aggStats.UserTimeP50, *newAggStats.UserTimeP50)
+	assert.NotEqual(t, *aggStats.UserTimeP95, *newAggStats.UserTimeP95)
 
 	// Check that stats were updated
 	currentStats, err = svc.ds.GetLiveQueryStats(ctx, queryID, []uint{myHostID})
@@ -305,16 +390,18 @@ func TestUpdateStats(t *testing.T) {
 	assert.Equal(t, mySystemTime+myNewSystemTime, myStat.SystemTime)
 	assert.Equal(t, (myMemory+myNewMemory)/2, myStat.AverageMemory)
 	assert.Equal(t, myOutputSize+myNewOutputSize, myStat.OutputSize)
+}
 
-	// Check that aggregated stats were updated
-	aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
-	require.NoError(t, err)
-	assert.Equal(t, statsBatchSize*2, int(*aggStats.TotalExecutions))
-	// Sanity checks. Complete testing done in aggregated_stats_test.go
-	assert.True(t, *aggStats.SystemTimeP50 > 0)
-	assert.True(t, *aggStats.SystemTimeP95 > 0)
-	assert.True(t, *aggStats.UserTimeP50 > 0)
-	assert.True(t, *aggStats.UserTimeP95 > 0)
+func TestUpdateStats(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	defer mysql.TruncateTables(t, ds)
+	testUpdateStats(t, ds, false)
+}
+
+func TestIntegrationsUpdateStatsOnReplica(t *testing.T) {
+	ds := mysql.CreateMySQLDSWithReplica(t, nil)
+	defer mysql.TruncateTables(t, ds)
+	testUpdateStats(t, ds, true)
 }
 
 func TestCalculateOutputSize(t *testing.T) {

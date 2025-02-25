@@ -1,39 +1,43 @@
 .team-management {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-    padding-bottom: $pad-medium;
-  }
   .data-table-block {
     .data-table__table {
       thead {
         .name__header {
-          width: $col-md;
+          width: auto;
         }
 
-        .host_count__header {
+        .host_count__header,
+        .user_count__header {
           width: $col-md;
         }
 
         .actions__header {
-          width: auto;
+          width: $col-sm;
         }
       }
 
       tbody {
         .name__cell {
-          max-width: $col-md;
+          width: auto;
         }
 
-        .host_count__cell {
+        .host_count__cell,
+        .user_count__cell {
           max-width: $col-md;
         }
 
         .actions__cell {
-          width: auto;
+          width: $col-sm;
         }
       }
+    }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+    .actions-dropdown-select__control--is-disabled {
+      min-height: 0;
+      padding: 0;
     }
   }
 }

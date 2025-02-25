@@ -1,286 +1,99 @@
-.section--software {
-  .info-banner {
-    margin-bottom: 1rem;
-  }
-  .text-muted {
-    color: $ui-fleet-black-50;
-  }
-  .table-container__header-left {
-    .controls {
-      // vulnerable software dropdown filter
-      .Select {
-        .Select-menu-outer {
-          width: 364px;
-          max-height: 310px;
-
-          .Select-menu {
-            max-height: none;
-          }
-        }
-        .Select-value {
-          padding-left: $pad-medium;
-          padding-right: $pad-medium;
-        }
-
-        .dropdown__custom-value-label {
-          width: 155px; // Override 105px for longer text options
-        }
-      }
-    }
+.software-card {
+  .card-header {
+    font-weight: $bold;
+    margin: 0 0 $pad-large 0;
   }
 
   .table-container__search-input {
     width: 325px; // Custom to fit placeholder text
   }
 
-  .data-table-block {
-    .last_used_tooltip {
-      text-align: center;
+  .host-software-table {
+    &__software-filter {
+      min-width: 235px;
     }
-    .data-table__table {
-      // Adds border to headers except for empty last header to view filtered hosts
-      thead {
-        th {
-          border-right: none;
-          border-left: 1px solid $ui-fleet-black-10;
-        }
 
-        .linkToFilteredHosts__header {
-          border-left: none;
-        }
-
-        .version__header {
-          width: $col-xs;
-          display: none;
-          @media (min-width: $break-sm) {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .status__header {
             display: table-cell;
           }
-        }
-        .vulnerabilities__header {
-          width: 130px;
-        }
-        .source__header {
-          display: none;
-          width: 0px;
-        }
-        .last_opened_at__header {
-          display: none;
-        }
-        .installed_paths__header {
-          display: none;
-        }
-        .linkToFilteredHosts__header {
-          width: 115px;
-        }
-        @media (min-width: $break-lg) {
-          .version__header {
-            width: $col-md;
-          }
-
           .source__header {
             display: table-cell;
-            width: $col-sm;
           }
-        }
-      }
-
-      tbody {
-        .name__cell {
-          // Long software names overflow the software card
-          max-width: 0;
-          min-width: 252px;
-
-          .button--text-link {
-            width: 100%;
-            justify-content: left;
-
-            .children-wrapper {
-              overflow-x: clip; // Truncates the text but does not hide tooltip outside cell
-              white-space: nowrap;
-              display: block;
-              text-overflow: ellipsis;
-              width: 100%;
-            }
-          }
-        }
-        .version__cell {
-          white-space: nowrap;
-          text-overflow: ellipsis;
-          display: none;
-          @media (min-width: $break-sm) {
+          .Vulnerabilities__header {
             display: table-cell;
           }
-        }
-        .source__cell {
-          display: none;
-          width: 0px;
-        }
-        .installed_paths__cell {
-          display: none;
-          width: 0px;
-          padding-top: 1rem;
-          padding-bottom: 1rem;
-
-          .installed_paths__tooltip {
-            max-width: 550px;
-
-            // gap between each filepath
-            .tooltip__tooltip-text {
-              display: flex;
-              flex-direction: column;
-              gap: $pad-small;
-
-              .tooltip__tooptip_text_line {
-                display: block;
-                word-wrap: break-word;
-                max-width: 550px;
-              }
-            }
+          // this is called `id` only due to typing concerns in the table config – it is for the
+          // "Show details" column
+          .id__header {
+            width: px-to-rem(90);
           }
-        }
-        .hosts_count__cell {
-          .hosts-cell__wrapper {
-            display: flex;
-            justify-content: space-between;
-            .hosts-cell__count {
+          @media (max-width: $break-xl) {
+            .source__header {
               display: none;
+              width: 0;
             }
-            .hosts-cell__link {
-              display: flex;
+          }
+          @media (max-width: $break-lg) {
+            .Vulnerabilities__header {
+              display: none;
+              width: 0;
+            }
+          }
+          @media (max-width: $break-sm) {
+            .status__header {
+              display: none;
+              width: 0;
             }
           }
         }
-        .last_opened_at__cell {
-          display: none;
-        }
-        @media (min-width: $break-lg) {
-          .source__cell {
-            display: table-cell;
-            width: $col-sm;
-          }
-          .hosts_count__cell {
-            .hosts-cell__wrapper {
-              .hosts-cell__count {
-                display: flex;
+        tbody {
+          tr {
+            .status__cell {
+              display: table-cell;
+            }
+            .source__cell {
+              display: table-cell;
+            }
+            .Vulnerabilities__cell {
+              display: table-cell;
+            }
+            @media (max-width: $break-xl) {
+              .source__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-lg) {
+              .Vulnerabilities__cell {
+                display: none;
+                width: 0;
+              }
+            }
+            @media (max-width: $break-sm) {
+              .status__cell {
+                display: none;
+                width: 0;
               }
             }
           }
         }
       }
-
-      tr {
-        .name__cell .children-wrapper {
-          overflow: visible;
-        }
-
-        .software-link {
-          opacity: 0;
-          transition: 250ms;
-        }
-
-        &:hover {
-          .software-link {
-            opacity: 1;
-          }
-        }
-      }
     }
   }
+}
 
-  // table header content responsive styles
-  // NOTE: 990px is a custom breakpoint to deal with responsiveness of the
-  // table controls.
-  @media (max-width: $break-md) {
-    .table-container__search-input {
-      width: 100%; // Override custom placeholder width
-    }
-
-    thead .name__header {
-      width: $col-md;
-      min-width: 252px;
-    }
-
-    .table-container__header {
-      flex-direction: column;
-    }
-
-    .table-container__search {
-      order: 1;
-      width: 100%;
-      margin-bottom: $pad-medium;
-
-      .table-container__search-input {
-        margin-left: 0;
-
-        & .search-field__input-wrapper {
-          width: auto;
-        }
-      }
-    }
-
-    .table-container__header-left {
-      order: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-
-      .results-count {
-        order: 2;
-      }
-
-      .controls {
-        .Select {
-          width: 100%;
-          margin-bottom: $pad-large;
-        }
-      }
-    }
+.device-software {
+  .card-header {
+    font-weight: $regular;
+    margin: 0 0 $pad-small 0;
   }
 
-  .data-table-block .data-table__table {
-    @media (min-width: $break-md) {
-      thead .version__header {
-        width: $col-sm;
-      }
-    }
-    @media (min-width: $break-lg) {
-      thead {
-        .last_opened_at__header {
-          display: table-cell;
-        }
-      }
-      tbody {
-        .last_opened_at__cell {
-          display: table-cell;
-          width: 100px;
-          min-width: min-content;
-        }
-      }
-    }
-
-    @media (min-width: $break-xl) {
-      thead {
-        .installed_paths__header {
-          display: table-cell;
-          width: $col-md;
-        }
-      }
-      tbody {
-        .installed_paths__cell {
-          display: table-cell;
-
-          .text-cell {
-            width: $col-md;
-            text-overflow: initial;
-            overflow: initial;
-            white-space: initial;
-            word-wrap: break-word;
-          }
-          .tooltip {
-            display: inline; // center tooltip with hovered text
-          }
-        }
-      }
-    }
+  .card-subheader {
+    margin: 0 0 $pad-large 0;
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
   }
 }

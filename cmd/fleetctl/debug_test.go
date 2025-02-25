@@ -44,7 +44,8 @@ oug6edBNpdhp8r2/4t6n3AouK0/zG2naAlmXV0JoFuEvy2bX0BbbbPg+v4WNZIsC
 )
 
 func TestDebugConnectionCommand(t *testing.T) {
-	t.Run("without certificate", func(t *testing.T) {
+	t.Run("without certificate, plain http server", func(t *testing.T) {
+		// Plain HTTP server
 		_, ds := runServerWithMockedDS(t)
 
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
@@ -162,7 +163,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 	cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
 	require.NoError(t, err)
 	for i, c := range cases {
-		atomic.StoreInt32(&callCount, int32(i))
+		atomic.StoreInt32(&callCount, int32(i)) //nolint:gosec // dismiss G115
 		t.Run(fmt.Sprint(c.code), func(t *testing.T) {
 			err := checkAPIEndpoint(context.Background(), timeout, base, cli)
 			if c.errContains == "" {

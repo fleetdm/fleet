@@ -3,14 +3,16 @@ package scepserver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
 )
 
 // possible SCEP operations
@@ -101,10 +103,18 @@ func MakeServerEndpoints(svc Service) *Endpoints {
 	}
 }
 
+func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
+	e := MakeSCEPEndpointWithIdentifier(svc)
+	return &Endpoints{
+		GetEndpoint:  e,
+		PostEndpoint: e,
+	}
+}
+
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, error) {
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -113,7 +123,11 @@ func MakeClientEndpoints(instance string) (*Endpoints, error) {
 		return nil, err
 	}
 
-	options := []httptransport.ClientOption{}
+	var fleetOpts []fleethttp.ClientOpt
+	if timeout != nil {
+		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	}
+	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 
 	return &Endpoints{
 		GetEndpoint: httptransport.NewClient(
@@ -157,6 +171,33 @@ type SCEPRequest struct {
 
 func (r SCEPRequest) scepOperation() string { return r.Operation }
 
+func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(SCEPRequestWithIdentifier)
+		resp := SCEPResponse{operation: req.Operation}
+		switch req.Operation {
+		case "GetCACaps":
+			resp.Data, resp.Err = svc.GetCACaps(ctx)
+		case "GetCACert":
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+		case "PKIOperation":
+			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
+		default:
+			return nil, &BadRequestError{Message: "operation not implemented"}
+		}
+		if errors.Is(resp.Err, context.DeadlineExceeded) {
+			return nil, &TimeoutError{Message: resp.Err.Error()}
+		}
+		return resp, resp.Err
+	}
+}
+
+// SCEPRequestWithIdentifier is a SCEP server request.
+type SCEPRequestWithIdentifier struct {
+	SCEPRequest
+	Identifier string `url:"identifier"`
+}
+
 // SCEPResponse is a SCEP server response.
 // Business errors will be encoded as a CertRep message
 // with pkiStatus FAILURE and a failInfo attribute.
@@ -185,6 +226,7 @@ func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
 			}(time.Now())
 			return next(ctx, request)
+
 		}
 	}
 }

@@ -28,6 +28,10 @@ func TestValidateAgentOptions(t *testing.T) {
 			}
 		}}`, true, `unknown field "foo"`},
 
+		{"valid script timeout", `{"script_execution_timeout": 600}`, true, ""},
+
+		{"invalid script timeout", `{"script_execution_timeout": 3601}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 3600`},
+
 		{"overrides.platform is null", `{"overrides": {
 			"platforms": {
 				"darwin": null
@@ -183,6 +187,16 @@ func TestValidateAgentOptions(t *testing.T) {
 				"osqueryd": "5.10.2",
 				"orbit": "foobar"
 			}
+		}`, true, ``},
+		{"setting osquery 5.12.X flag in config.options and command_line_flags", `{
+			"config": {
+				"options": {
+					"logger_tls_backoff_max": 100
+				}
+			},
+			"command_line_flags": {
+				"logger_tls_backoff_max": 200
+			} 
 		}`, true, ``},
 	}
 

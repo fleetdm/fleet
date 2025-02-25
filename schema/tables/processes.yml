@@ -1,11 +1,9 @@
 name: processes
-examples: >-
+examples: |-
   List executables listening on network ports.
 
   ```
-
   SELECT l.port, l.pid, p.name, p.path FROM listening_ports l JOIN processes p USING (pid); 
-
   ```
 columns:
   - name: elevated_token

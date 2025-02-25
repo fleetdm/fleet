@@ -2,6 +2,7 @@ import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import React, { useCallback, useState } from "react";
 import { Row } from "react-table";
 import {
@@ -15,7 +16,7 @@ import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
 
-interface IHQRTable {
+export interface IHQRTable {
   queryName?: string;
   queryDescription?: string;
   hostName?: string;
@@ -119,15 +120,14 @@ const HQRTable = ({
   }, [lastFetched, hostName, reportClipped]);
 
   const renderCount = useCallback(() => {
-    const count = filteredResults.length;
     return (
-      <div className={`${baseClass}__results-count-and-last-fetched`}>
-        <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
+      <>
+        <TableCount name="results" count={filteredResults.length} />
         <span className="last-fetched">
           Last fetched{" "}
           <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetched ?? ""} />
         </span>
-      </div>
+      </>
     );
   }, [filteredResults.length, lastFetched]);
 
@@ -164,7 +164,7 @@ const HQRTable = ({
           customControl={renderTableButtons}
           setExportRows={setFilteredResults}
           emptyComponent={() => null}
-          defaultSortHeader={columnConfigs[0].title}
+          defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
         />
       )}

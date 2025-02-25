@@ -1,0 +1,4 @@
+- name: query_ruby
+  query: select 1
+- name: query_ruby2
+  query: select 2

@@ -40,9 +40,15 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 	return func(u, dstPath string) error {
 		parsedUrl, err := url.Parse(u)
 		if err != nil {
-			return err
+			return fmt.Errorf("url parse: %w", err)
 		}
-		return download.DownloadAndExtract(client, parsedUrl, dstPath)
+
+		err = download.DownloadAndExtract(client, parsedUrl, dstPath)
+		if err != nil {
+			return fmt.Errorf("download and extract url %s: %w", parsedUrl, err)
+		}
+
+		return nil
 	}
 }
 
@@ -89,7 +95,7 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 func Sync(dstDir string, platforms []Platform) error {
 	sources, err := getOvalSources(ghNvdFileGetter())
 	if err != nil {
-		return err
+		return fmt.Errorf("getOvalSources: %w", err)
 	}
 
 	if platforms == nil {
@@ -103,19 +109,19 @@ func Sync(dstDir string, platforms []Platform) error {
 	for _, platform := range platforms {
 		defFile, err := downloadDefinitions(sources, platform, dwn)
 		if err != nil {
-			return err
+			return fmt.Errorf("downloadDefinitions: %w", err)
 		}
 
 		dstFile := strings.Replace(filepath.Base(defFile), ".xml", ".json", 1)
 		dstPath := filepath.Join(dstDir, dstFile)
 		err = parseDefinitions(platform, defFile, dstPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("parseDefinitions: %w", err)
 		}
 
 		err = os.Remove(defFile)
 		if err != nil {
-			return err
+			return fmt.Errorf("removing %s: %w", defFile, err)
 		}
 	}
 	return nil

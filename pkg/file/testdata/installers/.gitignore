@@ -1,0 +1,6 @@
+# ignore everything except gitignore
+# software installers can be added locally to test the ExtractInstallerMetadata
+# logic, but tend to be big binary files with various licenses that might not
+# make it possible to include in the repository.
+*
+!.gitignore

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -50,6 +51,14 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
+	// NOTE: MDM assets are cached using their checksum as well, as it's
+	// important for them to always be fresh if they changed (see cachedi
+	// mplementation below for details)
+	mdmConfigAssetKey = "MDMConfigAsset:%s:%s"
+	// NOTE: given how mdmConfigAssetKey works, it means that once an asset
+	// changes, it'll linger for this amount of time. The curent
+	// implementation assumes infrequent asset changes.
+	defaultMDMConfigAssetExpiration = 15 * time.Minute
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -107,6 +116,7 @@ type cachedMysql struct {
 	teamMDMConfigExp     time.Duration
 	queryByNameExp       time.Duration
 	queryResultsCountExp time.Duration
+	mdmConfigAssetExp    time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -159,6 +169,12 @@ func WithQueryResultsCountExpiration(d time.Duration) Option {
 	}
 }
 
+func WithMDMConfigAssetExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.mdmConfigAssetExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:            ds,
@@ -171,6 +187,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
 		queryByNameExp:       defaultQueryByNameExpiration,
 		queryResultsCountExp: defaultQueryResultsCountExpiration,
+		mdmConfigAssetExp:    defaultMDMConfigAssetExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -385,4 +402,49 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
 
 	return count, nil
+}
+
+func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
+	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	// always reach the database to get the latest hashes
+	latestHashes, err := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
+	if err != nil {
+		return nil, err
+	}
+
+	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
+	var missingAssets []fleet.MDMAssetName
+
+	for _, name := range assetNames {
+		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
+
+		if x, found := ds.c.Get(ctx, key); found {
+			asset, ok := x.(fleet.MDMConfigAsset)
+			if ok {
+				cachedAssets[name] = asset
+				continue
+			}
+		}
+
+		missingAssets = append(missingAssets, name)
+	}
+
+	if len(missingAssets) == 0 {
+		return cachedAssets, nil
+	}
+
+	// fetch missing assets from the database
+	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets, queryerContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// update the cache with the fetched assets and their hashes
+	for name, asset := range assetMap {
+		key := fmt.Sprintf(mdmConfigAssetKey, name, latestHashes[name])
+		ds.c.Set(ctx, key, asset, ds.mdmConfigAssetExp)
+		cachedAssets[name] = asset
+	}
+
+	return cachedAssets, nil
 }

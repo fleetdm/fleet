@@ -1,14 +1,17 @@
 .filter-cell {
+  .input-icon-field__input-wrapper {
+    margin-top: $pad-xsmall;
+  }
+
   input {
     height: 40px;
     width: 100%;
     font-size: $x-small;
     background-color: transparent;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
+    border-radius: $border-radius;
     padding: 4px;
     padding-left: 32px;
-    margin-top: $pad-xsmall;
   }
 
   .search-field__input-wrapper {
@@ -18,9 +21,6 @@
   }
 
   .icon {
-    left: 10px;
-    top: 17px;
-
     path {
       fill: $ui-fleet-black-33; // Override input icon color
     }

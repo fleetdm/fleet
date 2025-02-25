@@ -12,10 +12,19 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
+
+interface IAgentOptionsFormData {
+  agentOptions?: string;
+}
+
+interface IAgentOptionsFormErrors {
+  agent_options?: string | null;
+}
 
 const Agents = ({
   appConfig,
@@ -23,12 +32,14 @@ const Agents = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+
   const { ADMIN_TEAMS } = paths;
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IAgentOptionsFormData>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
   });
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IAgentOptionsFormErrors>({});
 
   const { agentOptions } = formData;
 
@@ -37,7 +48,7 @@ const Agents = ({
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
@@ -58,7 +69,7 @@ const Agents = ({
     evt.preventDefault();
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit = agentOptions
+    const formDataToSubmit: any = agentOptions
       ? {
           agent_options: yaml.load(agentOptions),
         }
@@ -73,9 +84,9 @@ const Agents = ({
         <SectionHeader title="Agent options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
-            Agent options configure the osquery agent. When you update agent
-            options, they will be applied the next time a host checks in to
-            Fleet.{" "}
+            Agent options configure Fleet&apos;s agent (fleetd). When you update
+            agent options, they will be applied the next time a host checks in
+            to Fleet.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/configuration/agent-configuration"
               text="Learn more about agent options"
@@ -106,16 +117,22 @@ const Agents = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

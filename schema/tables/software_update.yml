@@ -1,12 +1,29 @@
 name: software_update
+description: The `software_update` table displays the number of updates available from Apple's Software Update service on a Mac.
 platforms:
   - darwin
-description: Information about available Apple software updates.
+examples: |-
+  Basic query:
+
+  ```
+  SELECT * FROM software_update;
+  ```
 columns:
   - name: software_update_required
     type: integer
     required: false
-    description: |
-      If true, means one of the Apple softwares installed on this machine has a new available upgrade.
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+    description: |-
+      A value of 0 means no updates are available. Any other integer represents the number of updates available.
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+
+  Available updates on a Mac can be displayed in the macOS Graphical User Interface (GUI) by clicking on the Apple menu and then selecting “System Settings”. In the System Settings.app, click General > Software Update.
+
+  Apple Software Updates can also be listed in Terminal with the following command:
+
+  ```
+  softwareupdate --list --verbose
+  ```
+
+  [Update Your Apple Software](https://support.apple.com/guide/personal-safety/update-your-apple-software-ips4930e3486/web)
 evented: false

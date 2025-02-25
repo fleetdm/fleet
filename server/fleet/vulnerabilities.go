@@ -6,8 +6,9 @@ import (
 )
 
 type CVE struct {
-	CVE         string `json:"cve" db:"cve"`
-	DetailsLink string `json:"details_link" db:"-"`
+	CVE         string    `json:"cve" db:"cve"`
+	DetailsLink string    `json:"details_link" db:"-"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	// These are double pointers so that we can omit them AND return nulls when needed.
 	// 1. omitted when using the free tier
 	// 2. null when using the premium tier, but there is no value available. This may be due to an issue with syncing cve scores.
@@ -125,6 +126,8 @@ const (
 	RHELOVALSource
 	MSRCSource
 	MacOfficeReleaseNotesSource
+	CustomSource
+	GovalDictionarySource
 )
 
 type VulnerabilityWithMetadata struct {
@@ -136,19 +139,20 @@ type VulnerabilityWithMetadata struct {
 }
 
 type VulnListOptions struct {
-	ListOptions
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions      ListOptions `url:"list_options"`
 	IsEE             bool
 	ValidSortColumns []string
-	TeamID           uint `query:"team_id,optional"`
-	KnownExploit     bool `query:"exploit,optional"`
+	TeamID           *uint `query:"team_id,optional"`
+	KnownExploit     bool  `query:"exploit,optional"`
 }
 
 func (opt VulnListOptions) HasValidSortColumn() bool {
-	if opt.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
+	if opt.ListOptions.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
 		return true
 	}
 	for _, c := range opt.ValidSortColumns {
-		if c == opt.OrderKey {
+		if c == opt.ListOptions.OrderKey {
 			return true
 		}
 	}

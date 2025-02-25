@@ -1,11 +1,6 @@
 .status-indicator {
   display: flex;
   align-items: center;
-  color: $core-fleet-blue;
-
-  ::first-letter {
-    text-transform: capitalize;
-  }
 
   &:before {
     border-radius: 100%;
@@ -15,6 +10,38 @@
     height: 8px;
     min-width: 8px;
   }
+
+  // New indicator styles
+  &--success {
+    &:before {
+      background-color: $ui-success;
+    }
+  }
+
+  &--warning {
+    &:before {
+      background-color: $ui-warning;
+    }
+  }
+
+  &--error {
+    &:before {
+      background-color: $ui-error;
+    }
+  }
+
+  &--indeterminate {
+    &:before {
+      background-color: $ui-offline;
+    }
+  }
+
+
+  // NOTE: We will move away from styling the indicator status depending
+  // on the value passed to the component. Instead we have added an `indicator`
+  // prop that will allow us explicitly define the desired status. This makes
+  // the component more flexible and easier to use. The next two blocks of
+  // styles (host status and user status) will be removed in the future.
 
   // host status
   &--online:before,
@@ -26,16 +53,6 @@
   &--disabled:before,
   &--off:before {
     background-color: $ui-offline;
-  }
-
-  &--online,
-  &--offline {
-    .status-tooltip {
-      display: block;
-      white-space: normal;
-      max-width: 308px;
-      text-transform: none;
-    }
   }
 
   // user status

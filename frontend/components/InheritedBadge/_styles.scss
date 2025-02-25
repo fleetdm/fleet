@@ -1,0 +1,19 @@
+.inherited-badge {
+  &__element-text {
+    font-weight: $bold;
+    font-size: $xxx-small;
+    color: $core-fleet-black;
+    line-height: 15px;
+    border-radius: $border-radius;
+    background: $ui-vibrant-blue-10;
+    padding: 4px;
+  }
+
+  @include tooltip5-arrow-styles;
+
+  .react-tooltip {
+    @include tooltip-text;
+    font-style: normal;
+    text-align: center;
+  }
+}

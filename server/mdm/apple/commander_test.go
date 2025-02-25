@@ -3,24 +3,30 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
+	"github.com/groob/plist"
+	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/nanolib/log/stdlogfmt"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMDMAppleCommander(t *testing.T) {
 	ctx := context.Background()
-	mdmStorage := &mock.MDMAppleStore{}
+	mdmStorage := &mdmmock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
 	pusher := nanomdm_pushsvc.New(
 		mdmStorage,
@@ -38,10 +44,14 @@ func TestMDMAppleCommander(t *testing.T) {
 	payloadIdentifier := "com-foo-bar"
 	mc := mobileconfigForTest(payloadName, payloadIdentifier)
 
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
-		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
+		require.Equal(t, cmd.Command.Command.RequestType, "InstallProfile")
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+		require.NoError(t, err)
+		require.Equal(t, string(p7.Content), string(mc))
 		return nil, nil
 	}
 
@@ -66,6 +76,17 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
 		return false, nil
 	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+		require.NoError(t, err)
+		keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
+	}
 
 	cmdUUID := uuid.New().String()
 	err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID)
@@ -75,9 +96,9 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		require.Equal(t, "RemoveProfile", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), payloadIdentifier)
 		return nil, nil
 	}
@@ -90,9 +111,9 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.NoError(t, err)
 
 	cmdUUID = uuid.New().String()
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 		require.NotNil(t, cmd)
-		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), "http://test.example.com")
 		require.Contains(t, string(cmd.Raw), cmdUUID)
 		return nil, nil
@@ -104,7 +125,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	host := &fleet.Host{ID: 1, UUID: "A"}
+	host := &fleet.Host{ID: 1, UUID: "A", Platform: "darwin"}
 	cmdUUID = uuid.New().String()
 	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
 		require.NotNil(t, gotHost)
@@ -112,12 +133,30 @@ func TestMDMAppleCommander(t *testing.T) {
 		require.Equal(t, host.UUID, gotHost.UUID)
 		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Len(t, pin, 6)
 		return nil
 	}
-	err = cmdr.DeviceLock(ctx, host, cmdUUID)
+	pin, err := cmdr.DeviceLock(ctx, host, cmdUUID)
 	require.NoError(t, err)
+	require.Len(t, pin, 6)
 	require.True(t, mdmStorage.EnqueueDeviceLockCommandFuncInvoked)
 	mdmStorage.EnqueueDeviceLockCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	cmdUUID = uuid.New().String()
+	mdmStorage.EnqueueDeviceWipeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		return nil
+	}
+	err = cmdr.EraseDevice(ctx, host, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueDeviceWipeCommandFuncInvoked)
+	mdmStorage.EnqueueDeviceWipeCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 }
@@ -133,7 +172,7 @@ func newMockAPNSPushProviderFactory() (*svcmock.APNSPushProviderFactory, *svcmoc
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{
@@ -164,4 +203,51 @@ func mobileconfigForTest(name, identifier string) []byte {
 </dict>
 </plist>
 `, name, identifier, uuid.New().String()))
+}
+
+func TestAPNSDeliveryError(t *testing.T) {
+	tests := []struct {
+		name                string
+		errorsByUUID        map[string]error
+		expectedError       string
+		expectedFailedUUIDs []string
+		expectedStatusCode  int
+	}{
+		{
+			name: "single error",
+			errorsByUUID: map[string]error{
+				"uuid1": errors.New("network error"),
+			},
+			expectedError: `APNS delivery failed with the following errors:
+UUID: uuid1, Error: network error`,
+			expectedFailedUUIDs: []string{"uuid1"},
+			expectedStatusCode:  http.StatusBadGateway,
+		},
+		{
+			name: "multiple errors, sorted",
+			errorsByUUID: map[string]error{
+				"uuid3": errors.New("timeout error"),
+				"uuid1": errors.New("network error"),
+				"uuid2": errors.New("certificate error"),
+			},
+			expectedError: `APNS delivery failed with the following errors:
+UUID: uuid1, Error: network error
+UUID: uuid2, Error: certificate error
+UUID: uuid3, Error: timeout error`,
+			expectedFailedUUIDs: []string{"uuid1", "uuid2", "uuid3"},
+			expectedStatusCode:  http.StatusBadGateway,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			apnsErr := &APNSDeliveryError{
+				errorsByUUID: tt.errorsByUUID,
+			}
+
+			require.Equal(t, tt.expectedError, apnsErr.Error())
+			require.Equal(t, tt.expectedFailedUUIDs, apnsErr.FailedUUIDs())
+			require.Equal(t, tt.expectedStatusCode, apnsErr.StatusCode())
+		})
+	}
 }

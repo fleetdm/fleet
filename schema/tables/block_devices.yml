@@ -1,9 +1,7 @@
 name: block_devices
-examples: >-
+examples: |-
   Identify USB storage in use
   
   ```
-  
   SELECT * FROM block_devices WHERE type='USB';
-  
   ```

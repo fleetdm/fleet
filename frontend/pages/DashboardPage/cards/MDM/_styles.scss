@@ -7,47 +7,39 @@
     display: none;
   }
 
-  .data-table-block {
-    .data-table__table {
-      table-layout: fixed;
+  &__mdm-status-table {
+    .data-table-block {
+      .data-table__table {
+        thead {
+          .status__header {
+            width: 30%;
+          }
 
-      thead {
-        .name__header,
-        .status__header {
-          width: 30%;
-        }
-        .server_url__header {
-          width: 30%;
-        }
-        .hosts_count__header,
-        .hosts__header {
-          border-right: 0;
-          padding-right: 0;
-          width: 60px;
-        }
-        .linkToFilteredHosts__header {
-          width: 140px;
-        }
-      }
+          .hosts__header {
+            border-right: 0;
+            padding-right: 0;
+            width: 60px;
+          }
 
-      tbody {
-        .mdm-solution-link {
-          opacity: 0;
-          transition: 250ms;
-          text-overflow: none;
-        }
-        tr:hover {
-          .mdm-solution-link {
-            opacity: 1;
+          .linkToFilteredHosts__header {
+            width: 140px;
           }
         }
       }
     }
-  }
-  .count-loading {
-    color: $ui-fleet-black-50;
-  }
-  .count-error {
-    color: $ui-error;
+
+    tbody {
+      .mdm-solution-link {
+        opacity: 0;
+        transition: 250ms;
+        text-overflow: none;
+      }
+      tr:hover {
+        .mdm-solution-link {
+          opacity: 1;
+        }
+      }
+    }
+
   }
 }

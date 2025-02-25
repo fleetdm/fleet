@@ -3,7 +3,7 @@ platforms:
   - windows
   - chrome
 description: Retrieve basic information about the physical disks of a system.
-examples: >-
+examples: |-
   ```
   SELECT * FROM disk_info;
   ```
@@ -46,6 +46,7 @@ columns:
     platforms:
       - windows
 evented: false
-notes: |
+notes: |-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+  
   - Available for ChromeOS 91+.

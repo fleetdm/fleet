@@ -57,6 +57,12 @@ module.exports = {
 
     let showSwagForm = false;
     // Due to shipping costs, we'll check the requesting user's cf-ipcountry to see if they're in the US, and their cf-iplongitude header to see if they're in the contiguous US.
+    if(sails.config.environment === 'production') {
+      // Log a warning if the cloudflare headers we use are missing in production.
+      if(!this.req.get('cf-ipcountry') || !this.req.get('cf-iplongitude')) {
+        sails.log.warn('When a user visted the docs, the Cloudflare header we use to determine if they are visiting from the contiguous United States is missing.');
+      }
+    }
     if(this.req.get('cf-ipcountry') === 'US' && this.req.get('cf-iplongitude') > -125) {
       showSwagForm = true;
     }
@@ -69,7 +75,7 @@ module.exports = {
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       pageTitleForMeta: (
         thisPage.title !== 'Readme.md' ? thisPage.title + ' | Fleet documentation'// « custom meta title for this page, if provided in markdown
-        : 'Documentation | Fleet' // « otherwise we're on the landing page for this section of the site, so we'll follow the title format of other top-level pages
+        : 'Documentation' // « otherwise we're on the landing page for this section of the site, so we'll follow the title format of other top-level pages
       ),
       pageDescriptionForMeta: (
         thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown

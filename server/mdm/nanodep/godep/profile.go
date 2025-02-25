@@ -2,18 +2,22 @@ package godep
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"net/url"
 )
 
 // Profile corresponds to the Apple DEP API "Profile" structure.
 // See https://developer.apple.com/documentation/devicemanagement/profile
 type Profile struct {
-	ProfileName           string   `json:"profile_name"`
-	URL                   string   `json:"url"`
-	AllowPairing          bool     `json:"allow_pairing,omitempty"`
-	IsSupervised          bool     `json:"is_supervised,omitempty"`
-	IsMultiUser           bool     `json:"is_multi_user,omitempty"`
-	IsMandatory           bool     `json:"is_mandatory,omitempty"`
+	ProfileName  string `json:"profile_name"`
+	URL          string `json:"url"`
+	AllowPairing bool   `json:"allow_pairing,omitempty"`
+	IsSupervised bool   `json:"is_supervised,omitempty"`
+	IsMultiUser  bool   `json:"is_multi_user,omitempty"`
+	IsMandatory  bool   `json:"is_mandatory,omitempty"`
+	// AwaitDeviceConfigured should never be set in the profiles we store in the
+	// database - it is now always forced to true when registering with Apple.
 	AwaitDeviceConfigured bool     `json:"await_device_configured,omitempty"`
 	IsMDMRemovable        bool     `json:"is_mdm_removable"` // default true
 	SupportPhoneNumber    string   `json:"support_phone_number,omitempty"`
@@ -72,4 +76,13 @@ func (c *Client) AssignProfile(ctx context.Context, name, uuid string, serials .
 func (c *Client) DefineProfile(ctx context.Context, name string, profile *Profile) (*ProfileResponse, error) {
 	resp := new(ProfileResponse)
 	return resp, c.doWithAfterHook(ctx, name, http.MethodPost, "/profile", profile, resp)
+}
+
+// GetProfile uses the Apple "Get a Profile" API endpoint to get the details
+// for the specified profile UUID.
+// See https://developer.apple.com/documentation/devicemanagement/get_a_profile
+func (c *Client) GetProfile(ctx context.Context, name, profileUUID string) (*json.RawMessage, error) {
+	resp := &json.RawMessage{}
+	qs := url.Values{"profile_uuid": {profileUUID}}
+	return resp, c.doWithAfterHook(ctx, name, http.MethodGet, "/profile?"+qs.Encode(), nil, resp)
 }

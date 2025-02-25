@@ -70,6 +70,7 @@ func createApp(
 	app.ErrWriter = stderr
 
 	app.Commands = []*cli.Command{
+		apiCommand(),
 		applyCommand(),
 		deleteCommand(),
 		setupCommand(),

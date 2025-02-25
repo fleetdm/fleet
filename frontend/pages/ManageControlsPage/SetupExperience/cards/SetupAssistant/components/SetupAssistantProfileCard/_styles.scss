@@ -1,0 +1,30 @@
+.setup-assistant-profile-card {
+  display: flex;
+  gap: $pad-medium;
+  align-items: center;
+
+  // TODO: create reusable list item component and use instead of all these styles.
+  &__info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__profile-name {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__uploaded-at {
+    font-size: $xx-small;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $pad-medium;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  &__download-button, &__delete-button {
+    padding: 11px; // TODO: use a padding value from existing variables. talk to design.
+  }
+}

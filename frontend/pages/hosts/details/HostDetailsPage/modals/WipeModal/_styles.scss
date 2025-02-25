@@ -1,0 +1,14 @@
+.wipe-modal {
+  p {
+    margin: 0;
+  }
+
+  &__modal-content {
+    display: grid;
+    gap: $pad-large;
+  }
+
+  &__wipe-checkbox {
+    margin-top: $pad-small;
+  }
+}

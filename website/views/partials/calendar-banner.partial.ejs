@@ -1,0 +1,26 @@
+<div purpose="calendar-feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
+  <div purpose="calendar-feature-text" class="d-flex flex-column">
+  <div purpose="new-badge">NEW</div>
+  <% if(!primaryBuyingSituation) {%>
+    <h3>"This is a terrible time to mess with my computer."</h3>
+    <p>Install updates and force restarts when your users’ computers are actually free.</p>
+  <%} else if(['eo-it', 'mdm'].includes(primaryBuyingSituation)) {%>
+    <h3>Patch your C-suite with confidence</h3>
+    <p>Install updates and force restarts when your users’ computers are actually free.</p>
+  <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
+    <h3>Tell me when and why</h3>
+    <p>Automatically explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
+  <%} %>
+    <% if (primaryBuyingSituation && !['eo-security'].includes(primaryBuyingSituation)) { %><div purpose="calendar-checklist" class="flex-column d-flex">
+      <p>Say goodbye to annoying IT notifications and restarts.</p>
+      <p>Automatically explain why your security policies matter.</p>
+      <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
+    </div><% } %>
+    <div purpose="video-button" class="d-flex flex-row align-items-center" @click="clickOpenVideoModal('calendar')">
+      <img src="/images/icon-play-video-32x32@2x.png" alt="play button">Watch the video
+    </div>
+  </div>
+  <div purpose="feature-video">
+    <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
+  </div>
+</div>

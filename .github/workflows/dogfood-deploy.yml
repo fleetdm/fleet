@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror.'
+        description: "The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror."
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -26,11 +26,13 @@ env:
   TF_WORKSPACE: fleet
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
-  TF_VAR_slack_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+  TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+  TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
   TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
   TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
   TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
+  TF_VAR_dogfood_sidecar_enroll_secret: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
 
 permissions:
   id-token: write
@@ -41,21 +43,29 @@ jobs:
     name: Deploy Fleet Dogfood Environment
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
       - id: fail-on-main
         run: "false"
         if: ${{ github.ref == 'main' }}
+
       - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}
           aws-region: ${{ env.AWS_REGION }}
+
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
+
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.6.3
+          terraform_version: 1.10.2
           terraform_wrapper: false
       - name: Terraform Init
         id: init
@@ -71,7 +81,30 @@ jobs:
         id: plan
         run: terraform plan -no-color
         continue-on-error: true
-        # first we'll scale everything down and create the new task definitions
+      - name: Slack Notification
+        if: success()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 🛠️ Dogfood deploy in progress\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+        # Note: This will cause the geolite2 image to be built twice, but that cannot be avoided without refactoring the terraform to not tag it based upon timestamp.
+      - name: Terraform Apply Free
+        id: apply-free
+        run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
       - name: Terraform Apply
         id: apply
         run: terraform apply -auto-approve

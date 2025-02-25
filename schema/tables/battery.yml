@@ -1,12 +1,10 @@
 name: battery
-examples: >-
+examples: |-
   This table contains a lot of information about the health of batteries. This
   query shows how many cycles the battery of a device was used for, allowing you
   to identify users who put more wear on it and might need more frequent
   replacements.
 
   ```
-
   SELECT cycle_count FROM battery;
-
   ```

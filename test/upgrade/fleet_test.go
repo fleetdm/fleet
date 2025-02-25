@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -111,6 +111,13 @@ func (f *Fleet) Start() error {
 		return err
 	}
 
+	// drop to one nginx worker process regardless of CPU count to ensure repointing to the correct
+	// Fleet container happens quickly
+	_, err = f.execCompose(env, "exec", "-T", "fleet", "sed", "-i", "s/auto/1/", "/etc/nginx/nginx.conf")
+	if err != nil {
+		return err
+	}
+
 	_, err = f.execCompose(env, "exec", "-T", "fleet", "nginx", "-s", "reload")
 	if err != nil {
 		return err
@@ -197,7 +204,7 @@ func (f *Fleet) getPublicPort(serviceName string, privatePort uint16) (uint16, e
 
 	// get the random fleet host port assigned by docker
 	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(argsName), All: true})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName), All: true})
 	if err != nil {
 		return 0, err
 	}
@@ -217,7 +224,7 @@ func (f *Fleet) waitFleet(slot string) error {
 
 	// get the random fleet host port assigned by docker
 	argsName := filters.Arg("name", containerName)
-	containers, err := f.dockerClient.ContainerList(context.TODO(), types.ContainerListOptions{Filters: filters.NewArgs(argsName), All: true})
+	containers, err := f.dockerClient.ContainerList(context.TODO(), container.ListOptions{Filters: filters.NewArgs(argsName), All: true})
 	if err != nil {
 		return err
 	}
@@ -360,6 +367,10 @@ func (f *Fleet) Upgrade(toVersion string) error {
 	if err != nil {
 		return err
 	}
+
+	// even with only one worker process, graceful reload of nginx workers doesn't happen instantly,
+	// so we add a wait here to let workers swap so they're pointed at the upgraded Fleet server
+	time.Sleep(250 * time.Millisecond)
 
 	f.Version = toVersion
 

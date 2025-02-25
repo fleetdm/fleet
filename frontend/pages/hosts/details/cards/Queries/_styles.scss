@@ -1,8 +1,4 @@
-.section--host-queries {
-  margin-top: $pad-medium;
-  .section__header {
-    margin-bottom: $pad-medium;
-  }
+.host-queries-card {
   .table-container__header {
     display: none;
   }
@@ -10,7 +6,7 @@
     .data-table__table {
       thead {
         .query_name__header {
-          width: $col-lg;
+          min-width: $col-lg;
         }
         .last_fetched__header {
           display: table-cell;
@@ -25,7 +21,7 @@
       tbody {
         tr {
           .query_name__cell {
-            width: $col-lg;
+            min-width: $col-lg;
           }
           .last_fetched__cell {
             display: table-cell;
@@ -37,6 +33,7 @@
               width: 0;
             }
           }
+
           &:hover {
             .report-updated-cell__link-text {
               opacity: 1;

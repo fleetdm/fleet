@@ -31,12 +31,17 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: JS Dependency Cache
         id: js-cache
-        uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: |
             **/node_modules
@@ -47,7 +52,7 @@ jobs:
       - name: Install JS Dependencies
         if: steps.js-cache.outputs.cache-hit != 'true'
         working-directory: ./ee/fleetd-chrome
-        run: npm install
+        run: npm install --no-save
 
       - name: Build JS
         working-directory: ./ee/fleetd-chrome
@@ -61,7 +66,8 @@ jobs:
           npm test
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./ee/fleetd-chrome/coverage
           flags: fleetd-chrome

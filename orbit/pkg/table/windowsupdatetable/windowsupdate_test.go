@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,14 +31,14 @@ func TestTable(t *testing.T) {
 			t.Parallel()
 
 			table := Table{
-				logger:    log.NewNopLogger(),
+				logger:    zerolog.Nop(),
 				queryFunc: tt.queryFunc,
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
 
-			// ci doesn;t return data, but we can, at least, check that the underlying API doesn't error.
+			// ci doesn't return data, but we can, at least, check that the underlying API doesn't error.
 			_, err := table.generate(ctx, tablehelpers.MockQueryContext(nil))
 			require.NoError(t, err, "generate")
 		})

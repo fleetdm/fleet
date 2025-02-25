@@ -1,11 +1,9 @@
 name: logged_in_users
-examples: >-
+examples: |-
   See the user currently logged in on the console of the computer.
   
   ```
-  
   SELECT user, type, tty from logged_in_users WHERE tty='console';
-  
   ```
 columns:
   - name: sid

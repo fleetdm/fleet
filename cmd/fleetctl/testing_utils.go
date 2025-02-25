@@ -16,10 +16,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	nanodepClient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -87,14 +87,6 @@ func (ts *withServer) getTestToken(email string, password string) string {
 	return jsn.Token
 }
 
-var testBMToken = &nanodepClient.OAuth1Tokens{
-	ConsumerKey:       "test_consumer",
-	ConsumerSecret:    "test_secret",
-	AccessToken:       "test_access_token",
-	AccessSecret:      "test_access_secret",
-	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-}
-
 // runServerWithMockedDS runs the fleet server with several mocked DS methods.
 //
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
@@ -129,6 +121,39 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	require.NoError(t, err)
+	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+	require.NoError(t, err)
+	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
+		return map[fleet.MDMAssetName]string{
+			fleet.MDMAssetABMCert:            "abmcert",
+			fleet.MDMAssetABMKey:             "abmkey",
+			fleet.MDMAssetABMTokenDeprecated: "abmtoken",
+			fleet.MDMAssetAPNSCert:           "apnscert",
+			fleet.MDMAssetAPNSKey:            "apnskey",
+			fleet.MDMAssetCACert:             "scepcert",
+			fleet.MDMAssetCAKey:              "scepkey",
+		}, nil
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
+			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
+			fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
+			fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+			fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+			fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
+			fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
+		}, nil
+	}
+
+	ds.ApplyYaraRulesFunc = func(context.Context, []fleet.YaraRule) error {
+		return nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
 	}
 
 	var cachedDS fleet.Datastore

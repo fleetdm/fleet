@@ -8,7 +8,7 @@
     position: initial;
     .react-tabs {
       &__tab-list {
-        margin: 0 0 1.25rem;
+        margin: 0 0 $pad-large;
       }
     }
   }
@@ -26,8 +26,7 @@
       min-height: 88px;
     }
 
-    &__textarea,
-    &--disabled {
+    &__textarea {
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       font-size: 13px;
@@ -51,12 +50,7 @@
   }
 
   &__copy-message {
-    font-weight: $regular;
-    vertical-align: top;
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 
   .buttons {
@@ -112,8 +106,13 @@
   &__chromeos-policy-for-extension {
     height: 230px;
 
-    .input-field--disabled {
-      height: 190px;
+    .input-field {
+      &__textarea {
+        height: 190px;
+      }
+      &--disabled {
+        height: 190px;
+      }
     }
   }
 
@@ -122,9 +121,6 @@
   }
 
   &__copy-message {
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 }

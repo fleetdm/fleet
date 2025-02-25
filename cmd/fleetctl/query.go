@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -22,20 +24,26 @@ func queryCommand() *cli.Command {
 		Name:      "query",
 		Usage:     "Run a live query",
 		UsageText: `fleetctl query [options]`,
+		Description: `Runs the specified query as a live query on the specified targets. 
+
+Using the --hosts flag individual hosts can be specified with the host's hostname. Groups of hosts can
+specified by using labels. Note if both the --hosts and --labels flags are specified, the query will
+be run on the union of the hosts and hosts with matching labels.
+		`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "hosts",
 				EnvVars:     []string{"HOSTS"},
 				Value:       "",
 				Destination: &flHosts,
-				Usage:       "Comma separated hostnames to target",
+				Usage:       "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
 			},
 			&cli.StringFlag{
 				Name:        "labels",
 				EnvVars:     []string{"LABELS"},
 				Value:       "",
 				Destination: &flLabels,
-				Usage:       "Comma separated label names to target",
+				Usage:       "Comma-separated label names to target. Hosts with any of the labels will be targeted.",
 			},
 			&cli.BoolFlag{
 				Name:        "quiet",
@@ -84,7 +92,7 @@ func queryCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -103,7 +111,7 @@ func queryCommand() *cli.Command {
 				if tid := c.Uint(teamFlagName); tid != 0 {
 					teamID = &tid
 				}
-				queries, err := fleet.GetQueries(teamID, &flQueryName)
+				queries, err := client.GetQueries(teamID, &flQueryName)
 				if err != nil || len(queries) == 0 {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
@@ -118,10 +126,8 @@ func queryCommand() *cli.Command {
 				if queryID == nil {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
-			} else {
-				if flQuery == "" {
-					return errors.New("Query must be specified with --query or --query-name")
-				}
+			} else if flQuery == "" {
+				return errors.New("Query must be specified with --query or --query-name")
 			}
 
 			var output outputWriter
@@ -131,11 +137,20 @@ func queryCommand() *cli.Command {
 				output = newJsonWriter(c.App.Writer)
 			}
 
-			hosts := strings.Split(flHosts, ",")
+			hostIdentifiers := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
-			res, err := fleet.LiveQuery(flQuery, queryID, labels, hosts)
+			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
+				if strings.Contains(err.Error(), "no hosts targeted") {
+					return errors.New(fleet.NoHostsTargetedErrMsg)
+				}
+				if strings.Contains(err.Error(), fleet.InvalidLabelSpecifiedErrMsg) {
+					pattern := fmt.Sprintf("(%s.*)$", regexp.QuoteMeta(fleet.InvalidLabelSpecifiedErrMsg))
+					regex := regexp.MustCompile(pattern)
+					match := regex.FindString(err.Error())
+					return errors.New(match)
+				}
 				return err
 			}
 

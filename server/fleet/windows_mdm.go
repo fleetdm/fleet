@@ -32,13 +32,15 @@ type MDMWindowsBitLockerSummary struct {
 type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
-	ProfileUUID string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID      *uint                       `db:"team_id" json:"team_id"`
-	Name        string                      `db:"name" json:"name"`
-	SyncML      []byte                      `db:"syncml" json:"-"`
-	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
-	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
-	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
+	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	Name             string                      `db:"name" json:"name"`
+	SyncML           []byte                      `db:"syncml" json:"-"`
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
+	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
@@ -75,7 +77,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// NOTE: since we're only checking for well-formedness
 	// we don't need to validate the required nesting
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
-	var inReplace bool
+	var inValidNode bool
 	var inLocURI bool
 
 	for {
@@ -96,37 +98,38 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 		case xml.StartElement:
 			switch t.Name.Local {
-			case "Replace":
-				inReplace = true
+			case "Replace", "Add":
+				inValidNode = true
 			case "LocURI":
-				if !inReplace {
-					return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 				}
 				inLocURI = true
 
 			default:
-				if !inReplace {
-					return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 				}
 			}
 
 		case xml.EndElement:
 			switch t.Name.Local {
-			case "Replace":
-				inReplace = false
+			case "Replace", "Add":
+				inValidNode = false
 			case "LocURI":
 				inLocURI = false
 			}
 
 		case xml.CharData:
 			if inLocURI {
+				if err := validateUserScopedLocURI(string(t)); err != nil {
+					return err
+				}
 				if err := validateFleetProvidedLocURI(string(t)); err != nil {
 					return err
 				}
 			}
-
 		}
-
 	}
 
 	return nil
@@ -148,6 +151,15 @@ func validateFleetProvidedLocURI(locURI string) error {
 	return nil
 }
 
+func validateUserScopedLocURI(locURI string) error {
+	sanitizedLocURI := strings.TrimSpace(locURI)
+	if strings.Contains(sanitizedLocURI, syncml.FleetUserScopedTargetLocURI) {
+		return errors.New(`The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`)
+	}
+
+	return nil
+}
+
 type MDMWindowsProfilePayload struct {
 	ProfileUUID   string             `db:"profile_uuid"`
 	ProfileName   string             `db:"profile_name"`
@@ -157,6 +169,18 @@ type MDMWindowsProfilePayload struct {
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
 	Retries       int                `db:"retries"`
+}
+
+func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	return statusEqual &&
+		p.ProfileUUID == other.ProfileUUID &&
+		p.HostUUID == other.HostUUID &&
+		p.ProfileName == other.ProfileName &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.CommandUUID == other.CommandUUID &&
+		p.Retries == other.Retries
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {

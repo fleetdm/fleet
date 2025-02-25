@@ -5,6 +5,7 @@ package fleethttp
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -96,7 +97,8 @@ func WithTLSConfig(conf *tls.Config) TransportOpt {
 // NewTransport creates an http transport (a type that implements
 // http.RoundTripper) with the provided optional options. The transport is
 // derived from Go's http.DefaultTransport and only overrides the specific
-// parts it needs to, so that it keeps its sane defaults for the rest.
+// parts it needs to, so that it keeps its sane defaults for the rest (such as
+// timeouts and proxy support).
 func NewTransport(opts ...TransportOpt) *http.Transport {
 	var to transportOpts
 	for _, opt := range opts {
@@ -146,4 +148,35 @@ func HostnamesMatch(a, b string) (bool, error) {
 	}
 
 	return ap.Hostname() == bp.Hostname(), nil
+}
+
+type SizeLimitTransport struct {
+	maxSizeBytes int64
+}
+
+var ErrMaxSizeExceeded = errors.New("response body exceeds max size")
+
+func NewSizeLimitTransport(maxSizeBytes int64) *SizeLimitTransport {
+	return &SizeLimitTransport{
+		maxSizeBytes: maxSizeBytes,
+	}
+}
+
+func (t *SizeLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if contentLen := resp.ContentLength; contentLen > t.maxSizeBytes {
+		resp.Body.Close()
+		return nil, ErrMaxSizeExceeded
+	}
+
+	// if no Content-Length header, limit reading the body
+	if resp.ContentLength < 0 {
+		resp.Body = http.MaxBytesReader(nil, resp.Body, t.maxSizeBytes)
+	}
+
+	return resp, nil
 }

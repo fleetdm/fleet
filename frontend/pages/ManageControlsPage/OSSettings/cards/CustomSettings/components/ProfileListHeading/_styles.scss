@@ -14,4 +14,11 @@
     align-items: center;
     gap: $pad-small;
   }
+
+  &__actions-heading {
+    margin: -$pad-medium 0; // Remove vertical padding of button increasing container height
+  }
+  &__add-button {
+    vertical-align: middle;
+  }
 }

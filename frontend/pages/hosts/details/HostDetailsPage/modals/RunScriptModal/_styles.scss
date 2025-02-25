@@ -6,6 +6,8 @@
     display: flex;
     flex-direction: column;
     gap: $pad-xlarge;
+    width: 729px; // Fixes cut off table border
+    margin-bottom: 9px; // Fixes cut off dropdown
 
     .empty-table__container {
       max-width: none;
@@ -22,15 +24,6 @@
     .modal__header,
     .modal-cta-wrap {
       opacity: 0.6;
-    }
-  }
-
-  .Select-option {
-    .dropdown__option {
-      [data-id="tooltip"] {
-        font-size: $xx-small;
-        font-style: normal;
-      }
     }
   }
 

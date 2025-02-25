@@ -36,6 +36,10 @@ func NopRedis() fleet.RedisPool {
 }
 
 func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readReplica bool) fleet.RedisPool {
+	return SetupRedisWithConfig(tb, cleanupKeyPrefix, cluster, redir, readReplica, redis.PoolConfig{})
+}
+
+func SetupRedisWithConfig(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readReplica bool, config redis.PoolConfig) fleet.RedisPool {
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")
 	}
@@ -59,17 +63,22 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 	}
 	addr += port
 
-	pool, err := redis.NewPool(redis.PoolConfig{
-		Server:                    addr,
-		Username:                  username,
-		Password:                  password,
-		Database:                  database,
-		UseTLS:                    useTLS,
-		ConnTimeout:               5 * time.Second,
-		KeepAlive:                 10 * time.Second,
-		ClusterFollowRedirections: redir,
-		ClusterReadFromReplica:    readReplica,
-	})
+	// set the mandatory, non-configurable configs for tests
+	config.Server = addr
+	config.Username = username
+	config.Password = password
+	config.Database = database
+	config.UseTLS = useTLS
+	config.ClusterFollowRedirections = redir
+	config.ClusterReadFromReplica = readReplica
+	if config.ConnTimeout == 0 {
+		config.ConnTimeout = 5 * time.Second
+	}
+	if config.KeepAlive == 0 {
+		config.KeepAlive = 10 * time.Second
+	}
+
+	pool, err := redis.NewPool(config)
 	require.NoError(tb, err)
 
 	conn := pool.Get()

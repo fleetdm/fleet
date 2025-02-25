@@ -1,11 +1,9 @@
 name: authorization_mechanisms
-examples: >-
+examples: |-
   Discover privileged macOS authorization mechanisms, which could include third
   party software. Finding third party software using this means it is likely an
   important piece of software that should be kept very up to date.
 
   ```
-
   SELECT * FROM authorization_mechanisms WHERE privileged='true';
-
   ```

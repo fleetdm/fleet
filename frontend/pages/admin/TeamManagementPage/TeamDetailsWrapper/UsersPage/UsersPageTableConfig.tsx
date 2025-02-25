@@ -1,13 +1,16 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
-import CustomLink from "components/CustomLink";
+
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import stringUtils from "utilities/strings";
+
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import stringUtils from "utilities/strings";
 import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
@@ -29,7 +32,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IDropdownCellProps extends IRowProps {
+interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -41,7 +44,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IDropdownCellProps) => JSX.Element);
+    | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -126,7 +129,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   The GitOps role is only available on the command-line
@@ -144,7 +146,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   Users with the Observer+ role have access to all of
@@ -168,7 +169,7 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "email",
       Cell: (cellProps: ICellProps) => (
-        <TextCell classes="w400" value={cellProps.cell.value} />
+        <TextCell className="w400" value={cellProps.cell.value} />
       ),
     },
     {
@@ -176,13 +177,21 @@ const generateColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
+      Cell: (cellProps: IActionsDropdownProps) => (
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+              <ActionsDropdown
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder="Actions"
+                disabled={disableChildren}
+              />
+            </div>
+          )}
         />
       ),
     },
@@ -219,6 +228,7 @@ const enhanceUsersData = (
       role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
+      mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,

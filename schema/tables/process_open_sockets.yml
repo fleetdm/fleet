@@ -8,13 +8,13 @@ columns:
   - name: net_namespace
     platforms:
       - linux
-examples: >-
+  - name: family
+    description:  Network protocol (IPv4, IPv6). [Learn more](https://students.mimuw.edu.pl/SO/Linux/Kod/include/linux/socket.h.html)
+examples: |-
   This table allows you to see network activity by process. With this query, list all connections
   made to or from a process, excluding connections to localhost and
   [RFC1918](https://en.wikipedia.org/wiki/Private_network) IP addresses.
   
   ```
-  
-  SELECT pos.local_port, pos.remote_port, pos.remote_address, p.pid, p.path FROM process_open_sockets pos JOIN processes p ON pos.pid = p.pid WHERE remote_address NOT LIKE '192.168%' AND remote_address NOT LIKE '10.%' AND remote_address NOT LIKE '172.16.%' AND remote_address NOT LIKE '127.%' AND remote_address!='0.0.0.0' AND remote_address NOT LIKE 'fe80%' AND remote_port!='0'; 
-  
+  SELECT pos.local_port, pos.remote_port, pos.remote_address, p.pid, p.path FROM process_open_sockets pos JOIN processes p ON pos.pid = p.pid WHERE remote_address NOT LIKE '192.168%' AND remote_address NOT LIKE '10.%' AND remote_address NOT LIKE '172.16.%' AND remote_address NOT LIKE '127.%' AND remote_address!='0.0.0.0' AND remote_address NOT LIKE 'fe80%' AND remote_port!='0';
   ```

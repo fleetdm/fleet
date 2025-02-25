@@ -1,0 +1,2 @@
+- Fixed a bug where adding or removing a host with an identical name to/from a label caused the
+  same action to be performed on other host(s) with the same name as well.

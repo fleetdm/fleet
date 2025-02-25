@@ -1,0 +1,7 @@
+name: No team
+controls:
+policies:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/invalidtype.txt
+      self_service: "not a boolean"

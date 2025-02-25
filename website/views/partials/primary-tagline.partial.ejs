@@ -1,0 +1,6 @@
+<%=
+  (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'vm') ? 'Focus on vulnerabilities, not vendors' // vm
+  : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-security') ? 'Easily get security data'// eo-security
+  : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-it') ? 'One system for every platform' : // eo-it
+  'One system for every OS'// mdm or default (no buying situation)
+%>

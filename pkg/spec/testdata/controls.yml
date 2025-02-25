@@ -18,7 +18,14 @@ macos_setup:
 macos_updates:
   deadline: null
   minimum_version: null
+ios_updates:
+  deadline: null
+  minimum_version: null
+ipados_updates:
+  deadline: null
+  minimum_version: null
 windows_enabled_and_configured: true
+windows_migration_enabled: false
 windows_updates:
   deadline_days: null
   grace_period_days: null

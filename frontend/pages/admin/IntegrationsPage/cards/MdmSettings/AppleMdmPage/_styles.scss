@@ -1,0 +1,108 @@
+.apple-mdm-page {
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+    font-size: $x-large;
+  }
+
+  h4 {
+    margin-bottom: 0;
+  }
+
+  p {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
+
+  &__page-content {
+    font-size: $x-small;
+  }
+
+  &__setup-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    color: $core-fleet-black;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__setup-instructions-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    li {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-small;
+
+      p {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        margin: 0;
+        gap: $pad-small;
+      }
+    }
+  }
+
+  &__request-button {
+    display: flex;
+    gap: $pad-small;
+    align-items: center;
+    margin-top: $pad-small;
+
+    label {
+      display: flex;
+      gap: $pad-small;
+      cursor: pointer;
+    }
+  }
+
+  &__apc-info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    dt {
+      font-weight: $bold;
+      margin-bottom: $pad-xsmall;
+    }
+  }
+
+  &__apns-button-wrap {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    margin-top: $pad-xxlarge;
+  }
+
+  &__file-uploader {
+    margin-top: $pad-medium;
+    margin-left: $pad-medium;
+    border-radius: 6px;
+
+    .file-uploader__message {
+      color: $ui-fleet-black-75;
+    }
+
+    button {
+      margin-top: 0;
+    }
+
+    &--loading {
+      label {
+        opacity: 0.5;
+      }
+    }
+  }
+}

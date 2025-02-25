@@ -45,13 +45,19 @@
 package live_query
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -66,12 +72,56 @@ const (
 type redisLiveQuery struct {
 	// connection pool
 	pool fleet.RedisPool
+	// in memory cache
+	cache memCache
+	// in memory cache expiration
+	cacheExpiration time.Duration
+
+	logger kitlog.Logger
+}
+
+// memCache is an in-memory cache for live queries. It stores the SQL of the
+// queries and the active queries set. It also stores the expiration time of the
+// cache.
+type memCache struct {
+	sqlCache           map[string]string
+	activeQueriesCache []string
+	cacheExp           time.Time
+	mu                 sync.RWMutex
+}
+
+// cacheIsExpired is a thread-safe method to check if the cache is expired.
+func (r *redisLiveQuery) cacheIsExpired() bool {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	return r.cache.cacheExp.Before(time.Now())
+}
+
+// getSQLByCampaignID is a thread-safe method to get the SQL of a live query by its
+// campaign ID.
+func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
+	r.cache.mu.RLock()
+	defer r.cache.mu.RUnlock()
+	sql, found := r.cache.sqlCache[campaignID]
+	return sql, found
 }
 
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool) *redisLiveQuery {
-	return &redisLiveQuery{pool: pool}
+func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger, memCacheExp time.Duration) *redisLiveQuery {
+	return &redisLiveQuery{
+		pool:            pool,
+		cache:           newMemCache(),
+		cacheExpiration: memCacheExp,
+		logger:          logger,
+	}
+}
+
+func newMemCache() memCache {
+	return memCache{
+		sqlCache:           make(map[string]string),
+		activeQueriesCache: make([]string, 0),
+	}
 }
 
 // generate keys for the bitfield and sql of a query - those always go in pair
@@ -100,7 +150,7 @@ func extractTargetKeyName(key string) string {
 
 // RunQuery stores the live query information in ephemeral storage for the
 // duration of the query or its TTL. Note that hostIDs *must* be sorted
-// in ascending order.
+// in ascending order. The name is the campaign ID as a string.
 func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return errors.New("no hosts targeted")
@@ -138,60 +188,44 @@ var cleanupExpiredQueriesModulo int64 = 10
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	names, err := r.loadActiveQueryNames()
+	names, err := r.LoadActiveQueryNames()
 	if err != nil {
 		return nil, fmt.Errorf("load active queries: %w", err)
 	}
 
 	// convert the query name (campaign id) to the key name
-	for i, name := range names {
+	keyNames := make([]string, 0, len(names))
+	for _, name := range names {
 		tkey, _ := generateKeys(name)
-		names[i] = tkey
+		keyNames = append(keyNames, tkey)
 	}
 
-	keysBySlot := redis.SplitKeysBySlot(r.pool, names...)
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keyNames...)
 	queries := make(map[string]string)
-	expired := make(map[string]struct{})
 	for _, qkeys := range keysBySlot {
-		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries, expired); err != nil {
+		if err := r.collectBatchQueriesForHost(hostID, qkeys, queries); err != nil {
 			return nil, err
-		}
-	}
-
-	if len(expired) > 0 {
-		// a certain percentage of the time so that we don't overwhelm redis with a
-		// bunch of similar deletion commands at the same time, clean up the
-		// expired queries.
-		if time.Now().UnixNano()%cleanupExpiredQueriesModulo == 0 {
-			names := make([]string, 0, len(expired))
-			for k := range expired {
-				names = append(names, k)
-			}
-			// ignore error, best effort removal
-			_ = r.removeQueryNames(names...)
 		}
 	}
 
 	return queries, nil
 }
 
-func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string, expiredQueries map[string]struct{}) error {
+func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []string, queriesByHost map[string]string) error {
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
 	defer conn.Close()
+
+	if r.cacheIsExpired() {
+		if err := r.loadCache(); err != nil {
+			return fmt.Errorf("load cache: %w", err)
+		}
+	}
 
 	// Pipeline redis calls to check for this host in the bitfield of the
 	// targets of the query.
 	for _, key := range queryKeys {
 		if err := conn.Send("GETBIT", key, hostID); err != nil {
 			return fmt.Errorf("getbit query targets: %w", err)
-		}
-
-		// Additionally get SQL even though we don't yet know whether this query
-		// is targeted to the host. This allows us to avoid an additional
-		// roundtrip to the Redis server and likely has little cost due to the
-		// small number of queries and limited size of SQL
-		if err := conn.Send("GET", sqlKeyPrefix+key); err != nil {
-			return fmt.Errorf("get query sql: %w", err)
 		}
 	}
 
@@ -212,27 +246,13 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 			return fmt.Errorf("receive target: %w", err)
 		}
 
-		// Be sure to read SQL even if we are not going to include this query.
-		// Otherwise we will read an incorrect number of returned results from
-		// the pipeline.
-		sql, err := redigo.String(conn.Receive())
-		if err != nil {
-			if err != redigo.ErrNil {
-				return fmt.Errorf("receive sql: %w", err)
+		if targeted == 1 {
+			if sql, found := r.getSQLByCampaignID(name); found {
+				queriesByHost[name] = sql
+			} else {
+				level.Warn(r.logger).Log("msg", "live query not found in cache", "name", name)
 			}
-
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[name] = struct{}{}
-			continue
 		}
-
-		if targeted == 0 {
-			// Host not targeted with this query
-			continue
-		}
-		queriesByHost[name] = sql
 	}
 	return nil
 }
@@ -312,15 +332,153 @@ func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 	return err
 }
 
-func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
+func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	// copyActiveQueries returns a copy of the active queries cache to
+	// ensure thread safety.
+	copyActiveQueries := func() []string {
+		r.cache.mu.RLock()
+		defer r.cache.mu.RUnlock()
+
+		names := make([]string, len(r.cache.activeQueriesCache))
+		copy(names, r.cache.activeQueriesCache)
+
+		return names
+	}
+
+	if !r.cacheIsExpired() {
+		return copyActiveQueries(), nil
+	}
+
+	if err := r.loadCache(); err != nil {
+		return nil, fmt.Errorf("load cache: %w", err)
+	}
+
+	return copyActiveQueries(), nil
+}
+
+func (r *redisLiveQuery) loadCache() error {
+	expiredQueries := make(map[string]struct{})
+	sqlCache := make(map[string]string)
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	names, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	if err != nil && err != redigo.ErrNil {
-		return nil, err
+		return fmt.Errorf("get active queries: %w", err)
 	}
-	return names, nil
+
+	for _, id := range activeIDs {
+		_, sqlKey := generateKeys(id)
+
+		sql, err := redigo.String(conn.Do("GET", sqlKey))
+		if err != nil {
+			if err != redigo.ErrNil {
+				return fmt.Errorf("get query sql: %w", err)
+			}
+
+			// It is possible the livequery key has expired but was still in the set
+			// - handle this gracefully by collecting the keys to remove them from
+			// the set and keep going.
+			expiredQueries[id] = struct{}{}
+			continue
+		}
+
+		sqlCache[id] = sql
+	}
+
+	// remove expired queries from the names list
+	if len(expiredQueries) > 0 {
+		trimmedIDs := make([]string, 0, len(activeIDs)-len(expiredQueries))
+		for _, name := range activeIDs {
+			if _, found := expiredQueries[name]; !found {
+				trimmedIDs = append(trimmedIDs, name)
+			}
+		}
+		activeIDs = trimmedIDs
+	}
+
+	r.cache.mu.Lock()
+	r.cache.sqlCache = sqlCache
+	r.cache.activeQueriesCache = activeIDs
+	r.cache.cacheExp = time.Now().Add(r.cacheExpiration)
+	r.cache.mu.Unlock()
+
+	if len(expiredQueries) > 0 {
+		// a certain percentage of the time so that we don't overwhelm redis with a
+		// bunch of similar deletion commands at the same time, clean up the
+		// expired queries.
+		if time.Now().UnixNano()%cleanupExpiredQueriesModulo == 0 {
+			names := make([]string, 0, len(expiredQueries))
+			for k := range expiredQueries {
+				names = append(names, k)
+			}
+
+			go func() {
+				err = r.removeQueryNames(names...)
+				if err != nil {
+					level.Warn(r.logger).Log("msg", "removing expired live queries", "err", err)
+				}
+			}()
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	// the following logic is used to cleanup inactive queries:
+	// 	* the inactive campaign IDs are removed from the livequery:active set
+	//
+	// At this point, all inactive queries are already effectively deleted - the
+	// rest is just best effort cleanup to save Redis memory space, but those
+	// keys would otherwise be ignored and without effect.
+	//
+	// * remove the livequery:<ID> and sql:livequery:<ID> for every inactive
+	// 	campaign ID.
+
+	if len(inactiveCampaignIDs) == 0 {
+		return nil
+	}
+
+	if err := r.removeInactiveQueries(ctx, inactiveCampaignIDs); err != nil {
+		return err
+	}
+
+	keysToDel := make([]string, 0, len(inactiveCampaignIDs)*2)
+	for _, id := range inactiveCampaignIDs {
+		targetKey, sqlKey := generateKeys(strconv.FormatUint(uint64(id), 10))
+		keysToDel = append(keysToDel, targetKey, sqlKey)
+	}
+
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keysToDel...)
+	for _, keys := range keysBySlot {
+		if err := r.removeBatchInactiveKeys(ctx, keys); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) removeBatchInactiveKeys(ctx context.Context, keys []string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	args := redigo.Args{}.AddFlat(keys)
+	if _, err := conn.Do("DEL", args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove batch of inactive keys")
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) removeInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	args := redigo.Args{}.Add(activeQueriesKey).AddFlat(inactiveCampaignIDs)
+	if _, err := conn.Do("SREM", args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove inactive campaign IDs")
+	}
+	return nil
 }
 
 // mapBitfield takes the given host IDs and maps them into a bitfield compatible

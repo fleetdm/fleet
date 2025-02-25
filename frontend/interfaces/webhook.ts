@@ -26,7 +26,13 @@ export interface IWebhookSoftwareVulnerabilities {
   host_batch_size?: number;
 }
 
+export interface IWebhookActivities {
+  enable_activities_webhook: boolean;
+  destination_url: string;
+}
+
 export type IWebhook =
   | IWebhookHostStatus
   | IWebhookFailingPolicies
-  | IWebhookSoftwareVulnerabilities;
+  | IWebhookSoftwareVulnerabilities
+  | IWebhookActivities;

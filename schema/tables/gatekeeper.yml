@@ -1,9 +1,7 @@
 name: gatekeeper
-examples: >-
+examples: |-
   Policy query to check that Gatekeeper is enabled
   
   ```
-  
   SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
-  
   ```

@@ -6,9 +6,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -17,11 +19,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-func TestEnterpriseIntegrationsGitops(t *testing.T) {
+func TestIntegrationsEnterpriseGitops(t *testing.T) {
 	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
 	testingSuite.suite = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -34,12 +39,11 @@ type enterpriseIntegrationGitopsTestSuite struct {
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
-	s.withDS.SetupSuite("integrationGitopsTestSuite")
+	s.withDS.SetupSuite("enterpriseIntegrationGitopsTestSuite")
 
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = true
-	appConf.MDM.WindowsEnabledAndConfigured = true
 	appConf.MDM.AppleBMEnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
@@ -50,14 +54,22 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: testCertPEM},
+		{Name: fleet.MDMAssetAPNSKey, Value: testKeyPEM},
+		{Name: fleet.MDMAssetCACert, Value: testCertPEM},
+		{Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+	}, nil)
 	require.NoError(s.T(), err)
-	depStorage, err := s.ds.NewMDMAppleDEPStorage(*testBMToken)
+
+	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
-	scepStorage, err := s.ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	depStorage, err := s.ds.NewMDMAppleDEPStorage()
+	require.NoError(s.T(), err)
+	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
@@ -72,6 +84,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		Pool:        redisPool,
 		APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
+	}, nil)
+	require.NoError(s.T(), err)
 	users, server := service.RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.server = server
@@ -99,17 +115,108 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t := s.T()
 	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
-	// Create GitOps user
-	user := fleet.User{
-		Name:       "GitOps User",
-		Email:      "fleetctl-gitops@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
-	}
-	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
-	_, err := s.ds.NewUser(context.Background(), &user)
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Clone git repo
+	repoDir := t.TempDir()
+	_, err := git.PlainClone(
+		repoDir, false, &git.CloneOptions{
+			ReferenceName: "main",
+			SingleBranch:  true,
+			Depth:         1,
+			URL:           fleetGitopsRepo,
+			Progress:      os.Stdout,
+		},
+	)
 	require.NoError(t, err)
 
-	// Create a temporary fleetctl config file
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+	globalFile := path.Join(repoDir, "default.yml")
+	teamsDir := path.Join(repoDir, "teams")
+	teamFiles, err := os.ReadDir(teamsDir)
+	require.NoError(t, err)
+	teamFileNames := make([]string, 0, len(teamFiles))
+	for _, file := range teamFiles {
+		if filepath.Ext(file.Name()) == ".yml" {
+			teamFileNames = append(teamFileNames, path.Join(teamsDir, file.Name()))
+		}
+	}
+
+	// Create a team to be deleted.
+	deletedTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	const deletedTeamName = "team_to_be_deleted"
+
+	_, err = deletedTeamFile.WriteString(
+		fmt.Sprintf(
+			`
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"deleted_team_secret"}]
+`, deletedTeamName,
+		),
+	)
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	// Apply the team to be deleted
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()})
+
+	// Dry run
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	for _, fileName := range teamFileNames {
+		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"})
+	}
+
+	// Dry run with all the files
+	args := []string{"gitops", "--config", fleetctlConfig.Name(), "--dry-run", "--delete-other-teams", "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Real run with all the files, but don't delete other teams
+	args = []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Check that all the teams exist
+	teamsJSON := runAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	assert.Equal(t, 3, strings.Count(teamsJSON, "team_id"))
+
+	// Real run with all the files, and delete other teams
+	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
+	for _, fileName := range teamFileNames {
+		args = append(args, "-f", fileName)
+	}
+	_ = runAppForTest(t, args)
+
+	// Check that only the right teams exist
+	teamsJSON = runAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	assert.Equal(t, 2, strings.Count(teamsJSON, "team_id"))
+	assert.NotContains(t, teamsJSON, deletedTeamName)
+
+	// Real run with one file at a time
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+	for _, fileName := range teamFileNames {
+		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
+	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) createFleetctlConfig(t *testing.T, user fleet.User) *os.File {
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	token := s.getTestToken(user.Email, test.GoodPassword)
@@ -124,44 +231,136 @@ contexts:
 	)
 	_, err = fleetctlConfig.WriteString(configStr)
 	require.NoError(t, err)
+	return fleetctlConfig
+}
 
-	// Clone git repo
-	repoDir := t.TempDir()
-	_, err = git.PlainClone(
-		repoDir, false, &git.CloneOptions{
-			ReferenceName: "main",
-			SingleBranch:  true,
-			Depth:         1,
-			URL:           fleetGitopsRepo,
-			Progress:      os.Stdout,
-		},
+func (s *enterpriseIntegrationGitopsTestSuite) createGitOpsUser(t *testing.T) fleet.User {
+	user := fleet.User{
+		Name:       "GitOps User",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(context.Background(), &user)
+	require.NoError(t, err)
+	return user
+}
+
+// TestDeleteMacOSSetup tests the deletion of macOS setup assets by `fleetctl gitops` command.
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteMacOSSetup() {
+	t := s.T()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`)
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(
+		fmt.Sprintf(
+			`
+controls:
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`, teamName,
+		),
 	)
 	require.NoError(t, err)
 
 	// Set the required environment variables
-	t.Setenv("FLEET_SSO_METADATA", "sso_metadata")
-	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
-	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
-	globalFile := path.Join(repoDir, "default.yml")
-	teamsDir := path.Join(repoDir, "teams")
-	teamFiles, err := os.ReadDir(teamsDir)
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+
+	// Add bootstrap packages
+	require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(context.Background(), &fleet.MDMAppleBootstrapPackage{
+		Name:   "bootstrap.pkg",
+		TeamID: 0,
+		Bytes:  []byte("bootstrap package"),
+		Token:  uuid.NewString(),
+		Sha256: []byte("sha256"),
+	}, nil))
+	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = s.ds.DeleteTeam(context.Background(), team.ID)
+	})
+	require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(context.Background(), &fleet.MDMAppleBootstrapPackage{
+		Name:   "bootstrap.pkg",
+		TeamID: team.ID,
+		Bytes:  []byte("bootstrap package"),
+		Token:  uuid.NewString(),
+		Sha256: []byte("sha256"),
+	}, nil))
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 2, result)
+		return nil
+	})
 
-	// Dry run
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
-	for _, file := range teamFiles {
-		if filepath.Ext(file.Name()) == ".yml" {
-			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name()), "--dry-run"})
-		}
-	}
+	// Add enrollment profiles
+	_, err = s.ds.SetOrUpdateMDMAppleSetupAssistant(context.Background(), &fleet.MDMAppleSetupAssistant{
+		TeamID:  nil,
+		Name:    "enrollment_profile.json",
+		Profile: []byte(`{"foo":"bar"}`),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateMDMAppleSetupAssistant(context.Background(), &fleet.MDMAppleSetupAssistant{
+		TeamID:  &team.ID,
+		Name:    "enrollment_profile.json",
+		Profile: []byte(`{"foo":"bar"}`),
+	})
+	require.NoError(t, err)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 2, result)
+		return nil
+	})
 
-	// Real run
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
-	for _, file := range teamFiles {
-		if filepath.Ext(file.Name()) == ".yml" {
-			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name())})
-		}
-	}
+	// Re-apply configs and expect the macOS setup assets to be cleared
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 0, result)
+		return nil
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
+		var result int
+		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
+		assert.Equal(t, 0, result)
+		return nil
+	})
 
 }

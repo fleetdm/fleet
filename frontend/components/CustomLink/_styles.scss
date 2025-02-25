@@ -9,4 +9,19 @@
       padding-left: 6px;
     }
   }
+
+  // Legacy
+  &--black {
+    color: $core-fleet-black;
+  }
+
+  &--white {
+    color: $core-fleet-white;
+  }
+
+  // Variants
+  &--tooltip-link {
+    color: $core-fleet-white;
+    font-size: $xx-small;
+  }
 }

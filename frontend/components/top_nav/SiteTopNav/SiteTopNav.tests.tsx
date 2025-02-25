@@ -33,22 +33,33 @@ describe("SiteTopNav - component", () => {
         currentUser={createMockUser()}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/settings/i)).toBeInTheDocument();
-    expect(screen.getByText(/manage users/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /settings/i })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("menuitem", { name: /manage users/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
   });
   it("renders correct navigation for free global maintainer", async () => {
     const render = createCustomRenderer({
@@ -69,20 +80,26 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
@@ -105,19 +122,25 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
@@ -139,22 +162,32 @@ describe("SiteTopNav - component", () => {
         currentUser={createMockUser()}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/settings/i)).toBeInTheDocument();
-    expect(screen.getByText(/manage users/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /settings/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /manage users/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
   });
   it("renders correct navigation for premium global maintainer", async () => {
     const render = createCustomRenderer({
@@ -175,20 +208,26 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
@@ -211,19 +250,25 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
@@ -248,21 +293,29 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/settings/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /settings/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
   });
@@ -285,20 +338,26 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
@@ -321,19 +380,26 @@ describe("SiteTopNav - component", () => {
         })}
         location={urlLocation}
         onLogoutUser={noop}
-        onNavItemClick={noop}
+        onUserMenuItemClick={noop}
       />
     );
 
-    await user.click(screen.getByTestId("user-menu"));
+    await user.click(screen.getByTestId("user-avatar"));
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
     expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/my account/i)).toBeInTheDocument();
-    expect(screen.getByText(/documentation/i)).toBeInTheDocument();
-    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("menuitem", { name: /my account/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /documentation/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /sign out/i })
+    ).toBeInTheDocument();
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();

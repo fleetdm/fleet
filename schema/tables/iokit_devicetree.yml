@@ -1,9 +1,7 @@
 name: iokit_devicetree
-examples: >-
+examples: |-
   List the components in a Mac's device tree
   
   ```
-  
-  SELECT * from iokit_devicetree;
-  
+  SELECT * from iokit_devicetree;  
   ```

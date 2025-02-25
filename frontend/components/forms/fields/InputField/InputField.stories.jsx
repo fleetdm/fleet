@@ -8,3 +8,16 @@ const meta = {
 export default meta;
 
 export const Basic = {};
+
+export const WithCopyEnabled = {
+  args: {
+    enableCopy: true,
+  },
+};
+
+export const WithCopyEnabledInsideInput = {
+  args: {
+    enableCopy: true,
+    copyButtonPosition: "inside",
+  },
+};

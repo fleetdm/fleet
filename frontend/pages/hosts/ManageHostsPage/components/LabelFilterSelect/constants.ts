@@ -8,11 +8,4 @@ export const EMPTY_OPTION = {
   isDisabled: true,
 };
 
-export const PLATFORM_TYPE_ICONS: Record<string, any> = {
-  "All Linux": "linux",
-  macOS: "darwin",
-  "MS Windows": "windows",
-  chrome: "chrome",
-};
-
 export const FILTERED_LINUX = ["Red Hat Linux", "CentOS Linux", "Ubuntu Linux"];

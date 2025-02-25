@@ -1,0 +1,91 @@
+
+/**
+ * <ajax-button>
+ *
+ * App-wide styles for our ajax buttons.
+ */
+
+[parasails-component='logo-carousel'] {
+  margin-bottom: 80px;
+  padding-left: 0px;
+  padding-right: 0px;
+  [purpose='logo-carousel'] {
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    [purpose='logo-row'] {
+      white-space: nowrap;
+      animation: scroll-horizontal 80s linear infinite;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+      &.safari-13-scroll-animation {
+        animation: scroll-horizontal-safari-13 80s linear infinite;
+      }
+      &.ios-13-scroll-animation {
+        animation: scroll-horizontal-ios-13 80s linear infinite;
+      }
+    }
+    img {
+      vertical-align: middle;
+      height: 32px;
+      margin-right: 64px;
+      margin-left: 6px;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+    }
+    [purpose='fade-left'] {
+      height: 100%;
+      width: 80px;
+      position: absolute;
+      left: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, #FFF 0%, rgba(255, 255, 255, 0.00) 100%);
+    }
+    [purpose='fade-right'] {
+      height: 100%;
+      width: 80px;
+      position: absolute;
+      right: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
+    }
+  }
+
+  @media (max-width: 575px) {
+    margin-bottom: 64px;
+    [purpose='logo-carousel'] {
+      img {
+        margin-right: 48px;
+      }
+    }
+  }
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(50%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes scroll-horizontal-safari-13 {
+    0% {
+      transform: translateX(75%);
+    }
+    100% {
+      transform: translateX(-25%);
+    }
+  }
+  @keyframes scroll-horizontal-ios-13 {
+    0% {
+      transform: translateX(130%);
+    }
+    100% {
+      transform: translateX(-132%);
+    }
+  }
+}

@@ -2,7 +2,7 @@
   line-height: 1.5;
   background-color: $ui-light-grey;
   border: solid 1px $ui-fleet-black-10;
-  border-radius: 4px;
+  border-radius: $border-radius;
   font-size: $small;
   padding: 7px 12px;
   color: $core-fleet-blue;
@@ -21,20 +21,25 @@
     border-color: $core-vibrant-blue;
   }
 
-  &:hover {
+  &:hover &:not(.input-field--read-only) {
     box-shadow: none;
     border: 1px solid $core-vibrant-blue;
   }
 
   &--disabled {
     color: $ui-fleet-black-50;
+
+    .form-field__label,
+    .form-field__help-text {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &--error {
     color: $core-vibrant-red;
     border: 1px solid $core-vibrant-red;
     box-sizing: border-box;
-    border-radius: 4px;
+    border-radius: $border-radius;
 
     &:focus {
       border-color: $ui-error;
@@ -81,17 +86,31 @@
     }
   }
 
-  &__copy-wrapper {
+  &__copy-wrapper-outside {
     position: relative;
   }
 
+  &__copy-wrapper-inside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 12px;
+  }
+
   &__input-container.copy-enabled {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
+    &.copy-outside {
+      display: flex;
+      align-items: center;
+      gap: $pad-medium;
+    }
+
+    &.copy-inside {
+      position: relative;
+    }
   }
 
   &__copied-confirmation {
+    font-size: $x-small;
     position: absolute;
     background-color: $ui-light-grey;
     border: solid 1px $ui-fleet-black-10;
@@ -99,6 +118,13 @@
     padding: $pad-xxsmall 6px;
     top: 50%;
     transform: translateY(-50%);
+  }
+
+  &__copied-confirmation-inside {
+    right: 24px;
+  }
+
+  &__copied-confirmation-outside {
     left: -90px;
   }
 }

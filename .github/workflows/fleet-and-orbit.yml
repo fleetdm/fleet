@@ -11,12 +11,12 @@ on:
       - patch-*
       - prepare-*
     paths:
-      - 'orbit/**.go'
-      - '.github/workflows/fleet-and-orbit.yml'
+      - "orbit/**.go"
+      - ".github/workflows/fleet-and-orbit.yml"
   pull_request:
     paths:
-      - 'orbit/**.go'
-      - '.github/workflows/fleet-and-orbit.yml'
+      - "orbit/**.go"
+      - ".github/workflows/fleet-and-orbit.yml"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -44,195 +44,203 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
       enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
     steps:
-    - id: gen
-      run: |
-        UUID=$(uuidgen)
-        echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
-        echo "domain=fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
-        echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
-        ENROLL=$(uuidgen)
-        echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - id: gen
+        run: |
+          UUID=$(uuidgen)
+          echo "subdomain=fleet-test-$UUID" >> $GITHUB_OUTPUT
+          echo "domain=fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+          echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+          ENROLL=$(uuidgen)
+          echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
 
   run-server:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ['mysql:5.7']
+        mysql: ["mysql:8.0.36"]
     runs-on: ubuntu-latest
     needs: gen
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Start tunnel
-      env:
-        CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
-      run: |
-        #!/bin/bash
-        # Increase maximum receive buffer size to roughly 2.5 MB.
-        # Cloudflared uses quic-go. This buffer holds packets that have been received by the kernel,
-        # but not yet read by the application (quic-go in this case). Once this buffer fills up, the
-        # kernel will drop any new incoming packet.
-        # See https://github.com/quic-go/quic-go/wiki/UDP-Receive-Buffer-Size.
-        sudo sysctl -w net.core.rmem_max=2500000
+      - name: Set up Node.js
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version-file: package.json
 
-        # Install cloudflared
-        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-        sudo dpkg -i cloudflared-linux-amd64.deb
-        # Add secret
-        echo "$CERT_PEM" | base64 -d > cert.pem
-        # Start tunnel
-        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
-        until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
-          echo "Awaiting tunnel ready..."
-          sleep 5
-        done
+      - name: Start tunnel
+        env:
+          CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+        run: |
+          #!/bin/bash
+          # Increase maximum receive buffer size to roughly 2.5 MB.
+          # Cloudflared uses quic-go. This buffer holds packets that have been received by the kernel,
+          # but not yet read by the application (quic-go in this case). Once this buffer fills up, the
+          # kernel will drop any new incoming packet.
+          # See https://github.com/quic-go/quic-go/wiki/UDP-Receive-Buffer-Size.
+          sudo sysctl -w net.core.rmem_max=2500000
 
-    - name: Start Infra Dependencies
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
+          # Install cloudflared
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          # Add secret
+          echo "$CERT_PEM" | base64 -d > cert.pem
+          # Start tunnel
+          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
+          until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
+            echo "Awaiting tunnel ready..."
+            sleep 5
+          done
 
-    - name: Install JS Dependencies
-      run: make deps-js
+      - name: Start Infra Dependencies
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis &
 
-    - name: Generate and bundle go & js code
-      run: make generate
+      - name: Install JS Dependencies
+        run: make deps-js
 
-    - name: Build fleet and fleetctl
-      # fleet-dev builds fleet with "race" enabled.
-      run: make fleet-dev fleetctl
+      - name: Generate and bundle go & js code
+        run: make generate
 
-    - name: Run Fleet server
-      env:
-        FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
-        FLEET_SERVER_ADDRESS: 0.0.0.0:1337
-        FLEET_SERVER_TLS: false
-        FLEET_LOGGING_DEBUG: true
-      run: |
-        mkdir ./fleet_log
-        make db-reset
-        ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
-        ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
-        until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
-        do
-          echo "Retrying setup in 5s..."
-          sleep 5
-        done
-        # Wait for all of the hosts to be enrolled
-        EXPECTED=3
-        until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
-          echo -n "Waiting for hosts to enroll: "
-          cat hostcount | xargs echo -n
-          echo " / $EXPECTED"
-          sleep 30
-        done
-        ./build/fleetctl get hosts
-        ./build/fleetctl get hosts --json
-        echo "Success! $EXPECTED hosts enrolled."
+      - name: Build fleet and fleetctl
+        # fleet-dev builds fleet with "race" enabled.
+        run: make fleet-dev fleetctl
 
-    - name: Cleanup tunnel
-      if: always()
-      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+      - name: Run Fleet server
+        env:
+          FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
+          FLEET_SERVER_ADDRESS: 0.0.0.0:1337
+          FLEET_SERVER_TLS: false
+          FLEET_LOGGING_DEBUG: true
+        run: |
+          mkdir ./fleet_log
+          make db-reset
+          ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
+          ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
+          until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
+          do
+            echo "Retrying setup in 5s..."
+            sleep 5
+          done
+          # Wait for all of the hosts to be enrolled
+          EXPECTED=3
+          until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
+            echo -n "Waiting for hosts to enroll: "
+            cat hostcount | xargs echo -n
+            echo " / $EXPECTED"
+            sleep 30
+          done
+          ./build/fleetctl get hosts
+          ./build/fleetctl get hosts --json
+          echo "Success! $EXPECTED hosts enrolled."
 
-    - name: Upload fleet logs
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: fleet-logs
-        path: |
-          fleet_log
+      - name: Cleanup tunnel
+        if: always()
+        run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
 
-    - name: Upload cloudflared logs
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: cloudflared.log
-        path: cloudflared.log
+      - name: Upload fleet logs
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleet-logs
+          path: |
+            fleet_log
+
+      - name: Upload cloudflared logs
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: cloudflared.log
+          path: cloudflared.log
 
   # Sets the enroll secret of the Fleet server.
   #
   # This job also makes sure the Fleet server is up and running.
   set-enroll-secret:
     timeout-minutes: 60
-    strategy:
-      matrix:
-        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: gen
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Build Fleetctl
-      run: make fleetctl
+      - name: Build Fleetctl
+        run: make fleetctl
 
-    - id: enroll
-      name: Set enroll secret
-      run: |
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password preview1337#
-        do
-          echo "Retrying in 30s..."
-          sleep 30
-        done
-        echo '---
-        apiVersion: v1
-        kind: enroll_secret
-        spec:
-          secrets:
-          - secret: ${{ needs.gen.outputs.enroll_secret }}
-        ' > secrets.yml
-        ./build/fleetctl apply -f secrets.yml
-
+      - id: enroll
+        name: Set enroll secret
+        run: |
+          ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+          until ./build/fleetctl login --email admin@example.com --password preview1337#
+          do
+            echo "Retrying in 30s..."
+            sleep 30
+          done
+          echo '---
+          apiVersion: v1
+          kind: enroll_secret
+          spec:
+            secrets:
+            - secret: ${{ needs.gen.outputs.enroll_secret }}
+          ' > secrets.yml
+          ./build/fleetctl apply -f secrets.yml
 
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
   build-macos-targets:
-    strategy:
-      matrix:
-        go-version: ['${{ vars.GO_VERSION }}']
-    # Set macOS version to '12' (current equivalent to macos-latest) for
-    # building the binary. This ensures compatibility with macOS version 13 and
-    # later, avoiding runtime errors on systems using macOS 13 or newer.
-    #
-    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
-    # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    # Set macOS version to '13' for building the binary as Fleet's minimum supported macOS version.
+    runs-on: macos-13
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Build desktop.app.tar.gz and osqueryd.app.tar.gz
-      run: |
-        make desktop-app-tar-gz
-        make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
+      - name: Build desktop.app.tar.gz and osqueryd.app.tar.gz
+        run: |
+          make desktop-app-tar-gz
+          make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
 
-    - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: macos-pre-built-apps
-        path: |
-          desktop.app.tar.gz
-          osqueryd.app.tar.gz
-
+      - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: macos-pre-built-apps
+          path: |
+            desktop.app.tar.gz
+            osqueryd.app.tar.gz
 
   # TODO(lucas): Currently, to simplify the workflow we do all in one job:
   # 1. Generate TUF repository (compile Orbit from source).
@@ -248,278 +256,286 @@ jobs:
   # installed, and installing it is time consuming and unreliable.
   run-tuf-and-gen-pkgs:
     timeout-minutes: 60
-    strategy:
-      matrix:
-        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
 
-    - name: Download macos pre-built apps
-      id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
-      with:
-        name: macos-pre-built-apps
+      - name: Download macos pre-built apps
+        id: download
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: macos-pre-built-apps
 
-    - name: Build Repository and run TUF server
-      env:
-        SYSTEMS: "macos windows linux"
-        PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
-        PKG_TUF_URL: http://localhost:8081
-        DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
-        DEB_TUF_URL: http://localhost:8081
-        RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
-        RPM_TUF_URL: http://localhost:8081
-        MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
-        MSI_TUF_URL: http://localhost:8081
-        ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
-        MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
-        MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
-        GENERATE_PKG: 1
-        GENERATE_DEB: 1
-        GENERATE_RPM: 1
-        GENERATE_MSI: 1
-        FLEET_DESKTOP: 1
-      run: |
-        ./tools/tuf/test/main.sh
+      - name: Build Repository and run TUF server
+        env:
+          SYSTEMS: "macos windows linux linux-arm64"
+          PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
+          PKG_TUF_URL: http://localhost:8081
+          DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
+          DEB_TUF_URL: http://localhost:8081
+          RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
+          RPM_TUF_URL: http://localhost:8081
+          MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
+          MSI_TUF_URL: http://localhost:8081
+          ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
+          MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
+          MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
+          GENERATE_PKG: 1
+          GENERATE_DEB: 1
+          GENERATE_RPM: 1
+          GENERATE_MSI: 1
+          FLEET_DESKTOP: 1
+        run: |
+          ./tools/tuf/test/main.sh
 
-    - name: Upload PKG installer
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: fleet-osquery.pkg
-        path: |
-          fleet-osquery.pkg
+      - name: Upload PKG installer
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleet-osquery.pkg
+          path: |
+            fleet-osquery.pkg
 
-    - name: Upload DEB installer
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: fleet-osquery_42.0.0_amd64.deb
-        path: |
-          fleet-osquery_42.0.0_amd64.deb
+      - name: Upload DEB installer
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleet-osquery_42.0.0_amd64.deb
+          path: |
+            fleet-osquery_42.0.0_amd64.deb
 
-    - name: Upload MSI installer
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: fleet-osquery.msi
-        path: |
-          fleet-osquery.msi
-
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleet-osquery.msi
+          path: |
+            fleet-osquery.msi
 
   orbit-macos:
     timeout-minutes: 60
     runs-on: macos-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Download pkg
-      id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
-      with:
-        name: fleet-osquery.pkg
+      - name: Download pkg
+        id: download
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: fleet-osquery.pkg
 
-    - name: Install pkg
-      run: |
-        sudo hostname orbit-macos
-        sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
+      - name: Install pkg
+        run: |
+          sudo hostname orbit-macos
+          sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
 
-    - name: Wait enroll
-      run: |
-        # Wait until fleet server goes down.
-        while curl --fail ${{ needs.gen.outputs.address }};
-        do
-          echo "Retrying in 10s..."
-          sleep 10
-        done
+      - name: Wait enroll
+        run: |
+          # Wait until fleet server goes down.
+          while curl --fail ${{ needs.gen.outputs.address }};
+          do
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
-    - name: Run orbit shell
-      run:
-        sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+      - name: Run orbit shell
+        run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
 
-    - name: Collect orbit logs
-      if: always()
-      run: |
-        mkdir orbit-logs
-        sudo cp /var/log/orbit/* orbit-logs/
+      - name: Collect orbit logs
+        if: always()
+        run: |
+          mkdir orbit-logs
+          sudo cp /var/log/orbit/* orbit-logs/
 
-    - name: Upload orbit logs
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: orbit-logs
-        path: |
-          orbit-logs
+      - name: Upload orbit logs
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: orbit-logs-macos
+          path: |
+            orbit-logs
 
-    - name: Uninstall pkg
-      run: |
-        ./orbit/tools/cleanup/cleanup_macos.sh
-
+      - name: Uninstall pkg
+        run: |
+          sudo ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Download deb
-      id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
-      with:
-        name: fleet-osquery_42.0.0_amd64.deb
+      - name: Download deb
+        id: download
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: fleet-osquery_42.0.0_amd64.deb
 
-    - name: Install deb
-      run: |
-        sudo hostname orbit-ubuntu
-        sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+      - name: Install deb
+        run: |
+          sudo hostname orbit-ubuntu
+          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
 
-    - name: Wait enroll
-      run: |
-        # Wait until fleet server goes down.
-        while curl --fail ${{ needs.gen.outputs.address }};
-        do
-          echo "Retrying in 10s..."
-          sleep 10
-        done
+      - name: Wait enroll
+        run: |
+          # Wait until fleet server goes down.
+          while curl --fail ${{ needs.gen.outputs.address }};
+          do
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
-    - name: Run orbit shell
-      run:
-        sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+      - name: Run orbit shell
+        run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
 
-    - name: Collect orbit logs
-      if: always()
-      run: |
-        mkdir orbit-logs
-        sudo journalctl -u orbit.service > orbit-logs/orbit_service.log
+      - name: Collect orbit logs
+        if: always()
+        run: |
+          mkdir orbit-logs
+          sudo journalctl -u orbit.service > orbit-logs/orbit_service.log
 
-    - name: Upload orbit logs
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: orbit-logs
-        path: |
-          orbit-logs
+      - name: Upload orbit logs
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: orbit-logs-ubuntu
+          path: |
+            orbit-logs
 
-    - name: Uninstall deb
-      run: |
-        sudo apt remove fleet-osquery -y
-
+      - name: Uninstall deb
+        run: |
+          sudo apt remove fleet-osquery -y
 
   orbit-windows:
     timeout-minutes: 60
     needs: [gen, run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - name: Download msi
-      id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
-      with:
-        name: fleet-osquery.msi
+      - name: Download msi
+        id: download
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: fleet-osquery.msi
 
-    - name: Install msi
-      shell: pwsh
-      run: |
-        Start-Process msiexec -ArgumentList "/i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt" -Wait
+      - name: Install msi
+        shell: pwsh
+        run: |
+          Start-Process msiexec -ArgumentList "/i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt" -Wait
 
-    - name: Wait enroll
-      run: |
-        while curl --fail ${{ needs.gen.outputs.address }};
-        do
-          echo "Retrying in 10s..."
-          sleep 10
-        done
+      - name: Wait enroll
+        run: |
+          while curl --fail ${{ needs.gen.outputs.address }};
+          do
+            echo "Retrying in 10s..."
+            sleep 10
+          done
 
-    - name: Run orbit shell
-      shell: cmd
-      run: |
-        "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
+      - name: Run orbit shell
+        shell: cmd
+        run: |
+          "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
 
-    - name: Fleet Service Tests
-      shell: pwsh
-      run: |
-        # Tests setup
-        $serviceName = "Fleet osquery"
-        $orbitMaxTimeToStartAndTeardown = 15
+      - name: Fleet Service Tests
+        shell: pwsh
+        run: |
+          # Tests setup
+          $serviceName = "Fleet osquery"
+          $orbitMaxTimeToStartAndTeardown = 15
 
-        # Test 1 - Check that the service starts without issues
-        Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Start-Service -Name $serviceName
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #1 failed" } }
+          # Test 1 - Check that the service starts without issues
+          Stop-Service -Name $serviceName
+          Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+          Start-Service -Name $serviceName
+          Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #1 failed" } }
 
-        # Test 2 - Check that the service stops without issues
-        Stop-Service -Name $serviceName
-        Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #2 failed" } }
+          # Test 2 - Check that the service stops without issues
+          Stop-Service -Name $serviceName
+          Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+          Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #2 failed" } }
 
-        # Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
-        #Start-Service -Name $serviceName
-        #Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        #Stop-Service -Name $serviceName
-        #Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
-        #Get-Process | %{ if ($_.Name -eq "orbit") { throw "Fleet Service test #3 failed" } }
+          # Test 3 - Check that no orbit.exe is running after service stop (updated after graceful shutdown)
+          #Start-Service -Name $serviceName
+          #Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+          #Stop-Service -Name $serviceName
+          #Start-Sleep -Seconds ($orbitMaxTimeToStartAndTeardown * 10) # there is an issue with osqueryd runner intertupt that needs to be tracked down
+          #Get-Process | %{ if ($_.Name -eq "orbit") { throw "Fleet Service test #3 failed" } }
 
-        # Test 4 - Check that service starts in less than 3 secs
-        #Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
-        #Start-Sleep -Seconds 3
-        #Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #4 failed" } }
+          # Test 4 - Check that service starts in less than 3 secs
+          #Start-Job { Start-Service -Name $args[0] } -ArgumentList $serviceName | Out-Null #async operation
+          #Start-Sleep -Seconds 3
+          #Get-Service -Name $serviceName | %{ if ($_.Status -ne "Running") { throw "Fleet Service test #4 failed" } }
 
-        # Test 5 - Check that service stops in less than $orbitMaxTimeToStartAndTeardown secs
-        #Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
-        #Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
-        #Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #5 failed" } }
-        
-        # There is an sporadic issue with --insecure flag being used and osqueryd which causes long shutdown time, not testing this scenario until issue this scenario is sorted out
+          # Test 5 - Check that service stops in less than $orbitMaxTimeToStartAndTeardown secs
+          #Start-Job { Stop-Service -Name $args[0] } -ArgumentList $serviceName  | Out-Null #async operation
+          #Start-Sleep -Seconds $orbitMaxTimeToStartAndTeardown
+          #Get-Service -Name $serviceName | %{ if ($_.Status -ne "Stopped") { throw "Fleet Service test #5 failed" } }
 
-    - name: MSI Installer Tests
-      shell: pwsh
-      run: |
-        # Tests setup
-        $serviceName = "Fleet osquery"
-        $registryPath = "HKLM:\SOFTWARE\FleetDM\"
-        $installerExecTime = 15
+          # There is an sporadic issue with --insecure flag being used and osqueryd which causes long shutdown time, not testing this scenario until issue this scenario is sorted out
 
-        # Commenting test, being looked at as part of https://github.com/fleetdm/fleet/issues/8057
-        
-        # Test 1 - Check that there is not Orbit installation folder in programfiles and no registry entries after MSI uninstallation
-        # msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest1.txt
-        # Start-Sleep -Seconds $installerExecTime
-        # if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #1 failed" }
-        # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #1 failed" } }
-        # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #1 failed" }
+      - name: MSI Installer Tests
+        shell: pwsh
+        run: |
+          # Tests setup
+          $serviceName = "Fleet osquery"
+          $registryPath = "HKLM:\SOFTWARE\FleetDM\"
+          $installerExecTime = 15
 
-        # Test 2 - Check that Orbit service, installation folder and registry entry are present after installing MSI again
-        # msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest2.txt
-        # Start-Sleep -Seconds $installerExecTime
-        # if (-not (Test-Path -Path $Env:Programfiles\Orbit)) { throw "MSI Installer test #2 failed" }
-        # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Status -ne "Running") { throw "MSI Installer test #2 failed" } }
-        # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -eq 0) { throw "MSI Installer test #2 failed" }
+          # Commenting test, being looked at as part of https://github.com/fleetdm/fleet/issues/8057
 
-        # Test 3 - Check that there is not Orbit folder in programfiles, no fleet service entry and no registry entries after uninstalling MSI again
-        # msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest3.txt
-        # Start-Sleep -Seconds $installerExecTime
-        # if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #3 failed" }
-        # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #3 failed" } }
-        # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #3 failed" }
+          # Test 1 - Check that there is not Orbit installation folder in programfiles and no registry entries after MSI uninstallation
+          # msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest1.txt
+          # Start-Sleep -Seconds $installerExecTime
+          # if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #1 failed" }
+          # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #1 failed" } }
+          # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #1 failed" }
 
-        # Test 4 - Check that osquery manifest is present and that it points to the expected osqueryd.exe file
-        # msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest4.txt
-        # Start-Sleep -Seconds $installerExecTime
-        # Get-Content "$Env:Programfiles\Orbit\osquery.man" | % { if($_ -match 'resourceFileName=\"(.*?)\"') { if (-not (Test-Path -Path ([System.Environment]::ExpandEnvironmentVariables($Matches[1])))) { throw "MSI Installer test #4 failed" } } }
+          # Test 2 - Check that Orbit service, installation folder and registry entry are present after installing MSI again
+          # msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest2.txt
+          # Start-Sleep -Seconds $installerExecTime
+          # if (-not (Test-Path -Path $Env:Programfiles\Orbit)) { throw "MSI Installer test #2 failed" }
+          # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Status -ne "Running") { throw "MSI Installer test #2 failed" } }
+          # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -eq 0) { throw "MSI Installer test #2 failed" }
 
-    - name: Upload Orbit logs
-      if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
-      with:
-        name: orbit-logs-windows
-        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
+          # Test 3 - Check that there is not Orbit folder in programfiles, no fleet service entry and no registry entries after uninstalling MSI again
+          # msiexec /x ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest3.txt
+          # Start-Sleep -Seconds $installerExecTime
+          # if (Test-Path -Path $Env:Programfiles\Orbit) { throw "MSI Installer test #3 failed" }
+          # Get-Service -Name $serviceName -ErrorAction SilentlyContinue  | %{ if ($_.Name) { throw "MSI Installer test #3 failed" } }
+          # if (((Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue | Measure-Object).Count) -gt 0) { throw "MSI Installer test #3 failed" }
+
+          # Test 4 - Check that osquery manifest is present and that it points to the expected osqueryd.exe file
+          # msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv logtest4.txt
+          # Start-Sleep -Seconds $installerExecTime
+          # Get-Content "$Env:Programfiles\Orbit\osquery.man" | % { if($_ -match 'resourceFileName=\"(.*?)\"') { if (-not (Test-Path -Path ([System.Environment]::ExpandEnvironmentVariables($Matches[1])))) { throw "MSI Installer test #4 failed" } } }
+
+      - name: Upload Orbit logs
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: orbit-logs-windows
+          path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

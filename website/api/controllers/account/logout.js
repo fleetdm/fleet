@@ -37,6 +37,9 @@ actually logged in.  (If they weren't, then this action is just a no-op.)`,
     // Clear the `userId` property from this session.
     delete this.req.session.userId;
 
+    // Clear personalization from liu're session.
+    delete this.req.session.primaryBuyingSituation;
+
     // Then finish up, sending an appropriate response.
     // > Under the covers, this persists the now-logged-out session back
     // > to the underlying session store.

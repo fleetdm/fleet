@@ -97,6 +97,13 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			dec, err := ds.NewMDMAppleDeclaration(context.Background(), &fleet.MDMAppleDeclaration{
+				Identifier: "decl-1",
+				Name:       "decl-1",
+				TeamID:     &team.ID,
+			})
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -112,6 +119,9 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.ErrorAs(t, err, &nfe)
 
 			_, err = ds.GetMDMWindowsConfigProfile(context.Background(), wcp.ProfileUUID)
+			require.ErrorAs(t, err, &nfe)
+
+			_, err = ds.GetMDMAppleConfigProfile(context.Background(), dec.DeclarationUUID)
 			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
@@ -207,13 +217,13 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 		{User: user1, Role: "maintainer"},
 		{User: user2, Role: "observer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team1)
+	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
 	team2.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team2)
+	_, err = ds.SaveTeam(context.Background(), team2)
 	require.NoError(t, err)
 
 	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
@@ -581,9 +591,17 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			Name: "team1",
 			Config: fleet.TeamConfig{
 				MDM: fleet.TeamMDM{
-					MacOSUpdates: fleet.MacOSUpdates{
+					MacOSUpdates: fleet.AppleOSUpdateSettings{
 						MinimumVersion: optjson.SetString("10.15.0"),
 						Deadline:       optjson.SetString("2025-10-01"),
+					},
+					IOSUpdates: fleet.AppleOSUpdateSettings{
+						MinimumVersion: optjson.SetString("11.11.11"),
+						Deadline:       optjson.SetString("2024-04-04"),
+					},
+					IPadOSUpdates: fleet.AppleOSUpdateSettings{
+						MinimumVersion: optjson.SetString("12.12.12"),
+						Deadline:       optjson.SetString("2023-03-03"),
 					},
 					WindowsUpdates: fleet.WindowsUpdates{
 						DeadlineDays:    optjson.SetInt(7),
@@ -604,17 +622,28 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		assert.Equal(t, &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("11.11.11"),
+				Deadline:       optjson.SetString("2024-04-04"),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("12.12.12"),
+				Deadline:       optjson.SetString("2023-03-03"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
 				DeadlineDays:    optjson.SetInt(7),
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:    optjson.SetString("bootstrap"),
-				MacOSSetupAssistant: optjson.SetString("assistant"),
+				BootstrapPackage:            optjson.SetString("bootstrap"),
+				MacOSSetupAssistant:         optjson.SetString("assistant"),
+				EnableReleaseDeviceManually: optjson.SetBool(false),
+				Script:                      optjson.String{Set: true},
+				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
@@ -637,13 +666,13 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 
 	// Try to create team with equivalent name
 	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to update a different team with equivalent name -- not allowed
 	teamEmoji, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "💻"})
 	require.NoError(t, err)
 	_, err = ds.SaveTeam(context.Background(), &fleet.Team{ID: teamEmoji.ID, Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find team with equivalent name
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
@@ -684,7 +713,6 @@ func testTeamsNameEmoji(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, emoji1, results[0].Name)
-
 }
 
 // Ensure case-insensitive sort order for ames
@@ -706,5 +734,4 @@ func testTeamsNameSort(t *testing.T, ds *Datastore) {
 	for i, item := range teams {
 		assert.Equal(t, item.Name, results[i].Name)
 	}
-
 }

@@ -1,3 +1,9 @@
 .team-settings {
   max-width: $settings-form-max-width;
+  .section-header {
+    margin-bottom: 0;
+    &:not(:first-child) {
+      margin-top: $pad-medium;
+    }
+  }
 }

@@ -477,7 +477,7 @@ func TestCarveCarveBlockBlockCountExceedError(t *testing.T) {
 	assert.Contains(t, err.Error(), "block_id exceeds expected max")
 }
 
-func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
+func TestCarveBlockCountMatchError(t *testing.T) {
 	sessionId := "foobar"
 	metadata := &fleet.CarveMetadata{
 		ID:         2,
@@ -509,7 +509,8 @@ func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
 	}
 
 	err := svc.CarveBlock(context.Background(), payload)
-	require.Error(t, err)
+	var be *fleet.BadRequestError
+	require.ErrorAs(t, err, &be)
 	assert.Contains(t, err.Error(), "block_id does not match")
 }
 

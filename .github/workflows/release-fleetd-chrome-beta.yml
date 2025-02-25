@@ -1,5 +1,13 @@
 name: Release fleetd-chrome beta
 
+# Build and upload the following files:
+# - fleetd.crx
+# - updates.xml
+# - meta.json
+# - archive/YYYY-MM-DD_HH-MM-SS/fleetd.crx
+# - archive/YYYY-MM-DD_HH-MM-SS/updates.xml
+# - archive/YYYY-MM-DD_HH-MM-SS/meta.json
+
 on:
   push:
    tags:
@@ -23,14 +31,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      BASE_URL: https://chrome-beta.fleetdm.com
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Run test
         working-directory: ./ee/fleetd-chrome
         run: |
-          npm install && npm run test
+          npm install --no-save && npm run test
+
+      - name: Set the version
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          echo "FLEETD_CHROME_VERSION=$(npm pkg get version --workspaces=false | tr -d \")" >> $GITHUB_ENV
 
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
@@ -38,30 +58,38 @@ jobs:
           CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
         run: |
           echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
-          npm install && npm run build
+          npm run build
+          sed -i "s/FLEETD_CHROME_VERSION/${{ env.FLEETD_CHROME_VERSION }}/g" updates-beta.xml
           echo "$CHROME_SIGNING_KEY" > chrome.pem
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 
-      - name: Upload extension
+      - name: Prepare files for upload
+        id: prepare-files
         working-directory: ./ee/fleetd-chrome
+        run: |
+          mv dist.crx fleetd.crx
+          mv updates-beta.xml updates.xml
+          datedir=$(date -u +%Y-%m-%d_%H-%M-%S)
+          mkdir -p archive/$datedir
+          cp fleetd.crx archive/$datedir
+          cp updates.xml archive/$datedir
+          echo "{
+            \"fleetd_crx_url\": \"${{ env.BASE_URL }}/archive/$datedir/fleetd.crx\",
+            \"updates_xml\": \"${{ env.BASE_URL }}/archive/$datedir/updates.xml\",
+            \"version\": \"$datedir\"
+          }" > meta.json
+          : # Check that meta.json is valid
+          jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
+          cp meta.json archive/$datedir
+          echo "datedir=$datedir" >> $GITHUB_OUTPUT
+
+      - name: Upload extension
+        uses: ./.github/actions/r2-upload
         env:
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_CHROME_BETA_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
-          R2_CHROME_BETA_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
-        run: |
-          sudo apt-get install rclone
-          mkdir -p ~/.config/rclone
-          echo "[r2]
-          type = s3
-          provider = Cloudflare
-          region = auto
-          no_check_bucket = true
-          access_key_id = $R2_CHROME_BETA_ACCESS_KEY_ID
-          secret_access_key = $R2_CHROME_BETA_ACCESS_KEY_SECRET
-          endpoint = $R2_ENDPOINT
-          
-          " > ~/.config/rclone/rclone.conf
-          mv dist.crx fleetd.crx
-          rclone copy fleetd.crx r2:chrome-beta/
-          mv updates-beta.xml updates.xml
-          rclone copy updates.xml r2:chrome-beta/
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
+          R2_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
+          R2_BUCKET: chrome-beta
+        with:
+          working-directory: ./ee/fleetd-chrome
+          filenames: fleetd.crx,updates.xml,meta.json,archive/${{ steps.prepare-files.outputs.datedir }}/fleetd.crx,archive/${{ steps.prepare-files.outputs.datedir }}/updates.xml,archive/${{ steps.prepare-files.outputs.datedir }}/meta.json

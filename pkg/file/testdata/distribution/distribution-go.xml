@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Go</title>
+    <background mime-type="image/png" file="background.png" alignment="left"/>
+    <background-darkAqua mime-type="image/png" file="background.png" alignment="left"/>
+    <options hostArchitectures="arm64" customize="never" allow-external-scripts="no"/>
+    <domains enable_localSystem="true"/>
+    <installation-check script="installCheck();"/>
+    <script>
+    function installCheck() {
+      if (!(system.compareVersions(system.version.ProductVersion, '11') &gt;= 0)) {
+        my.result.title = 'Unable to install';
+        my.result.message = 'Go requires macOS 11 or later.';
+        my.result.type = 'Fatal';
+        return false;
+      }
+      if (system.files.fileExistsAtPath('/usr/local/go/bin/go')) {
+        my.result.title = 'Previous Installation Detected';
+        my.result.message = 'A previous installation of Go exists at /usr/local/go. This installer will remove the previous installation prior to installing. Please back up any data before proceeding.';
+        my.result.type = 'Warning';
+        return false;
+      }
+      return true;
+    }
+  </script>
+    <choices-outline>
+        <line choice="org.golang.go.choice"/>
+    </choices-outline>
+    <choice id="org.golang.go.choice" title="Go">
+        <pkg-ref id="org.golang.go.pkg"/>
+    </choice>
+    <pkg-ref id="org.golang.go.pkg" auth="Root" packageIdentifier="org.golang.go" version="go1.22.4" installKBytes="220611">#org.golang.go.pkg</pkg-ref>
+    <pkg-ref id="org.golang.go.pkg">
+        <bundle-version/>
+    </pkg-ref>
+</installer-gui-script>

@@ -8,15 +8,21 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
+
+type ctxKey int
 
 const (
 	maxRetries = 5
 	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
 	// needs to be appended to make it a valid link.
 	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
+
+	// context key for the retry number of a job, made available via the context
+	// to the job processor.
+	retryNumberCtxKey = ctxKey(0)
 )
 
 const (
@@ -89,14 +95,26 @@ func (w *Worker) Register(jobs ...Job) {
 // identified by the name (e.g. "jira"). The args value is marshaled as JSON
 // and provided to the job processor when the job is executed.
 func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
+	return QueueJobWithDelay(ctx, ds, name, args, 0)
+}
+
+// QueueJobWithDelay is like QueueJob but does not make the job available
+// before a specified delay (or no delay if delay is <= 0).
+func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, args interface{}, delay time.Duration) (*fleet.Job, error) {
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshal args")
 	}
+
+	var notBefore time.Time
+	if delay > 0 {
+		notBefore = time.Now().UTC().Add(delay)
+	}
 	job := &fleet.Job{
-		Name:  name,
-		Args:  (*json.RawMessage)(&argsJSON),
-		State: fleet.JobStateQueued,
+		Name:      name,
+		Args:      (*json.RawMessage)(&argsJSON),
+		State:     fleet.JobStateQueued,
+		NotBefore: notBefore,
 	}
 
 	return ds.NewJob(ctx, job)
@@ -122,7 +140,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 	// process jobs until there are none left or the context is cancelled
 	seen := make(map[uint]struct{})
 	for {
-		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs)
+		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs, time.Time{})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}
@@ -191,6 +209,7 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		args = *job.Args
 	}
 
+	ctx = context.WithValue(ctx, retryNumberCtxKey, job.Retries)
 	return j.Run(ctx, args)
 }
 

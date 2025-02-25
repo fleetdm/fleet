@@ -48,6 +48,7 @@ var cacheableItems = []fleet.Cloner{
 	&fleet.TeamMDM{},
 	&fleet.Query{},
 	&fleet.MDMProfileSpec{},
+	&fleet.MDMConfigAsset{},
 	// TeamAgentOptions is not in the list because it is a json.RawMessage, no fields can change.
 	// Same for ResultCountForQuery, it's just an int.
 }

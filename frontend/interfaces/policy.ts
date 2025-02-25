@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -35,11 +36,18 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
-  platform: SelectedPlatformString;
-  team_id?: number;
+  platform: CommaSeparatedPlatformString;
+  team_id: number | null;
   created_at: string;
   updated_at: string;
   critical: boolean;
+  calendar_events_enabled: boolean;
+  install_software?: IPolicySoftwareToInstall;
+  run_script?: Pick<IScript, "id" | "name">;
+}
+export interface IPolicySoftwareToInstall {
+  name: string;
+  software_title_id: number;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -73,23 +81,33 @@ export interface IHostPolicy extends IPolicy {
   response: PolicyStatusResponse;
 }
 
+// Policies API can return {}
 export interface ILoadAllPoliciesResponse {
-  policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
 
+// Team policies API can return {}
 export interface ILoadTeamPoliciesResponse {
-  policies: IPolicyStats[];
-  inherited_policies: IPolicyStats[];
+  policies?: IPolicyStats[];
 }
+
+export interface ILoadTeamPolicyResponse {
+  policy: IPolicyStats;
+}
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
   critical?: boolean;
-  platform?: SelectedPlatformString;
+  platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
-  team_id?: number;
+  team_id?: number | null;
   id?: number;
+  calendar_events_enabled?: boolean;
+  software_title_id?: number | null;
+  // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
+  script_id?: number | null;
 }
 
 export interface IPolicyNew {
@@ -100,6 +118,6 @@ export interface IPolicyNew {
   query: string;
   resolution: string;
   critical: boolean;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
   mdm_required?: boolean;
 }

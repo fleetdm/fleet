@@ -1,5 +1,5 @@
 #dashboard {
-  padding-top: 40px;
+  padding-top: 80px;
 
   h1 {
     font-size: 28px;
@@ -7,7 +7,8 @@
   }
   h3 {
     padding-bottom: 16px;
-    font-size: 24px;
+    font-size: 16px;
+    line-height: 120%;
     margin-bottom: 0px;
   }
   a {
@@ -93,42 +94,18 @@
     cursor: pointer;
   }
 
-  [purpose='slack-button'] {
-    font-size: 16px;
-    color: @core-fleet-black;
-    background-color: #fff;
-    border: 1px solid #C5C7D1;
-    border-radius: 4px;
-    padding: 8px 40px;
-    line-height: 20px;
-    &:hover {
-      background: #fff;
-      color: @core-fleet-black;
-    }
-    &:focus {
-      box-shadow: none;
-    }
-    img {
-      display: inline;
-      height: 20px;
-      width: auto;
-      padding-right: 4px;
-      margin-bottom: 1px;
-    }
-    a {
-      color: @core-fleet-black;
-    }
-    text-decoration: none;
-  }
   [purpose='deploy-button'] {
-    font-size: 16px;
-    line-height: 20px;
-    padding: 8px 40px;
-    border-radius: 4px;
-    color: white;
+    height: 48px;
+    padding: 16px 32px;
+    border-radius: 8px;
+    color: #FFF;
     text-decoration: none;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 16px;
+    margin-right: 32px;
     &:hover {
-      color: white;
+      color: #FFF;
     }
   }
 
@@ -243,7 +220,7 @@
   }
 
   @media (max-width: 768px) {
-    padding-top: 60px;
+    padding-top: 64px;
 
     [purpose='modal-content'] {
       margin-top: 50px;
@@ -261,6 +238,9 @@
 
     [purpose='billing-card'] {
       padding: 40px 20px;
+    }
+    [purpose='deploy-button'] {
+      margin-right: unset;
     }
   }
 

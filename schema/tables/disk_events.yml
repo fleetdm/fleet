@@ -1,5 +1,5 @@
 name: disk_events
-examples: >-
+examples: |-
   This is an evented table, and as such, is more useful if you are sending
   osquery logs to a SIEM or other centralized destination via Fleet. Events must
   be enabled. This query will contain the list of all actions related to
@@ -7,7 +7,5 @@ examples: >-
   be very useful for investigative purposes.
 
   ```
-
   SELECT * FROM disk_events;
-
   ```

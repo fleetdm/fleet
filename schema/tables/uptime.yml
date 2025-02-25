@@ -1,11 +1,9 @@
 name: uptime
-examples: >-
+examples: |-
   See how long hosts that have been up for more than a month have been up. This
   could indicate systems that are not ephemeral as expected, or not being
   patched as frequently as they should be.
 
   ```
-
-  SELECT days FROM uptime WHERE days>='31'
-
+  SELECT days FROM uptime WHERE days >='31'
   ```

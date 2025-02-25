@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 func main() {
@@ -83,7 +83,9 @@ func main() {
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 		hosts := make([]fleet.HostVulnerabilitySummary, *hostsCount)
 		for i := 0; i < *hostsCount; i++ {
-			hosts[i] = fleet.HostVulnerabilitySummary{ID: uint(i + 1), Hostname: fmt.Sprintf("host-test-%d", i+1), DisplayName: fmt.Sprintf("host-test-%d", i+1)}
+			hosts[i] = fleet.HostVulnerabilitySummary{ID: uint(i + 1), //nolint:gosec // dismiss G115
+				Hostname:    fmt.Sprintf("host-test-%d", i+1),
+				DisplayName: fmt.Sprintf("host-test-%d", i+1)}
 		}
 		return hosts, nil
 	}
@@ -171,7 +173,7 @@ func main() {
 		jsonStr += `"hosts": `
 		hosts := make([]fleet.PolicySetHost, 0, *hostsCount)
 		for i := 1; i <= *hostsCount; i++ {
-			hosts = append(hosts, fleet.PolicySetHost{ID: uint(i), Hostname: fmt.Sprintf("host-test-%d", i)})
+			hosts = append(hosts, fleet.PolicySetHost{ID: uint(i), Hostname: fmt.Sprintf("host-test-%d", i)}) //nolint:gosec // dismiss G115
 		}
 		b, _ := json.Marshal(hosts)
 		jsonStr += string(b) + "}}"

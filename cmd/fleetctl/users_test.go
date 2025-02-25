@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/csv"
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -33,7 +36,9 @@ func TestUserDelete(t *testing.T) {
 		deletedUser = id
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
@@ -65,34 +70,68 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
+	}
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "bar@example.com" {
+			apiOnlyUser := &fleet.User{
+				ID:    1,
+				Email: email,
+			}
+			err := apiOnlyUser.SetPassword(pwd, 24, 10)
+			require.NoError(t, err)
+			return apiOnlyUser, nil
+		}
+		return nil, &notFoundError{}
+	}
+	var apiOnlyUserSessionKey string
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
+		apiOnlyUserSessionKey = sessionKey
+		return &fleet.Session{
+			ID:     2,
+			UserID: userID,
+			Key:    sessionKey,
+		}, nil
 	}
 
 	for _, tc := range []struct {
 		name                            string
 		args                            []string
 		expectedAdminForcePasswordReset bool
+		displaysToken                   bool
 	}{
 		{
 			name:                            "sso",
 			args:                            []string{"--email", "foo@example.com", "--name", "foo", "--sso"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   false,
 		},
 		{
 			name:                            "api-only",
 			args:                            []string{"--email", "bar@example.com", "--password", pwd, "--name", "bar", "--api-only"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   true,
 		},
 		{
 			name:                            "api-only-sso",
 			args:                            []string{"--email", "baz@example.com", "--name", "baz", "--api-only", "--sso"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   false,
 		},
 		{
 			name:                            "non-sso-non-api-only",
 			args:                            []string{"--email", "zoo@example.com", "--password", pwd, "--name", "zoo"},
 			expectedAdminForcePasswordReset: true,
+			displaysToken:                   false,
 		},
 	} {
 		ds.NewUserFuncInvoked = false
@@ -101,10 +140,15 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 			return user, nil
 		}
 
-		require.Equal(t, "", runAppForTest(t, append(
+		stdout := runAppForTest(t, append(
 			[]string{"user", "create"},
 			tc.args...,
-		)))
+		))
+		if tc.displaysToken {
+			require.Equal(t, stdout, fmt.Sprintf("Success! The API token for your new user is: %s\n", apiOnlyUserSessionKey))
+		} else {
+			require.Empty(t, stdout)
+		}
 		require.True(t, ds.NewUserFuncInvoked)
 	}
 }
@@ -123,7 +167,9 @@ func TestCreateBulkUsers(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -154,7 +200,9 @@ func TestCreateBulkUsers(t *testing.T) {
 
 func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	csvFilePath := writeTmpCsv(t,
@@ -178,7 +226,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 
 		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
 		require.NoError(t, err)
-		id := uint(randId.Int64())
+		id := uint(randId.Int64()) //nolint:gosec // dismiss G115
 
 		users = append(users, fleet.User{
 			Name:  name,

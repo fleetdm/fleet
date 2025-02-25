@@ -1,0 +1,19 @@
+{
+    "text": "${{ env.JOB_STATUS }}\n${{ env.EVENT_URL }}",
+    "blocks": [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Go tests result: ${{ env.JOB_STATUS }}\n${{ env.RUN_URL }}"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Summary:\n```${GO_FAIL_SUMMARY}```"
+            }
+        }
+    ]
+}

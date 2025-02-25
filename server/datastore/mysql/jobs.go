@@ -30,12 +30,12 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	}
 
 	id, _ := result.LastInsertId()
-	job.ID = uint(id)
+	job.ID = uint(id) //nolint:gosec // dismiss G115
 
 	return job, nil
 }
 
-func (ds *Datastore) GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error) {
+func (ds *Datastore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	query := `
 SELECT
     id, created_at, updated_at, name, args, state, retries, error, not_before
@@ -43,14 +43,18 @@ FROM
     jobs
 WHERE
     state = ? AND
-    not_before <= NOW()
+    not_before <= ?
 ORDER BY
     updated_at ASC
 LIMIT ?
 `
 
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+
 	var jobs []*fleet.Job
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, fleet.JobStateQueued, maxNumJobs)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, fleet.JobStateQueued, now, maxNumJobs)
 	if err != nil {
 		return nil, err
 	}

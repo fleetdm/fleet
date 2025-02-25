@@ -62,6 +62,9 @@ pkill fleet-desktop || true
 # Remove any pre-existing version of the config
 launchctl bootout "system/${DAEMON_LABEL}"
 
+# Make sure the launch daemon is enabled before we try to bootstrap it
+launchctl enable "system/${DAEMON_LABEL}"
+
 # Add the daemon to the launchd system.
 #
 # We add retries because we've seen "launchctl bootstrap" fail
@@ -81,8 +84,6 @@ while ! launchctl bootstrap system "${DAEMON_PLIST}"; do
 done
 echo "Successfully bootstrap system ${DAEMON_PLIST}"
 
-# Enable the daemon
-launchctl enable "system/${DAEMON_LABEL}"
 # Force the daemon to start
 launchctl kickstart "system/${DAEMON_LABEL}"
 {{- end }}

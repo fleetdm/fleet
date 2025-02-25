@@ -1,9 +1,4 @@
 .integrations-management {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-  }
-
   .no-integrations {
     display: flex;
     flex-direction: column;
@@ -76,6 +71,15 @@
 
     .jira-icon {
       width: 24px;
+    }
+  }
+  .empty-table__container {
+    padding: px-to-rem(64) $pad-large;
+    border-radius: $pad-xsmall;
+    border: px-to-rem(1) solid $ui-fleet-black-10;
+    margin: 0;
+    h3 {
+      margin-bottom: px-to-rem(10);
     }
   }
 }

@@ -1,60 +1,53 @@
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 import React from "react";
 
+import { CellProps, Column } from "react-table";
 import {
-  CellProps,
-  ColumnInstance,
-  ColumnInterface,
-  HeaderProps,
-  TableInstance,
-} from "react-table";
-import {
-  getUniqueColumnNamesFromRows,
+  getUniqueColsAreNumTypeFromRows,
   humanHostLastSeen,
   internallyTruncateText,
 } from "utilities/helpers";
 
-type IHeaderProps = HeaderProps<TableInstance> & {
-  column: ColumnInstance & IDataColumn;
-};
+type IHQRTTableColumn = Column<IWebSocketData>;
+type ITableHeaderProps = IHeaderProps<IWebSocketData>;
+type ITableStringCellProps = CellProps<IWebSocketData, string | unknown>;
 
-type ICellProps = CellProps<TableInstance>;
-
-interface IDataColumn extends ColumnInterface {
-  title?: string;
-  accessor: string;
-}
-
-const generateColumnConfigs = (rows: Record<string, string>[]) =>
-  // casting necessary because of loose typing of below method
-  // see note there for more details
-  (getUniqueColumnNamesFromRows(rows) as string[]).map((colName) => {
+const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] => {
+  const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(rows) as Map<
+    string,
+    boolean
+  >;
+  return Array.from(colsAreNumTypes.keys()).map<IHQRTTableColumn>((colName) => {
     return {
       id: colName,
-      title: colName,
-      Header: (headerProps: IHeaderProps) => (
+      Header: (headerProps: ITableHeaderProps) => (
         <HeaderCell
           value={
             // Sentence case last fetched
-            headerProps.column.title === "last_fetched"
+            headerProps.column.id === "last_fetched"
               ? "Last fetched"
-              : headerProps.column.title || headerProps.column.id
+              : headerProps.column.id || headerProps.column.id
           }
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName,
-      Cell: (cellProps: ICellProps) => {
+      accessor: (data) => data[colName],
+      Cell: (cellProps: ITableStringCellProps) => {
+        if (typeof cellProps?.cell?.value !== "string") return null;
+
         // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {
-          return humanHostLastSeen(cellProps?.cell?.value);
+          return <>{humanHostLastSeen(cellProps?.cell?.value)}</>;
         }
         // truncate columns longer than 300 characters
         const val = cellProps?.cell?.value;
-        return !!val?.length && val.length > 300
-          ? internallyTruncateText(val)
-          : val ?? null;
+        return !!val?.length && val.length > 300 ? (
+          internallyTruncateText(val)
+        ) : (
+          <>{val}</>
+        );
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
@@ -62,5 +55,6 @@ const generateColumnConfigs = (rows: Record<string, string>[]) =>
       sortType: "caseInsensitive",
     };
   });
+};
 
 export default generateColumnConfigs;

@@ -1,0 +1,68 @@
+.scep-page {
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+    font-size: $x-large;
+  }
+
+  p {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
+
+  &__steps {
+    font-size: $x-small;
+    padding: 0;
+    margin: 0;
+    max-width: 660px;
+    counter-reset: step-counter;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    form {
+      gap: $pad-small;
+
+      button {
+        align-self: flex-end;
+      }
+    }
+
+    li {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: wrap;
+      gap: $pad-small;
+      position: relative;
+      padding-left: $pad-medium;
+
+      &::before {
+        content: counter(step-counter) ".";
+        counter-increment: step-counter;
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      > span {
+        flex: 1 0 100%;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .url-inputs-wrapper {
+        flex: 1 0 100%;
+        gap: $pad-small;
+      }
+    }
+  }
+}

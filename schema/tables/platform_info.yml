@@ -1,9 +1,26 @@
 name: platform_info
-examples: >-
-  See version information about the boot system, such as iBoot on Apple Silicon
+description: The `platform_info` osquery table collects boot platform information from a computer. The `platform_info` table works on Linux, macOS and Windows.
+examples: |-
+  Basic query:
   
   ```
-  
-  SELECT version FROM platform_info;
-  
+  SELECT extra,firmware_type,vendor FROM platform_info;
   ```
+  
+  This query results in a listing of the following attributes on a macOS host running a Windows 11 virtual machine in the Parallels.app:
+
+  Mac -
+  - extra = "Darwin Kernel Version 23.5.0: Wed May 1 20:14:38 PDT 2024; root:xnu-10063.121.3~5/RELEASE_ARM64_T6020"
+  - firmware_type = "iboot"
+  - vendor = "Apple Inc."
+
+  Windows -
+  - extra = ""
+  - firmware_type = "uefi"
+  - vendor = "Parallels International GmbH."
+notes: |-
+  Links:
+  - EFI: https://en.wikipedia.org/wiki/EFI_system_partition 
+  - iboot: https://en.wikipedia.org/wiki/IBoot 
+  - UEFI: https://en.wikipedia.org/wiki/UEFI#Classes 
+  - System booting: https://en.wikipedia.org/wiki/Booting 

@@ -10,7 +10,7 @@ on:
     paths:
       - '**.go'
       - 'server/datastore/mysql/schema.sql'
-      - '.github/workflows/test-schema-changes.yml'
+      - '.github/workflows/test-db-changes.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -30,27 +30,15 @@ jobs:
   test-db-changes:
     runs-on: ubuntu-latest
     steps:
-    - name: Install Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
       with:
-        go-version: ${{ vars.GO_VERSION }}
+        egress-policy: audit
+
     - name: Checkout Code
       uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
       with:
         fetch-depth: 0
-
-    - name: Start Infra Dependencies
-      # Use & to background this
-      run: docker-compose up -d mysql_test &
-
-    - name: Verify test schema changes
-      run: |
-        make dump-test-schema
-        if [[ $(git diff server/datastore/mysql/schema.sql) ]]; then
-          echo "❌ fail: uncommited changes in schema.sql"
-          echo "please run `make dump-test-schema` and commit the changes"
-          exit 1
-        fi
 
     # TODO: This doesn't cover all scenarios since other PRs might
     # be merged into `main` after this check has passed.
@@ -69,8 +57,8 @@ jobs:
           base_ref=$(git tag --list "fleet-v*" --sort=-creatordate | head -n 1)
         fi
 
-        all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r))
-        new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go | sort -r))
+        all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r | grep -v '_test.go'))
+        new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go ':(exclude,glob)server/datastore/mysql/migrations/tables/20*_*_test.go' | sort -r))
 
         index=0
         for migration in "${new_migrations[@]}"; do
@@ -94,4 +82,32 @@ jobs:
         	echo "❌ fail: hosts foreign keys are not allowed"
         	echo "Ref: https://github.com/fleetdm/fleet/blob/main/handbook/engineering/scaling-fleet.md#foreign-keys-and-locking"
         	exit 1
+        fi
+
+
+    - name: Install Go
+      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Start Infra Dependencies
+      # Use & to background this
+      run: docker compose up -d mysql_test &
+
+    - name: Wait for mysql
+      run: |
+        echo "waiting for mysql..."
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+            echo "."
+            sleep 1
+        done
+        echo "mysql is ready"
+
+    - name: Verify test schema changes
+      run: |
+        make dump-test-schema
+        if [[ $(git diff server/datastore/mysql/schema.sql) ]]; then
+          echo "❌ fail: uncommited changes in schema.sql"
+          echo "please run `make dump-test-schema` and commit the changes"
+          exit 1
         fi

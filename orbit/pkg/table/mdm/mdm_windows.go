@@ -207,7 +207,7 @@ func getCmdResponseData(outputCmd string) (string, error) {
 				continue
 			}
 
-			// results will be appended in a comma separated list
+			// results will be appended in a comma-separated list
 			if len(element.Item) > 0 {
 
 				// extracting the data from the result

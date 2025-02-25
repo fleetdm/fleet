@@ -46,7 +46,7 @@ func TestListVulnerabilities(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid order key")
 
 		// valid order key
-		opts.OrderKey = "cve"
+		opts.ListOptions.OrderKey = "cve"
 		_, _, err = svc.ListVulnerabilities(ctx, opts)
 		require.NoError(t, err)
 	})
@@ -161,7 +161,7 @@ func TestVulnerabilitesAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			_, _, err = svc.ListVulnerabilities(ctx, fleet.VulnListOptions{
-				TeamID: 1,
+				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
@@ -169,14 +169,14 @@ func TestVulnerabilitesAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			_, err = svc.CountVulnerabilities(ctx, fleet.VulnListOptions{
-				TeamID: 1,
+				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
-			_, err = svc.Vulnerability(ctx, "CVE-2019-1234", nil, false)
+			_, _, err = svc.Vulnerability(ctx, "CVE-2019-1234", nil, false)
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
-			_, err = svc.Vulnerability(ctx, "CVE-2019-1234", ptr.Uint(1), false)
+			_, _, err = svc.Vulnerability(ctx, "CVE-2019-1234", ptr.Uint(1), false)
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 		})
 	}

@@ -109,9 +109,9 @@ type getPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r getPackResponse) error() error { return r.Err }
+func (r getPackResponse) Error() error { return r.Err }
 
-func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getPackRequest)
 	pack, err := svc.GetPack(ctx, req.ID)
 	if err != nil {
@@ -149,9 +149,9 @@ type createPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r createPackResponse) error() error { return r.Err }
+func (r createPackResponse) Error() error { return r.Err }
 
-func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createPackRequest)
 	pack, err := svc.NewPack(ctx, req.PackPayload)
 	if err != nil {
@@ -214,7 +214,7 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPack{
@@ -242,9 +242,9 @@ type modifyPackResponse struct {
 	Err  error        `json:"error,omitempty"`
 }
 
-func (r modifyPackResponse) error() error { return r.Err }
+func (r modifyPackResponse) Error() error { return r.Err }
 
-func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyPackRequest)
 	pack, err := svc.ModifyPack(ctx, req.ID, req.PackPayload)
 	if err != nil {
@@ -310,7 +310,7 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPack{
@@ -337,9 +337,9 @@ type listPacksResponse struct {
 	Err   error          `json:"error,omitempty"`
 }
 
-func (r listPacksResponse) error() error { return r.Err }
+func (r listPacksResponse) Error() error { return r.Err }
 
-func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listPacksRequest)
 	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 	if err != nil {
@@ -377,9 +377,9 @@ type deletePackResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deletePackResponse) error() error { return r.Err }
+func (r deletePackResponse) Error() error { return r.Err }
 
-func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deletePackRequest)
 	err := svc.DeletePack(ctx, req.Name)
 	if err != nil {
@@ -406,7 +406,7 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		return err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedPack{
@@ -430,9 +430,9 @@ type deletePackByIDResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deletePackByIDResponse) error() error { return r.Err }
+func (r deletePackByIDResponse) Error() error { return r.Err }
 
-func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deletePackByIDRequest)
 	err := svc.DeletePackByID(ctx, req.ID)
 	if err != nil {
@@ -457,7 +457,7 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedPack{
@@ -481,9 +481,9 @@ type applyPackSpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyPackSpecsResponse) error() error { return r.Err }
+func (r applyPackSpecsResponse) Error() error { return r.Err }
 
-func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyPackSpecsRequest)
 	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 	if err != nil {
@@ -536,7 +536,7 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPack{},
@@ -555,9 +555,9 @@ type getPackSpecsResponse struct {
 	Err   error             `json:"error,omitempty"`
 }
 
-func (r getPackSpecsResponse) error() error { return r.Err }
+func (r getPackSpecsResponse) Error() error { return r.Err }
 
-func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
 	if err != nil {
 		return getPackSpecsResponse{Err: err}, nil
@@ -582,9 +582,9 @@ type getPackSpecResponse struct {
 	Err  error           `json:"error,omitempty"`
 }
 
-func (r getPackSpecResponse) error() error { return r.Err }
+func (r getPackSpecResponse) Error() error { return r.Err }
 
-func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetPackSpec(ctx, req.Name)
 	if err != nil {

@@ -1,0 +1,2 @@
+- name: query_ruby
+  query: select 1

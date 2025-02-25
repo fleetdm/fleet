@@ -2,7 +2,7 @@ package logging
 
 import (
 	nanodep_log "github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 

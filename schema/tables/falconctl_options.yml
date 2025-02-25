@@ -6,6 +6,6 @@ platforms:
   - linux
 columns:
   - name: options
-    description: "The falconctol options to run. Supported values are listed here: `--aid`, `--apd`,`--aph`, `--app`, `--cid`, `--feature`, `--metadata-query`, `--rfm-reason`,`--rfm-state`, `--tags`, `--version`"
+    description: "The falconctl options to run. Supported values are listed here: `--aid`, `--apd`,`--aph`, `--app`, `--cid`, `--feature`, `--metadata-query`, `--rfm-reason`,`--rfm-state`, `--tags`, `--version`"
     type: text
     required: true

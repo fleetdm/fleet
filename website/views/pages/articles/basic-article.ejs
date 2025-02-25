@@ -1,39 +1,124 @@
 <div id="basic-article" v-cloak>
-  <div style="max-width: 800px;" class="container-fluid px-0">
-    <div purpose="article-title">
-      <h1><%=thisPage.meta.articleTitle %></h1>
-      <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
-    </div>
-    <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
-      <div purpose="article-details" class="d-flex flex-row align-items-center">
-      <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
-      <span class="px-2">|</span>
-      <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
-      <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+  <div purpose="page-container" class="container-fluid">
+    <div purpose="breadcrumbs-and-search" class="d-flex flex-lg-row flex-column justify-content-between align-items-lg-center align-items-start">
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" :href="'/'+articleCategorySlug">{{categoryFriendlyName}}</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span>{{thisPage.meta.articleTitle}}</span>
+        </div>
       </div>
-      <div class="d-flex flex-row align-items-center justify-content-sm-end pt-3 pt-sm-1">
-      <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
-      <a purpose="edit-button" class="d-flex flex-row align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+      <div purpose="search" id="docsearch-query" class="d-flex">
+        <div purpose="disabled-search" class="d-flex w-100">
+          <div class="input-group">
+            <div class="input-group-prepend">
+              <span class="input-group-text border-0 bg-transparent pl-3" >
+                <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+              </span>
+            </div>
+            <div class="form-control border-0 ">
+            <input class="docsearch-input pr-1"
+              placeholder="Search" aria-label="Search the handbook"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div purpose="article-content" class="d-flex flex-column" parasails-has-no-page-script>
-      <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
-    </div>
-    <hr>
-    <div purpose="bottom-cta" class="d-block">
-      <h3 style="font-size: 24px; line-height: 32px;">Explore Fleet</h3>
-      <p class="my-4">Find out how Fleet can benefit your organization by exploring our docs and community. <br>Want to get up and running quicker? Then try out Fleet locally on your device - you’ll be up and running in minutes.</p>
-      <div class="d-md-flex">
-        <a href="/try-fleet" class="d-flex flex-fill btn btn-primary btn-md justify-content-center align-items-center mt-3 mt-md-0 mr-md-3" purpose="next-steps-button">
-          Try it out
-        </a>
-        <a href="/slack" target="_blank" class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0  mr-md-3" purpose="next-steps-button">
-          <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-          Join <span purpose="large-button-text">&nbsp;the&nbsp;</span> Fleet <span purpose="large-button-text">&nbsp;community&nbsp;</span>on Slack
-        </a>
-        <a @click="clickOpenChatWidget()" class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0  mr-0" purpose="next-steps-button">
-          Show me
-        </a>
+    <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
+      <div purpose="article-title-and-author" class="d-lg-none d-block">
+        <div purpose="article-title">
+          <h1><%=thisPage.meta.articleTitle %></h1>
+          <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
+        </div>
+        <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
+          <div purpose="article-details" class="d-flex flex-row align-items-center">
+            <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+            <span class="px-2">|</span>
+            <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+            <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+          </div>
+
+        </div>
+      </div>
+
+      <div purpose="sidebar-container">
+        <div purpose="right-sidebar" class="d-flex flex-column">
+          <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
+            <div class="d-flex flex-row">
+              <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+              <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+              <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+            </div>
+          </div>
+
+          <div purpose="subtopics" id="subtopics" class="d-flex nav flex-column order-lg-1 order-2">
+            <p><strong>On this page</strong></p>
+            <a purpose="sidebar-link" v-for="topic in subtopics" :href="topic.url" class="nav-link p-0">{{topic.title}}</a>
+          </div>
+          <div purpose="docs-links" class="order-3">
+            <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
+            <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
+            <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
+            <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png"> Talk to an engineer</a>
+            <div purpose="edit-link">
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            </div>
+            <div purpose="sidebar-cta" @click="clickGotoStart()">
+              <a href="<% if(typeof me === 'undefined') {%>/register<% } else { %>/start<% } %>">
+              <div purpose="cta-image"></div>
+              <div purpose="cta-text">
+                <% if(typeof me === 'undefined'){ %>
+                  <h4>Try it out</h4>
+                  <p>See what Fleet can do</p>
+                  <a purpose="cta-button" class="btn btn-primary docs-cta-continue-button" href="/register">Start now</a>
+                <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
+                  <h4>Tried Fleet yet?</h4>
+                  <p>Continue getting started with Fleet</p>
+                  <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
+                <% } else if (me.psychologicalStage === '4 - Has use case') {%>
+                  <h4>Feeling confident?</h4>
+                  <p>Get set up with Fleet</p>
+                  <a purpose="cta-button" class="btn btn-primary" hredf="/start">Continue</a>
+                <% } else if (['5 - Personally confident', '6 - Has team buy-in'].includes(me.psychologicalStage)) {%>
+                  <h4>Talk to the team</h4>
+                  <p>Let’s get you set up!</p>
+                  <a purpose="cta-button" class="btn btn-primary" href="/start">Continue</a>
+                <%}%>
+                <div purpose="cta-platform-icons" class="d-flex flex-row justify-content-between align-items-center">
+                  <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS" />
+                  <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows" />
+                  <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux" />
+                </div>
+              </div>
+              </a>
+            </div>
+          <!-- <div class="d-flex flex-row align-items-center justify-content-start pt-3 pt-sm-1">
+            <a purpose="rss-button" @click="clickCopyRssLink(articleCategorySlug)"><span>Subscribe</span></a>
+          </div> -->
+          </div>
+
+        </div>
+      </div>
+      <div purpose="article-container">
+        <div purpose="article-title-and-author" class="d-none d-lg-block">
+          <div purpose="article-title">
+            <h1><%=thisPage.meta.articleTitle %></h1>
+            <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
+          </div>
+          <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
+            <div purpose="article-details" class="d-flex flex-row align-items-center">
+              <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+              <span class="px-2">|</span>
+              <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
+              <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
+            </div>
+          </div>
+        </div>
+        <div purpose="article-content" parasails-has-no-page-script>
+          <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+        </div>
       </div>
     </div>
   </div>

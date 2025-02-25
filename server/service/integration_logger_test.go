@@ -15,16 +15,16 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIntegrationLoggerTestSuite(t *testing.T) {
+func TestIntegrationsLoggerTestSuite(t *testing.T) {
 	testingSuite := new(integrationLoggerTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withDS.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -148,7 +148,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 		require.NotContains(t, logData, "user") // logger context is set to skip user
 
 		for _, e := range tt.expectedLogs {
-			assert.Equal(t, logData[e.key], e.val)
+			assert.Equal(t, e.val, logData[e.key], fmt.Sprintf("%+v", tt.expectedLogs))
 		}
 		s.buf.Reset()
 	}

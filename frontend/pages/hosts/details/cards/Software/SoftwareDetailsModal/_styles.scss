@@ -1,0 +1,56 @@
+.software-details-modal {
+  &__software-details {
+    margin-top: 24px;
+  }
+
+  &__details-info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    padding: $pad-large 0;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:first-of-type {
+      padding-top: 0;
+    }
+
+    &:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+  }
+
+  &__row {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__file-path-data-set {
+    // These following 100% widths are to make sure the text does not
+    // overflow from the modal. TODO: Need to look at DataSet component to see why
+    // it overflows.
+    width: 100%;
+    min-width: auto;
+  }
+
+  &__file-path-values {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
+
+    > span {
+      width: 100%;
+      white-space: initial;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .modal__content {
+    margin-top: $pad-small;
+  }
+
+  .react-tabs__tab-panel {
+    margin-top: $pad-large;
+  }
+}

@@ -1,9 +1,7 @@
 name: interface_ipv6
-examples: >-
+examples: |-
   Identify interfaces using IPv6 with forwarding enabled.
   
-  ```
-  
+  ```  
   SELECT interface FROM interface_ipv6 WHERE forwarding_enabled='1';
-  
   ```

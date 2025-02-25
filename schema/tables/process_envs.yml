@@ -1,9 +1,7 @@
 name: process_envs
-examples: >-
+examples: |-
   See what PATH is configured as an environment variable.
   
   ```
-  
   SELECT DISTINCT value, key FROM process_envs WHERE key='PATH';
-  
   ```

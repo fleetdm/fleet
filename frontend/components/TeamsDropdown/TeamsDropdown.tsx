@@ -1,26 +1,39 @@
 import React, { useMemo } from "react";
+import Select, {
+  components,
+  DropdownIndicatorProps,
+  GroupBase,
+  OptionProps,
+  StylesConfig,
+} from "react-select-5";
+
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 import classnames from "classnames";
+
+import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
+import Icon from "components/Icon";
+
+export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
+  value: number; // Redefine the value property to be just number
+}
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
   includeAll: boolean,
   includeNoTeams?: boolean
-) => {
+): INumberDropdownOption[] => {
   if (!teams) {
     return [];
   }
 
-  const options = teams.map((team) => ({
+  const options: INumberDropdownOption[] = teams.map((team) => ({
     disabled: false,
     label: team.name,
     value: team.id,
@@ -29,26 +42,36 @@ const generateDropdownOptions = (
   const filtered = options.filter(
     (o) =>
       !(
-        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
         (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
       )
   );
 
   return filtered;
 };
+
+const getOptionBackgroundColor = (
+  state: OptionProps<
+    INumberDropdownOption,
+    false,
+    GroupBase<INumberDropdownOption>
+  >
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+};
+
 interface ITeamsDropdownProps {
   currentUserTeams: ITeamSummary[];
   selectedTeamId?: number;
   includeAll?: boolean; // Include the "All Teams" option;
   includeNoTeams?: boolean;
   isDisabled?: boolean;
-  isSandboxMode?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
 }
 
-const baseClass = "component__team-dropdown";
+const baseClass = "team-dropdown";
 
 const TeamsDropdown = ({
   currentUserTeams,
@@ -56,12 +79,11 @@ const TeamsDropdown = ({
   includeAll = true,
   includeNoTeams = false,
   isDisabled = false,
-  isSandboxMode = false,
   onChange,
   onOpen,
   onClose,
 }: ITeamsDropdownProps): JSX.Element => {
-  const teamOptions = useMemo(
+  const teamOptions: INumberDropdownOption[] = useMemo(
     () => generateDropdownOptions(currentUserTeams, includeAll, includeNoTeams),
     [currentUserTeams, includeAll, includeNoTeams]
   );
@@ -76,56 +98,174 @@ const TeamsDropdown = ({
     disabled: isDisabled || undefined,
   });
 
+  const CustomDropdownIndicator = (
+    props: DropdownIndicatorProps<any, false, any>
+  ) => {
+    const { isFocused, selectProps } = props;
+    const color =
+      isFocused || selectProps.menuIsOpen
+        ? "core-fleet-blue"
+        : "core-fleet-black";
+
+    return (
+      <components.DropdownIndicator {...props} className={baseClass}>
+        <Icon
+          name="chevron-down"
+          color={color}
+          className={`${baseClass}__icon`}
+        />
+      </components.DropdownIndicator>
+    );
+  };
+
+  // see https://react-select.com/styles#the-styles-prop
+  // `provided` here corresponds to `baseStyles` in the docs
+  const customStyles: StylesConfig<INumberDropdownOption, false> = {
+    control: (provided, state) => ({
+      ...provided,
+      display: "flex",
+      flexDirection: "row",
+      padding: "8px 0",
+      backgroundColor: "initial",
+      border: 0,
+      borderRadius: "4px",
+      boxShadow: "none",
+      cursor: "pointer",
+      "&:hover": {
+        boxShadow: "none",
+        ".team-dropdown__single-value": {
+          color: COLORS["core-fleet-blue"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["core-vibrant-blue-over"],
+        },
+      },
+      // When tabbing
+      // Relies on --is-focused for styling as &:focus-visible cannot be applied
+      "&.team-dropdown__control--is-focused": {
+        ".team-dropdown__single-value": {
+          color: COLORS["core-vibrant-blue-over"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["core-vibrant-blue-over"],
+        },
+      },
+      ...(state.isDisabled && {
+        ".team-dropdown__single-value": {
+          color: COLORS["ui-fleet-black-50"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["ui-fleet-black-50"],
+        },
+      }),
+      // When clicking
+      "&:active": {
+        ".team-dropdown__single-value": {
+          color: COLORS["core-vibrant-blue-down"],
+        },
+        ".team-dropdown__indicator path": {
+          stroke: COLORS["core-vibrant-blue-down"],
+        },
+      },
+      ...(state.menuIsOpen && {
+        ".team-dropdown__indicator svg": {
+          transform: "rotate(180deg)",
+          transition: "transform 0.25s ease",
+        },
+      }),
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      fontSize: "24px",
+      lineHeight: "normal",
+      paddingLeft: 0,
+      paddingRight: "8px",
+      margin: 0,
+      // omit grid-column-end for automatic width
+      gridArea: "1/1/2",
+    }),
+    dropdownIndicator: (provided) => ({
+      ...provided,
+      display: "flex",
+      padding: "2px",
+      margin: "0 5px",
+      svg: {
+        transition: "transform 0.25s ease",
+      },
+    }),
+    menu: (provided) => ({
+      ...provided,
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      borderRadius: "4px",
+      zIndex: 6,
+      overflow: "hidden",
+      border: 0,
+      marginTop: 0,
+      minWidth: "330px",
+      maxHeight: "none",
+      position: "absolute",
+      left: "0",
+      animation: "fade-in 150ms ease-out",
+    }),
+    // Placeholder is never shown on teams dropdown
+    menuList: (provided) => ({
+      ...provided,
+      padding: PADDING["pad-small"],
+    }),
+    valueContainer: (provided) => ({
+      ...provided,
+      padding: 0,
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      padding: "10px 8px",
+      fontSize: "14px",
+      borderRadius: "4px",
+      backgroundColor: getOptionBackgroundColor(state),
+      fontWeight: state.isSelected ? "bold" : "normal",
+      color: COLORS["core-fleet-black"],
+      "&:hover": {
+        backgroundColor: state.isDisabled
+          ? "transparent"
+          : COLORS["ui-vibrant-blue-10"],
+      },
+      "&:active": {
+        backgroundColor: state.isDisabled
+          ? "transparent"
+          : COLORS["ui-vibrant-blue-25"],
+      },
+      ...(state.isDisabled && {
+        color: COLORS["ui-fleet-black-50"],
+        fontStyle: "italic",
+      }),
+    }),
+  };
+
   const renderDropdown = () => {
-    if (isSandboxMode) {
-      const tooltipId = uniqueId();
-      return (
-        <>
-          <span data-tip data-for={tooltipId}>
-            <Dropdown
-              value={selectedValue}
-              placeholder="All teams"
-              options={teamOptions}
-              className={baseClass}
-              searchable={false}
-              disabled
-            />
-          </span>
-          <ReactTooltip
-            type="light"
-            effect="solid"
-            id={tooltipId}
-            clickable
-            delayHide={200}
-            arrowColor="transparent"
-            overridePosition={(pos: { left: number; top: number }) => {
-              return {
-                left: pos.left - 150,
-                top: pos.top + 78,
-              };
-            }}
-          >
-            {`Teams allow you to segment hosts into specific groups of endpoints. This feature is included in Fleet Premium.`}
-            <br />
-            <a href="https://calendly.com/fleetdm/demo">
-              Contact us to learn more.
-            </a>
-          </ReactTooltip>
-        </>
-      );
-    }
     if (teamOptions.length) {
       return (
-        <Dropdown
-          value={selectedValue}
-          placeholder="All teams"
-          className={baseClass}
+        <Select<INumberDropdownOption, false>
           options={teamOptions}
-          searchable={false}
-          disabled={isDisabled}
-          onChange={onChange}
-          onOpen={onOpen}
-          onClose={onClose}
+          placeholder="All teams"
+          onChange={(newValue) => {
+            if (newValue) {
+              onChange(newValue.value);
+            }
+            // If newValue is null or undefined, we don't call onChange
+          }}
+          isDisabled={isDisabled}
+          isSearchable={false}
+          styles={customStyles}
+          components={{
+            DropdownIndicator: CustomDropdownIndicator,
+            IndicatorSeparator: () => null,
+          }}
+          value={teamOptions.find((option) => option.value === selectedValue)}
+          isOptionSelected={() => false} // Hides any styling on selected option
+          className={baseClass}
+          classNamePrefix={baseClass}
+          onMenuOpen={onOpen}
+          onMenuClose={onClose}
         />
       );
     }

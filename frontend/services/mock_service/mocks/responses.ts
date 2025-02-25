@@ -4,6 +4,9 @@
  * Also please check the README for how to use the mock service :)
  */
 
+import { createMockIosHostResponse } from "__mocks__/hostMock";
+import { createMockPoliciesResponse } from "__mocks__/policyMock";
+
 const count = {
   targets_count: 1,
   targets_online: 0,
@@ -57,6 +60,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -106,6 +110,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -155,6 +160,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -204,6 +210,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -253,6 +260,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -302,6 +310,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -10590,6 +10599,14 @@ const globalQuery5 = { query: globalQueries.queries[5] };
 const globalQuery6 = { query: globalQueries.queries[6] };
 const teamQuery1 = { query: teamQueries.queries[0] };
 const teamQuery2 = { query: teamQueries.queries[1] };
+const teamPolicy1 = createMockPoliciesResponse();
+const hostDetailsiOS = createMockIosHostResponse;
+const aiAutofillPolicy = {
+  description:
+    "The firewall is not enabled, exposing the laptop to potential security threats such as unauthorized access, data breaches, and malware attacks.",
+  resolution:
+    "The maintenance will probably involve investigation of the firewall status, troubleshooting any issues found, and enabling the firewall to ensure the laptop's security.",
+};
 
 export default {
   count,
@@ -10606,4 +10623,7 @@ export default {
   teamQueries,
   teamQuery1,
   teamQuery2,
+  aiAutofillPolicy,
+  teamPolicy1,
+  hostDetailsiOS,
 };

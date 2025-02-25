@@ -1,5 +1,4 @@
 .os-updates-current-version-section {
-
   &__title {
     display: flex;
     align-items: center;
@@ -13,6 +12,26 @@
     h2 {
       font-weight: normal;
       font-size: 18px;
+    }
+  }
+
+  &__error {
+    padding: $pad-xxlarge;
+  }
+
+  .linkToFilteredHosts__header {
+    width: auto;
+    max-width: 120px;
+  }
+
+  td {
+    width: 100%;
+    max-width: $col-lg;
+  }
+
+  @media (max-width: $break-md) {
+    td {
+      max-width: $col-md !important;
     }
   }
 }

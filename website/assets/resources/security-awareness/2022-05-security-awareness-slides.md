@@ -132,7 +132,7 @@ BEC leverages our willingness to help people.
 
 ## Money transfers
 
-We have a strict process related to payments and wire transfers. If you are in the BizOps team, make sure you are aware of it.
+We have a strict process related to payments and wire transfers. If you are in the Digital Experience team, make sure you are aware of it.
 
 ## Working from shady networks and cool locations
 
@@ -179,7 +179,7 @@ Undoing git history is complicated. Consider this secret forever leaked.
 
 1. Don't panic. It's encrypted.
 2. Post about it in #g-security.
-3. In the thread in #g-security, inform someone from the BizOps team. They'll help you get a new one ASAP!
+3. In the thread in #g-security, inform someone from the Digital Experience team. They'll help you get a new one ASAP!
 
 ## If... you lose your Yubikey(s)
 

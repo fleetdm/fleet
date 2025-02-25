@@ -3,7 +3,10 @@
 package table
 
 import (
+	"context"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
@@ -21,20 +24,23 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/rs/zerolog/log"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
+	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables() []osquery.OsqueryPlugin {
+func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -42,6 +48,7 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
 		table.NewPlugin("csrutil_info", csrutil_info.Columns(), csrutil_info.Generate),
 		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
+		table.NewPlugin("tcc_access", tcc_access.Columns(), tcc_access.Generate),
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
 		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
@@ -65,19 +72,33 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+		table.NewPlugin(
+			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return sofa.SofaSecurityReleaseInfoGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
+			},
+		),
+		table.NewPlugin(
+			"sofa_unpatched_cves", sofa.SofaUnpatchedCVEsColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
+			},
+		),
 
-		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
-		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"
+		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
+		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"
 
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
-		firmwarepasswd.TablePlugin(osqueryLogger), // table name is "firmwarepasswd"
+		firmwarepasswd.TablePlugin(log.Logger), // table name is "firmwarepasswd"
 
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.PlistType), // table name is "parse_plist"
+
+		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
 	}
 
 	// append platform specific tables
 	plugins = appendTables(plugins)
 
-	return plugins
+	return plugins, nil
 }

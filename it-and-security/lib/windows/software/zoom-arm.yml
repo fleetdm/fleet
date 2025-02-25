@@ -1,0 +1,4 @@
+url: https://zoom.us/client/latest/ZoomInstaller.exe?archType=winarm64
+self_service: true
+labels_include_any:
+  - "ARM-based Windows hosts"

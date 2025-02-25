@@ -1,0 +1,20 @@
+.vpp-setup-steps {
+  font-size: $x-small;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+  padding: 0;
+  margin: 0;
+  max-width: 660px;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
+}

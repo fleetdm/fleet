@@ -123,6 +123,13 @@ parasails.registerPage('basic-handbook', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+    // Add links to the responsibilities under the responsibilities heading.
+    if($('h2#responsibilities')){
+      let responsibilitiesLinksHtml = '<ul>\n';
+      $('h3').each((unused, el)=>{ responsibilitiesLinksHtml += '<li><a href="#'+_.escape($(el).attr('id'))+'">'+_.escape($(el).text())+'</a></li>\n';  });
+      responsibilitiesLinksHtml+= '</ul>';
+      $('h2#responsibilities + p').after(responsibilitiesLinksHtml);
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

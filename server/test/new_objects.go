@@ -106,6 +106,101 @@ func AddAllHostsLabel(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 }
 
+func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
+	builtins := []*fleet.Label{
+		{
+			Name:                "All Hosts",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "macOS",
+			Query:               "select 1 from os_version where platform = 'darwin';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "Ubuntu Linux",
+			Query:               "select 1 from os_version where platform = 'ubuntu';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "CentOS Linux",
+			Query:               "select 1 from os_version where platform = 'centos' or name like '%centos%';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "MS Windows",
+			Query:               "select 1 from os_version where platform = 'windows';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "Red Hat Linux",
+			Query:               "SELECT 1 FROM os_version WHERE name LIKE '%red hat%'",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "All Linux",
+			Query:               "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "chrome",
+			Query:               "select 1 from os_version where platform = 'chrome';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                fleet.BuiltinLabelMacOS14Plus,
+			Query:               "select 1 from os_version where platform = 'darwin' and major >= 14;",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+		{
+			Name:                "iOS",
+			Platform:            "ios",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+		{
+			Name:                "iPadOS",
+			Platform:            "ipados",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+		{
+			Name:                "Fedora Linux",
+			Platform:            "rhel",
+			Query:               "select 1 from os_version where name = 'Fedora Linux';",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	}
+
+	names := fleet.ReservedLabelNames()
+	require.Equal(t, len(builtins), len(names))
+	storedByName := map[string]*fleet.Label{}
+	for _, b := range builtins {
+		stored, err := ds.NewLabel(context.Background(), b)
+		require.NoError(t, err)
+		storedByName[stored.Name] = stored
+	}
+	require.Len(t, storedByName, len(builtins))
+
+	for name := range names {
+		_, ok := storedByName[name]
+		require.True(t, ok, "expected label %s to be created", name)
+	}
+}
+
 // NewHostOption is an Option for the NewHost function.
 type NewHostOption func(*fleet.Host)
 
@@ -119,6 +214,18 @@ func WithComputerName(s string) NewHostOption {
 func WithPlatform(s string) NewHostOption {
 	return func(h *fleet.Host) {
 		h.Platform = s
+	}
+}
+
+func WithOSVersion(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.OSVersion = s
+	}
+}
+
+func WithTeamID(teamID uint) NewHostOption {
+	return func(h *fleet.Host) {
+		h.TeamID = &teamID
 	}
 }
 

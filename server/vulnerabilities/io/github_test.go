@@ -168,7 +168,8 @@ func (m mockGHReleaseLister) ListReleases(
 	return releases, res, nil
 }
 
-func TestGithubClient(t *testing.T) {
+func TestIntegrationsGithubClient(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	t.Run("MacOfficeReleaseNotes", func(t *testing.T) {

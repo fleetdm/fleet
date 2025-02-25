@@ -1,0 +1,25 @@
+<div id="query-generator" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+
+      <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" v-if="!showGeneratedQuery">
+        <h3 class="mb-4">Query generator</h3>
+        <div class="form-group">
+          <label for="email-address">Ask a question about your devices to generate queries</label>
+          <textarea class="form-control" type="textarea" id="email-address"  :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
+          <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
+        </div>
+        <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/admin/query-generator">reload this page and try again</a>.</cloud-error>
+        <ajax-button purpose="submit-button" style="min-width: 200px; max-width: 200px;" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-right" v-if="!cloudError">Generate queries</ajax-button>
+      </ajax-form>
+
+      <div v-else>
+        <h3 class="mb-4">Generated Query:</h3>
+        <pre><code>{{queryResult}}</code></pre>
+        <div class="btn btn-sm btn-primary" @click="clickResetQueryGenerator()">Generate another</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
