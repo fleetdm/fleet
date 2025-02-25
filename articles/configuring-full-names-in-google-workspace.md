@@ -181,4 +181,4 @@ You've now successfully configured Google Workspace to provide full names to Fle
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-02-25">
-<meta name="description" value="Populating Full Name during macOS Setup experience from Google Directory">
+<meta name="description" value="Populating Full Name during macOS Setup experience from Google Workspace">
