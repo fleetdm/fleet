@@ -55,10 +55,14 @@
   }
 
   .title {
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-between;
     margin: 0;
     padding-bottom: 0;
+
+    @media(min-width: $break-xs) {
+      flex-direction: row;
+    }
 
     .display-name-container {
       display: flex;

@@ -89,7 +89,7 @@
   }
 
   // >= 320px 12 pt gap
-  @media (min-width: $break-mobile-xs) {
+  @media (min-width: $break-xs) {
     .dashboard-page__host-sections {
       gap: $pad-smedium;
     }
