@@ -124,6 +124,19 @@
         gap: 8px;
       }
 
+      .error-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        font-size: 14px;
+      }
+
+      .error-description {
+        text-align: center;
+      }
+
       @media screen and (max-width: 430px) {
         .enroll-link {
           width: 100%;
@@ -214,6 +227,28 @@
       </p>
     </template>
 
+    <!-- Error content -->
+    <template id="error-template">
+      <h1 class="error-header">
+        <svg
+          width="16"
+          height="17"
+          viewBox="0 0 16 17"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M8 0.5C3.58 0.5 0 4.08 0 8.5C0 12.92 3.58 16.5 8 16.5C12.42 16.5 16 12.92 16 8.5C16 4.08 12.42 0.5 8 0.5ZM8 3.75C8.41421 3.75 8.75 4.08579 8.75 4.5V9.5C8.75 9.91421 8.41421 10.25 8 10.25C7.58579 10.25 7.25 9.91421 7.25 9.5V4.5C7.25 4.08579 7.58579 3.75 8 3.75ZM8 13.5C8.55229 13.5 9 13.0523 9 12.5C9 11.9477 8.55229 11.5 8 11.5C7.44772 11.5 7 11.9477 7 12.5C7 13.0523 7.44772 13.5 8 13.5Z"
+            fill="#D66C7B"
+          />
+        </svg>
+        <p class="error-title"></p>
+      </h1>
+      <p class="error-description"></p>
+    </template>
+
     <header>
       <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
     </header>
@@ -232,8 +267,6 @@
             navigator.maxTouchPoints > 1);
         const isAndroid = /Android/i.test(userAgent);
 
-        return "android";
-
         if (isAndroid) {
           return "android";
         } else if (isIPhone) {
@@ -245,7 +278,7 @@
         return "unsupported";
       };
 
-      const getTemplateId = () => {
+      const getTemplateIdFromPlatform = () => {
         const platform = getPlatform();
 
         let templateId = "";
@@ -261,10 +294,7 @@
       };
 
       // renders the content based on the platform
-      const renderContent = () => {
-        const platform = getPlatform();
-        let templateId = getTemplateId();
-
+      const renderContent = (templateId) => {
         const template = document.getElementById(templateId);
         if (template) {
           document
@@ -297,15 +327,120 @@
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
       };
 
+      const renderError = (title, description) => {
+        const template = document.getElementById("error-template");
+        if (template) {
+          const clone = template.content.cloneNode(true);
+          clone.querySelector(".error-title").textContent = title;
+          clone.querySelector(".error-description").textContent = description;
+          document.getElementById("main-content").appendChild(clone);
+        }
+      };
+
+      const getEnrollmentSecret = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("enroll_secret");
+      };
+
+      const getEnrollmentToken = async () => {
+        const enrollSecret = getEnrollmentSecret();
+
+        if (!enrollSecret) {
+          renderError(
+            "This URL is invalid.",
+            "Enroll secret is invalid. Please contact your IT admin."
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=${enrollSecret}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+          const data = await response.json();
+
+          if (data.error) {
+            renderError("Error", data.error);
+            return;
+          }
+
+          return data;
+        } catch (error) {
+          renderError("Error", "Failed to fetch enrollment token.");
+        }
+      };
+
+      const ANDROID_MDM_ENABLED = false;
+      const MAC_MDM_ENABLED = false;
+
       // set up the page content
       document.addEventListener("DOMContentLoaded", function () {
-        const platform = getPlatform();
+        // const platform = getPlatform();
+        const platform = "android";
 
-        renderContent();
-
-        if (platform === "ios" || platform === "ipad") {
-          renderIosIpadContent(platform);
+        // quick exit if platform is unsupported
+        if (platform === "unsupported") {
+          renderContent("unsupported-template");
+          return;
         }
+
+        // check if the enroll secret is valid
+        if (!getEnrollmentSecret()) {
+          renderError(
+            "This URL is invalid.",
+            "Enroll secret is invalid. Please contact your IT admin."
+          );
+          return;
+        }
+
+        let templateId = "";
+
+        // handle android rendering
+        if (platform === "android") {
+          if (!ANDROID_MDM_ENABLED) {
+            renderError(
+              "The Android MDM is turned off.",
+              "To enroll your Android device please contact your IT admin."
+            );
+            return;
+          }
+        }
+
+        if ((platform === "ios" || platform === "ipad") && !MAC_MDM_ENABLED) {
+          const description = `To enroll your ${
+            platform === "ios" ? "iPhone" : "iPad"
+          } please contact your IT admin.`;
+          renderError("The Apple MDM is turned off.", description);
+        }
+
+        if (platform === "android") {
+          templateId = "android-template";
+        } else if (platform === "ios" || platform === "ipad") {
+          templateId = "ios-ipad-template";
+        } else {
+          templateId = "unsupported-template";
+        }
+
+        // const token = getEnrollmentToken();
+
+        // renderContent("unsupported-template");
+
+        // renderContent(templateId);
+
+        renderError(
+          "This URL is invalid.",
+          "Enroll secret is invalid. Please contact your IT admin."
+        );
+
+        // if (platform === "ios" || platform === "ipad") {
+        //   renderIosIpadContent(platform);
+        // }
       });
     </script>
   </body>
