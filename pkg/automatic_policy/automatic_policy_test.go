@@ -15,6 +15,9 @@ func TestGenerateErrors(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrExtensionNotSupported)
 
+	_, err = FullInstallerMetadata{}.PolicyPlatform()
+	require.ErrorIs(t, err, ErrExtensionNotSupported)
+
 	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "msi",
@@ -30,12 +33,27 @@ func TestGenerateErrors(t *testing.T) {
 	})
 	require.ErrorIs(t, err, ErrMissingProductCode)
 
+	_, err = Generate(MacInstallerMetadata{
+		Title:            "Foobar",
+		BundleIdentifier: "",
+	})
+	require.ErrorIs(t, err, ErrMissingBundleIdentifier)
+
 	_, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "pkg",
 		BundleIdentifier: "",
 		PackageIDs:       []string{""},
 	})
+	require.ErrorIs(t, err, ErrMissingBundleIdentifier)
+
+	_, err = Generate(MacInstallerMetadata{
+		Title:            "",
+		BundleIdentifier: "",
+	})
+	require.ErrorIs(t, err, ErrMissingTitle)
+
+	_, err = MacInstallerMetadata{}.PolicyQuery()
 	require.ErrorIs(t, err, ErrMissingBundleIdentifier)
 
 	_, err = Generate(FullInstallerMetadata{
@@ -48,7 +66,17 @@ func TestGenerateErrors(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	policyData, err := Generate(FullInstallerMetadata{
+	policyData, err := Generate(MacInstallerMetadata{
+		Title:            "Foobar",
+		BundleIdentifier: "com.foo.bar",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "[Install software] Foobar", policyData.Name)
+	require.Equal(t, "Policy triggers automatic install of Foobar on each host that's missing this software.", policyData.Description)
+	require.Equal(t, "darwin", policyData.Platform)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo.bar';", policyData.Query)
+
+	policyData, err = Generate(FullInstallerMetadata{
 		Title:            "Foobar",
 		Extension:        "pkg",
 		BundleIdentifier: "com.foo.bar",
