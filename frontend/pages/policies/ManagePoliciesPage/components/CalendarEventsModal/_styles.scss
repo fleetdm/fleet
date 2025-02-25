@@ -63,3 +63,8 @@
     }
   }
 }
+
+// If we're hiding the modal (because the preview is showing), hide the background as well.
+.modal__background:has(.calendar-events-modal.calendar-events-modal__hide-main) {
+  visibility: hidden;
+}
