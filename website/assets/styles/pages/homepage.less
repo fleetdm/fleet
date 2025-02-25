@@ -52,7 +52,6 @@
     padding-left: 32px;
     padding-bottom: 82px;
     max-width: 1200px;
-    height: 420px;
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -88,7 +87,13 @@
       max-width: 640px;
       margin-bottom: 16px;
       &.vm {
-        max-width: unset;
+        max-width: 420px;
+      }
+      &.eo-it {
+        max-width: 420px;
+      }
+      &.eo-security {
+        max-width: 438px;
       }
     }
     p {
