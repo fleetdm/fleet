@@ -173,6 +173,13 @@ Once the automatic migration is enabled, Fleet sends a notification to each host
 
 You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
 
+## Turn off Windows MDM
+
+1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on all your Windows hosts.
+2. Head to **Settings > Integrations > MDM**.
+3. In the **Mobile device management (MDM)** section, select **Edit** next to "Windows MDM turned on."
+4. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.
+
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">

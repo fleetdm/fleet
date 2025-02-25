@@ -1,3 +1,5 @@
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm
+
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
