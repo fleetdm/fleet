@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -362,39 +363,77 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 
 type enterpriseSSEResponse struct {
 	android.DefaultResponse
+	done chan string
 }
 
-func (r enterpriseSSEResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	if r.done == nil {
+		_, _ = fmt.Fprintln(w, "Error: No SSE data available")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
 
-	// Simulate sending events (you can replace this with real data)
-	for i := 0; i < 1000; i++ {
-		_, _ = fmt.Fprintf(w, "data: %s\n\n", fmt.Sprintf("Event %d", i))
-		time.Sleep(2 * time.Second)
+	data, ok := <-r.done
+	if ok {
+		_, _ = fmt.Fprintln(w, data)
 		w.(http.Flusher).Flush()
 	}
 }
 
-func enterpriseSSE(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	err := svc.ProcessSSE(ctx)
+func enterpriseSSE(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	done, err := svc.ProcessSSE(ctx)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enterpriseSSEResponse{}
+	return enterpriseSSEResponse{done: done}
 }
 
-func (svc *Service) ProcessSSE(ctx context.Context) error {
+func (svc *Service) ProcessSSE(ctx context.Context) (chan string, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err := svc.checkIfAndroidAlreadyConfigured(ctx)
+	done := make(chan string)
+	if svc.signupSSECheck(ctx, done) {
+		return done, nil
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				// Handle context cancelled
+				level.Debug(svc.logger).Log("msg", "Context cancelled during Android signup SSE")
+				close(done)
+				return
+			case <-time.After(3 * time.Second):
+				ok := svc.signupSSECheck(ctx, done)
+				if ok {
+					return
+				}
+			}
+		}
+	}()
+
+	return done, nil
+}
+
+func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
-		return err
+		done <- fmt.Sprintf("Error getting app config: %v", err)
+		close(done)
+		return true
 	}
-
-	return nil
+	if appConfig.MDM.AndroidEnabledAndConfigured {
+		done <- "Android Enterprise successfully connected"
+		close(done)
+		return true
+	}
+	return false
 }

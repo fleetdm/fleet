@@ -1234,6 +1234,18 @@ the way that the Fleet server works.
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
+
+				if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
+					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
+					rc := http.NewResponseController(rw)
+					if err := rc.SetReadDeadline(time.Now().Add(30 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+					}
+					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 
