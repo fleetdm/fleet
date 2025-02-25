@@ -19,7 +19,13 @@ import (
 )
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
-const defaultAndroidPolicyID = 1
+const (
+	defaultAndroidPolicyID = 1
+	SignupSSESuccess       = "Android Enterprise successfully connected"
+)
+
+// SignupSSEInterval can be overwritten in tests.
+var SignupSSEInterval = 3 * time.Second
 
 type Service struct {
 	logger  kitlog.Logger
@@ -371,7 +377,7 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	if r.done == nil {
-		_, _ = fmt.Fprintln(w, "Error: No SSE data available")
+		_, _ = fmt.Fprint(w, "Error: No SSE data available")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -380,40 +386,36 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 
 	data, ok := <-r.done
 	if ok {
-		_, _ = fmt.Fprintln(w, data)
+		_, _ = fmt.Fprint(w, data)
 		w.(http.Flusher).Flush()
 	}
 }
 
 func enterpriseSSE(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
-	done, err := svc.ProcessSSE(ctx)
+	done, err := svc.EnterpriseSignupSSE(ctx)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return enterpriseSSEResponse{done: done}
 }
 
-func (svc *Service) ProcessSSE(ctx context.Context) (chan string, error) {
+func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error) {
 	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	done := make(chan string)
-	if svc.signupSSECheck(ctx, done) {
-		return done, nil
-	}
-
 	go func() {
+		if svc.signupSSECheck(ctx, done) {
+			return
+		}
 		for {
 			select {
 			case <-ctx.Done():
-				// Handle context cancelled
 				level.Debug(svc.logger).Log("msg", "Context cancelled during Android signup SSE")
-				close(done)
 				return
-			case <-time.After(3 * time.Second):
-				ok := svc.signupSSECheck(ctx, done)
-				if ok {
+			case <-time.After(SignupSSEInterval):
+				if svc.signupSSECheck(ctx, done) {
 					return
 				}
 			}
@@ -427,12 +429,10 @@ func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
 		done <- fmt.Sprintf("Error getting app config: %v", err)
-		close(done)
 		return true
 	}
 	if appConfig.MDM.AndroidEnabledAndConfigured {
-		done <- "Android Enterprise successfully connected"
-		close(done)
+		done <- SignupSSESuccess
 		return true
 	}
 	return false

@@ -47,7 +47,7 @@ type WithServer struct {
 
 func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.DS = CreateNamedMySQLDS(t, dbName)
-	ts.createCommonDSMocks()
+	ts.CreateCommonDSMocks()
 
 	ts.Proxy = proxy_mock.Proxy{}
 	ts.createCommonProxyMocks(t)
@@ -60,7 +60,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.Server = runServerForTests(t, logger, &fleetSvc, svc)
 }
 
-func (ts *WithServer) createCommonDSMocks() {
+func (ts *WithServer) CreateCommonDSMocks() {
 	ts.FleetDS.GetAndroidDSFunc = func() android.Datastore {
 		return ts.DS
 	}
