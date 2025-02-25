@@ -222,10 +222,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:clickstudios:passwordstate:9.5.8.4:*:*:*:*:chrome:*:*": {
 			includedCVEs: []cve{
-				{ID: "CVE-2022-4610", resolvedInVersion: "9.5"},
-				{ID: "CVE-2022-4611", resolvedInVersion: "9.5"},
-				{ID: "CVE-2022-4613", resolvedInVersion: "9.5"},
-				{ID: "CVE-2022-4612", resolvedInVersion: "9.5"},
+				{ID: "CVE-2022-4610", resolvedInVersion: ""},
+				{ID: "CVE-2022-4611", resolvedInVersion: ""},
+				{ID: "CVE-2022-4613", resolvedInVersion: ""},
+				{ID: "CVE-2022-4612", resolvedInVersion: ""},
 			},
 			continuesToUpdate: true,
 		},
@@ -385,7 +385,119 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			includedCVEs: []cve{
 				{
 					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.14.0a3",
+				},
+			},
+		},
+		"cpe:2.3:a:python:python:3.12.0:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2024-9287",
+					resolvedInVersion: "3.12.8",
+				},
+				{
+					ID:                "CVE-2024-6232",
+					resolvedInVersion: "3.12.6",
+				},
+				{
+					ID:                "CVE-2023-6507",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-8088",
+					resolvedInVersion: "3.12.6",
+				},
+				{
+					ID:                "CVE-2024-4032",
+					resolvedInVersion: "3.12.4",
+				},
+				{
+					ID:                "CVE-2024-7592",
+					resolvedInVersion: "3.12.6",
+				},
+				{
+					ID:                "CVE-2024-6923",
+					resolvedInVersion: "3.12.5",
+				},
+				{
+					ID:                "CVE-2024-0450",
+					resolvedInVersion: "3.12.2",
+				},
+				{
+					ID:                "CVE-2025-0938",
 					resolvedInVersion: "3.12.9",
+				},
+				{
+					ID:                "CVE-2024-0397",
+					resolvedInVersion: "3.12.3",
+				},
+				{
+					ID:                "CVE-2024-4030",
+					resolvedInVersion: "3.12.4",
+				},
+				{
+					ID:                "CVE-2023-6597",
+					resolvedInVersion: "3.12.1",
+				},
+				{
+					ID:                "CVE-2024-3220",
+					resolvedInVersion: "3.14.0",
+				},
+				{
+					ID:                "CVE-2024-3219",
+					resolvedInVersion: "3.12.5",
+				},
+				{
+					ID:                "CVE-2023-33595",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-50602",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.12.9",
+				},
+			},
+		},
+		"cpe:2.3:a:python:python:3.13.0:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2024-9287",
+					resolvedInVersion: "3.13.1",
+				},
+				{
+					ID:                "CVE-2024-6232",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2023-6507",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-50602",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.13.2",
+				},
+				{
+					ID:                "CVE-2023-38898",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-7592",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.13.2",
+				},
+				{
+					ID:                "CVE-2024-3220",
+					resolvedInVersion: "3.14.0",
 				},
 			},
 		},
