@@ -844,8 +844,7 @@ const HostDetailsPage = ({
   };
 
   const isDarwinHost = host.platform === "darwin";
-  const isIosOrIpadosHost =
-    host.platform === "ios" || host.platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
