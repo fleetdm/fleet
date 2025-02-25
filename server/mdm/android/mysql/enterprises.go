@@ -77,7 +77,7 @@ func (ds *Datastore) DeleteOtherEnterprises(ctx context.Context, id uint) error 
 	return nil
 }
 
-func (ds *Datastore) DeleteEnterprises(ctx context.Context) error {
+func (ds *Datastore) DeleteAllEnterprises(ctx context.Context) error {
 	stmt := `DELETE FROM android_enterprises`
 	_, err := ds.Writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {

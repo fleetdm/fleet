@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Android MySQL testing utilities.
+// Android MySQL testing utilities. This file should contain VERY LITTLE code since it is also compiled into the production binary.
+// Whenever possible, new code should go into a dedicated testing package (e.g. mdm/android/mysql/tests/testing_utils.go).
 // These utilities are used to create a MySQL Datastore for testing the Android MDM MySQL implementation.
-// They are located in the same package as the implementation to prevent a circular dependency.
+// They are located in the same package as the implementation to prevent a circular dependency. If put it in a different package,
+// the circular dependency would be: mysql -> testing_utils -> mysql
 
 func CreateMySQLDS(t testing.TB) *Datastore {
 	return createMySQLDSWithOptions(t, nil)
@@ -22,14 +24,14 @@ func CreateMySQLDS(t testing.TB) *Datastore {
 
 func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
-	ds := initializeDatabase(t, cleanTestName, opts)
+	ds := InitializeDatabase(t, cleanTestName, opts)
 	t.Cleanup(func() { Close(ds) })
 	return ds
 }
 
-// initializeDatabase loads the dumped schema into a newly created database in MySQL.
+// InitializeDatabase loads the dumped schema into a newly created database in MySQL.
 // This is much faster than running the full set of migrations on each test.
-func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
+func InitializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	_, filename, _, _ := runtime.Caller(0)
 	schemaPath := path.Join(path.Dir(filename), "schema.sql")
 	testing_utils.LoadSchema(t, testName, opts, schemaPath)

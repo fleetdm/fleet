@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -292,7 +293,7 @@ func TestEndpointer(t *testing.T) {
 		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			logRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(kitlog.NewNopLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -412,7 +413,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			logRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(kitlog.NewNopLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}

@@ -32,6 +32,9 @@ type Proxy struct {
 	mgmt   *androidmanagement.Service
 }
 
+// Compile-time check to ensure that Proxy implements android.Proxy.
+var _ android.Proxy = &Proxy{}
+
 func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
 	if androidServiceCredentials == "" {
 		return nil
@@ -74,28 +77,27 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 	}, nil
 }
 
-func (p *Proxy) EnterprisesCreate(ctx context.Context, enabledNotificationTypes []string, enterpriseToken string,
-	signupUrlName string, pushURL string) (string, string, error) {
+func (p *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
 	if p == nil || p.mgmt == nil {
 		return "", "", errors.New("android management service not initialized")
 	}
 
-	topicName, err := p.createPubSubTopic(ctx, pushURL)
+	topicName, err := p.createPubSubTopic(ctx, req.PubSubPushURL)
 	if err != nil {
 		return "", "", fmt.Errorf("creating PubSub topic: %w", err)
 	}
 
 	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
-		EnabledNotificationTypes: enabledNotificationTypes,
+		EnabledNotificationTypes: req.EnabledNotificationTypes,
 		PubsubTopic:              topicName,
 	}).
 		ProjectId(androidProjectID).
-		EnterpriseToken(enterpriseToken).
-		SignupUrlName(signupUrlName).
+		EnterpriseToken(req.EnterpriseToken).
+		SignupUrlName(req.SignupUrlName).
 		Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		return "", "", fmt.Errorf("android enterprise %s was already created", signupUrlName)
+		return "", "", fmt.Errorf("android enterprise %s was already created", req.SignupUrlName)
 	case err != nil:
 		return "", "", fmt.Errorf("creating enterprise: %w", err)
 	}

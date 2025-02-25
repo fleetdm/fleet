@@ -239,7 +239,7 @@ generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress --watch
 
 generate-mock: .prefix
-	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
+	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock github.com/fleetdm/fleet/v4/server/mdm/android/mock
 
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet

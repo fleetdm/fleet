@@ -26,9 +26,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -244,47 +244,11 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	t := ts.s.T()
+	return fleet_httptest.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+}
 
-	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
-	req, err := http.NewRequest(verb, ts.server.URL+path, requestBody)
-	require.NoError(t, err)
-	for key, val := range headers {
-		req.Header.Add(key, val)
-	}
-
-	opts := []fleethttp.ClientOpt{}
-	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
-		opts = append(opts, fleethttp.WithFollowRedir(false))
-	}
-	client := fleethttp.NewClient(opts...)
-
-	if len(queryParams)%2 != 0 {
-		require.Fail(t, "need even number of params: key value")
-	}
-	if len(queryParams) > 0 {
-		q := req.URL.Query()
-		for i := 0; i < len(queryParams); i += 2 {
-			q.Add(queryParams[i], queryParams[i+1])
-		}
-		req.URL.RawQuery = q.Encode()
-	}
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-
-	if resp.StatusCode != expectedStatusCode {
-		defer resp.Body.Close()
-		var je endpoint_utils.JsonError
-		err := json.NewDecoder(resp.Body).Decode(&je)
-		if err != nil {
-			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
-			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
-		}
-		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
-	}
-
-	return resp
+func decodeJSON(r io.Reader, v interface{}) error {
+	return json.NewDecoder(r).Decode(v)
 }
 
 func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
