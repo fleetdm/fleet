@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -1950,6 +1951,61 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", " local0 ")
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+
+	// Add users to hosts
+	users := []fleet.HostUser{
+		{
+			Uid:       1,
+			Username:  "root",
+			Type:      "local",
+			GroupName: "root",
+			Shell:     "/bin/sh",
+		},
+		{
+			Uid:       1001,
+			Username:  "username",
+			Type:      "local",
+			GroupName: "usergroup",
+			Shell:     "/bin/sh",
+		},
+	}
+	err = s.ds.SaveHostUsers(ctx, host0.ID, users)
+	require.NoError(t, err)
+
+	// Add labels to host
+	label1, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "First Label"})
+	require.NoError(t, err)
+	label2, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Second Label"})
+	require.NoError(t, err)
+
+	err = s.ds.AddLabelsToHost(ctx, host0.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	// Without "populate_users" and "populate_labels" query params, no users or labels
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Empty(t, resp.Hosts[0].Users)
+	require.Empty(t, resp.Hosts[0].Labels)
+
+	// With "populate_users" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_users", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Users, 2)
+	require.EqualValues(t, resp.Hosts[0].Users[0], users[0])
+	require.EqualValues(t, resp.Hosts[0].Users[1], users[1])
+
+	// With "populate_labels" query param
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "query", "local0", "populate_labels", "true")
+	require.Len(t, resp.Hosts, 1)
+	require.Contains(t, resp.Hosts[0].Hostname, "local0")
+	require.Len(t, resp.Hosts[0].Labels, 2)
+	require.Equal(t, label1.Name, resp.Hosts[0].Labels[0].Name)
+	require.Equal(t, label2.Name, resp.Hosts[0].Labels[1].Name)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -4187,6 +4243,25 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 3, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
+
+	// add a host with the same name as another host to manual label 2, confirm only one host is added
+	sameName, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		HardwareSerial: "ABCDE",
+		Hostname:       manualHosts[0].Hostname,
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	modResp = modifyLabelResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Hosts: []string{sameName.HardwareSerial}}, http.StatusOK, &modResp)
+	assert.Len(t, modResp.Label.HostIDs, 1)
+	assert.NotEqual(t, manualHosts[0].ID, modResp.Label.HostIDs[0])
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 1, modResp.Label.HostCount)
 
 	// modify manual label 2 adding some hosts
 	modResp = modifyLabelResponse{}
@@ -6770,6 +6845,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
+	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
+	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -7071,6 +7148,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	defAppCfg.OrgInfo.OrgName = acResp.OrgInfo.OrgName
 	defAppCfg.ServerSettings.ServerURL = acResp.ServerSettings.ServerURL
 	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, defAppCfg), http.StatusOK)
+
+	// turn on GitOps mode, premium only
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "" }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
 }
 
 // TODO(lucas): Add tests here.
@@ -8333,12 +8417,12 @@ func (s *integrationTestSuite) TestModifyUser() {
 	newRawPwd = userRawPwd + "4"
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled:  ptr.Bool(false),
 		NewPassword: ptr.String(newRawPwd),
 		Email:       ptr.String("moduser3@example.com"),
 		Name:        ptr.String("moduser3"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
-	require.Equal(t, "moduser3", modResp.User.Name)
 
 	// as an admin, set new password that doesn't meet requirements
 	invalidUserPwd := "abc"
@@ -8355,6 +8439,31 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+
+	// as an admin, create a new user with SSO authentication enabled
+	params = fleet.UserPayload{
+		Name:                     ptr.String("moduser1"),
+		Email:                    ptr.String("moduser1@example.com"),
+		SSOInvite:                ptr.Bool(true),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u = *createResp.User
+
+	// as an admin, try to disable sso for that user without providing a password
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled: ptr.Bool(false),
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "a new password must be provided when disabling SSO")
+
+	// as an admin, try to disable sso for that user while providing a password
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		SSOEnabled:  ptr.Bool(false),
+		NewPassword: ptr.String("Password123#"),
+	}, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
@@ -9651,7 +9760,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	})
 	require.NoError(t, err)
 
-	var resp jsonError
+	var resp endpoint_utils.JsonError
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
@@ -12116,19 +12225,22 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 	s1Meta, err := s.ds.GetSoftwareInstallerMetadataByID(ctx, sw1)
 	require.NoError(t, err)
-	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, false, nil)
+	h1Foo, err := s.ds.InsertSoftwareInstallRequest(ctx, host1.ID, s1Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	// force an order to the activities
-	endTime := mysql.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "host_script_results", "execution_id", h1A, h1B)
-	endTime = mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_software_installs", "execution_id", h1Foo)
-	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
+	// force an order to the activities (h1A must be first as it was automatically activated)
+	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "upcoming_activities", "execution_id", h1A, h1B, h1Foo, h1C, h1D, h1E)
 
 	// modify the timestamp h1A and h1B to simulate an script that has been
-	// pending for a long time (h1A is a sync request, so it will be ignored for
-	// upcoming activities)
+	// pending for a long time (h1A is a sync script but that doesn't change
+	// anything anymore, sync scripts are part of the queue like any other:
+	// https://github.com/fleetdm/fleet/issues/22866#issuecomment-2575961141)
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), h1A)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-23*time.Hour), h1B)
 		return err
 	})
 
@@ -12138,22 +12250,22 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			wantExecs: []string{h1B, h1Foo, h1C, h1D, h1E},
+			wantExecs: []string{h1A, h1B, h1Foo, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2"},
-			wantExecs: []string{h1B, h1Foo},
+			wantExecs: []string{h1A, h1B},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "1"},
-			wantExecs: []string{h1C, h1D},
+			wantExecs: []string{h1Foo, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "2"},
-			wantExecs: []string{h1E},
+			wantExecs: []string{h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
@@ -12163,12 +12275,12 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		},
 		{
 			queries:   []string{"per_page", "3"},
-			wantExecs: []string{h1B, h1Foo, h1C},
+			wantExecs: []string{h1A, h1B, h1Foo},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "3", "page", "1"},
-			wantExecs: []string{h1D, h1E},
+			wantExecs: []string{h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
@@ -12183,7 +12295,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			queryArgs := c.queries
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
-			require.Equal(t, uint(5), listResp.Count)
+			require.Equal(t, uint(6), listResp.Count)
 			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 

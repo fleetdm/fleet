@@ -16,7 +16,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -468,7 +467,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 				// We clear the policy status here because otherwise the policy automation machinery
 				// won't pick this up and the software won't install.
-				if err := svc.ds.ClearAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
+				if err := svc.ds.ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx, payload.InstallerID, hostsToClear); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
 				}
 			}
@@ -638,12 +637,16 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		teamName = &t.Name
 	}
 
+	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:    meta.AdamID,
-		SoftwareTitle: meta.Name,
-		TeamName:      teamName,
-		TeamID:        teamID,
-		Platform:      meta.Platform,
+		AppStoreID:       meta.AdamID,
+		SoftwareTitle:    meta.Name,
+		TeamName:         teamName,
+		TeamID:           teamID,
+		Platform:         meta.Platform,
+		LabelsIncludeAny: actLabelsIncl,
+		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -968,7 +971,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install software. Host has a pending install/uninstall request.",
+					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -1001,17 +1004,31 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
+	// check the label scoping for this VPP app and host
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+		}
+	}
+
+	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
+		SelfService: false,
+	})
 	return err
 }
 
-func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfService bool) (string, error) {
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
 	if err != nil {
 		return "", err
 	}
 
-	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, selfService, nil)
+	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
 }
 
 func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
@@ -1057,7 +1074,7 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 	return token, nil
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, selfService bool, policyID *uint) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	// at this moment, neither the UI nor the back-end are prepared to
 	// handle [asyncronous errors][1] on assignment, so before assigning a
 	// device to a license, we need to:
@@ -1121,14 +1138,19 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 	}
 
-	// add command to install
-	cmdUUID := uuid.NewString()
-	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
-	}
+	// TODO(mna): should we associate the device (give the license) only when the
+	// upcoming activity is ready to run? I don't think so, because then it could
+	// fail when it's ready to run which is probably a worse UX as once enqueued
+	// you expect it to succeed. But eventually, we should do better management
+	// of the licenses, e.g. if the upcoming activity gets cancelled, it should
+	// release the reserved license.
+	//
+	// But the command is definitely not enqueued now, only when activating the
+	// activity.
 
-	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, selfService, policyID)
+	// enqueue the VPP app command to install
+	cmdUUID := uuid.NewString()
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, opts)
 	if err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
@@ -1154,7 +1176,9 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false, nil)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
+		SelfService: false,
+	})
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
@@ -1244,8 +1268,9 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		}
 	}
 
-	// Get the uninstall script and use the standard script infrastructure to run it.
-	contents, err := svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
+	// Get the uninstall script to validate there is one, will use the standard
+	// script infrastructure to run it.
+	_, err = svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx,
@@ -1255,32 +1280,11 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return err
 	}
 
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
-	// create the script execution request; the host will be notified of the
-	// script execution request via the orbit config's Notifications mechanism.
-	request := fleet.HostScriptRequestPayload{
-		HostID:          host.ID,
-		ScriptContents:  string(contents),
-		ScriptContentID: installer.UninstallScriptContentID,
-		TeamID:          teamID,
-	}
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
-		request.UserID = &ctxUser.ID
-	}
-	scriptResult, err := svc.ds.NewInternalScriptExecutionRequest(ctx, &request)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create script execution request")
-	}
-
-	// Update the host software installs table with the uninstall request.
 	// Pending uninstalls will automatically show up in the UI Host Details -> Activity -> Upcoming tab.
-	if err = svc.insertSoftwareUninstallRequest(ctx, scriptResult.ExecutionID, host, installer); err != nil {
+	execID := uuid.NewString()
+	if err = svc.insertSoftwareUninstallRequest(ctx, execID, host, installer); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -1405,11 +1409,15 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+	if payload.BundleIdentifier != "" {
+		payload.Source = "apps"
+	} else {
+		source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+		}
+		payload.Source = source
 	}
-	payload.Source = source
 
 	platform, err := fleet.SofwareInstallerPlatformFromExtension(meta.Extension)
 	if err != nil {
@@ -1818,7 +1826,9 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true, nil)
+		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
+			SelfService: true,
+		})
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
@@ -1849,10 +1859,23 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 	}
 
+	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
+	}
+
 	platform := host.FleetPlatform()
 	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
 
-	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
+	_, err = svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, fleet.HostSoftwareInstallOptions{
+		SelfService: true,
+	})
 	return err
 }
 

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -25,10 +24,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
-	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -42,39 +41,6 @@ import (
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
-
-type errorHandler struct {
-	logger kitlog.Logger
-}
-
-func (h *errorHandler) Handle(ctx context.Context, err error) {
-	// get the request path
-	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
-	logger := level.Info(kitlog.With(h.logger, "path", path))
-
-	var ewi fleet.ErrWithInternal
-	if errors.As(err, &ewi) {
-		logger = kitlog.With(logger, "internal", ewi.Internal())
-	}
-
-	var ewlf fleet.ErrWithLogFields
-	if errors.As(err, &ewlf) {
-		logger = kitlog.With(logger, ewlf.LogFields()...)
-	}
-
-	var uuider fleet.ErrorUUIDer
-	if errors.As(err, &uuider) {
-		logger = kitlog.With(logger, "uuid", uuider.UUID())
-	}
-
-	var rle ratelimit.Error
-	if errors.As(err, &rle) {
-		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
-	} else {
-		logger.Log("err", err)
-	}
-}
 
 func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
 	return func(ctx context.Context, w http.ResponseWriter) context.Context {
@@ -120,6 +86,7 @@ func MakeHandler(
 	config config.FleetConfig,
 	logger kitlog.Logger,
 	limitStore throttled.GCRAStore,
+	featureRoutes []endpoint_utils.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
 ) http.Handler {
 	var eopts extraHandlerOpts
@@ -130,10 +97,10 @@ func MakeHandler(
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(svc),
+			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{logger}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
@@ -153,6 +120,9 @@ func MakeHandler(
 	r.Use(publicIP)
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
+	for _, featureRoute := range featureRoutes {
+		featureRoute(r, fleetAPIOptions)
+	}
 	addMetrics(r)
 
 	return r
@@ -160,7 +130,7 @@ func MakeHandler(
 
 func publicIP(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := extractIP(r)
+		ip := endpoint_utils.ExtractIP(r)
 		if ip != "" {
 			r.RemoteAddr = ip
 		}
@@ -394,6 +364,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
+	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_app", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
 
 	// Setup Experience
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
@@ -513,6 +484,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts", createScriptEndpoint, createScriptRequest{})
 	ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})
 	ue.GET("/api/_version_/fleet/scripts/{script_id:[0-9]+}", getScriptEndpoint, getScriptRequest{})
+	ue.PATCH("/api/_version_/fleet/scripts/{script_id:[0-9]+}", updateScriptEndpoint, updateScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/scripts/{script_id:[0-9]+}", deleteScriptEndpoint, deleteScriptRequest{})
 	ue.POST("/api/_version_/fleet/scripts/batch", batchSetScriptsEndpoint, batchSetScriptsRequest{})
 
@@ -981,7 +953,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
 	// authentication is done when the websocket session is established, inside
 	// the handler.
-	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
+	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
+		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
 	limiter := ratelimit.NewMiddleware(limitStore)
@@ -1011,15 +984,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMAppleSSOEndpoint, callbackMDMAppleSSORequest{})
-}
-
-func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
-	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
-	// endpoint handler, any middleware that raises errors before the handler is reached will end up
-	// returning authz check missing instead of the more relevant error. Should be addressed as part
-	// of #4406.
-	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.

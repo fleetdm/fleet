@@ -23,7 +23,7 @@
     "core-js": "3.25.1",
     "date-fns": "3.6.0",
     "date-fns-tz": "3.1.3",
-    "dompurify": "3.1.3",
+    "dompurify": "3.2.4",
     "es6-object-assign": "1.1.0",
     "es6-promise": "4.2.8",
     "file-saver": "1.3.8",
@@ -183,5 +183,6 @@
   "browserslist": [
     "defaults"
   ],
-  "license": "SEE LICENSE IN ./LICENSE"
+  "license": "SEE LICENSE IN ./LICENSE",
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

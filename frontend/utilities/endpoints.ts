@@ -63,6 +63,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+  INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
 
   // labels
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
@@ -85,6 +86,9 @@ export default {
    */
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
+  MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
@@ -176,6 +180,8 @@ export default {
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  EDIT_SOFTWARE_VPP: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,

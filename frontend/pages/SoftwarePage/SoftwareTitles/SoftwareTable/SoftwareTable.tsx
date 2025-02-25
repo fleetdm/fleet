@@ -247,19 +247,17 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = showVersions
-      ? buildQueryStringFromParams({
-          software_version_id: row.original.id,
-          team_id: teamId,
-        })
-      : buildQueryStringFromParams({
-          software_title_id: row.original.id,
-          team_id: teamId,
-        });
+    if (row.original.id) {
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
+      const path = `${PATHS.SOFTWARE_TITLE_DETAILS(
+        row.original.id.toString()
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(path);
+    }
   };
 
   const renderSoftwareCount = () => {
@@ -307,7 +305,7 @@ const SoftwareTable = ({
               newValue.value as ISoftwareDropdownFilterVal
             )
           }
-          tableFilter
+          variant="table-filter"
         />
       </div>
     );

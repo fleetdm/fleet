@@ -26,7 +26,10 @@ module.exports.policies = {
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
   'view-query-detail': true,
+  'view-policy-details': true,
   'view-query-library': true,
+  'view-policy-library': true,
+  'view-vital-details': true,
   'docs/*': true,
   'handbook/*': true,
   'download-sitemap': true,
@@ -62,4 +65,6 @@ module.exports.policies = {
   'view-app-library': true,
   'view-app-details': true,
   'view-meetups': true,
+  'view-os-settings': true,
+  'get-llm-generated-configuration-profile': true,
 };

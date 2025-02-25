@@ -15,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 // LoopOverExpectedHostProfiles loops all the <LocURI> values on all the profiles for a
@@ -70,13 +72,14 @@ func HashLocURI(profileName, locURI string) string {
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, rawProfileResultsSyncML []byte) error {
+func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
+	rawProfileResultsSyncML []byte) error {
 	profileResults, err := transformProfileResults(rawProfileResultsSyncML)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "transforming policy results")
 	}
 
-	verified, missing, err := compareResultsToExpectedProfiles(ctx, ds, host, profileResults)
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "comparing results to expected profiles")
 	}
@@ -127,7 +130,7 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 	return toFail, toRetry, nil
 }
 
-func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
+func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
 	profileResults profileResultsTransform) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
@@ -158,6 +161,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, ds fleet.ProfileVerif
 			}
 		}
 		if !equal {
+			level.Debug(logger).Log("msg", "Windows profile verification failed", "profile", profile.Name, "host_id", host.ID)
 			withinGracePeriod := profile.IsWithinGracePeriod(host.DetailUpdatedAt)
 			if !withinGracePeriod {
 				missing[profile.Name] = struct{}{}

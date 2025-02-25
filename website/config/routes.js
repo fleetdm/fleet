@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentSection: 'documentation',
-      pageTitleForMeta: 'Controls and policies',
-      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+      pageTitleForMeta: 'Queries',
+      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
@@ -69,7 +69,28 @@ module.exports.routes = {
     action: 'view-query-detail',// Meta title and description set in view action
     locals: {
       currentSection: 'documentation',
-      // Note: this page's meta title and description are set in the page's view action
+    }
+  },
+
+  'GET /vitals/:slug': {
+    action: 'view-vital-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
+    }
+  },
+
+  'GET /policies': {
+    action: 'view-policy-library',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'Policies',
+      pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
+    }
+  },
+  'GET /policies/:slug': {
+    action: 'view-policy-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
     }
   },
 
@@ -455,6 +476,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /os-settings': {
+    action: 'view-os-settings',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'OS settings',
+      pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -529,7 +559,7 @@ module.exports.routes = {
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
   'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
-  'GET /handbook/marketing': '/handbook/demand/',
+  'GET /handbook/demand': '/handbook/marketing/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
@@ -761,6 +791,7 @@ module.exports.routes = {
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-marketing-emails?'+originalQueryString);},
   'GET /unsubscribe-from-newsletter':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
+  'GET /vitals':                 '/vitals/battery',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
   'GET /fleetctl-preview':   '/try-fleet',
@@ -783,6 +814,8 @@ module.exports.routes = {
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+  'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
+  'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
@@ -836,6 +869,7 @@ module.exports.routes = {
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/policy-templates': '/policies',
 
   // Sitemap
   // =============================================================================================================
@@ -916,4 +950,5 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
 };

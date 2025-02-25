@@ -31,6 +31,7 @@ import DataError from "components/DataError";
 import paths from "router/paths";
 import ActionsDropdown from "components/ActionsDropdown";
 import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "script-details-modal";
 
@@ -203,13 +204,19 @@ const ScriptDetailsModal = ({
             >
               <Icon name="download" />
             </Button>
-            <Button
-              className={`${baseClass}__action-button`}
-              variant="icon"
-              onClick={onDelete}
-            >
-              <Icon name="trash" color="ui-fleet-black-75" />
-            </Button>
+            <GitOpsModeTooltipWrapper
+              position="bottom"
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  className={`${baseClass}__action-button`}
+                  variant="icon"
+                  onClick={onDelete}
+                >
+                  <Icon name="trash" color="ui-fleet-black-75" />
+                </Button>
+              )}
+            />
           </>
         }
         primaryButtons={

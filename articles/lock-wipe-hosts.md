@@ -24,6 +24,8 @@ Currently, there's no **Lock** button for iOS and iPadOS. If an iOS or iPadOS ho
 3. Click the **Actions** dropdown, then click  **Wipe**.
 4. Confirm that you want to wipe the device in the dialog. The host will now be marked with a "Wipe pending" badge. Once the wipe command is acknowledged by the host, the badge will update to "Wiped".
 
+> When wiping and re-installing the operating system (OS) for a host, also delete it from Fleet before you re-enroll it. If you re-enroll without deleting, a new disk encryption key won’t be escrowed.
+
 ## Unlock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to unlock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.

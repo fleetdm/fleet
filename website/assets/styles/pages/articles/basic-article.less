@@ -8,6 +8,40 @@
     border-top: 2px solid @core-vibrant-blue-15;
     width: 100%;
   }
+  .markdown-heading:hover {
+    .markdown-link {
+      height: 16px;
+      vertical-align: middle;
+      margin-left: 8px;
+      content: url('/images/icon-link-16x16@2x.png');
+    }
+  }
+
+  .markdown-heading.copied::before {
+    content: 'Link copied to clipboard';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: -25px;
+    height: 0px;
+    font-size: 14px;
+    // line-height: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
+
   [purpose='page-container'] {
     max-width: 1200px;
     padding: 64px;

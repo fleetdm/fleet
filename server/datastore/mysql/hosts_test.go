@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -33,10 +34,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var expLastExec = func() time.Time {
-	t, _ := time.Parse(time.RFC3339, pastDate)
-	return t
-}()
+var expLastExec = common_mysql.GetDefaultNonZeroTime()
 
 var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
@@ -907,8 +905,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "morton", 1)) // set host 1 to verified
-	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))     // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
@@ -941,8 +939,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
-	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1].ID, "key1", "mutton", 2)) // set host 1 to verified
-	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))        // set host 2 to failed
+	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)) // set host 1 to verified
+	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error"))     // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
@@ -3409,7 +3407,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	// host 0 needs to finish key rotation (action required), host 1 has finished key rotation but profile is verifying
-	createDiskEncryptionRecord(ctx, ds, t, hosts[1].ID, "key-1", true, oneMinuteAfterThreshold)
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1], "key-1", true, oneMinuteAfterThreshold)
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 1)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -3429,7 +3427,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 0)
 
 	// simulate osquery ping from host 0 with unverified key after key rotation; should switch host to verifying
-	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0].ID, "key-1", "", nil))
+	require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "key-1", "", nil))
 
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 0)
@@ -6935,7 +6933,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	// set an encryption key
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "TESTKEY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "TESTKEY", "", nil)
 	require.NoError(t, err)
 	// set an mdm profile
 	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
@@ -6966,7 +6964,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
-	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+
+	// this will create the row in both upcoming_activities and host_script_results as
+	// it will be activated immediately
+	hsr, err := ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+	require.NoError(t, err)
+
+	// set a script result so it is removed from upcoming_activities and the
+	// software install (later in the test) can be inserted in both
+	// upcoming_activities and host_software_installs
+	_, _, err = ds.SetHostScriptExecutionResult(context.Background(), &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: hsr.ExecutionID,
+	})
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -7030,7 +7040,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	// Add an awaiting configuration entry
@@ -7044,6 +7054,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
 	require.NoError(t, err)
 	require.True(t, added)
+
+	// create an android device from this host
+	_, err = ds.writer(context.Background()).Exec(`
+	INSERT INTO android_devices (host_id, device_id)
+	VALUES (?, ?);
+	`, host.ID, uuid.NewString())
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
@@ -8001,7 +8018,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet.ID, "test-key", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet, "test-key", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hFleet.ID}, true, time.Now())
 	require.NoError(t, err)
@@ -8033,6 +8050,14 @@ func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected
 	require.NoError(t, err)
 	require.Equal(t, expectedKey, got.Base64Encrypted)
 	require.Equal(t, expectedDecryptable, got.Decryptable)
+	if expectedKey != "" {
+		var archiveKey string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveKey,
+				`SELECT base64_encrypted FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, hostID)
+		})
+		assert.Equal(t, expectedKey, archiveKey)
+	}
 }
 
 func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
@@ -8105,29 +8130,46 @@ func testLUKSDatastoreFunctions(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
 
 	// no change when blank key or salt attempted to save
-	err = ds.SaveLUKSData(ctx, host1.ID, "", "", 0)
+	err = ds.SaveLUKSData(ctx, host1, "", "", 0)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
-	err = ds.SaveLUKSData(ctx, host1.ID, "foo", "", 0)
+	err = ds.SaveLUKSData(ctx, host1, "foo", "", 0)
 	require.Error(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 
 	// persists with passphrase and salt set
-	err = ds.SaveLUKSData(ctx, host2.ID, "bazqux", "fuzzmuffin", 0)
+	err = ds.SaveLUKSData(ctx, host2, "bazqux", "fuzzmuffin", 0)
 	require.NoError(t, err)
 	require.NoError(t, ds.AssertHasNoEncryptionKeyStored(ctx, host1.ID))
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host2.ID))
-	key, err := ds.GetHostDiskEncryptionKey(ctx, host2.ID)
-	require.NoError(t, err)
-	require.Equal(t, "bazqux", key.Base64Encrypted)
+	checkLUKSEncryptionKey(t, ds, host2.ID, "bazqux", "fuzzmuffin")
 
 	// persists when host hasn't had anything queued
-	err = ds.SaveLUKSData(ctx, host3.ID, "newstuff", "fuzzball", 1)
+	err = ds.SaveLUKSData(ctx, host3, "newstuff", "fuzzball", 1)
 	require.NoError(t, err)
 	require.Error(t, ds.AssertHasNoEncryptionKeyStored(ctx, host3.ID))
-	key, err = ds.GetHostDiskEncryptionKey(ctx, host3.ID)
+	checkLUKSEncryptionKey(t, ds, host3.ID, "newstuff", "fuzzball")
+}
+
+func checkLUKSEncryptionKey(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedSalt string) {
+	got, err := ds.GetHostDiskEncryptionKey(context.Background(), hostID)
 	require.NoError(t, err)
-	require.Equal(t, "newstuff", key.Base64Encrypted)
+	require.Equal(t, expectedKey, got.Base64Encrypted)
+	if expectedKey != "" {
+		var archiveKey string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveKey,
+				`SELECT base64_encrypted FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, hostID)
+		})
+		assert.Equal(t, expectedKey, archiveKey)
+		var archiveSalt string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &archiveSalt,
+				`SELECT base64_encrypted_salt FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`,
+				hostID)
+		})
+		assert.Equal(t, expectedSalt, archiveSalt)
+	}
 }
 
 func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
@@ -8171,10 +8213,10 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "AAA", "", nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "BBB", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2, "BBB", "", nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -8185,7 +8227,7 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, h.ID, "BBB", nil)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "CCC", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2, "CCC", "", nil)
 	require.NoError(t, err)
 
 	h, err = ds.Host(context.Background(), host2.ID)
@@ -8199,47 +8241,47 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	checkEncryptionKeyStatus(t, ds, host.ID, "AAA", ptr.Bool(true))
 
 	// same key doesn't change encryption status
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "AAA", "", nil)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, "AAA", ptr.Bool(true))
 
 	// different key resets encryption status
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "XZY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "XZY", "", nil)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, "XZY", nil)
 
 	// set the key with an initial decrypted status of true
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "abc", "", ptr.Bool(true))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "abc", "", ptr.Bool(true))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "abc", ptr.Bool(true))
 
 	// same key, provided decrypted status is ignored (stored one is kept)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "abc", "", ptr.Bool(false))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "abc", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "abc", ptr.Bool(true))
 
 	// client error, key is removed and decrypted status is nulled
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "fail", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "", "fail", nil)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
 
 	// new key, provided decrypted status is applied
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "def", "", ptr.Bool(true))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "def", "", ptr.Bool(true))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "def", ptr.Bool(true))
 
 	// different key, provided decrypted status is applied
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "ghi", "", ptr.Bool(false))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "ghi", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "ghi", ptr.Bool(false))
 
 	// set an empty key (backfill for issue #15068)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "", "", nil)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "", nil)
 
 	// setting the decryptable value works even if the key is still empty
-	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3.ID, "", "", ptr.Bool(false))
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host3, "", "", ptr.Bool(false))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host3.ID, "", ptr.Bool(false))
 }
@@ -8259,7 +8301,7 @@ func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "TESTKEY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "TESTKEY", "", nil)
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -8276,7 +8318,7 @@ func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2.ID, "TESTKEY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2, "TESTKEY", "", nil)
 	require.NoError(t, err)
 
 	threshold := time.Now().Add(time.Hour)
@@ -8340,9 +8382,9 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "TESTKEY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "TESTKEY", "", nil)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2.ID, "TESTKEY", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2, "TESTKEY", "", nil)
 	require.NoError(t, err)
 
 	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
@@ -8365,7 +8407,7 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 
 	// update key of host 1 to empty with a client error, should not be reported
 	// by GetUnverifiedDiskEncryptionKeys
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "failed", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
@@ -8794,7 +8836,7 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
 
 	// create the encryption key row, but unknown decryptable
-	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "abc", "", nil)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "abc", "", nil)
 	require.NoError(t, err)
 
 	got, err = ds.Host(ctx, host.ID)

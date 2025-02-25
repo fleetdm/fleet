@@ -12,14 +12,6 @@
     justify-content: center;
   }
 
-  &__actions-heading {
-    text-align: right;
-
-    span {
-      margin-right: $pad-xlarge; // align with left side of buttons below it
-    }
-  }
-
   &__status > div {
     display: flex;
     align-items: center;
@@ -38,10 +30,6 @@
   @media (max-width: $break-md) {
     &__script-statuses {
       justify-content: flex-end;
-    }
-
-    &__actions-heading {
-      display: none;
     }
   }
 }

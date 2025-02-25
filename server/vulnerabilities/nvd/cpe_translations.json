@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -62,6 +72,16 @@
   },
   {
     "software": {
+      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["python"],
+      "vendor": ["python"]
+    }
+  },
+  {
+    "software": {
       "name": ["Docs"],
       "source": ["chrome_extensions"]
     },
@@ -90,6 +110,15 @@
     "filter": {
       "product": ["docker_desktop"],
       "vendor": ["docker"]
+    }
+  },
+  {
+    "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
@@ -134,6 +163,16 @@
     "software": {
       "name": ["/^intellij-idea(-ce)?$/"],
       "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^IntelliJ IDEA Community Edition/"],
+      "source": ["programs"]
     },
     "filter": {
       "product": ["intellij_idea"],

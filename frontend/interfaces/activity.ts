@@ -70,10 +70,13 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
@@ -92,6 +95,7 @@ export enum ActivityType {
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
+  EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
   InstalledAppStoreApp = "installed_app_store_app",
   EnabledActivityAutomations = "enabled_activity_automations",
@@ -127,6 +131,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 

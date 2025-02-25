@@ -185,16 +185,18 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsByVulnerabilityParams = {
-      vulnerability: row.original.cve,
-      team_id: teamId,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsByVulnerabilityParams
-    )}`;
+      const softwareVulnerabilityDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+        cveName
+      )}?${teamQueryParam}`;
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const renderVulnerabilityCount = () => {
@@ -245,7 +247,7 @@ const SoftwareVulnerabilitiesTable = ({
         onChange={(newValue: SingleValue<CustomOptionType>) =>
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
-        tableFilter
+        variant="table-filter"
       />
     );
   };
@@ -256,7 +258,7 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities || []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}

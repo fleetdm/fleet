@@ -124,7 +124,7 @@
 
                 {{if .SSOEnabled}}
                 <a
-                  href="{{.BaseURL}}/login/ssoinvites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                  href="{{.BaseURL}}/login/ssoinvites/{{.Token}}"
                   target="_blank"
                   style="
                     font-weight: 700;
@@ -144,7 +144,7 @@
                 </a>
                 {{else}}
                 <a
-                  href="{{.BaseURL}}/login/invites/{{.Token}}?name={{.Name}}&email={{.Email}}"
+                  href="{{.BaseURL}}/login/invites/{{.Token}}"
                   target="_blank"
                   style="
                     font-weight: 700;

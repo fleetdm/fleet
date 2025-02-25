@@ -1,0 +1,1 @@
+Illegal argument errors will no longer be logged at the ERROR level on the server. Since these are client errors, they will be logged at the DEBUG level instead. This will reduce the amount of noise in the server logs and help debugging other issues.

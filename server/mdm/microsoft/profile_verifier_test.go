@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -113,7 +114,7 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 	ctx := context.Background()
 	host := &fleet.Host{}
 
-	err := VerifyHostMDMProfiles(ctx, ds, host, []byte{})
+	err := VerifyHostMDMProfiles(ctx, log.NewNopLogger(), ds, host, []byte{})
 	require.ErrorIs(t, err, io.EOF)
 }
 
@@ -334,7 +335,8 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 
 			out, err := xml.Marshal(msg)
 			require.NoError(t, err)
-			require.NoError(t, VerifyHostMDMProfiles(context.Background(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
+			require.NoError(t,
+				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false

@@ -10,7 +10,9 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/log"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -28,7 +30,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeBrowserSecurityHeaders(w)
+		endpoint_utils.WriteBrowserSecurityHeaders(w)
 
 		// The following check is to prevent a misconfigured osquery from submitting
 		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
@@ -78,7 +80,7 @@ func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logge
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeBrowserSecurityHeaders(w)
+		endpoint_utils.WriteBrowserSecurityHeaders(w)
 		setupRequired, err := svc.SetupRequired(r.Context())
 		if err != nil {
 			herr(w, "setup required err: "+err.Error())
@@ -145,5 +147,13 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 }
 
 func ServeStaticAssets(path string) http.Handler {
-	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+	contentTypes := []string{"text/javascript", "text/css"}
+	withoutGzip := http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+
+	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
+	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
+		return withoutGzip
+	}
+
+	return withOpts(withoutGzip)
 }

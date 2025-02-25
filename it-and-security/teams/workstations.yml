@@ -11,7 +11,7 @@ team_settings:
   integrations:
     google_calendar:
       enable_calendar_events: true
-      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
+      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
@@ -69,8 +69,8 @@ controls:
       - package_path: ../lib/macos/software/zoom.yml # Zoom for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-01-07"
-    minimum_version: "15.2"
+    deadline: "2025-02-23"
+    minimum_version: "15.3"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -83,29 +83,16 @@ controls:
     - path: ../lib/windows/scripts/remove-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
 policies:
-  - path: ../lib/macos/policies/device-health.yml
-  - path: ../lib/macos/policies/cis.yml
-  - path: ../lib/windows/policies/device-health.yml
-  - path: ../lib/windows/policies/cis.yml
-  - path: ../lib/linux/policies/linux-device-health.yml
-  - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
-    critical: true
-    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-    resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false
+  - path: ../lib/macos/policies/1password-emergency-kit-check.yml
+  - path: ../lib/macos/policies/update-firefox.yml
+  - path: ../lib/macos/policies/latest-macos.yml
+  - path: ../lib/macos/policies/all-software-updates-installed.yml
+  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
+  - path: ../lib/windows/policies/all-windows-updates-installed.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
-  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
-  - path: ../lib/all/queries/collect-usb-devices.yml
-  - path: ../lib/all/queries/collect-vs-code-extensions.yml
-  - name: Collect expiration date for MDM SCEP certificates
-    description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's MDM SCEP certs."
-    query: "SELECT common_name, datetime(not_valid_after,'unixepoch') AS expires FROM certificates WHERE 'common_name' LIKE '%FleetDM Identity%';"
-    platform: darwin
-    interval: 300
-    automations_enabled: false
-    observer_can_run: true
+  - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS

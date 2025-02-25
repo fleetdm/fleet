@@ -25,6 +25,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Communicate marketing priority level
+
+All GTM stakeholders are responsible for communicating when a new or existing prospect is actively intriged. AEs, ADRs, and operations team members use multiple tools and [CRM reports](https://fleetdm.lightning.force.com/lightning/o/Report/home?queryScope=mru) to collect this data. Once you've identified an account as active, use the following steps to add an account to the "[🆘 Marketing priority list](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view?queryScope=userFolders)":
+1. Find the account in Salesforce.
+2. Click the "🕹️ GTM actions" tab.
+3. Set the account's "Marketing stage" to indicate the desired next step to move this account forward.
+4. Set the account's "Marketing priority level" to indicate how time-sensitive the next step is.
+5. Add any necessary context to the "Marketing priority context" field to help guide the ADR as they review the account (e.g. "Research for MDM expansion"). 
+
+
 ### Set up a Fleet trial
 
 You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
@@ -61,6 +71,16 @@ Every week, the sales manager will review the necessary opportunities with inter
 - Any opportunity with a closed date pushed into a different quarter.
 
 If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
+
+
+### Send a subscription quote
+
+Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
+1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
+2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
+3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote
+4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
+5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
 
 ### Send an order form

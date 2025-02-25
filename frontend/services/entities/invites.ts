@@ -22,6 +22,10 @@ interface IInviteSearchOptions {
   sortBy?: ISortOption[];
 }
 
+export interface IValidateInviteResp {
+  invite: IInvite;
+}
+
 export default {
   create: (formData: ICreateInviteFormData) => {
     const { INVITES } = endpoints;
@@ -41,6 +45,9 @@ export default {
     const path = `${INVITES}/${inviteId}`;
 
     return sendRequest("DELETE", path);
+  },
+  verify: (token: string): Promise<IValidateInviteResp> => {
+    return sendRequest("GET", endpoints.INVITE_VERIFY(token));
   },
   loadAll: ({ globalFilter = "" }: IInviteSearchOptions) => {
     const queryParams = {

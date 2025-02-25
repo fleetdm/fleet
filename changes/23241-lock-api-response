@@ -1,0 +1,1 @@
+* Included current host status and pending action in lock, unlock, and wipe API calls
