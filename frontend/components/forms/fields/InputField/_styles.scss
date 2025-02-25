@@ -4,7 +4,7 @@
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
   font-size: $small;
-  padding: 7px 12px;
+  padding: $pad-small $pad-medium;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
@@ -16,14 +16,17 @@
     color: $ui-fleet-black-50;
   }
 
-  &:focus {
-    outline: none;
-    border-color: $core-vibrant-blue;
+  &:hover:not(.input-field--read-only) {
+    box-shadow: none;
+    border: 1px solid $core-vibrant-blue-over;
   }
 
-  &:hover &:not(.input-field--read-only) {
+  &:active:not(.input-field--read-only),
+  &:focus:not(.input-field--read-only),
+  &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
-    border: 1px solid $core-vibrant-blue;
+    outline: 0;
+    border: 1px solid $core-vibrant-blue-down;
   }
 
   &--disabled {

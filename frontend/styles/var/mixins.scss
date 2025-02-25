@@ -207,6 +207,7 @@ $max-width: 2560px;
 
 @mixin copy-message {
   font-weight: $regular;
+  font-size: $x-small;
   vertical-align: top;
   background-color: $ui-light-grey;
   border: solid 1px #e2e4ea;
