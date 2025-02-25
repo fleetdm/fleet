@@ -3,11 +3,12 @@
   critical: true
   description: This policy checks to see if you have the most recent enrollment profile installed. Not having this profile means this device is no longer communicating with Fleet via MDM.
   resolution: |-
-    You must manually remove your enrollment profile to fix this issue. This can be done in one of two ways: 
+    You must manually remove your enrollment profile to fix this issue by following these steps: 
 
-    1.)  > System Settings > General > Device Management > Click on the profile "Fleet enrollment" followed by the "-" button 
-    2.) Find your host in dogfood > Actions > Turn off mdm
+     > System Settings > General > Device Management > Click on the profile "Fleet enrollment" followed by the "-" button 
 
-    If you encounter any issues with these options, please reach out via #help-dogfooding. 
+    After a few minutes, your device may initate automatic re-enrollment. If it does not, open Fleet Desktop and follow the steps for turning on MDM. 
+
+    If you encounter any issues, please reach out via #help-dogfooding. 
   platform: darwin
   
