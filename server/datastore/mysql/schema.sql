@@ -1426,7 +1426,7 @@ CREATE TABLE `operating_system_vulnerabilities` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_os_vulnerabilities_unq_os_id_cve` (`operating_system_id`,`cve`),
-  KEY `idx_os_vulernerabilities_cve` (`cve`)
+  KEY `idx_os_vulnerabilities_cve` (`cve`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
