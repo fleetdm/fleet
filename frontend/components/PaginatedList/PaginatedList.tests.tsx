@@ -381,7 +381,7 @@ describe("PaginatedList", () => {
       />
     );
     await waitForLoadingToFinish(container);
-    const checkboxes = screen.getAllByRole("checkbox");
+    const checkboxes = container.querySelectorAll("input[checkbox]");
     checkboxes.forEach((checkbox) => {
       expect(checkbox).toBeDisabled();
     });

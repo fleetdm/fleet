@@ -209,7 +209,7 @@ describe("PoliciesPaginatedList - component", () => {
     expect(saveButton).toBeDisabled();
     await userEvent.hover(saveButton);
     await waitFor(() => {
-      expect(screen.getByText("No changes")).toBeInTheDocument();
+      expect(screen.getByText(/No changes/)).toBeInTheDocument();
     });
     await userEvent.unhover(saveButton);
 
@@ -223,7 +223,7 @@ describe("PoliciesPaginatedList - component", () => {
     expect(saveButton).toBeDisabled();
     await userEvent.hover(saveButton);
     await waitFor(() => {
-      expect(screen.getByText("Stop touching things!")).toBeInTheDocument();
+      expect(screen.getByText(/Stop touching things!/)).toBeInTheDocument();
     });
     await userEvent.unhover(saveButton);
   });
