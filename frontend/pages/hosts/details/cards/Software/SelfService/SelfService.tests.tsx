@@ -84,9 +84,9 @@ describe("SelfService", () => {
     render(
       <SelfService
         contactUrl={expectedUrl}
-        deviceToken={"123-456"}
+        deviceToken="123-456"
         isSoftwareEnabled
-        pathname={"/test"}
+        pathname="/test"
         queryParams={{
           page: 1,
           query: "test",

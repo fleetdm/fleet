@@ -276,8 +276,8 @@ const OtherWorkflowsModal = ({
         <RevealButton
           isShowing={showExampleTicket}
           className={baseClass}
-          hideText={"Hide example ticket"}
-          showText={"Show example ticket"}
+          hideText="Hide example ticket"
+          showText="Show example ticket"
           caretPosition="after"
           onClick={() => setShowExampleTicket(!showExampleTicket)}
         />
