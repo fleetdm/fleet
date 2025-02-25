@@ -3,8 +3,6 @@ import { useQuery } from "react-query";
 import { filter, includes } from "lodash";
 import { InjectedRouter } from "react-router";
 
-import { TAGGED_TEMPLATES } from "utilities/helpers";
-
 import PATHS from "router/paths";
 
 import permissions from "utilities/permissions";
@@ -27,6 +25,7 @@ import {
 } from "interfaces/schedulable_query";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
+import { getPathWithQueryParams } from "utilities/url";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
@@ -75,16 +74,20 @@ const SelectQueryModal = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+      getPathWithQueryParams(PATHS.NEW_QUERY, {
+        host_id: hostId,
+        team_id: currentTeamId,
+      })
     );
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+      getPathWithQueryParams(PATHS.EDIT_QUERY(selectedQuery.id), {
+        host_id: hostId,
+        team_id: currentTeamId,
+      })
     );
   };
 

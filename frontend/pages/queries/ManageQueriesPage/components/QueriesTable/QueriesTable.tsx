@@ -21,6 +21,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import generateColumnConfigs from "./QueriesTableConfig";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "queries-table";
 export interface IQueriesTableProps {
@@ -227,9 +228,11 @@ const QueriesTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
-      const path = PATHS.QUERY_DETAILS(row.original.id, currentTeamId);
-
-      router && router.push(path);
+      router?.push(
+        getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
+          team_id: currentTeamId,
+        })
+      );
     }
   };
 

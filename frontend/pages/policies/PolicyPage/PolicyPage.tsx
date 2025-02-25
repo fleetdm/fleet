@@ -304,6 +304,7 @@ const PolicyPage = ({
       goToSelectTargets: () => setStep(LIVE_POLICY_STEPS[2]),
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
+      teamIdForApi,
     };
 
     const step2Opts = {
