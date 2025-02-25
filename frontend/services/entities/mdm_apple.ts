@@ -26,6 +26,7 @@ export interface IAddVppAppPostBody {
   team_id: number;
   platform: ApplePlatform;
   self_service?: boolean;
+  automatic_install?: boolean;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
 }
@@ -33,6 +34,7 @@ export interface IAddVppAppPostBody {
 export interface IEditVppAppPostBody {
   team_id: number;
   self_service?: boolean;
+  // No automatic_install on edit VPP app
   labels_include_any?: string[];
   labels_exclude_any?: string[];
 }
@@ -98,6 +100,7 @@ export default {
       team_id: teamId,
       platform: formData.selectedApp?.platform,
       self_service: formData.selfService,
+      automatic_install: formData.automaticInstall,
     };
 
     if (formData.targetType === "Custom") {

@@ -139,3 +139,15 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 
 	return nil
 }
+
+// MySQL is really particular about using zero values or old values for
+// timestamps, so we set a default value that is plenty far in the past, but
+// hopefully accepted by most MySQL configurations.
+//
+// NOTE: #3229 proposes a better fix that uses *time.Time for
+// ScheduledQueryStats.LastExecuted.
+var DefaultNonZeroTime = "2000-01-01T00:00:00Z"
+
+func GetDefaultNonZeroTime() time.Time {
+	return time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+}

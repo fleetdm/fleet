@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -250,7 +251,26 @@ INSERT INTO software_installers (
 		}
 
 		if payload.AutomaticInstall {
-			if err := ds.createAutomaticPolicy(ctx, tx, payload, installerID); err != nil {
+			var installerMetadata automatic_policy.InstallerMetadata
+			// Not using apps.json as all queries there are identical to the auto-generated one based on bundle ID.
+			// Will need to be revised to work with FMAv2 and probably Windows.
+			if payload.FleetLibraryAppID != nil && payload.Platform == "darwin" {
+				installerMetadata = automatic_policy.MacInstallerMetadata{Title: payload.Title, BundleIdentifier: payload.BundleIdentifier}
+			} else {
+				installerMetadata = automatic_policy.FullInstallerMetadata{
+					Title:            payload.Title,
+					Extension:        payload.Extension,
+					BundleIdentifier: payload.BundleIdentifier,
+					PackageIDs:       payload.PackageIDs,
+				}
+			}
+
+			generatedPolicyData, err := automatic_policy.Generate(installerMetadata)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+			}
+
+			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil); err != nil {
 				return ctxerr.Wrap(ctx, err, "create automatic policy")
 			}
 		}
@@ -263,21 +283,12 @@ INSERT INTO software_installers (
 	return installerID, titleID, nil
 }
 
-func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, payload *fleet.UploadSoftwareInstallerPayload, softwareInstallerID uint) error {
-	generatedPolicyData, err := automatic_policy.Generate(automatic_policy.InstallerMetadata{
-		Title:            payload.Title,
-		Extension:        payload.Extension,
-		BundleIdentifier: payload.BundleIdentifier,
-		PackageIDs:       payload.PackageIDs,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, policyData automatic_policy.PolicyData, teamID *uint, softwareInstallerID *uint, vppAppsTeamsID *uint) error {
+	tmID := fleet.PolicyNoTeamID
+	if teamID != nil {
+		tmID = *teamID
 	}
-	teamID := fleet.PolicyNoTeamID
-	if payload.TeamID != nil {
-		teamID = *payload.TeamID
-	}
-	availablePolicyName, err := getAvailablePolicyName(ctx, tx, teamID, generatedPolicyData.Name)
+	availablePolicyName, err := getAvailablePolicyName(ctx, tx, tmID, policyData.Name)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get available policy name")
 	}
@@ -285,12 +296,13 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
 	}
-	if _, err := newTeamPolicy(ctx, tx, teamID, userID, fleet.PolicyPayload{
+	if _, err := newTeamPolicy(ctx, tx, tmID, userID, fleet.PolicyPayload{
 		Name:                availablePolicyName,
-		Query:               generatedPolicyData.Query,
-		Platform:            generatedPolicyData.Platform,
-		Description:         generatedPolicyData.Description,
-		SoftwareInstallerID: &softwareInstallerID,
+		Query:               policyData.Query,
+		Platform:            policyData.Platform,
+		Description:         policyData.Description,
+		SoftwareInstallerID: softwareInstallerID,
+		VPPAppsTeamsID:      vppAppsTeamsID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create automatic policy query")
 	}

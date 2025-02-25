@@ -44,6 +44,7 @@ export interface ISQLEditorProps {
   onLoad?: (editor: IAceEditor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
+  disabled?: boolean;
 }
 
 const baseClass = "sql-editor";
@@ -57,7 +58,7 @@ const SQLEditor = ({
   name = "query-editor",
   value,
   placeholder,
-  readOnly,
+  readOnly: _readOnly = false,
   maxLines = 20,
   showGutter = true,
   wrapEnabled = false,
@@ -69,10 +70,12 @@ const SQLEditor = ({
   onLoad,
   onChange,
   handleSubmit = noop,
+  disabled = false,
 }: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
   const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
+    [`${baseClass}__wrapper--disabled`]: disabled,
   });
 
   const fixHotkeys = (editor: IAceEditor) => {
@@ -81,6 +84,8 @@ const SQLEditor = ({
   };
 
   const langTools = ace.require("ace/ext/language_tools");
+
+  const readOnly = disabled || _readOnly;
 
   // Error handling within checkTableValues
 

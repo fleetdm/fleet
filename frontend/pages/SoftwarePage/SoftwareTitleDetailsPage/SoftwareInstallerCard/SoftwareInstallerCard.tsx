@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useLayoutEffect,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -16,22 +11,20 @@ import {
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
-import { internationalTimeFormat } from "utilities/helpers";
-import { uploadedFromNow } from "utilities/date_format";
 
 import Card from "components/Card";
-import Graphic from "components/Graphic";
+
 import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Tag from "components/Tag";
 
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
+import SoftwareDetailsWidget from "pages/SoftwarePage/components/SoftwareDetailsWidget";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -43,49 +36,6 @@ import {
 import AutomaticInstallModal from "../AutomaticInstallModal";
 
 const baseClass = "software-installer-card";
-
-/** TODO: pull this hook and SoftwareName component out. We could use this other places */
-function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
-  const [isTruncated, setIsTruncated] = useState(false);
-
-  useLayoutEffect(() => {
-    const element = ref.current;
-    function updateIsTruncated() {
-      if (element) {
-        const { scrollWidth, clientWidth } = element;
-        setIsTruncated(scrollWidth > clientWidth);
-      }
-    }
-    window.addEventListener("resize", updateIsTruncated);
-    updateIsTruncated();
-    return () => window.removeEventListener("resize", updateIsTruncated);
-  }, [ref]);
-
-  return isTruncated;
-}
-
-interface ISoftwareNameProps {
-  name: string;
-}
-
-const SoftwareName = ({ name }: ISoftwareNameProps) => {
-  const titleRef = React.useRef<HTMLDivElement>(null);
-  const isTruncated = useTruncatedElement(titleRef);
-
-  return (
-    <TooltipWrapper
-      tipContent={name}
-      position="top"
-      underline={false}
-      disableTooltip={!isTruncated}
-      showArrow
-    >
-      <div ref={titleRef} className={`${baseClass}__title`}>
-        {name}
-      </div>
-    </TooltipWrapper>
-  );
-};
 
 interface IStatusDisplayOption {
   displayName: string;
@@ -232,7 +182,7 @@ const SoftwareActionsDropdown = ({
 interface ISoftwareInstallerCardProps {
   name: string;
   version: string | null;
-  uploadedAt: string; // TODO: optional?
+  addedTimestamp: string;
   status: {
     installed: number;
     pending: number;
@@ -252,7 +202,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   name,
   version,
-  uploadedAt,
+  addedTimestamp,
   status,
   isSelfService,
   softwareInstaller,
@@ -313,14 +263,6 @@ const SoftwareInstallerCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
-  const renderIcon = () => {
-    return installerType === "package" ? (
-      <Graphic name="file-pkg" />
-    ) : (
-      <SoftwareIcon name="appStore" size="medium" />
-    );
-  };
-
   let versionInfo = <span>{version}</span>;
 
   if (installerType === "vpp") {
@@ -351,40 +293,22 @@ const SoftwareInstallerCard = ({
     );
   }
 
-  const renderDetails = () => {
-    return !uploadedAt ? (
-      versionInfo
-    ) : (
-      <>
-        {versionInfo} &bull;{" "}
-        <TooltipWrapper
-          tipContent={internationalTimeFormat(new Date(uploadedAt))}
-          underline={false}
-        >
-          {uploadedFromNow(uploadedAt)}
-        </TooltipWrapper>
-      </>
-    );
-  };
-
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__row-1`}>
-        {/* TODO: main-info could be a seperate component as its reused on a couple
-        pages already. Come back and pull this into a component */}
-        <div className={`${baseClass}__main-info`}>
-          {renderIcon()}
-          <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwareInstaller?.name || name} />
-            <span className={`${baseClass}__details`}>{renderDetails()}</span>
-          </div>
-        </div>
-        <div className={`${baseClass}__actions-wrapper`}>
-          {softwareInstaller?.automatic_install_policies &&
-            softwareInstaller?.automatic_install_policies.length > 0 && (
+        <div className={`${baseClass}__row-1--responsive`}>
+          <SoftwareDetailsWidget
+            softwareName={softwareInstaller?.name || name}
+            installerType={installerType}
+            versionInfo={versionInfo}
+            addedTimestamp={addedTimestamp}
+          />
+          <div className={`${baseClass}__tags-wrapper`}>
+            {(!softwareInstaller?.automatic_install_policies ||
+              softwareInstaller?.automatic_install_policies.length > 0) && (
               <TooltipWrapper
                 showArrow
                 position="top"
@@ -398,7 +322,10 @@ const SoftwareInstallerCard = ({
                 />
               </TooltipWrapper>
             )}
-          {isSelfService && <Tag icon="user" text="Self-service" />}
+            {isSelfService && <Tag icon="user" text="Self-service" />}
+          </div>
+        </div>
+        <div className={`${baseClass}__actions-wrapper`}>
           {showActions && (
             <SoftwareActionsDropdown
               installerType={installerType}

@@ -1463,6 +1463,9 @@
       margin-top: 32px;
     }
     [purpose='statistics'] {
+      [purpose='statistics-column'] {
+        flex-direction: column-reverse;
+      }
       flex-direction: column;
       max-width: fit-content;
       margin-left: auto;
@@ -1473,13 +1476,11 @@
         margin-bottom: 0px;
       }
       [purpose='customers'] {
-        padding: 0px 24px 24px 24px;
         border-right: none;
+        padding: 24px 24px 0px 24px;
       }
       [purpose='devices'] {
-        border-top: 1px solid #E2E4EA;
-        border-bottom: 1px solid #E2E4EA;
-        padding: 24px;
+        padding: 0px 24px 24px 24px;
         border-right: none;
       }
       [purpose='response-time'] {
@@ -1487,8 +1488,9 @@
         border-bottom: 1px solid #E2E4EA;
       }
       [purpose='countries'] {
-        order: 1;
-        padding: 24px 24px 0px 24px;
+        // order: 1;
+        border-top: 1px solid #E2E4EA;
+        border-bottom: 1px solid #E2E4EA;
         border-right: none;
       }
     }
