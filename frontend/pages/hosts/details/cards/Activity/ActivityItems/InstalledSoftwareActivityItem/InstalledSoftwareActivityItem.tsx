@@ -21,7 +21,7 @@ const InstalledSoftwareActivityItem = ({
   const actorDisplayName = self_service ? (
     <span>End user</span>
   ) : (
-    <b>{actorName}</b>
+    <b>{actorName ?? "Fleet"}</b>
   );
 
   return (
