@@ -1,10 +1,10 @@
-# Configuring Full Names in Google Workspace for Fleet Integration
+# Configuring full names in Google Workspace for Fleet integration
 
 ## Introduction
 
 Fleet requires user full names to be configured in your Identity Provider (IdP) using specific attributes. Since Google Workspace doesn't natively provide a full name attribute that matches Fleet's requirements, this guide will walk you through setting up automatic synchronization of full names using Google's custom attributes and Apps Script.
 
-## What We're Solving
+## What we're solving
 
 Fleet looks for full names in one of these attributes:
 - `name`
@@ -24,7 +24,7 @@ Google Workspace doesn't expose these attributes directly, so we need to:
 - Basic understanding of Google Admin Console
 - A Fleet instance configured for SAML authentication
 
-## Step 1: Create a Custom Attribute in Google Workspace
+## Step 1: Create a custom attribute in Google Workspace
 
 First, we'll create a place to store the full name:
 
@@ -43,7 +43,7 @@ First, we'll create a place to store the full name:
      - **Visibility**: `Visible to user and admin`
    - Click **Add**
 
-## Step 2: Create a Google Apps Script to Populate the Attribute
+## Step 2: Create a Google Apps Script to populate the attribute
 
 Next, we'll create a script that automatically updates the full name attribute:
 
@@ -112,7 +112,7 @@ function createTrigger() {
 7. Scroll down and select **Admin SDK API**
 8. Click **Add**
 
-## Step 3: Run the Script and Set Up Automation
+## Step 3: Run the script and set up automation
 
 Now we'll run the script and set up automatic updates:
 
@@ -176,9 +176,9 @@ When new users are added to Google Workspace, they will be included in the next 
 You've now successfully configured Google Workspace to provide full names to Fleet using a custom attribute and automated synchronization. This setup ensures that Fleet can automatically populate and the macOS local account name for all your users during the initial macOS setup experience.
 
 
-<meta name="articleTitle" value="Configuring Full Names in Google Workspace">
+<meta name="articleTitle" value="Configuring full names in Google Workspace">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-02-25">
-<meta name="description" value="Populating Full Name during macOS Setup experience from Google Workspace">
+<meta name="description" value="Populating full name during macOS setup experience from Google Workspace">
