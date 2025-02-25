@@ -41,37 +41,37 @@ type Proxy struct {
 	mu sync.Mutex
 }
 
-func (s *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, error) {
-	s.mu.Lock()
-	s.SignupURLsCreateFuncInvoked = true
-	s.mu.Unlock()
-	return s.SignupURLsCreateFunc(callbackURL)
+func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, error) {
+	p.mu.Lock()
+	p.SignupURLsCreateFuncInvoked = true
+	p.mu.Unlock()
+	return p.SignupURLsCreateFunc(callbackURL)
 }
 
-func (s *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
-	s.mu.Lock()
-	s.EnterprisesCreateFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnterprisesCreateFunc(ctx, req)
+func (p *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
+	p.mu.Lock()
+	p.EnterprisesCreateFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (s *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
-	s.mu.Lock()
-	s.EnterprisesPoliciesPatchFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnterprisesPoliciesPatchFunc(enterpriseID, policyName, policy)
+func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
+	p.mu.Lock()
+	p.EnterprisesPoliciesPatchFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesPatchFunc(enterpriseID, policyName, policy)
 }
 
-func (s *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
-	s.mu.Lock()
-	s.EnterprisesEnrollmentTokensCreateFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnterprisesEnrollmentTokensCreateFunc(enterpriseName, token)
+func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+	p.mu.Lock()
+	p.EnterprisesEnrollmentTokensCreateFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesEnrollmentTokensCreateFunc(enterpriseName, token)
 }
 
-func (s *Proxy) EnterpriseDelete(enterpriseID string) error {
-	s.mu.Lock()
-	s.EnterpriseDeleteFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnterpriseDeleteFunc(enterpriseID)
+func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
+	p.mu.Lock()
+	p.EnterpriseDeleteFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterpriseDeleteFunc(enterpriseID)
 }
