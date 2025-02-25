@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,7 @@ import (
 
 func TestAndroid(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -32,6 +34,8 @@ func TestAndroid(t *testing.T) {
 }
 
 func testNewAndroidHost(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	const enterpriseSpecificID = "enterprise_specific_id"
 	host := createAndroidHost(enterpriseSpecificID)
 

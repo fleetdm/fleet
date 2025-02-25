@@ -190,13 +190,12 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
 	case len(labels) != 2:
-		fmt.Println(">>>> found labels :", len(labels))
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
+		// Note that this is the same behavior as for the iOS/iPadOS host labels.
 		level.Error(ds.logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
 		return nil
 	}
-	fmt.Println(">>>> found labels :", len(labels))
 
 	// We cannot assume IDs on labels, thus we look by name.
 	var allHostsLabelID, androidLabelID uint
