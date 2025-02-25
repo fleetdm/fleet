@@ -2,7 +2,6 @@ package android
 
 type NotificationType string
 
-const 
 const (
 	PubSubEnrollment   NotificationType = "ENROLLMENT"
 	PubSubStatusReport NotificationType = "STATUS_REPORT"
