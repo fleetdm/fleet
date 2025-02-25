@@ -160,6 +160,7 @@ const (
 	BuiltinLabelIOS             = "iOS"
 	BuiltinLabelIPadOS          = "iPadOS"
 	BuiltinLabelFedoraLinux     = "Fedora Linux"
+	BuiltinLabelNameAndroid     = "Android"
 )
 
 // ReservedLabelNames returns a map of label name strings
@@ -178,6 +179,7 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelIOS:             {},
 		BuiltinLabelIPadOS:          {},
 		BuiltinLabelFedoraLinux:     {},
+		BuiltinLabelNameAndroid:     {},
 	}
 }
 
