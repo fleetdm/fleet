@@ -56,7 +56,7 @@ module.exports = {
     if(adCampaignsWithPlaceholderUrns.length > 2) {
       throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`);
     }
-    // Zap: https://zapier.com/editor/280954803     // «« TODO: Add a webhook request to the zap with this event name and data.
+    // Zap: https://zapier.com/editor/280954803
     if(eventName === 'update-placeholder-campaign-urn') {
       assert(_.isObject(data));
       assert(_.isString(data.placeholderUrn));
