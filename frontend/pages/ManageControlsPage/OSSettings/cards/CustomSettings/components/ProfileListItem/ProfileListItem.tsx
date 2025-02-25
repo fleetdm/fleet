@@ -12,6 +12,7 @@ import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
 import strUtils from "utilities/strings";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -153,13 +154,18 @@ const ProfileListItem = ({
           >
             <Icon name="download" />
           </Button>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(profile)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                className={`${subClass}__action-button`}
+                variant="text-icon"
+                onClick={() => onDelete(profile)}
+              >
+                <Icon name="trash" color="ui-fleet-black-75" />
+              </Button>
+            )}
+          />
         </div>
       </div>
     </div>

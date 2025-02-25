@@ -991,7 +991,7 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *mdmHost); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1111,7 +1111,7 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1272,9 +1272,9 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	return nil
 }
 
-func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	args := []interface{}{}
-	parts := []string{}
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
 	for _, h := range hosts {
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")
@@ -1342,7 +1342,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
-	// Hosts" and "macOS" labels.
+	// Hosts" and one of "macOS", "iOS", "iPadOS" labels.
 	labels := []struct {
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
@@ -1656,7 +1656,7 @@ INSERT INTO hosts (
 		// Upsert related host tables for the restored host just as if it were initially ingested
 		// from DEP sync. Note we are not upserting host_dep_assignments in order to preserve the
 		// existing timestamps.
-		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *host); err != nil {
+		if err := upsertHostDisplayNames(ctx, tx, *host); err != nil {
 			// TODO: Why didn't this work as expected?
 			return ctxerr.Wrap(ctx, err, "restore pending dep host display name")
 		}

@@ -19,7 +19,7 @@
       .list-item__actions {
         display: none;
       }
-      :hover {
+      :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
         background-color: $ui-fleet-blue-10;
         .list-item__labels {
           display: none;

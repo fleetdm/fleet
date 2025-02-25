@@ -21,9 +21,9 @@ func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
 	return uint(id), nil // nolint:gosec // dismiss G115
 }
 
-func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.Enterprise, error) {
-	stmt := `SELECT id, signup_name, enterprise_id FROM android_enterprises WHERE id = ?`
-	var enterprise android.Enterprise
+func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token FROM android_enterprises WHERE id = ?`
+	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -47,15 +47,18 @@ func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, er
 	return &enterprise, nil
 }
 
-func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.Enterprise) error {
+func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
 	if enterprise == nil || enterprise.ID == 0 {
 		return errors.New("missing enterprise ID")
 	}
 	stmt := `UPDATE android_enterprises
     SET signup_name = ?,
-        enterprise_id = ?
+        enterprise_id = ?,
+        pubsub_topic_id = ?,
+        signup_token = ?
 	WHERE id = ?`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.ID)
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.TopicID,
+		enterprise.SignupToken, enterprise.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}

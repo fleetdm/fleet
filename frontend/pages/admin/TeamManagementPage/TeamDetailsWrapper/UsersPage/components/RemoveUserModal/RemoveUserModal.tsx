@@ -22,7 +22,7 @@ const RemoveUserModal = ({
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Remove user"}
+      title="Remove user"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

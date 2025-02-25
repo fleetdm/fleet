@@ -212,9 +212,12 @@ export const generateSelectedLabels = (
 };
 
 // Used in FleetAppDetailsForm and PackageForm
-export const generateHelpText = (installType: string, customTarget: string) => {
+export const generateHelpText = (
+  automaticInstall: boolean,
+  customTarget: string
+) => {
   if (customTarget === "labelsIncludeAny") {
-    return installType === "manual" ? (
+    return !automaticInstall ? (
       <>
         Software will only be available for install on hosts that{" "}
         <b>have any</b> of these labels:
@@ -228,7 +231,7 @@ export const generateHelpText = (installType: string, customTarget: string) => {
   }
 
   // this is the case for labelsExcludeAny
-  return installType === "manual" ? (
+  return !automaticInstall ? (
     <>
       Software will only be available for install on hosts that{" "}
       <b>don&apos;t have any</b> of these labels:
