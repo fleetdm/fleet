@@ -4724,7 +4724,8 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu hosts",
     "count": 0,
-    "host_ids": null
+    "host_ids": null,
+    "author_id": 1
   }
 }
 ```
@@ -4777,7 +4778,8 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu hosts",
     "count": 0,
-    "host_ids": null
+    "host_ids": null,
+    "author_id": 1
   }
 }
 ```
@@ -4815,7 +4817,8 @@ Returns the specified label.
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu",
     "count": 0,
-    "host_ids": null
+    "host_ids": null,
+    "author_id": 1
   }
 }
 ```
@@ -4907,7 +4910,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 7,
       "display_text": "All Hosts",
       "count": 7,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -4922,7 +4926,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 1,
       "display_text": "macOS",
       "count": 1,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -4937,7 +4942,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 3,
       "display_text": "Ubuntu Linux",
       "count": 3,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -4951,7 +4957,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 3,
       "display_text": "CentOS Linux",
       "count": 3,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -4965,7 +4972,8 @@ Returns a list of all the labels in Fleet.
       "label_membership_type": "dynamic",
       "display_text": "MS Windows",
       "count": 0,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     }
   ]
 }
