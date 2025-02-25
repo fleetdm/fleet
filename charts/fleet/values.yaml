@@ -70,7 +70,7 @@ fleet:
   # Add extra annotations to the migration Job
   migrationJobAnnotations:
   tls:
-    enabled: true
+    enabled: false
     # Set to true if you need a separate secret for just TLS data.
     # Useful with cert-manager and similar deployments.
     uniqueTLSSecret: false
@@ -179,7 +179,7 @@ osquery:
 database:
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
-  address: 127.0.0.1:3306
+  address: fleet-mysql-headless:3306
   database: fleet
   username: fleet
   passwordKey: mysql-password
@@ -199,9 +199,9 @@ database:
 ## Section: cache
 # All of the connection settings for Redis
 cache:
-  address: 127.0.0.1:6379
+  address: fleet-redis-master:6379
   database: "0"
-  usePassword: false
+  usePassword: true
   secretName: redis
   passwordKey: redis-password
 
@@ -248,7 +248,21 @@ environments:
 #       key: secret-key-name
 
 mysql:
-  enabled: false
+  enabled: true
+  auth:
+    database: fleet
+    username: fleet
+    existingSecret: mysql
+    passwordKey: mysql-password
+    rootPasswordKey: mysql-root-password
+    createDatabase: true
+ 
 
 redis:
-  enabled: false
+  enabled: true
+  auth:
+    enabled: true
+    existingSecret: redis
+    existingSecretPasswordKey: redis-password
+  replica:
+    replicaCount: 3
