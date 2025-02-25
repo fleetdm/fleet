@@ -305,7 +305,43 @@ describe("PaginatedList", () => {
     expect(checkboxes[0]).not.toBeChecked();
   });
 
-  it("Notifies the parent when a change is made using custom markup", async () => {});
+  it("Can update the set of dirty items when a change is made in custom markup", async () => {
+    const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        ref={paginatedListRef}
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={jest.fn()}
+        onUpdate={jest.fn()}
+        isSelected={jest.fn()}
+        renderItemRow={(item, onChange) => (
+          <button
+            onClick={() => {
+              onChange({
+                ...item,
+                favoriteIceCreamFlavor: `${item.favoriteIceCreamFlavor} Pie`,
+              });
+            }}
+          >
+            Click me bruh
+          </button>
+        )}
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    userEvent.click(
+      checkboxes[1].closest(".form-field")?.nextElementSibling as HTMLElement
+    );
+    // Check that the item is marked as dirty.
+    await waitFor(() => {
+      expect(paginatedListRef.current?.getDirtyItems()).toEqual([
+        { ...items[1], favoriteIceCreamFlavor: "Dirt Pie" },
+      ]);
+    });
+  });
 
   it("Notifies the parent when a change is made to the set of dirty items", async () => {});
 
