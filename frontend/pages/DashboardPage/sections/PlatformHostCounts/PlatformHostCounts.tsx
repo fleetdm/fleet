@@ -12,6 +12,7 @@ import HostCountCard from "../../cards/HostCountCard";
 const baseClass = "platform-host-counts";
 
 interface IPlatformHostCountsProps {
+  androidDevEnabled: boolean; // TODO: remove when feature flag is removed
   currentTeamId: number | undefined;
   macCount: number;
   windowsCount: number;
@@ -27,6 +28,7 @@ interface IPlatformHostCountsProps {
 }
 
 const PlatformHostCounts = ({
+  androidDevEnabled,
   currentTeamId,
   macCount,
   windowsCount,
@@ -190,6 +192,11 @@ const PlatformHostCounts = ({
   };
 
   const renderAndroidCount = (teamId?: number) => {
+    if (!androidDevEnabled) {
+      // TODO: remove when feature flag is removed
+      return null;
+    }
+
     const androidLabelId = getBuiltinLabelId("android");
 
     if (hidePlatformCard(androidCount)) {
@@ -229,6 +236,7 @@ const PlatformHostCounts = ({
       case "android":
         return renderAndroidCount(teamId);
       default:
+        // TODO: responsive layout with variable column widths (see figma for 2x2x3 grid)
         return (
           <>
             {renderMacCard(teamId)}

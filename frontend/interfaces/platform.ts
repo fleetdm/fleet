@@ -15,21 +15,23 @@ export const PLATFORM_DISPLAY_NAMES = {
   ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
 
-export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
-export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
-export type QueryableDisplayPlatform = Exclude<
-  DisplayPlatform,
-  "iOS" | "iPadOS"
->;
-
-export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
-
-export const QUERYABLE_PLATFORMS: QueryablePlatform[] = [
+export const QUERYABLE_PLATFORMS = [
   "darwin",
   "windows",
   "linux",
   "chrome",
-];
+] as const;
+
+export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados", "android"] as const;
+
+export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
+export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
+export type QueryableDisplayPlatform = Exclude<
+  DisplayPlatform,
+  typeof PLATFORM_DISPLAY_NAMES[typeof NON_QUERYABLE_PLATFORMS[number]]
+>;
+
+export type QueryablePlatform = typeof QUERYABLE_PLATFORMS[number];
 
 export const isQueryablePlatform = (
   platform: string | undefined
