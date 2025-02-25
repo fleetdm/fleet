@@ -7804,7 +7804,7 @@ Modifies the query specified by ID.
 
 > Note that any of the following conditions will cause the existing query report to be deleted:
 > - Updating the `query` (SQL) field
-> - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels`)
+> - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels_include_any`)
 > - Changing `discard_data` from `false` to `true`
 > - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
