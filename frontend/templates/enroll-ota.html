@@ -145,8 +145,7 @@
     </style>
   </head>
   <body>
-    <!-- templates for android and ios, ipad content -->
-
+    <!-- unsupported platform content -->
     <template id="unsupported-template">
       <h1>Enroll your device to Fleet</h1>
       <p class="page-description">
@@ -376,7 +375,7 @@
 
       // TODO: get from server
       const ANDROID_MDM_ENABLED = true;
-      const MAC_MDM_ENABLED = true;
+      const MAC_MDM_ENABLED = false;
 
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
