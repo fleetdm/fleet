@@ -1,8 +1,9 @@
-import React from "react";
+import React, { createRef } from "react";
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderWithSetup } from "test/test-utils";
 
-import PaginatedList from "./PaginatedList";
+import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
 
 describe("PaginatedList", () => {
   interface ITestItem {
@@ -181,6 +182,7 @@ describe("PaginatedList", () => {
     );
     await waitForLoadingToFinish(container);
 
+    // Check the first page.
     let checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(2);
     [items[0], items[1]].forEach((item, index) => {
@@ -188,17 +190,17 @@ describe("PaginatedList", () => {
       expect(checkboxes[index]).not.toBeChecked();
     });
 
+    // Move to second page.
     let nextButton = screen.getByRole("button", { name: /next/i });
     let previousButton = screen.getByRole("button", { name: /previous/i });
     expect(nextButton).toBeEnabled();
     expect(previousButton).toBeDisabled();
 
-    await waitFor(() => {
-      nextButton.click();
-    });
+    await userEvent.click(nextButton);
 
     await waitForLoadingToFinish(container);
 
+    // Check the second page.
     checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(1);
     expect(checkboxes[0]).toHaveTextContent(items[2].name);
@@ -207,13 +209,101 @@ describe("PaginatedList", () => {
     previousButton = screen.getByRole("button", { name: /previous/i });
     expect(nextButton).toBeDisabled();
     expect(previousButton).toBeEnabled();
+
+    // Move back to first page.
+    await userEvent.click(previousButton);
+
+    await waitForLoadingToFinish(container);
+
+    // Check the first page again.
+    checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(2);
+    [items[0], items[1]].forEach((item, index) => {
+      expect(checkboxes[index]).toHaveTextContent(item.name);
+      expect(checkboxes[index]).not.toBeChecked();
+    });
+    nextButton = screen.getByRole("button", { name: /next/i });
+    previousButton = screen.getByRole("button", { name: /previous/i });
+    expect(nextButton).toBeEnabled();
+    expect(previousButton).toBeDisabled();
   });
 
-  it("Allows for custom markup in item rows", async () => {});
+  it("Allows for custom markup in item rows", async () => {
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={jest.fn()}
+        onUpdate={jest.fn()}
+        isSelected={jest.fn()}
+        renderItemRow={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    items.forEach((item, index) => {
+      expect(checkboxes[index]).toHaveTextContent(item.name);
+      expect(checkboxes[index]).not.toBeChecked();
+      expect(
+        checkboxes[index].closest(".form-field")?.nextElementSibling
+      ).toHaveTextContent(item.favoriteIceCreamFlavor);
+    });
+  });
 
-  it("Allows for custom markup for item labels", async () => {});
+  it("Allows for custom markup for item labels", async () => {
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={jest.fn()}
+        onUpdate={jest.fn()}
+        isSelected={jest.fn()}
+        renderItemLabel={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    items.forEach((item, index) => {
+      expect(checkboxes[index]).toHaveTextContent(item.favoriteIceCreamFlavor);
+      expect(checkboxes[index]).not.toBeChecked();
+    });
+  });
 
-  it("Notifies the parent when an item is toggled", async () => {});
+  it("Notifies the parent when an item is toggled and marks the item as dirty", async () => {
+    const onToggleItem = jest.fn((item) => {
+      return {
+        ...item,
+        checkMeBruh: !item.checkMeBruh,
+      };
+    });
+    const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        ref={paginatedListRef}
+        fetchPage={fetchLargePage}
+        pageSize={10}
+        onToggleItem={onToggleItem}
+        onUpdate={jest.fn()}
+        isSelected="checkMeBruh"
+      />
+    );
+    await waitForLoadingToFinish(container);
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes[0]).toBeChecked();
+    await userEvent.click(checkboxes[0]);
+    expect(onToggleItem).toHaveBeenCalledWith(items[0]);
+
+    // Check that the item is marked as dirty.
+    await waitFor(() => {
+      expect(paginatedListRef.current?.getDirtyItems()).toEqual([
+        { ...items[0], checkMeBruh: false },
+      ]);
+    });
+    expect(checkboxes[0]).not.toBeChecked();
+  });
 
   it("Notifies the parent when a change is made using custom markup", async () => {});
 
