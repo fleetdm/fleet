@@ -11,24 +11,27 @@ export const PLATFORM_DISPLAY_NAMES = {
   windows: "Windows",
   linux: "Linux",
   chrome: "ChromeOS",
+  android: "Android",
   ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
+
+export const QUERYABLE_PLATFORMS = [
+  "darwin",
+  "windows",
+  "linux",
+  "chrome",
+] as const;
+
+export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados", "android"] as const;
 
 export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
 export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
-  "iOS" | "iPadOS"
+  typeof PLATFORM_DISPLAY_NAMES[typeof NON_QUERYABLE_PLATFORMS[number]]
 >;
 
-export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
-
-export const QUERYABLE_PLATFORMS: QueryablePlatform[] = [
-  "darwin",
-  "windows",
-  "linux",
-  "chrome",
-];
+export type QueryablePlatform = typeof QUERYABLE_PLATFORMS[number];
 
 export const isQueryablePlatform = (
   platform: string | undefined
@@ -111,7 +114,8 @@ export type HostPlatform =
   | typeof HOST_LINUX_PLATFORMS[number]
   | typeof HOST_APPLE_PLATFORMS[number]
   | "windows"
-  | "chrome";
+  | "chrome"
+  | "android";
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
@@ -132,6 +136,10 @@ export const isAppleDevice = (platform: string) => {
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
+
+/* isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
+export const isMobilePlatform = (platform: string | HostPlatform) =>
+  isIPadOrIPhone(platform) || platform === "android";
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu

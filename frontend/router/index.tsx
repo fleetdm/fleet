@@ -166,6 +166,7 @@ const routes = (
             <Route path="chrome" component={DashboardPage} />
             <Route path="ios" component={DashboardPage} />
             <Route path="ipados" component={DashboardPage} />
+            <Route path="android" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
