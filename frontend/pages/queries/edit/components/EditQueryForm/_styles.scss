@@ -53,7 +53,7 @@
             }
           }
         }
-        &--gitops-mode-disabled {
+        &--disabled-by-gitops-mode {
           @include disabled;
         }
       }
@@ -162,7 +162,7 @@
     align-items: center;
   }
 
-  .gitops-mode-disabled {
+  .disabled-by-gitops-mode {
     @include disabled;
   }
 }

@@ -132,7 +132,7 @@ const PolicyForm = ({
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
     config?.server_settings.ai_features_disabled || false;
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
@@ -149,7 +149,9 @@ const PolicyForm = ({
   } = platformCompatibility;
 
   const platformSelectorDisabled =
-    isFetchingAutofillDescription || isFetchingAutofillResolution || gomEnabled;
+    isFetchingAutofillDescription ||
+    isFetchingAutofillResolution ||
+    gitOpsModeEnabled;
 
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatform,
@@ -364,9 +366,9 @@ const PolicyForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(policyNameWrapperClasses, {
-              [`${policyNameWrapperBase}--gitops-mode-disabled`]: dC,
+              [`${policyNameWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -388,7 +390,7 @@ const PolicyForm = ({
                   onChange={setLastEditedQueryName}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingName}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -417,9 +419,9 @@ const PolicyForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(policyDescriptionWrapperClasses, {
-              [`${policyDescriptionWrapperBase}--gitops-mode-disabled`]: dC,
+              [`${policyDescriptionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -439,7 +441,7 @@ const PolicyForm = ({
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -464,9 +466,9 @@ const PolicyForm = ({
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={16}
-            renderChildren={(dC) => {
+            renderChildren={(disableChildren) => {
               const classes = classnames(policyResolutionWrapperClasses, {
-                [`${policyResolutionWrapperBase}--gitops-mode-disabled`]: dC,
+                [`${policyResolutionWrapperBase}--disabled-by-gitops-mode`]: disableChildren,
               });
               return (
                 <div
@@ -486,7 +488,7 @@ const PolicyForm = ({
                     onChange={setLastEditedQueryResolution}
                     onKeyPress={onInputKeypress}
                     isFocused={isEditingResolution}
-                    disableTabability={dC}
+                    disableTabability={disableChildren}
                   />
                   <Icon
                     name="pencil"
@@ -524,7 +526,7 @@ const PolicyForm = ({
           onChange={(value: boolean) => setLastEditedQueryCritical(value)}
           value={lastEditedQueryCritical}
           isLeftLabel
-          disabled={gomEnabled}
+          disabled={gitOpsModeEnabled}
         >
           <TooltipWrapper
             tipContent={
@@ -629,7 +631,7 @@ const PolicyForm = ({
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
-            disabled={gomEnabled}
+            disabled={gitOpsModeEnabled}
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
@@ -638,7 +640,7 @@ const PolicyForm = ({
           <div className="button-wrap">
             {hasSavePermissions && (
               <GitOpsModeTooltipWrapper
-                renderChildren={(dC) => (
+                renderChildren={(disableChildren) => (
                   // TODO - update to use TooltipWrapper
                   <>
                     <span
@@ -650,7 +652,7 @@ const PolicyForm = ({
                       <Button
                         variant="brand"
                         onClick={promptSavePolicy()}
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         className="save-loading"
                         isLoading={isUpdatingPolicy}
                       >

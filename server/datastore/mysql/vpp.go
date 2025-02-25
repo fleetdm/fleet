@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -30,6 +32,7 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
+	vat.created_at added_at,
 	NULLIF(vap.icon_url, '') AS icon_url,
 	vap.bundle_identifier AS bundle_identifier
 FROM
@@ -468,6 +471,20 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
+		if app.VPPAppTeam.AddAutoInstallPolicy {
+			generatedPolicyData, err := automatic_policy.Generate(automatic_policy.MacInstallerMetadata{
+				Title:            app.Name,
+				BundleIdentifier: app.BundleIdentifier,
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+			}
+
+			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, teamID, nil, ptr.Uint(vppAppTeamID)); err != nil {
+				return ctxerr.Wrap(ctx, err, "create automatic policy")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -499,7 +516,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup, id
+	adam_id, platform, self_service, install_during_setup, id, created_at added_at
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -651,11 +668,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 			selectStmt = `
 				    SELECT id
 				    FROM software_titles
-				    WHERE (bundle_identifier = ? OR (name = ? AND browser = ''))
-				      AND source NOT IN ('ios_apps', 'ipados_apps')
-				    ORDER BY bundle_identifier = ? DESC
-				    LIMIT 1`
-			selectArgs = []any{app.BundleIdentifier, app.Name, app.BundleIdentifier}
+				    WHERE bundle_identifier = ? AND additional_identifier = 0`
+			selectArgs = []any{app.BundleIdentifier}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
@@ -748,6 +762,7 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 va.title_id,
 	 va.platform,
 	 va.created_at,
+	 vat.created_at added_at,
 	 va.updated_at,
 	 vat.id
 	FROM vpp_apps va
@@ -785,7 +800,8 @@ SELECT
   va.platform,
   va.created_at,
   va.updated_at,
-  vat.self_service
+  vat.self_service,
+  vat.created_at added_at
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?

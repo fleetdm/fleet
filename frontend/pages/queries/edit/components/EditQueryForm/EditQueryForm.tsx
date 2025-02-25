@@ -172,7 +172,7 @@ const EditQueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
@@ -510,9 +510,9 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -536,7 +536,7 @@ const EditQueryForm = ({
                   }}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingName}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -565,9 +565,9 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -587,7 +587,7 @@ const EditQueryForm = ({
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -763,7 +763,9 @@ const EditQueryForm = ({
             <div
               // including `form` class here keeps the children fields subject to the global form
               // children styles
-              className={gomEnabled ? "gitops-mode-disabled form" : "form"}
+              className={
+                gitOpsModeEnabled ? "disabled-by-gitops-mode form" : "form"
+              }
             >
               <Dropdown
                 searchable={false}
@@ -882,11 +884,11 @@ const EditQueryForm = ({
               <>
                 {savedQueryMode && (
                   <GitOpsModeTooltipWrapper
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         variant="text-link"
                         onClick={promptSaveAsNewQuery()}
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         className="save-as-new-loading"
                         isLoading={isSaveAsNewLoading}
                       >
@@ -898,7 +900,7 @@ const EditQueryForm = ({
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
                         variant="brand"
@@ -907,7 +909,7 @@ const EditQueryForm = ({
                             ? toggleConfirmSaveChangesModal
                             : promptSaveQuery()
                         }
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         isLoading={isQueryUpdating}
                       >
                         Save
