@@ -695,6 +695,13 @@ type listDeviceCertificatesRequest struct {
 	fleet.ListOptions
 }
 
+func (r *listDeviceCertificatesRequest) ValidateRequest() error {
+	if r.ListOptions.OrderKey != "" && !listHostCertificatesSortCols[r.ListOptions.OrderKey] {
+		return badRequest("invalid order key")
+	}
+	return nil
+}
+
 func (r *listDeviceCertificatesRequest) deviceAuthToken() string {
 	return r.Token
 }

@@ -2725,6 +2725,18 @@ type listHostCertificatesRequest struct {
 	fleet.ListOptions
 }
 
+var listHostCertificatesSortCols = map[string]bool{
+	"common_name":     true,
+	"not_valid_after": true,
+}
+
+func (r *listHostCertificatesRequest) ValidateRequest() error {
+	if r.ListOptions.OrderKey != "" && !listHostCertificatesSortCols[r.ListOptions.OrderKey] {
+		return badRequest("invalid order key")
+	}
+	return nil
+}
+
 type listHostCertificatesResponse struct {
 	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
 	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
@@ -2745,11 +2757,6 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
 }
 
-var listHostCertificatesSortCols = map[string]bool{
-	"common_name":     true,
-	"not_valid_after": true,
-}
-
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		host, err := svc.ds.HostLite(ctx, hostID)
@@ -2767,7 +2774,7 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	opts.After = ""
 	opts.IncludeMetadata = true
 	// default sort order is common name ascending
-	if opts.OrderKey == "" || !listHostCertificatesSortCols[opts.OrderKey] {
+	if opts.OrderKey == "" {
 		opts.OrderKey = "common_name"
 	}
 
