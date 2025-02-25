@@ -377,8 +377,8 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	if r.done == nil {
-		_, _ = fmt.Fprint(w, "Error: No SSE data available")
 		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, "Error: No SSE data available")
 		return
 	}
 	w.WriteHeader(http.StatusOK)
