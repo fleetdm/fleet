@@ -648,6 +648,8 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
+  disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
   enabledWindowsMdmMigration: () => {
     return (
       <>
@@ -1210,6 +1212,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledWindowsMdm: {
       return TAGGED_TEMPLATES.disabledWindowsMdm();
     }
+    case ActivityType.EnabledGitOpsMode: {
+      return TAGGED_TEMPLATES.enabledGitOpsMode();
+    }
+    case ActivityType.DisabledGitOpsMode: {
+      return TAGGED_TEMPLATES.disabledGitOpsMode();
+    }
     case ActivityType.EnabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.enabledWindowsMdmMigration();
     }
@@ -1330,18 +1338,6 @@ const GlobalActivityItem = ({
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
-
-  // Add the "Fleet" name to the activity if needed.
-  // TODO: remove/refactor this once we have "fleet-initiated" activities.
-  if (
-    !activity.actor_email &&
-    !activity.actor_full_name &&
-    (activity.type === ActivityType.InstalledSoftware ||
-      activity.type === ActivityType.InstalledAppStoreApp ||
-      activity.type === ActivityType.RanScript)
-  ) {
-    activity.actor_full_name = "Fleet";
-  }
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;

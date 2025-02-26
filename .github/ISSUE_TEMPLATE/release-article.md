@@ -2,7 +2,7 @@
 name: 📰 Release article
 about: Propose a new feature or enhancement in Fleet.
 title: 'Release article: vXXX.YYY.ZZZ'
-labels: '#g-demand,:improve documentation'
+labels: ':help-marketing,:improve documentation'
 assignees: 'rachaelshaw'
 
 ---

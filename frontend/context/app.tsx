@@ -143,6 +143,7 @@ type InitialStateType = {
   isPremiumTier?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
+  isAndroidMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -210,6 +211,7 @@ export const initialState = {
   isPremiumTier: undefined,
   isMacMdmEnabledAndConfigured: undefined,
   isWindowsMdmEnabledAndConfigured: undefined,
+  isAndroidMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -280,6 +282,9 @@ const setPermissions = (
       config
     ),
     isWindowsMdmEnabledAndConfigured: permissions.isWindowsMdmEnabledAndConfigured(
+      config
+    ),
+    isAndroidMdmEnabledAndConfigured: permissions.isAndroidMdmEnabledAndConfigured(
       config
     ),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
@@ -481,6 +486,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isPremiumTier: state.isPremiumTier,
       isMacMdmEnabledAndConfigured: state.isMacMdmEnabledAndConfigured,
       isWindowsMdmEnabledAndConfigured: state.isWindowsMdmEnabledAndConfigured,
+      isAndroidMdmEnabledAndConfigured: state.isAndroidMdmEnabledAndConfigured,
       isGlobalAdmin: state.isGlobalAdmin,
       isGlobalMaintainer: state.isGlobalMaintainer,
       isGlobalObserver: state.isGlobalObserver,
@@ -600,6 +606,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isTeamObserver,
       state.isVppExpired,
       state.isWindowsMdmEnabledAndConfigured,
+      state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
       state.noSandboxHosts,
       state.sandboxExpiry,

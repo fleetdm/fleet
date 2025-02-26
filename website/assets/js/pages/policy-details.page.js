@@ -31,7 +31,7 @@ parasails.registerPage('policy-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
-        if(!block.classList.contains('sql')){
+        if(block.classList.contains('ps') || block.classList.contains('sh')){
           window.hljs.highlightElement(block);
           return;
         } else {

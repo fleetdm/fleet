@@ -427,7 +427,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, nil, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)

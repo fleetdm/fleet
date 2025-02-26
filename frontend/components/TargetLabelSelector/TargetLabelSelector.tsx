@@ -45,7 +45,7 @@ interface ITargetChooserProps {
 
 const TargetChooser = ({ selectedTarget, onSelect }: ITargetChooserProps) => {
   return (
-    <div className={`form-field`}>
+    <div className="form-field">
       <div className="form-field__label">Target</div>
       <Radio
         className={`${baseClass}__radio-input`}
@@ -156,7 +156,7 @@ interface ITargetLabelSelectorProps {
   customTargetOptions: IDropdownOption[];
   selectedLabels: Record<string, boolean>;
   labels: ILabelSummary[];
-  /** set this prop to show a help text. If it is encluded then it will override
+  /** set this prop to show a help text. If it is included then it will override
    * the selected options defined `helpText`
    */
   dropdownHelpText?: ReactNode;

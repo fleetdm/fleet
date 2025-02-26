@@ -136,7 +136,7 @@ The HTTP request headers are checked in the following order:
 ## Reference configuration strategies
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
-this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) of running Fleet in a production environment, as
+this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
 ### Availability components
@@ -151,7 +151,7 @@ Fleet recommends RDS Aurora MySQL when running on AWS. More details about backup
 [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html). It is also
 possible to dynamically scale read replicas to increase performance and [enable database fail-over](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html).
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
-span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)_).
+span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module)_).
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
@@ -162,7 +162,7 @@ Load balancing enables distributing request traffic over many instances of the b
 Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of its allocated compute dedicated 
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
-_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
+_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
 ### Cloud providers
@@ -217,7 +217,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Redis        | 6                       | cache.m6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
 
-AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/terraform/example). This configuration includes:
+AWS reference architecture can be found [here](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
 - VPC
   - Subnets
@@ -234,7 +234,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - Carves/software stored in an S3 bucket
 
 Additional addons are available such as:
-- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/terraform/addons/monitoring)
+- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet-terraform/tree/main/addons/monitoring)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
 a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.

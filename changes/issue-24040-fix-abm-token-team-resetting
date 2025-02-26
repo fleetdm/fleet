@@ -1,0 +1,1 @@
+- fix an issue where the abm token teams were being reset when making updates to the app config.

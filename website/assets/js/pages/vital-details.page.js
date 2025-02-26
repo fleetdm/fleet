@@ -20,6 +20,8 @@ parasails.registerPage('vital-details', {
     // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
     if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
+    } else if(bowser.windows){
+      this.selectedPlatform = 'windows';
     }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
@@ -38,7 +40,7 @@ parasails.registerPage('vital-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
-        if(block.classList.contains('ps')){
+        if(block.classList.contains('ps') || block.classList.contains('sh')){
           window.hljs.highlightElement(block);
           return;
         }

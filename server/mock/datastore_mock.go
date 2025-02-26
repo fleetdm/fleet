@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -42,6 +43,8 @@ type GetBlockFunc func(ctx context.Context, metadata *fleet.CarveMetadata, block
 type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, err error)
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
+
+type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
 
@@ -297,6 +300,14 @@ type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
+type GetAndroidDSFunc func() android.Datastore
+
+type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
+
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
+
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
+
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -415,7 +426,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error)
+type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
 
@@ -483,7 +494,7 @@ type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOption
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
-type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -1041,13 +1052,13 @@ type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *f
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type NewInternalScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
-
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
+
+type ListReadyToExecuteScriptsForHostFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1098,6 +1109,8 @@ type ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc func(ctx context.
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
 type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
+
+type ListReadyToExecuteSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
 
@@ -1157,7 +1170,11 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error
+type GetAllVPPAppsFunc func(ctx context.Context) ([]*fleet.VPPApp, error)
+
+type InsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
@@ -1219,6 +1236,8 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1252,6 +1271,9 @@ type DataStore struct {
 
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
+
+	HasUsersFunc        HasUsersFunc
+	HasUsersFuncInvoked bool
 
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
@@ -1633,6 +1655,18 @@ type DataStore struct {
 
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
+
+	GetAndroidDSFunc        GetAndroidDSFunc
+	GetAndroidDSFuncInvoked bool
+
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
+
+	AndroidHostLiteFunc        AndroidHostLiteFunc
+	AndroidHostLiteFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -2750,9 +2784,6 @@ type DataStore struct {
 	NewHostScriptExecutionRequestFunc        NewHostScriptExecutionRequestFunc
 	NewHostScriptExecutionRequestFuncInvoked bool
 
-	NewInternalScriptExecutionRequestFunc        NewInternalScriptExecutionRequestFunc
-	NewInternalScriptExecutionRequestFuncInvoked bool
-
 	SetHostScriptExecutionResultFunc        SetHostScriptExecutionResultFunc
 	SetHostScriptExecutionResultFuncInvoked bool
 
@@ -2761,6 +2792,9 @@ type DataStore struct {
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
+
+	ListReadyToExecuteScriptsForHostFunc        ListReadyToExecuteScriptsForHostFunc
+	ListReadyToExecuteScriptsForHostFuncInvoked bool
 
 	NewScriptFunc        NewScriptFunc
 	NewScriptFuncInvoked bool
@@ -2836,6 +2870,9 @@ type DataStore struct {
 
 	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
 	ListPendingSoftwareInstallsFuncInvoked bool
+
+	ListReadyToExecuteSoftwareInstallsFunc        ListReadyToExecuteSoftwareInstallsFunc
+	ListReadyToExecuteSoftwareInstallsFuncInvoked bool
 
 	GetHostLastInstallDataFunc        GetHostLastInstallDataFunc
 	GetHostLastInstallDataFuncInvoked bool
@@ -2923,6 +2960,12 @@ type DataStore struct {
 
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
+
+	GetAllVPPAppsFunc        GetAllVPPAppsFunc
+	GetAllVPPAppsFuncInvoked bool
+
+	InsertVPPAppsFunc        InsertVPPAppsFunc
+	InsertVPPAppsFuncInvoked bool
 
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
@@ -3017,6 +3060,9 @@ type DataStore struct {
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
 
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -3095,6 +3141,13 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	s.NewUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewUserFunc(ctx, user)
+}
+
+func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {
+	s.mu.Lock()
+	s.HasUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasUsersFunc(ctx)
 }
 
 func (s *DataStore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -3986,6 +4039,34 @@ func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
 	return s.UpdateOSVersionsFunc(ctx)
 }
 
+func (s *DataStore) GetAndroidDS() android.Datastore {
+	s.mu.Lock()
+	s.GetAndroidDSFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidDSFunc()
+}
+
+func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.NewAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+	s.mu.Lock()
+	s.UpdateAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
+}
+
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	s.mu.Lock()
 	s.CountHostsInTargetsFuncInvoked = true
@@ -4399,11 +4480,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
+func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	s.mu.Lock()
 	s.InsertSoftwareInstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, selfService, policyID)
+	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, opts)
 }
 
 func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
@@ -4637,7 +4718,7 @@ func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []
 	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
 }
 
-func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
@@ -6590,13 +6671,6 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
-func (s *DataStore) NewInternalScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
-	s.mu.Lock()
-	s.NewInternalScriptExecutionRequestFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewInternalScriptExecutionRequestFunc(ctx, request)
-}
-
 func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
@@ -6616,6 +6690,13 @@ func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID 
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, onlyShowInternal)
+}
+
+func (s *DataStore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.ListReadyToExecuteScriptsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListReadyToExecuteScriptsForHostFunc(ctx, hostID, onlyShowInternal)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -6791,6 +6872,13 @@ func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint
 	s.ListPendingSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
+	s.mu.Lock()
+	s.ListReadyToExecuteSoftwareInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListReadyToExecuteSoftwareInstallsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostLastInstallData(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
@@ -6996,11 +7084,25 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool, policyID *uint) error {
+func (s *DataStore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetAllVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllVPPAppsFunc(ctx)
+}
+
+func (s *DataStore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.InsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppsFunc(ctx, apps)
+}
+
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, opts fleet.HostSoftwareInstallOptions) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, selfService, policyID)
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, appID, commandUUID, associatedEventID, opts)
 }
 
 func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -7211,4 +7313,11 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	s.ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }

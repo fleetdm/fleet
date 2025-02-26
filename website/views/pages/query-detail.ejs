@@ -20,22 +20,30 @@
           </div>
           <p purpose="query-description"><%- query.description %></p>
           <div purpose="query-check">
-            <p>To learn more about queries, <a href="/guides/queries">check this guide</a></p>
+            <p>To learn more about queries, <a href="/guides/queries">check this guide</a>.</p>
             <div purpose="codeblock">
               <div purpose="codeblock-tabs" >
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="query.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="query.bash">Bash<span purpose="new-badge">NEW</span></a>
                 <div purpose="copy-button-tab">
                   <div purpose="copy-button"></div>
                 </div>
               </div>
-              <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= query.query %></code></pre>
-              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= query.powershell %></code></pre>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql" v-pre><%= query.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks" v-pre><%= query.powershell %></code></pre>
+              <pre v-show="selectedTab === 'bash'"><code class="hljs sh" v-pre><%= query.bash %></code></pre>
             </div>
             <div purpose="powershell-note" v-if="selectedTab === 'ps'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div>
                 <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'bash'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>Bash commands for macOS are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
               </div>
             </div>
           </div>
@@ -45,10 +53,10 @@
             <div purpose="query-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
-                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>
-                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'selected' : '']" v-if="query.platform.includes('windows')"/>
-                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>
-                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>
+                <h1><img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>Apple</h1>
+                <h1><img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('windows')"/>Windows</h1>
+                <h1><img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' || selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>Linux</h1>
+                <h1><img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' || selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>ChromeOS</h1>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">

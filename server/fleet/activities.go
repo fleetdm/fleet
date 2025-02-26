@@ -12,6 +12,42 @@ type ContextKey string
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+type Activity struct {
+	CreateTimestamp
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
+	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	Type           string           `json:"type" db:"activity_type"`
+	Details        *json.RawMessage `json:"details" db:"details"`
+	Streamed       *bool            `json:"-" db:"streamed"`
+	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
+}
+
+// AuthzType implement AuthzTyper to be able to verify access to activities
+func (*Activity) AuthzType() string {
+	return "activity"
+}
+
+// UpcomingActivity is the augmented activity type used to return the list of
+// upcoming (pending) activities for a host.
+type UpcomingActivity struct {
+	Activity
+
+	Cancellable bool `json:"cancellable" db:"cancellable"`
+}
+
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedPack{},
@@ -70,6 +106,9 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+
+	ActivityTypeEnabledGitOpsMode{},
+	ActivityTypeDisabledGitOpsMode{},
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
@@ -587,33 +626,6 @@ func (a ActivityTypeUserAddedBySSO) ActivityName() string {
 func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when new users are added via SSO JIT provisioning`,
 		`This activity does not contain any detail fields.`, ""
-}
-
-type Activity struct {
-	CreateTimestamp
-
-	// ID is the activity id in the activities table, it is omitted for upcoming
-	// activities as those are "virtual activities" generated from entries in
-	// queues (e.g. pending host_script_results).
-	ID uint `json:"id,omitempty" db:"id"`
-
-	// UUID is the activity UUID for the upcoming activities, as identified in
-	// the relevant queue (e.g. pending host_script_results). It is omitted for
-	// past activities as those are "real activities" with an activity id.
-	UUID string `json:"uuid,omitempty" db:"uuid"`
-
-	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
-	Type          string           `json:"type" db:"activity_type"`
-	Details       *json.RawMessage `json:"details" db:"details"`
-	Streamed      *bool            `json:"-" db:"streamed"`
-}
-
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
 }
 
 type ActivityTypeUserLoggedIn struct {
@@ -1141,6 +1153,26 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledGitOpsMode struct{}
+
+func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
+	return "enabled_gitops_mode"
+}
+
+func (a ActivityTypeEnabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledGitOpsMode struct{}
+
+func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
+	return "disabled_gitops_mode"
+}
+
+func (a ActivityTypeDisabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables GitOps mode.`, `This activity does not contain any detail fields.`, ``
 }
 
 type ActivityTypeAddedBootstrapPackage struct {

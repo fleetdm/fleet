@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IAppConfigFormProps, IFormField } from "../constants";
 
@@ -23,6 +24,8 @@ const WebAddress = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+
   const [formData, setFormData] = useState<IWebAddressFormData>({
     serverURL: appConfig.server_settings.server_url || "",
   });
@@ -79,16 +82,22 @@ const WebAddress = ({
             onBlur={validateForm}
             error={formErrors.server_url}
             tooltip="The base URL of this instance for use in Fleet links."
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

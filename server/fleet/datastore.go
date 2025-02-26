@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -54,6 +55,8 @@ type Datastore interface {
 	// UserStore contains methods for managing users in a datastore
 
 	NewUser(ctx context.Context, user *User) (*User, error)
+	// HasUsers returns whether Fleet has any users registered
+	HasUsers(ctx context.Context) (bool, error)
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
@@ -387,6 +390,14 @@ type Datastore interface {
 	OSVersion(ctx context.Context, osVersionID uint, teamFilter *TeamFilter) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
 
+	// ////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	GetAndroidDS() android.Datastore
+	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
+	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 
@@ -555,7 +566,7 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string, error)
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts HostSoftwareInstallOptions) (string, error)
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
 	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
@@ -668,7 +679,7 @@ type Datastore interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
-	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
@@ -987,7 +998,7 @@ type Datastore interface {
 	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
-	// matched, that secret is returned. Otherwise, an error is returned.
+	// matched, that secret is returned. Otherwise, a NotFoundError is returned.
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
@@ -1624,9 +1635,6 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// NewInternalScriptExecutionRequest creates a new host script result entry with
-	// just the script to run information (result is not yet available), with the script marked as internal.
-	NewInternalScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// and returns the updated host script result record. Note that it does not
 	// fail if the script execution request does not exist, in this case it will
@@ -1641,6 +1649,10 @@ type Datastore interface {
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
 	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
+	// except that it only returns those that are ready to execute ("activated" in
+	// the upcoming activities queue, available for orbit to process).
+	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -1740,6 +1752,11 @@ type Datastore interface {
 	// ListPendingSoftwareInstalls returns a list of software
 	// installer execution IDs that have not yet been run for a given host
 	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
+	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
+	// except that it only returns software installs that are ready to execute
+	// ("activated" in the upcoming activities queue, available for orbit to
+	// process).
+	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
@@ -1832,7 +1849,13 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppTeam) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
-	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
+	// GetAllVPPApps returns all the VPP apps in Fleet, across all teams.
+	GetAllVPPApps(ctx context.Context) ([]*VPPApp, error)
+	// InsertVPPApps inserts the given VPP apps in the database.
+	InsertVPPApps(ctx context.Context, apps []*VPPApp) error
+
+	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 
 	GetVPPTokenByLocation(ctx context.Context, loc string) (*VPPTokenDB, error)
@@ -1954,6 +1977,11 @@ type Datastore interface {
 	// ExpandEmbeddedSecretsAndUpdatedAt is like ExpandEmbeddedSecrets but also
 	// returns the latest updated_at time of the secrets used in the expansion.
 	ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Android
+
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

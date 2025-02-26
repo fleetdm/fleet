@@ -36,8 +36,17 @@ export const renderWithAppContext = (
   );
 };
 
+// recursively make all fields in T optional
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
 interface IContextOptions {
-  app?: Partial<IAppContext>;
+  // DeepPartial allows inclusion of only fields needed for testing, even if such a partial type
+  // is not acceptable in actual application code
+  app?: DeepPartial<IAppContext>;
   notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
   query?: Partial<IQueryContext>;

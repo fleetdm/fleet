@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -171,7 +172,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.Nil(t, v)
 	require.Error(t, err)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
 	// Insert Host Count
@@ -268,7 +269,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.Nil(t, v)
 	require.Error(t, err)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
 	// Insert Host Count
