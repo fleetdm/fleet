@@ -73,7 +73,12 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 		{
 			name:  "missing value",
 			input: "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=",
-			err:   true,
+			expected: &HostCertificateNameDetails{
+				Country:            "US",
+				Organization:       "Fleet Device Management Inc.",
+				OrganizationalUnit: "Fleet Device Management Inc.",
+				CommonName:         "",
+			},
 		},
 		{
 			name:     "missing first slash",
