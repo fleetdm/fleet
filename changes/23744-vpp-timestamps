@@ -1,0 +1,16 @@
+* Added created_at timestamp for when a VPP app was added to a specific team.
+
+NOTE: The database migration for the above hydrates timestamps for existing VPP app team associations based on when the associated VPP apps were first added to the database. To hydrate more accurate timestamps by pulling from VPP app add/edit activities, you can run the following query manually:
+
+```sql
+UPDATE vpp_apps_teams vat
+LEFT JOIN (SELECT MAX(created_at) added_at, details->>"$.app_store_id" adam_id, details->>"$.platform" platform, details->>"$.team_id" team_id
+    	FROM activities WHERE activity_type = 'added_app_store_app' GROUP BY adam_id, platform, team_id) aa ON
+	vat.global_or_team_id = aa.team_id AND vat.adam_id = aa.adam_id AND vat.platform = aa.platform
+LEFT JOIN (SELECT MAX(created_at) edited_at, details->>"$.app_store_id" adam_id, details->>"$.platform" platform, details->>"$.team_id" team_id
+		FROM activities WHERE activity_type = 'edited_app_store_app' GROUP BY adam_id, platform, team_id) ae ON
+	vat.global_or_team_id = ae.team_id AND vat.adam_id = ae.adam_id AND vat.platform = ae.platform
+SET vat.created_at = COALESCE(added_at, vat.created_at), vat.updated_at = COALESCE(edited_at, added_at, vat.updated_at);
+```
+
+The above query is not included in migrations as it requires full table scans of the `activities` table, which may take awhile.

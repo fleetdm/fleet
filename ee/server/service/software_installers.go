@@ -1409,11 +1409,15 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+	if payload.BundleIdentifier != "" {
+		payload.Source = "apps"
+	} else {
+		source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+		}
+		payload.Source = source
 	}
-	payload.Source = source
 
 	platform, err := fleet.SofwareInstallerPlatformFromExtension(meta.Extension)
 	if err != nil {

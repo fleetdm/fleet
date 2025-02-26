@@ -5,6 +5,7 @@ import { IMdmApple } from "interfaces/mdm";
 import { readableDate } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IApplePushCertInfoProps {
   baseClass: string;
@@ -43,12 +44,31 @@ const ApplePushCertInfo = ({
         </div>
       </dl>
       <div className={`${baseClass}__apns-button-wrap`}>
-        <Button variant="inverse" onClick={onClickTurnOff}>
-          Turn off MDM
-        </Button>
-        <Button className="save-loading" variant="brand" onClick={onClickRenew}>
-          Renew certificate
-        </Button>
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button
+              variant="inverse"
+              onClick={onClickTurnOff}
+              disabled={disableChildren}
+            >
+              Turn off MDM
+            </Button>
+          )}
+        />
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button
+              className="save-loading"
+              variant="brand"
+              onClick={onClickRenew}
+              disabled={disableChildren}
+            >
+              Renew certificate
+            </Button>
+          )}
+        />
       </div>
     </>
   );

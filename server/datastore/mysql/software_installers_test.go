@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1399,7 +1400,7 @@ func testDeleteSoftwareInstallers(t *testing.T, ds *Datastore) {
 
 	// deleting again returns an error, no such installer
 	err = ds.DeleteSoftwareInstaller(ctx, softwareInstallerID)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 }
 
@@ -2074,6 +2075,39 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.NotNil(t, team1Policies[0].TeamID)
 	require.Equal(t, team1.ID, *team1Policies[0].TeamID)
 
+	// Test Mac FMA
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+	installerFMA, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:     tfr1,
+		BundleIdentifier:  "com.foo.fma",
+		Platform:          "darwin",
+		Extension:         "dmg",
+		FleetLibraryAppID: ptr.Uint(fma.ID),
+		StorageID:         "storage1",
+		Filename:          "foobar1",
+		Title:             "FooFMA",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		AutomaticInstall:  true,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 2)
+	require.Equal(t, "[Install software] FooFMA", team1Policies[1].Name)
+	require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo.fma';", team1Policies[1].Query)
+	require.Equal(t, "Policy triggers automatic install of FooFMA on each host that's missing this software.", team1Policies[1].Description)
+	require.Equal(t, "darwin", team1Policies[1].Platform)
+	require.NotNil(t, team1Policies[1].SoftwareInstallerID)
+	require.Equal(t, installerFMA, *team1Policies[1].SoftwareInstallerID)
+	require.NotNil(t, team1Policies[1].TeamID)
+	require.Equal(t, team1.ID, *team1Policies[1].TeamID)
+
 	// Test msi.
 	installerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:    tfr1,
@@ -2196,8 +2230,8 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 
 	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, team1Policies, 3)
-	require.Equal(t, "[Install software] OtherFoobar (pkg) 2", team1Policies[2].Name)
+	require.Len(t, team1Policies, 4)
+	require.Equal(t, "[Install software] OtherFoobar (pkg) 2", team1Policies[3].Name)
 
 	team3, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
 	require.NoError(t, err)

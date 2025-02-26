@@ -54,6 +54,7 @@ type addAppStoreAppRequest struct {
 	AppStoreID       string                    `json:"app_store_id"`
 	Platform         fleet.AppleDevicePlatform `json:"platform"`
 	SelfService      bool                      `json:"self_service"`
+	AutomaticInstall bool                      `json:"automatic_install"`
 	LabelsIncludeAny []string                  `json:"labels_include_any"`
 	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
 }
@@ -67,10 +68,11 @@ func (r addAppStoreAppResponse) Error() error { return r.Err }
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
 	err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
-		VPPAppID:         fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
-		SelfService:      req.SelfService,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsExcludeAny: req.LabelsExcludeAny,
+		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
+		SelfService:          req.SelfService,
+		LabelsIncludeAny:     req.LabelsIncludeAny,
+		LabelsExcludeAny:     req.LabelsExcludeAny,
+		AddAutoInstallPolicy: req.AutomaticInstall,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil
