@@ -29,6 +29,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
   DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
   DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
+  DASHBOARD_ANDROID: `${URL_PREFIX}/dashboard/android`,
 
   /**
    * Admin pages

@@ -12,7 +12,7 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -35,7 +35,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  platform?: HostPlatform;
+  platform: HostPlatform;
   softwareUpdatedAt?: string;
   hostCanWriteSoftware: boolean;
   router: InjectedRouter;
@@ -100,8 +100,8 @@ const HostSoftware = ({
   hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const vulnFilterAndNotSupported =
-    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
+  const isUnsupported =
+    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -139,8 +139,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled:
-        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
+      enabled: isSoftwareEnabled && !isMyDevicePage && !isUnsupported,
       keepPreviousData: true,
       staleTime: 7000,
     }

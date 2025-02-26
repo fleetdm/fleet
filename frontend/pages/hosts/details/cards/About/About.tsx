@@ -11,13 +11,13 @@ import {
   IDeviceUser,
   mapDeviceUsersForDisplay,
 } from "interfaces/host";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
-import classnames from "classnames";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -49,8 +49,8 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const isIosOrIpadosHost =
-    aboutData.platform === "ios" || aboutData.platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(aboutData.platform);
+  const isAndroidHost = isAndroid(aboutData.platform);
 
   const renderHardwareSerialAndIPs = () => {
     if (isIosOrIpadosHost) {
@@ -59,6 +59,12 @@ const About = ({
           <DataSet title="Serial number" value={aboutData.hardware_serial} />
           <DataSet title="Hardware model" value={aboutData.hardware_model} />
         </>
+      );
+    }
+
+    if (isAndroidHost) {
+      return (
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
       );
     }
 
@@ -205,6 +211,8 @@ const About = ({
     );
   };
 
+  // TODO(android): confirm visible fields using actual android device data
+
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -222,7 +230,7 @@ const About = ({
             />
           }
         />
-        {!isIosOrIpadosHost && (
+        {!isIosOrIpadosHost && !isAndroidHost && (
           <DataSet
             title="Last restarted"
             value={

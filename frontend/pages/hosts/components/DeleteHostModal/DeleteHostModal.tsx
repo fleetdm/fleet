@@ -77,7 +77,11 @@ const DeleteHostModal = ({
               newTab
             />
           </li>
-          <li>iOS and iPadOS hosts will re-appear unless MDM is turned off.</li>
+          <li>
+            {/* TODO(android): iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
+            off. */}
+            iOS and iPadOS hosts will re-appear unless MDM is turned off.
+          </li>
         </ul>
         <div className="modal-cta-wrap">
           <Button

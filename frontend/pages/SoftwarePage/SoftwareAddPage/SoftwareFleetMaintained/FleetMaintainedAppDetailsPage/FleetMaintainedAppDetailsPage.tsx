@@ -129,6 +129,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(

@@ -1530,7 +1530,8 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	}
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
-		decryptable *bool) error {
+		decryptable *bool,
+	) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
@@ -2013,7 +2014,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0a4 (64-bit)",
-				Version: "3.14.0-alpha4",
+				Version: "3.14.0a4",
 				Source:  "programs",
 			},
 		},
@@ -2027,7 +2028,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0b3 (64-bit)",
-				Version: "3.14.0-beta3",
+				Version: "3.14.0b3",
 				Source:  "programs",
 			},
 		},
@@ -2041,7 +2042,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0rc2 (64-bit)",
-				Version: "3.14.0-rc2",
+				Version: "3.14.0rc2",
 				Source:  "programs",
 			},
 		},
