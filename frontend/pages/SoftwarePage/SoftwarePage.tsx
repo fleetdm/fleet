@@ -298,7 +298,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       setShowAddSoftwareModal(true);
     } else {
       router.push(
-        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+        getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
+          team_id: currentTeamId,
+        })
       );
     }
   }, [currentTeamId, router]);

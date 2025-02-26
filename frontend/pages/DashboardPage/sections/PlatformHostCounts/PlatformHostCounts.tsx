@@ -8,6 +8,7 @@ import { PlatformValueOptions } from "utilities/constants";
 import DataError from "components/DataError";
 
 import HostCountCard from "../../cards/HostCountCard";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "platform-host-counts";
 
@@ -71,9 +72,9 @@ const PlatformHostCounts = ({
         iconName="darwin"
         count={macCount}
         title="macOS"
-        path={PATHS.MANAGE_HOSTS_LABEL(macLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(macLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };
@@ -93,9 +94,9 @@ const PlatformHostCounts = ({
         iconName="windows"
         count={windowsCount}
         title="Windows"
-        path={PATHS.MANAGE_HOSTS_LABEL(windowsLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(windowsLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };
@@ -115,9 +116,9 @@ const PlatformHostCounts = ({
         iconName="linux"
         count={linuxCount}
         title="Linux"
-        path={PATHS.MANAGE_HOSTS_LABEL(linuxLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(linuxLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };
@@ -138,9 +139,9 @@ const PlatformHostCounts = ({
         iconName="chrome"
         count={chromeCount}
         title="Chromebooks"
-        path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(chromeLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };
@@ -161,9 +162,9 @@ const PlatformHostCounts = ({
         iconName="iOS"
         count={iosCount}
         title="iPhones"
-        path={PATHS.MANAGE_HOSTS_LABEL(iosLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(iosLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };
@@ -184,9 +185,9 @@ const PlatformHostCounts = ({
         iconName="iPadOS"
         count={ipadosCount}
         title="iPads"
-        path={PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId).concat(
-          teamId !== undefined ? `?team_id=${teamId}` : ""
-        )}
+        path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId), {
+          team_id: teamId,
+        })}
       />
     );
   };

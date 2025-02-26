@@ -100,18 +100,8 @@ export default {
   EDIT_LABEL: (labelId: number): string => `${URL_PREFIX}/labels/${labelId}`,
   EDIT_QUERY: (queryId: number): string =>
     `${URL_PREFIX}/queries/${queryId}/edit`,
-  LIVE_QUERY: (
-    queryId: number | null,
-    teamId?: number,
-    hostId?: number
-  ): string => {
-    const baseUrl = `${URL_PREFIX}/queries/${queryId || "new"}/live`;
-    const queryParams = buildQueryStringFromParams({
-      team_id: teamId,
-      host_id: hostId,
-    });
-    return queryParams ? `${baseUrl}?${queryParams}` : baseUrl;
-  },
+  LIVE_QUERY: (queryId: number | null): string =>
+    `${URL_PREFIX}/queries/${queryId || "new"}/live`,
   QUERY_DETAILS: (queryId: number): string =>
     `${URL_PREFIX}/queries/${queryId}`,
   EDIT_POLICY: (policyId: number): string =>

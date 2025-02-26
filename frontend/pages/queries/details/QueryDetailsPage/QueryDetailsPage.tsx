@@ -313,7 +313,13 @@ const QueryDetailsPage = ({
                         onClick={() => {
                           queryId &&
                             router.push(
-                              PATHS.LIVE_QUERY(queryId, currentTeamId, hostId)
+                              getPathWithQueryParams(
+                                PATHS.LIVE_QUERY(queryId),
+                                {
+                                  host_id: hostId,
+                                  team_id: currentTeamId,
+                                }
+                              )
                             );
                         }}
                         disabled={isLiveQueryDisabled}

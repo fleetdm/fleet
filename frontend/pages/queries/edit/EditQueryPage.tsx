@@ -55,6 +55,9 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const hostId = location.query.host_id
+    ? parseInt(location.query.host_id as string, 10)
+    : undefined;
 
   const {
     currentTeamName: teamNameForQuery,
@@ -173,7 +176,9 @@ const EditQueryPage = ({
     !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
-      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedQuery?.team_id?.toString(),
+      })
     );
   }
 
@@ -411,7 +416,7 @@ const EditQueryPage = ({
             backendValidators={backendValidators}
             isQuerySaving={isQuerySaving}
             isQueryUpdating={isQueryUpdating}
-            hostId={parseInt(location.query.host_id as string, 10)}
+            hostId={hostId}
             queryReportsDisabled={
               appConfig?.server_settings.query_reports_disabled
             }

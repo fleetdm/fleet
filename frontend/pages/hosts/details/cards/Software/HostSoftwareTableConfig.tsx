@@ -31,6 +31,7 @@ import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTa
 
 import InstallStatusCell from "./InstallStatusCell";
 import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
@@ -183,8 +184,9 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source, app_store_app } = cellProps.row.original;
 
-        const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString().concat(`?team_id=${teamId}`)
+        const softwareTitleDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
+          { team_id: teamId }
         );
 
         return (

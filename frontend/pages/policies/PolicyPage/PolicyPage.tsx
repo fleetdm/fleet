@@ -24,6 +24,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
 import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -215,7 +216,9 @@ const PolicyPage = ({
     !(storedPolicy?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
-      `${location.pathname}?team_id=${storedPolicy?.team_id?.toString()}`
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedPolicy?.team_id?.toString(),
+      })
     );
   }
 
