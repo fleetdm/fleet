@@ -104,7 +104,7 @@ function PoliciesPaginatedList(
 
   // Fetch a single page of policies.
   const queryClient = useQueryClient();
-  const DEFAULT_PAGE_SIZE = 8;
+  const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
   const fetchPage = useCallback((pageNumber: number) => {
