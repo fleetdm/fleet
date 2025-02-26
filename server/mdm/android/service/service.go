@@ -238,6 +238,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	user, err := svc.fleetDS.UserOrDeletedUserByID(ctx, enterprise.UserID)
 	switch {
 	case fleet.IsNotFound(err):
+		// This should never happen.
 		level.Error(svc.logger).Log("msg", "User that created the Android enterprise was not found", "user_id", enterprise.UserID)
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting user")
