@@ -90,15 +90,17 @@ Disk encryption keys are used to login to workstations (hosts) when the end user
 
 1. With the Linux host in front of you, restart it.
 
-2. When prompted to unlock the disk, enter the disk encryption key. 
+2. When prompted to unlock the disk, enter the disk encryption key.
 
-3. Next, delete the local password (passphrase) by opening Terminal and running the following command:
+3. On the **Host details** page in Fleet, find the local user's username in the **Users** table.
+
+4. Next, add the following script to Fleet (deletes the local password (passphrase)):
 
 ```
-passwd -d
+passwd -d <username>
 ```
 
-4. Now you can login to the workstation.
+5. Head back to the **Host details** page and select **Actions > Run script** to run the script.
 
 #### 
 
