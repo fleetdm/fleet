@@ -151,6 +151,60 @@ queries:
     - ../lib/c-suite.labels.yml
 ```
 
+## labels
+
+Currently, labels can specified in separate files in your `lib/` folder.
+
+### Options
+
+For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
+
+### Example
+
+#### Dynamic
+ 
+`lib/windows-arm.labels.yml`
+
+```yaml
+- name: Windows Arm
+  description: Windows hosts that are running on Arm64.
+  query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+  platform: windows
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+controls:
+  windows_settings:
+    custom_settings:
+      - path: ../lib/windows-profile.xml
+        labels_exclude_any_paths:
+        - ../lib/windows-arm.labels.yml
+```
+
+#### Manual
+ 
+`lib/c-suite.labels.yml`
+
+```yaml
+- name: Executive (C-suite) computers
+  hosts:
+  - FFHH37NTL8
+  - F2LYH0KG4Y
+  - H4D5WYVN0L
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+software:
+  packages:
+  - path: ../lib/software-name.package.yml
+    labels_include_any_paths:
+      - ../lib/c-suite.labels.yml
+```
+
 ## agent_options
 
 Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
@@ -244,15 +298,15 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any:
-          - Macs on Sequoia
+        labels_exclude_any_paths:
+          - ../lib/macos-sequoia.labels.yml
       - path: ../lib/macos-profile2.json
-        labels_include_all:
-          - Macs on Sonoma
+        labels_include_all_paths:
+          - ../lib/macos-sonoma.labels.yml
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any:
-          - Engineering
-          - Product
+        labels_include_any_paths:
+          - ../lib/engineering.labels.yml
+          - ../lib/marketing.labels.yml
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
@@ -300,7 +354,7 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
 
-Use `labels_include_all` to target hosts that have all labels in the array, `labels_include_any` to target hosts that have any label in the array, or `labels_exclude_any` to target hosts that don't have any of the labels in the array. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all_paths` to target hosts that have all labels, `labels_include_any_paths` to target hosts that have any label, or `labels_exclude_any_paths` to target hosts that don't have any of the labels. Only one of `labels_include_all_paths`, `labels_include_any_paths`, or `labels_exclude_any_paths` can be specified. If none are specified, all hosts are targeted.
 
 ### macos_setup
 
@@ -344,17 +398,16 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any:
-        - Engineering
-        - Customer Support
+      labels_include_any_paths:
+        - ../lib/engineering.labels.yml
+        - ../lib/marketing.labels.yml
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any:
-        - Product
-        - Marketing
+      labels_include_any_paths:
+        - ../lib/engineering.labels.yml
 ```
 
-Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Use `labels_include_any_paths` to target hosts that have any label or `labels_exclude_any_paths` to target hosts that don't have any label. Only one of `labels_include_any_paths` or `labels_exclude_any_paths` can be specified. If neither are specified, all hosts are targeted.
 
 ### packages
 
