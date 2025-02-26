@@ -18,6 +18,21 @@ columns:
     required: false
     description: |-
       Sets the value of the `-perm` flag.
+  - name: not_perm
+    type: text
+    required: false
+    description: |-
+      Sets the value of the `-not -perm` flag to find files that do NOT have the specified permissions.
+  - name: mindepth
+    type: text
+    required: false
+    description: |-
+      Sets the value of the `-mindepth` flag to specify the minimum directory depth.
+  - name: maxdepth
+    type: text
+    required: false
+    description: |-
+      Sets the value of the `-maxdepth` flag to specify the maximum directory depth.
   - name: path
     type: text
     required: false
