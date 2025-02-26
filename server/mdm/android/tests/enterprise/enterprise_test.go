@@ -2,6 +2,7 @@ package enterprise_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,7 +28,7 @@ type enterpriseTestSuite struct {
 func (s *enterpriseTestSuite) SetupSuite() {
 	s.WithServer.SetupSuite(s.T(), "androidEnterpriseTestSuite")
 	s.Token = "bozo"
-	service.SignupSSEInterval = 10 * time.Millisecond
+	s.Svc.(*service.Service).SignupSSEInterval = 10 * time.Millisecond
 }
 
 func (s *enterpriseTestSuite) SetupTest() {
@@ -69,15 +71,17 @@ func (s *enterpriseTestSuite) TestEnterpriseSSE() {
 	// Test happy path
 	resp := s.Do("GET", "/api/v1/fleet/android_enterprise/signup_sse", nil, http.StatusOK)
 	sseDone := make(chan struct{})
-	buf := make([]byte, 1024)
 	go func() {
-		n, _ := resp.Body.Read(buf)
-		assert.Equal(s.T(), service.SignupSSESuccess, string(buf[:n]))
+		data, err := io.ReadAll(resp.Body)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), service.SignupSSESuccess, string(data))
 		close(sseDone)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
+	s.AppConfigMu.Lock()
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = true
+	s.AppConfigMu.Unlock()
 
 	select {
 	case <-sseDone:
@@ -88,14 +92,16 @@ func (s *enterpriseTestSuite) TestEnterpriseSSE() {
 
 	// Test with Android already enabled
 	resp = s.Do("GET", "/api/v1/fleet/android_enterprise/signup_sse", nil, http.StatusOK)
-	n, _ := resp.Body.Read(buf)
-	assert.Equal(s.T(), service.SignupSSESuccess, string(buf[:n]))
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), service.SignupSSESuccess, string(data))
 
 	// Test with error
 	s.WithServer.FleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return nil, assert.AnError
 	}
 	resp = s.Do("GET", "/api/v1/fleet/android_enterprise/signup_sse", nil, http.StatusOK)
-	n, _ = resp.Body.Read(buf)
-	assert.Contains(s.T(), string(buf[:n]), assert.AnError.Error())
+	data, err = io.ReadAll(resp.Body)
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), string(data), assert.AnError.Error())
 }

@@ -20,12 +20,10 @@ import (
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
 const (
-	defaultAndroidPolicyID = 1
-	SignupSSESuccess       = "Android Enterprise successfully connected"
+	defaultAndroidPolicyID   = 1
+	DefaultSignupSSEInterval = 3 * time.Second
+	SignupSSESuccess         = "Android Enterprise successfully connected"
 )
-
-// SignupSSEInterval can be overwritten in tests.
-var SignupSSEInterval = 3 * time.Second
 
 type Service struct {
 	logger  kitlog.Logger
@@ -33,6 +31,9 @@ type Service struct {
 	ds      android.Datastore
 	fleetDS fleet.Datastore
 	proxy   android.Proxy
+
+	// SignupSSEInterval can be overwritten in tests.
+	SignupSSEInterval time.Duration
 }
 
 func NewService(
@@ -49,26 +50,18 @@ func NewServiceWithProxy(
 	fleetDS fleet.Datastore,
 	proxy android.Proxy,
 ) (android.Service, error) {
-	prx := proxy.NewProxy(ctx, logger)
-	return NewServiceWithProxy(logger, fleetDS, prx)
-}
-
-func NewServiceWithProxy(
-	logger kitlog.Logger,
-	fleetDS fleet.Datastore,
-	proxy android.Proxy,
-) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
 	return &Service{
-		logger:  logger,
-		authz:   authorizer,
-		ds:      fleetDS.GetAndroidDS(),
-		fleetDS: fleetDS,
-		proxy:   proxy,
+		logger:            logger,
+		authz:             authorizer,
+		ds:                fleetDS.GetAndroidDS(),
+		fleetDS:           fleetDS,
+		proxy:             proxy,
+		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
 }
 
@@ -423,7 +416,7 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 			case <-ctx.Done():
 				level.Debug(svc.logger).Log("msg", "Context cancelled during Android signup SSE")
 				return
-			case <-time.After(SignupSSEInterval):
+			case <-time.After(svc.SignupSSEInterval):
 				if svc.signupSSECheck(ctx, done) {
 					return
 				}

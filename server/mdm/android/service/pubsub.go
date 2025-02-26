@@ -50,8 +50,8 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		}
 	}
 
-	switch notificationType {
-	case string(android.PubSubEnrollment):
+	switch android.NotificationType(notificationType) {
+	case android.PubSubEnrollment:
 		var device androidmanagement.Device
 		err := json.Unmarshal(rawData, &device)
 		if err != nil {
@@ -62,7 +62,7 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 			level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "enrolling Android host")
 		}
-	case string(android.PubSubStatusReport):
+	case android.PubSubStatusReport:
 		var device androidmanagement.Device
 		err := json.Unmarshal(rawData, &device)
 		if err != nil {

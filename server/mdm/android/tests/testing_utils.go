@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -36,11 +37,15 @@ const (
 
 type WithServer struct {
 	suite.Suite
-	DS               *mysql.Datastore
-	FleetDS          ds_mock.Store
-	Server           *httptest.Server
-	Token            string
-	AppConfig        fleet.AppConfig
+	Svc     android.Service
+	DS      *mysql.Datastore
+	FleetDS ds_mock.Store
+	Server  *httptest.Server
+	Token   string
+
+	AppConfig   fleet.AppConfig
+	AppConfigMu sync.Mutex
+
 	Proxy            proxy_mock.Proxy
 	ProxyCallbackURL string
 }
@@ -56,6 +61,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	svc, err := service.NewServiceWithProxy(logger, &ts.FleetDS, &ts.Proxy)
 	require.NoError(t, err)
+	ts.Svc = svc
 
 	ts.Server = runServerForTests(t, logger, &fleetSvc, svc)
 }
@@ -65,10 +71,16 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		return ts.DS
 	}
 	ts.FleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
-		return &ts.AppConfig, nil
+		// Create a copy to prevent race conditions
+		ts.AppConfigMu.Lock()
+		appConfigCopy := ts.AppConfig
+		ts.AppConfigMu.Unlock()
+		return &appConfigCopy, nil
 	}
 	ts.FleetDS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
+		ts.AppConfigMu.Lock()
 		ts.AppConfig.MDM.AndroidEnabledAndConfigured = configured
+		ts.AppConfigMu.Unlock()
 		return nil
 	}
 }
