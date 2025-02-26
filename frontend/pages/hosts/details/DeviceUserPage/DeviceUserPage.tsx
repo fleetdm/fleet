@@ -18,6 +18,7 @@ import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
+import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -73,6 +74,9 @@ const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
+
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 500;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 interface IDeviceUserPageProps {
   location: {
@@ -150,19 +154,6 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
-    }
-  );
-
-  const {
-    data: deviceCertificates,
-    isLoading: isLoadingDeviceCertificates,
-    isError: isErrorDeviceCertificates,
-  } = useQuery(
-    ["hostCertificates", deviceAuthToken],
-    () => deviceUserAPI.getDeviceCertificates(deviceAuthToken),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!deviceUserAPI,
     }
   );
 
@@ -262,6 +253,25 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
+  const isAppleHost = host && isAppleDevice(host.platform);
+
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+  } = useQuery(
+    ["hostCertificates", deviceAuthToken],
+    () =>
+      deviceUserAPI.getDeviceCertificates(
+        deviceAuthToken,
+        DEFAULT_CERTIFICATES_PAGE,
+        DEFAULT_CERTIFICATES_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!deviceUserAPI && isAppleHost,
+    }
+  );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -377,13 +387,9 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const isDarwinHost = host?.platform === "darwin";
-    const isIosOrIpadosHost =
-      host?.platform === "ios" || host?.platform === "ipados";
-
     return (
       <div className="core-wrapper">
-        {!host || isLoadingHost ? (
+        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -447,15 +453,14 @@ const DeviceUserPage = ({
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
-                  {(isIosOrIpadosHost || isDarwinHost) &&
-                    deviceCertificates?.certificates.length && (
-                      <CertificatesCard
-                        isMyDevicePage
-                        data={deviceCertificates}
-                        hostPlatform={host.platform}
-                        onSelectCertificate={onSelectCertificate}
-                      />
-                    )}
+                  {isAppleHost && deviceCertificates?.certificates.length && (
+                    <CertificatesCard
+                      isMyDevicePage
+                      data={deviceCertificates}
+                      hostPlatform={host.platform}
+                      onSelectCertificate={onSelectCertificate}
+                    />
+                  )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>

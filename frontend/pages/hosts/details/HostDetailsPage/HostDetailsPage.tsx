@@ -15,7 +15,7 @@ import activitiesAPI, {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
-import hostAPI from "services/entities/hosts";
+import hostAPI, { IGetHostCertificatesResponse } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -132,6 +132,8 @@ interface IHostDetailsSubNavItem {
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 500;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 const HostDetailsPage = ({
   router,
@@ -461,12 +463,30 @@ const HostDetailsPage = ({
     data: hostCertificates,
     isLoading: isLoadingHostCertificates,
     isError: isErrorHostCertificates,
-  } = useQuery(
-    ["hostCertificates", host_id],
-    () => hostAPI.getHostCertificates(hostIdFromURL),
+  } = useQuery<
+    IGetHostCertificatesResponse,
+    Error,
+    IGetHostCertificatesResponse
+  >(
+    [
+      "host-certificates",
+      host_id,
+      DEFAULT_CERTIFICATES_PAGE,
+      DEFAULT_CERTIFICATES_PAGE_SIZE,
+    ],
+    () =>
+      hostAPI.getHostCertificates(
+        hostIdFromURL,
+        DEFAULT_CERTIFICATES_PAGE,
+        DEFAULT_CERTIFICATES_PAGE_SIZE
+      ),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!hostIdFromURL,
+      enabled:
+        !!hostIdFromURL &&
+        (host?.platform === "darwin" ||
+          host?.platform === "ios" ||
+          host?.platform === "ipados"),
     }
   );
 
@@ -756,7 +776,8 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    isLoadingHostCertificates
   ) {
     return <Spinner />;
   }
@@ -828,8 +849,7 @@ const HostDetailsPage = ({
   };
 
   const isDarwinHost = host.platform === "darwin";
-  const isIosOrIpadosHost =
-    host.platform === "ios" || host.platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,

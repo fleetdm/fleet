@@ -5,6 +5,7 @@ import { IHostCertificate } from "interfaces/certificates";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
+import TableCount from "components/TableContainer/TableCount";
 
 import generateTableConfig from "./CertificatesTableConfig";
 
@@ -50,6 +51,8 @@ const CertificatesTable = ({
       isLoading={false}
       onClickRow={onClickTableRow}
       renderTableHelpText={() => helpText}
+      renderCount={() => <TableCount name="certificates" count={data.length} />}
+      disablePagination
     />
   );
 };
