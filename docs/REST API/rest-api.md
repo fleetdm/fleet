@@ -9795,12 +9795,14 @@ List available Fleet-maintained apps.
 
 ```json
 {
+  "count": 19,
   "fleet_maintained_apps": [
     {
       "id": 1,
       "name": "1Password",
       "version": "8.10.40",
       "platform": "darwin"
+      "software_title_id": 3
     },
     {
       "id": 2,
