@@ -5,7 +5,11 @@ import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
-import { customDeviceHandler } from "test/handlers/device-handler";
+import {
+  customDeviceHandler,
+  defaultDeviceCertificatesHandler,
+  defaultDeviceHandler,
+} from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
 const mockRouter = {
@@ -34,6 +38,9 @@ const mockLocation = {
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
+    mockServer.use(defaultDeviceHandler);
+    mockServer.use(defaultDeviceCertificatesHandler);
+
     const render = createCustomRenderer({
       withBackendMock: true,
     });
