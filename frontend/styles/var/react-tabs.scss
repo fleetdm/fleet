@@ -1,0 +1,8 @@
+#app .component__tabs-wrapper .react-tabs__tab{
+    @media (max-width: $break-sm) {
+        display: block;
+        &:before {
+            display: none;
+        }
+    }
+}

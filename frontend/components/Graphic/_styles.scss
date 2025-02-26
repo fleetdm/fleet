@@ -3,4 +3,7 @@
   // aligns properly in text, buttons, dropdowns, summary tile custom component
   display: inline-flex;
   align-self: center;
+  @media(max-width: $break-xs) {
+    scale: 0.8;
+  }
 }
