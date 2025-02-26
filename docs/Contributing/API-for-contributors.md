@@ -573,6 +573,10 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
 - [SCEP proxy](#scep-proxy)
+- [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
+- [Connect Android Enterprise](#connect-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1278,6 +1282,128 @@ Content-Type: application/octet-stream
 `/mdm/scep/proxy/{identifier}`
 
 This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+
+### Get Android Enterprise signup URL
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_signup_url": "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=S7512150D1D59A3BK"
+}
+```
+
+### Connect Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to connect (bind) Android Enterprise to Fleet and to turn on Android MDM features.
+
+`GET /api/v1/fleet/android_enterprise/connect/:token`
+
+This is callback URL that will be open after user completes Google's signup flow. It will self-close and return user to settings page.
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| token | string | path | **Required.** The signup token associated with Android Enterprise in Fleet. |
+| enterpriseToken | string | query | **Required.** The enterprise token that's returned from Google API. |
+
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/connect/6177a9cb410ff61f20015ad?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+
+##### Default response
+
+`Status: 200`
+
+```
+<html><!-- self-closing page --></html>
+```
+
+### Delete Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise/`
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
+
+### Create Android enrollment token
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+
+`POST /api/v1/fleet/android_enterprise/enrollment_token`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| enroll_secret | string | query | **Required.** The enroll secret of a team in Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
+  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF"
+}
+```
+
+### Get Android Enterprise server-sent event
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+##### Default response
+
+`Status: 200`
+
+```
+Android Enterprise successfully connected
+```
+
+### Android Enterprise PubSub push endpoint
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
+
+`POST /api/v1/fleet/android_enterprise/pubsub`
 
 ## Get or apply configuration files
 
