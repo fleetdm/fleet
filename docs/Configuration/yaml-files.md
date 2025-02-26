@@ -561,7 +561,7 @@ org_settings:
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: 'myPassword'
-    scep_proxy:
+    custom_scep_proxy:
       - name: SCEP_VPN
         server_url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
