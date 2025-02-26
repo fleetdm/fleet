@@ -147,22 +147,28 @@ const PolicyRunScriptModal = ({
                   runScriptEnabled: !!item.scriptIdToRun,
                 };
                 return item.runScriptEnabled ? (
-                  <Dropdown
-                    options={availableScriptOptions} // Options filtered for policy's platform(s)
-                    value={formPolicy.scriptIdToRun}
-                    onChange={({ value }: IScriptDropdownField) =>
-                      onChange(
-                        onSelectPolicyScript(item, {
-                          name: formPolicy.name,
-                          value,
-                        })
-                      )
-                    }
-                    placeholder="Select script"
-                    className={`${baseClass}__script-dropdown`}
-                    name={formPolicy.name}
-                    parseTarget
-                  />
+                  <span
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Dropdown
+                      options={availableScriptOptions} // Options filtered for policy's platform(s)
+                      value={formPolicy.scriptIdToRun}
+                      onChange={({ value }: IScriptDropdownField) =>
+                        onChange(
+                          onSelectPolicyScript(item, {
+                            name: formPolicy.name,
+                            value,
+                          })
+                        )
+                      }
+                      placeholder="Select script"
+                      className={`${baseClass}__script-dropdown`}
+                      name={formPolicy.name}
+                      parseTarget
+                    />
+                  </span>
                 ) : null;
               }}
               footer={

@@ -283,7 +283,8 @@ const CalendarEventsModal = ({
             return (
               <Button
                 variant="text-icon"
-                onClick={() => {
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation();
                   setSelectedPolicyToPreview(item);
                   togglePreviewCalendarEvent();
                 }}

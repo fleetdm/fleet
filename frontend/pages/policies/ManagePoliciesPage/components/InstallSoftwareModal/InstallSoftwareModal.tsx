@@ -245,22 +245,28 @@ const InstallSoftwareModal = ({
                   installSoftwareEnabled: !!item.swIdToInstall,
                 };
                 return item.installSoftwareEnabled ? (
-                  <Dropdown
-                    options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
-                    value={formPolicy.swIdToInstall}
-                    onChange={({ value }: ISwDropdownField) =>
-                      onChange(
-                        onSelectPolicySoftware(item, {
-                          name: formPolicy.name,
-                          value,
-                        })
-                      )
-                    }
-                    placeholder="Select software"
-                    className={`${baseClass}__software-dropdown`}
-                    name={formPolicy.name}
-                    parseTarget
-                  />
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Dropdown
+                      options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
+                      value={formPolicy.swIdToInstall}
+                      onChange={({ value }: ISwDropdownField) =>
+                        onChange(
+                          onSelectPolicySoftware(item, {
+                            name: formPolicy.name,
+                            value,
+                          })
+                        )
+                      }
+                      placeholder="Select software"
+                      className={`${baseClass}__software-dropdown`}
+                      name={formPolicy.name}
+                      parseTarget
+                    />
+                  </span>
                 ) : null;
               }}
               footer={
