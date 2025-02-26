@@ -1752,14 +1752,14 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
       {
         "name": "SCEP_WIFI",
         "server_url": "https://example.com/scep",
-        "challenge": "********",
+        "challenge": "********"
       },
       {
         "name": "SCEP_VPN",
         "server_url": "https://example.com/scep",
-        "challenge": "********",
+        "challenge": "********"
       }
-    ],
+    ]
   }
 }
 ```
