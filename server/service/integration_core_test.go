@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
@@ -12990,4 +12991,80 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+}
+
+func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
+	t := s.T()
+	ctx := context.Background()
+
+	hostIDs := createAndroidHosts(t, s.ds, 3, nil)
+	notAndroidHost := createOrbitEnrolledHost(t, "darwin", "-4", s.ds)
+
+	// list labels, has the built-in ones, capture All and Android
+	var listResp listLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+	var allLblID, androidLblID uint
+	for _, lbl := range listResp.Labels {
+		switch lbl.Name {
+		case fleet.BuiltinLabelNameAllHosts:
+			allLblID = lbl.ID
+		case fleet.BuiltinLabelNameAndroid:
+			androidLblID = lbl.ID
+		}
+	}
+	require.NotZero(t, allLblID)
+	require.NotZero(t, androidLblID)
+
+	err := s.ds.AddLabelsToHost(ctx, notAndroidHost.ID, []uint{allLblID})
+	require.NoError(t, err)
+
+	pluckHostIDs := func(hosts []fleet.HostResponse) []uint {
+		ids := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+
+	// list hosts in all hosts
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allLblID), nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, len(hostIDs)+1)
+	wantIDs := append([]uint{notAndroidHost.ID}, hostIDs...)
+	require.ElementsMatch(t, wantIDs, pluckHostIDs(listHostsResp.Hosts))
+
+	// list android hosts
+	listHostsResp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", androidLblID), nil, http.StatusOK, &listHostsResp)
+	require.Len(t, listHostsResp.Hosts, len(hostIDs))
+	require.ElementsMatch(t, hostIDs, pluckHostIDs(listHostsResp.Hosts))
+}
+
+func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
+	ids := make([]uint, 0, count)
+	for i := range count {
+		host := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				Hostname:       fmt.Sprintf("hostname%d", i),
+				ComputerName:   fmt.Sprintf("computer_name%d", i),
+				Platform:       "android",
+				OSVersion:      "Android 14",
+				Build:          fmt.Sprintf("build%d", i),
+				Memory:         1024,
+				TeamID:         teamID,
+				HardwareSerial: uuid.NewString(),
+			},
+			Device: &android.Device{
+				DeviceID:             uuid.NewString(),
+				EnterpriseSpecificID: ptr.String(uuid.NewString()),
+				AndroidPolicyID:      ptr.Uint(1),
+				LastPolicySyncTime:   ptr.Time(time.Time{}),
+			},
+		}
+		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
+		ahost, err := ds.NewAndroidHost(context.Background(), host)
+		require.NoError(t, err)
+		ids = append(ids, ahost.Host.ID)
+	}
+	return ids
 }
