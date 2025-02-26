@@ -1673,7 +1673,7 @@ _Available in Fleet Premium._
 | profile_id       | string  | The ID of certificate profile in DigiCert. |
 | certificate_common_name      | string  | The certificate's common name. |
 | certificate_subject_alternative_name     | string  | The certificate's SAN name. |
-| certificate_seat_id     | string  | The ID of the DigiCert's seat. Seats are license units in DigiCert. |
+| certificate_seat_id     | string  | The ID of the DigiCert seat. Seats are license units in DigiCert. |
 
 
 <br/>
