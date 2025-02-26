@@ -2,6 +2,8 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import { getPathWithQueryParams } from "utilities/url";
 import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
@@ -16,8 +18,6 @@ import paths from "router/paths";
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "../ScriptUploader/helpers";
-import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "edit-script-modal";
 

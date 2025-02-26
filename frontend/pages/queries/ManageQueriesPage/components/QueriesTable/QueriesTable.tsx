@@ -2,17 +2,18 @@
 import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
+import { SingleValue } from "react-select-5";
 
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { SingleValue } from "react-select-5";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
@@ -21,7 +22,6 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import generateColumnConfigs from "./QueriesTableConfig";
-import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "queries-table";
 export interface IQueriesTableProps {

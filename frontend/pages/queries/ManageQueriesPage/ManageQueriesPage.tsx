@@ -7,7 +7,10 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+
 import {
   isQueryablePlatform,
   QueryablePlatform,
@@ -22,7 +25,7 @@ import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
-import { DEFAULT_QUERY } from "utilities/constants";
+
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -32,7 +35,6 @@ import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
-import { getPathWithQueryParams } from "utilities/url";
 
 const DEFAULT_PAGE_SIZE = 20;
 
