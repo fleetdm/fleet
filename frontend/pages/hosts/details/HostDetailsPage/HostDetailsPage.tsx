@@ -468,7 +468,12 @@ const HostDetailsPage = ({
     Error,
     IGetHostCertificatesResponse
   >(
-    ["host-certificates", host_id],
+    [
+      "host-certificates",
+      host_id,
+      DEFAULT_CERTIFICATES_PAGE,
+      DEFAULT_CERTIFICATES_PAGE_SIZE,
+    ],
     () =>
       hostAPI.getHostCertificates(
         hostIdFromURL,

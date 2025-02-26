@@ -18,6 +18,7 @@ import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
+import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -252,10 +253,7 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
-
-  const isDarwinHost = host?.platform === "darwin";
-  const isIosOrIpadosHost =
-    host?.platform === "ios" || host?.platform === "ipados";
+  const isAppleHost = host && isAppleDevice(host.platform);
 
   const {
     data: deviceCertificates,
@@ -271,7 +269,7 @@ const DeviceUserPage = ({
       ),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!deviceUserAPI && (isDarwinHost || isIosOrIpadosHost),
+      enabled: !!deviceUserAPI && isAppleHost,
     }
   );
 
@@ -455,15 +453,14 @@ const DeviceUserPage = ({
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
-                  {(isIosOrIpadosHost || isDarwinHost) &&
-                    deviceCertificates?.certificates.length && (
-                      <CertificatesCard
-                        isMyDevicePage
-                        data={deviceCertificates}
-                        hostPlatform={host.platform}
-                        onSelectCertificate={onSelectCertificate}
-                      />
-                    )}
+                  {isAppleHost && deviceCertificates?.certificates.length && (
+                    <CertificatesCard
+                      isMyDevicePage
+                      data={deviceCertificates}
+                      hostPlatform={host.platform}
+                      onSelectCertificate={onSelectCertificate}
+                    />
+                  )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
