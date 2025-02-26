@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250211141712, Down_20250211141712)
+	MigrationClient.AddMigration(Up_20250226000000, Down_20250226000000)
 }
 
-func Up_20250211141712(tx *sql.Tx) error {
+func Up_20250226000000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE host_certificates (
 	id                          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -42,6 +42,6 @@ CREATE TABLE host_certificates (
 	return err
 }
 
-func Down_20250211141712(tx *sql.Tx) error {
+func Down_20250226000000(tx *sql.Tx) error {
 	return nil
 }
