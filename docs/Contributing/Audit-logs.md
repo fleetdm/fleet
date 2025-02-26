@@ -1532,7 +1532,7 @@ Generated when NDES SCEP proxy configuration is edited in Fleet.
 
 This activity does not contain any detail fields.
 
-## added_scep_proxy
+## added_custom_scep_proxy
 
 Generated when SCEP certificate authority configuration is added in Fleet.
 
