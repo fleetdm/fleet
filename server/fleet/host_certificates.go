@@ -203,10 +203,6 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 			return nil, errors.New("invalid distinguished name, wrong key value pair format")
 		}
 
-		if len(kv[1]) == 0 {
-			return nil, errors.New("invalid distinguished name, missing value")
-		}
-
 		switch strings.ToUpper(kv[0]) {
 		case "C":
 			details.Country = strings.Trim(kv[1], " ")
