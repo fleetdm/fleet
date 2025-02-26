@@ -7055,6 +7055,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, added)
 
+	// create an android device from this host
+	_, err = ds.writer(context.Background()).Exec(`
+	INSERT INTO android_devices (host_id, device_id)
+	VALUES (?, ?);
+	`, host.ID, uuid.NewString())
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

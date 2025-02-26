@@ -21,7 +21,7 @@ const baseClass = "fleet-maintained-apps-table";
 const EmptyFleetAppsTable = () => (
   <EmptyTable
     graphicName="empty-search-question"
-    header={"No items match the current search criteria"}
+    header="No items match the current search criteria"
     info={
       <>
         Can&apos;t find app?{" "}

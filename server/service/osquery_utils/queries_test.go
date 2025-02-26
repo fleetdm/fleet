@@ -307,7 +307,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1530,7 +1530,8 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	}
 
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
-		decryptable *bool) error {
+		decryptable *bool,
+	) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
@@ -2013,7 +2014,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0a4 (64-bit)",
-				Version: "3.14.0-alpha4",
+				Version: "3.14.0a4",
 				Source:  "programs",
 			},
 		},
@@ -2027,7 +2028,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0b3 (64-bit)",
-				Version: "3.14.0-beta3",
+				Version: "3.14.0b3",
 				Source:  "programs",
 			},
 		},
@@ -2041,7 +2042,7 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 			sanitized: &fleet.Software{
 				Name:    "Python 3.14.0rc2 (64-bit)",
-				Version: "3.14.0-rc2",
+				Version: "3.14.0rc2",
 				Source:  "programs",
 			},
 		},

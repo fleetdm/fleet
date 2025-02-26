@@ -66,7 +66,8 @@ const MetricsHostCounts = ({
       {selectedPlatform === "all" && TotalHostsCard}
       {isPremiumTier &&
         selectedPlatform !== "ios" &&
-        selectedPlatform !== "ipados" && (
+        selectedPlatform !== "ipados" &&
+        selectedPlatform !== "android" && (
           <>
             {MissingHostsCard}
             {LowDiskSpaceHostsCard}

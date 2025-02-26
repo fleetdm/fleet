@@ -844,18 +844,6 @@ SELECT
   name AS name,
   version AS version,
   '' AS bundle_identifier,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM python_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS bundle_identifier,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -1024,19 +1012,7 @@ SELECT
   '' AS vendor,
   '' AS arch,
   path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+FROM cached_users CROSS JOIN firefox_addons USING (uid);
 `),
 	Platforms:        fleet.HostLinuxOSs,
 	DirectIngestFunc: directIngestSoftware,
@@ -1053,16 +1029,6 @@ SELECT
   publisher AS vendor,
   install_location AS installed_path
 FROM programs
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM python_packages
 UNION
 SELECT
   name AS name,
@@ -1106,6 +1072,44 @@ FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// In osquery versions < 5.16.0 use the original python_packages query, as the cross join on
+// users is not supported
+var softwarePythonPackages = DetailQuery{
+	Description: "Prior to osquery version 5.16.0, the python_packages table did not search user directories.",
+	Query: `
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM python_packages
+	`,
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') < 0`,
+}
+
+// In osquery versions >= 5.16.0 the python_packages table was modified to allow for a
+// cross join on users so that user directories could be searched for python packages
+var softwarePythonPackagesWithUsersDir = DetailQuery{
+	Description: "As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.",
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM cached_users CROSS JOIN python_packages USING (uid)
+	`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') >= 0`,
 }
 
 var softwareChrome = DetailQuery{
@@ -1784,11 +1788,11 @@ var (
 				candidateSuffix := ""
 				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
 				case "10":
-					candidateSuffix = "-alpha" + releaseSerial
+					candidateSuffix = "a" + releaseSerial
 				case "11":
-					candidateSuffix = "-beta" + releaseSerial
+					candidateSuffix = "b" + releaseSerial
 				case "12":
-					candidateSuffix = "-rc" + releaseSerial
+					candidateSuffix = "rc" + releaseSerial
 				} // default
 
 				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
@@ -2244,6 +2248,8 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
+		generatedMap["software_python_packages"] = softwarePythonPackages
+		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 
 		for key, query := range SoftwareOverrideQueries {

@@ -269,8 +269,8 @@ const TeamManagementPage = (): JSX.Element => {
             columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
+            defaultSortHeader="name"
+            defaultSortDirection="asc"
             actionButton={{
               name: "create team",
               buttonText: "Create team",
@@ -279,7 +279,7 @@ const TeamManagementPage = (): JSX.Element => {
               hideButton: teams && teams.length === 0,
               gitOpsModeCompatible: true,
             }}
-            resultsTitle={"teams"}
+            resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

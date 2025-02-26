@@ -129,6 +129,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
@@ -194,7 +195,6 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    const { installType } = formData;
     let titleId: number | undefined;
     try {
       const res = await softwareAPI.addFleetMaintainedApp(
@@ -206,21 +206,19 @@ const FleetMaintainedAppDetailsPage = ({
       );
       titleId = res.software_title_id;
 
-      // for manual install we redirect only on a successful software add.
-      if (installType === "manual") {
-        router.push(
-          `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-            team_id: teamId,
-            available_for_install: true,
-          })}`
-        );
-        renderFlash(
-          "success",
-          <>
-            <b>{fleetApp?.name}</b> successfully added.
-          </>
-        );
-      }
+      router.push(
+        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+          team_id: teamId,
+          available_for_install: true,
+        })}`
+      );
+      renderFlash(
+        "success",
+        <>
+          <b>{fleetApp?.name}</b> successfully added.
+        </>
+      );
+      // }
     } catch (error) {
       // quick exit if there was an error adding the software. Skip the policy
       // creation.
@@ -245,39 +243,39 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     // If the install type is automatic we now need to create the new policy.
-    if (installType === "automatic" && fleetApp) {
-      try {
-        await teamPoliciesAPI.create({
-          name: getFleetAppPolicyName(fleetApp.name),
-          description: getFleetAppPolicyDescription(fleetApp.name),
-          query: getFleetAppPolicyQuery(fleetApp.name),
-          team_id: parseInt(teamId, 10),
-          software_title_id: titleId,
-          platform: "darwin",
-        });
+    // if (installType === "automatic" && fleetApp) {
+    //   try {
+    //     await teamPoliciesAPI.create({
+    //       name: getFleetAppPolicyName(fleetApp.name),
+    //       description: getFleetAppPolicyDescription(fleetApp.name),
+    //       query: getFleetAppPolicyQuery(fleetApp.name),
+    //       team_id: parseInt(teamId, 10),
+    //       software_title_id: titleId,
+    //       platform: "darwin",
+    //     });
 
-        renderFlash(
-          "success",
-          <>
-            <b>{fleetApp?.name}</b> successfully added.
-          </>,
-          { persistOnPageChange: true }
-        );
-      } catch (e) {
-        renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
-          persistOnPageChange: true,
-        });
-      }
+    //     renderFlash(
+    //       "success",
+    //       <>
+    //         <b>{fleetApp?.name}</b> successfully added.
+    //       </>,
+    //       { persistOnPageChange: true }
+    //     );
+    //   } catch (e) {
+    //     renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
+    //       persistOnPageChange: true,
+    //     });
+    //   }
 
-      // for automatic install we redirect on both a successful and error policy
-      // add because the software was already successfuly added.
-      router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-          team_id: teamId,
-          available_for_install: true,
-        })}`
-      );
-    }
+    //   // for automatic install we redirect on both a successful and error policy
+    //   // add because the software was already successfuly added.
+    //   router.push(
+    //     `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+    //       team_id: teamId,
+    //       available_for_install: true,
+    //     })}`
+    //   );
+    // }
 
     setShowAddFleetAppSoftwareModal(false);
   };
