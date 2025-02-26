@@ -1005,7 +1005,7 @@ None.
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
     },
-    "scep_proxy": [
+    "custom_scep_proxy": [
       {
         "name": "SCEP_WIFI",
         "server_url": "https://example.com/scep",
