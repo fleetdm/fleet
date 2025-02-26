@@ -17,7 +17,14 @@ type InitialStateType = {
   renderFlash: (
     alertType: "success" | "error" | "warning-filled" | null,
     message: JSX.Element | string | null,
-    options?: { persistOnPageChange?: boolean }
+    options?: {
+      /** `persistOnPageChange` is used to keep the flash message showing after a
+       * router change if set to `true`.
+       *
+       * @default undefined
+       * */
+      persistOnPageChange?: boolean;
+    }
   ) => void;
   hideFlash: () => void;
 };

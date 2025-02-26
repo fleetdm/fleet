@@ -37,9 +37,11 @@ If a customer/prospect request is missing a Gong snippet or requires additional 
 As soon as we've addressed the next quarter's objectives, the Head of Product Design cancels the daily meeting. 
 
 
-### Product design check in
+### Triage new bugs
 
-The Head of Product Design summarizes the current week's design reviews to discuss with the CEO.
+Product Designers are responsible for triaging all new reproduced bugs.
+
+Learn more [here](https://fleetdm.com/handbook/company/product-groups#in-product-drafting). 
 
 
 ### Drafting
@@ -82,7 +84,7 @@ Additionally:
   - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
   - File stories and draft changes for bringing the screen width down to 375px. (one screen at a time, in which we can squeeze it into engineering sprints as front-end only work, small stories, doesn't compete with other stuff)
 
->**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
+>**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
@@ -121,8 +123,8 @@ You'll know it's time for expedited drafting when:
 
 What happens during expedited drafting?
 1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
@@ -144,17 +146,6 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 > Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
-
-
-### View Fleet usage statistics
-
-In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
-
-Fleeties can view these statistics in the Google spreadsheet [Fleet
-usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
-available in Google Drive.
-
-Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
 
 
 ### Prepare reference docs for release

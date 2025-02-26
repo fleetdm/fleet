@@ -5,7 +5,7 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -143,6 +143,7 @@ type InitialStateType = {
   isPremiumTier?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
+  isAndroidMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -210,6 +211,7 @@ export const initialState = {
   isPremiumTier: undefined,
   isMacMdmEnabledAndConfigured: undefined,
   isWindowsMdmEnabledAndConfigured: undefined,
+  isAndroidMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -282,6 +284,9 @@ const setPermissions = (
     isWindowsMdmEnabledAndConfigured: permissions.isWindowsMdmEnabledAndConfigured(
       config
     ),
+    isAndroidMdmEnabledAndConfigured: permissions.isAndroidMdmEnabledAndConfigured(
+      config
+    ),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -324,12 +329,12 @@ const reducer = (state: InitialStateType, action: IAction) => {
       sortedTeams = sortedTeams.filter(
         (t) =>
           t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
-          t.name !== APP_CONTEX_NO_TEAM_SUMMARY.name
+          t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
       );
       if (user && permissions.isOnGlobalTeam(user)) {
         sortedTeams.unshift(
           APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEX_NO_TEAM_SUMMARY
+          APP_CONTEXT_NO_TEAM_SUMMARY
         );
       }
 
@@ -481,6 +486,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isPremiumTier: state.isPremiumTier,
       isMacMdmEnabledAndConfigured: state.isMacMdmEnabledAndConfigured,
       isWindowsMdmEnabledAndConfigured: state.isWindowsMdmEnabledAndConfigured,
+      isAndroidMdmEnabledAndConfigured: state.isAndroidMdmEnabledAndConfigured,
       isGlobalAdmin: state.isGlobalAdmin,
       isGlobalMaintainer: state.isGlobalMaintainer,
       isGlobalObserver: state.isGlobalObserver,
@@ -600,6 +606,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isTeamObserver,
       state.isVppExpired,
       state.isWindowsMdmEnabledAndConfigured,
+      state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
       state.noSandboxHosts,
       state.sandboxExpiry,

@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { isEqual } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
 
@@ -22,8 +21,13 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import {
+  API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -39,13 +43,16 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -156,6 +163,8 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
+  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
+  // this prop.
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
@@ -391,10 +400,12 @@ const ManagePolicyPage = ({
   // NOTE: Solution reused from ManageHostPage.tsx
   useEffect(() => {
     setResetPageIndex(false);
-  }, []);
+  }, [queryParams, page]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
+    // this function encapsulates setting local page state to 0 and triggering the descendant
+    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
     setTableQueryDataForApi(
       (prevState) =>
         ({
@@ -402,6 +413,7 @@ const ManagePolicyPage = ({
           pageIndex: 0,
         } as ITableQueryData)
     );
+    // change in state triggers effect in TableContainer (see comment above this state definition)
     setResetPageIndex(true);
   };
 
@@ -490,8 +502,8 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
-  const onSelectAutomationOption = (option: string) => {
-    switch (option) {
+  const onSelectAutomationOption = (option: SingleValue<CustomOptionType>) => {
+    switch (option?.value) {
       case "calendar_events":
         toggleCalendarEventsModal();
         break;
@@ -556,19 +568,14 @@ const ManagePolicyPage = ({
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses: Promise<
-        ReturnType<typeof teamPoliciesAPI.update>
-      >[] = [];
-      responses.concat(
-        changedPolicies.map((changedPolicy) => {
-          return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id": null will unset software install for the policy
-            // "software_title_id": X will set the value to the given integer (except 0).
-            software_title_id: changedPolicy.swIdToInstall || null,
-            team_id: teamIdForApi,
-          });
-        })
-      );
+      const responses = changedPolicies.map((changedPolicy) => {
+        return teamPoliciesAPI.update(changedPolicy.id, {
+          // "software_title_id": null will unset software install for the policy
+          // "software_title_id": X will set the value to the given integer (except 0).
+          software_title_id: changedPolicy.swIdToInstall || null,
+          team_id: teamIdForApi,
+        });
+      });
       await Promise.all(responses);
       await wait(100); // prevent race
       refetchTeamPolicies();
@@ -748,14 +755,12 @@ const ManagePolicyPage = ({
     ? teamPolicies && teamPolicies.length > 0
     : globalPolicies && globalPolicies.length > 0;
 
-  // Show CTA buttons if there is no errors AND there are policy results or a search filter
-  const showCtaButtons =
-    !policiesErrors && (policyResults || searchQuery !== "");
+  // Show CTA buttons if there are no errors
+  const showCtaButtons = !policiesErrors;
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
-  const showAutomationsDropdown =
-    canManageAutomations && hasPoliciesToAutomateOrDelete;
+  const showAutomationsDropdown = canManageAutomations;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -831,7 +836,6 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -865,7 +869,6 @@ const ManagePolicyPage = ({
           isLoading={
             isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
           }
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -940,25 +943,25 @@ const ManagePolicyPage = ({
       );
     }
 
-    const options: IDropdownOption[] = [
+    const options: CustomOptionType[] = [
       {
         label: "Calendar events",
         value: "calendar_events",
-        disabled: !!disabledCalendarTooltipContent,
+        isDisabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
       {
         label: "Install software",
         value: "install_software",
-        disabled: !!disabledInstallTooltipContent,
+        isDisabled: !!disabledInstallTooltipContent,
         helpText: "Install software to resolve failing policies.",
         tooltipContent: disabledInstallTooltipContent,
       },
       {
         label: "Run script",
         value: "run_script",
-        disabled: !!disabledRunScriptTooltipContent,
+        isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
@@ -969,13 +972,60 @@ const ManagePolicyPage = ({
       options.push({
         label: "Other workflows",
         value: "other_workflows",
-        disabled: false,
+        isDisabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
       });
     }
 
     return options;
   };
+
+  let automationsDropdown = null;
+  if (showAutomationsDropdown) {
+    automationsDropdown = (
+      <div className={`${baseClass}__manage-automations-wrapper`}>
+        <DropdownWrapper
+          isDisabled={!hasPoliciesToAutomateOrDelete}
+          className={`${baseClass}__manage-automations-dropdown`}
+          name="policy-automations"
+          onChange={onSelectAutomationOption}
+          placeholder="Manage automations"
+          options={
+            hasPoliciesToAutomateOrDelete
+              ? getAutomationsDropdownOptions(!!automationsConfig)
+              : []
+          }
+          variant="button"
+          nowrapMenu
+        />
+      </div>
+    );
+    if (!hasPoliciesToAutomateOrDelete) {
+      const tipContent =
+        isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID ? (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy to this team.
+            <br />
+            For inherited policies select &ldquo;All teams&rdquo;.
+          </div>
+        ) : (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy.
+          </div>
+        );
+
+      automationsDropdown = (
+        <TooltipWrapper
+          underline={false}
+          tipContent={tipContent}
+          position="top"
+          showArrow
+        >
+          {automationsDropdown}
+        </TooltipWrapper>
+      );
+    }
+  }
 
   if (!isRouteOk) {
     return <Spinner />;
@@ -1018,17 +1068,7 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {showAutomationsDropdown && (
-                <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <Dropdown
-                    className={`${baseClass}__manage-automations-dropdown`}
-                    onChange={onSelectAutomationOption}
-                    placeholder="Manage automations"
-                    searchable={false}
-                    options={getAutomationsDropdownOptions(!!automationsConfig)}
-                  />
-                </div>
-              )}
+              {automationsDropdown}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button

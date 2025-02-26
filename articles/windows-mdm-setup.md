@@ -46,6 +46,8 @@ Restart the Fleet server.
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
+> Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
+
 ## Automatic enrollment
 
 > Available in Fleet Premium
@@ -170,6 +172,13 @@ Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet.
 Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 
 You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
+
+## Turn off Windows MDM
+
+1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on all your Windows hosts.
+2. Head to **Settings > Integrations > MDM**.
+3. In the **Mobile device management (MDM)** section, select **Edit** next to "Windows MDM turned on."
+4. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.
 
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">

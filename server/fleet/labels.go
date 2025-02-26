@@ -160,6 +160,7 @@ const (
 	BuiltinLabelIOS             = "iOS"
 	BuiltinLabelIPadOS          = "iPadOS"
 	BuiltinLabelFedoraLinux     = "Fedora Linux"
+	BuiltinLabelNameAndroid     = "Android"
 )
 
 // ReservedLabelNames returns a map of label name strings
@@ -178,6 +179,7 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelIOS:             {},
 		BuiltinLabelIPadOS:          {},
 		BuiltinLabelFedoraLinux:     {},
+		BuiltinLabelNameAndroid:     {},
 	}
 }
 
@@ -220,4 +222,36 @@ const (
 type LabelIdentsWithScope struct {
 	LabelScope LabelScope
 	ByName     map[string]LabelIdent
+}
+
+// Equal returns whether or not 2 LabelIdentsWithScope pointers point to equivalent values.
+func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
+	if l == nil || other == nil {
+		return l == other
+	}
+
+	if l.LabelScope != other.LabelScope {
+		return false
+	}
+
+	if l.ByName == nil && other.ByName == nil {
+		return true
+	}
+
+	if len(l.ByName) != len(other.ByName) {
+		return false
+	}
+
+	for k, v := range l.ByName {
+		otherV, ok := other.ByName[k]
+		if !ok {
+			return false
+		}
+
+		if v != otherV {
+			return false
+		}
+	}
+
+	return true
 }

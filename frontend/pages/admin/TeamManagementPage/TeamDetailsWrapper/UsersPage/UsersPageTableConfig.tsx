@@ -1,13 +1,16 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
-import CustomLink from "components/CustomLink";
+
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import stringUtils from "utilities/strings";
+
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import stringUtils from "utilities/strings";
 import { COLORS } from "styles/var/colors";
 
 interface IHeaderProps {
@@ -175,12 +178,20 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+              <ActionsDropdown
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder="Actions"
+                disabled={disableChildren}
+              />
+            </div>
+          )}
         />
       ),
     },
@@ -217,6 +228,7 @@ const enhanceUsersData = (
       role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
+      mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,

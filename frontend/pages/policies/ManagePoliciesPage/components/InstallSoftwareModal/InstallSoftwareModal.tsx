@@ -29,7 +29,6 @@ import {
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
-import TooltipWrapper from "components/TooltipWrapper";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -308,23 +307,23 @@ const InstallSoftwareModal = ({
       <div className={`${baseClass} form`}>
         <div className="form-field">
           <div className="form-field__label">Policies:</div>
-          <ul className="automated-policies-section">
-            {formData.map((policyData) =>
-              renderPolicySwInstallOption(policyData)
-            )}
-          </ul>
-          <span className="form-field__help-text">
-            If compatible with the host, the selected software will be installed
-            when hosts fail the policy. App Store apps will not be installed if
-            hosts are not enrolled in MDM, or if no VPP licenses are available
-            for the app. If custom targets are enabled and a host with a failing
-            policy is <b>not</b> targeted, installation will be skipped.{" "}
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
-              text="Learn more"
-              newTab
-            />
-          </span>
+          <div>
+            <ul className="automated-policies-section">
+              {formData.map((policyData) =>
+                renderPolicySwInstallOption(policyData)
+              )}
+            </ul>
+            <p className="form-field__help-text">
+              If compatible with the host, the selected software will be
+              installed when hosts fail the policy. Host counts will reset when
+              new software is selected.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
+                text="Learn more"
+                newTab
+              />
+            </p>
+          </div>
         </div>
         <div className="modal-cta-wrap">
           <Button

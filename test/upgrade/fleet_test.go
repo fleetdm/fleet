@@ -111,6 +111,13 @@ func (f *Fleet) Start() error {
 		return err
 	}
 
+	// drop to one nginx worker process regardless of CPU count to ensure repointing to the correct
+	// Fleet container happens quickly
+	_, err = f.execCompose(env, "exec", "-T", "fleet", "sed", "-i", "s/auto/1/", "/etc/nginx/nginx.conf")
+	if err != nil {
+		return err
+	}
+
 	_, err = f.execCompose(env, "exec", "-T", "fleet", "nginx", "-s", "reload")
 	if err != nil {
 		return err
@@ -360,6 +367,10 @@ func (f *Fleet) Upgrade(toVersion string) error {
 	if err != nil {
 		return err
 	}
+
+	// even with only one worker process, graceful reload of nginx workers doesn't happen instantly,
+	// so we add a wait here to let workers swap so they're pointed at the upgraded Fleet server
+	time.Sleep(250 * time.Millisecond)
 
 	f.Version = toVersion
 

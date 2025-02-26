@@ -132,7 +132,7 @@ const HostSoftwareTable = ({
         className={`${baseClass}__software-filter`}
         options={DROPDOWN_OPTIONS}
         onChange={handleFilterDropdownChange}
-        tableFilter
+        variant="table-filter"
       />
     );
   }, [handleFilterDropdownChange, hostSoftwareFilter]);

@@ -31,7 +31,7 @@ Smooth and seamless migration.
 By switching to Fleet, they continue to manage their devices through automated MDM workflows that support thousands of devices. Capabilities like automated device enrollment, dynamic host segmentation, real-time querying, and assisted migration allowed them to enforce security settings without overly restricting endpoints or their users.
 
 
-## Their Story
+## Their story
 
 The global leader in interactive entertainment and software development manages an extensive fleet of devices supporting game development, publishing, and operations. To overcome the challenges of scalability and customization, they partnered with Fleet early on to help contribute to Fleet’s MDM roadmap, resulting in a solution tailored for cross-platform enterprise teams.
 

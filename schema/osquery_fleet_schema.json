@@ -12582,6 +12582,7 @@
     "platforms": [
       "darwin"
     ],
+    "examples": "Find HID Device Protocol data:\n\n```\nWITH protocols as (\n  SELECT \n   MAX (case WHEN key = \"USB Address\" THEN value END) as usb_address,\n   MAX (case WHEN key = \"bDeviceProtocol\" THEN value END) as protocol\n  from ioreg where r=true and c=\"IOUSBDevice\" group by parent\n) \nSELECT * FROM usb_devices join protocols using (usb_address)\n```",
     "columns": [
       {
         "name": "c",
@@ -17870,6 +17871,12 @@
         "type": "integer",
         "required": false,
         "description": "1 if running scripts is enabled, 0 if disabled."
+      },
+      {
+        "name": "update_url",
+        "type": "text",
+        "required": false,
+        "description": "The Update Framework server URL."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
@@ -25896,7 +25903,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify system extensions that are not managed via MDM and see their\nsignature status.\n\n```\nSELECT se.identifier, se.bundle_path, se.category, se.state, s.signed FROM system_extensions se JOIN signature s on s.path = se.bundle_path WHERE se.mdm_managed='0';\n```",
+    "examples": "Identify the signature status of system extensions not managed via MDM:\n\n```\nSELECT se.identifier, se.bundle_path, se.category, se.state, s.signed FROM system_extensions se JOIN signature s on s.path = se.bundle_path WHERE se.mdm_managed='0';\n```\n\nPerform a health check on a Jamf Protect installation:\n\n```\nSELECT 1 \nWHERE \n  (EXISTS (SELECT 1 FROM processes WHERE name = 'JamfProtectAgent') OR ( SELECT total_seconds FROM uptime ) <= 300 )\n  AND EXISTS (SELECT 1 FROM system_extensions WHERE identifier = 'com.jamf.protect.security-extension')\n  AND EXISTS (SELECT 1 FROM apps WHERE path = '/Applications/JamfProtect.app');\n```",
     "columns": [
       {
         "name": "path",

@@ -69,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.12.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -83,7 +83,8 @@ module "main" {
       sort_buffer_size = 8388608
     }
     # VPN
-    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    backup_retention_period = 30
   }
   redis_config = {
     name = local.customer
@@ -126,7 +127,6 @@ module "main" {
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables = merge(
-      module.mdm.extra_environment_variables,
       module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
       module.ses.fleet_extra_environment_variables,
@@ -330,7 +330,7 @@ module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -343,33 +343,32 @@ module "migrations" {
 }
 
 module "mdm" {
-  source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=tf-mod-addon-mdm-v1.3.0"
-  public_domain_name = "dogfood.fleetdm.com"
+  source             = "github.com/fleetdm/fleet-terraform//addons/mdm?ref=tf-mod-addon-mdm-v2.0.0"
+  enable_apple_mdm   = false
   enable_windows_mdm = true
-  apn_secret_name    = "${local.customer}-apn"
+  apn_secret_name    = null
   scep_secret_name   = "${local.customer}-scep"
-  dep_secret_name    = "${local.customer}-dep"
+  abm_secret_name    = null
 }
 
 module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
-  osquery_results_s3_bucket = {
-    name = "${local.customer}-osquery-results-archive"
-  }
-  osquery_status_s3_bucket = {
-    name = "${local.customer}-fleet-osquery-status-archive"
-  }
+  source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
+  firehose_results_name = "osquery_results"
+  firehose_status_name  = "osquery_status"
+  firehose_audit_name   = "fleet_audit"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
+  region                = data.aws_region.current.name
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
   osquery_carve_s3_bucket = {
     name = "fleet-${local.customer}-osquery-carve"
   }
 }
 
 module "monitoring" {
-  source                 = "github.com/fleetdm/fleet//terraform/addons/monitoring?ref=tf-mod-addon-monitoring-v1.5.0"
+  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.5.1"
   customer_prefix        = local.customer
   fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
   albs = [
@@ -417,7 +416,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet//terraform/addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
+  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -500,13 +499,13 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet//terraform/addons/ses?ref=tf-mod-addon-ses-v1.0.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
 }
 
 # module "saml_auth_proxy" {
-#   # source                       = "github.com/fleetdm/fleet//terraform/addons/saml-auth-proxy?ref=main"
+#   # source                       = "github.com/fleetdm/fleet-terraform//addons/saml-auth-proxy?ref=main"
 #   # public_alb_security_group_id = module.main.byo-vpc.byo-db.alb.security_group_id
 #   idp_metadata_url             = "https://dev-99185346.okta.com/app/exkbcrjeqmahXWvW45d7/sso/saml/metadata"
 #   customer_prefix              = local.customer
@@ -548,14 +547,14 @@ resource "aws_s3_object" "idp_metadata" {
 }
 
 module "geolite2" {
-  source            = "github.com/fleetdm/fleet//terraform/addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
   fleet_image       = var.fleet_image
   destination_image = local.geolite2_image
   license_key       = var.geolite2_license
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets

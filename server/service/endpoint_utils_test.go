@@ -14,6 +14,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -253,7 +256,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 
 type stringErrorer string
 
-func (s stringErrorer) error() error { return nil }
+func (s stringErrorer) Error() error { return nil }
 
 func TestEndpointer(t *testing.T) {
 	r := mux.NewRouter()
@@ -284,23 +287,23 @@ func TestEndpointer(t *testing.T) {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
-			setRequestsContexts(svc),
+			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			logRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(kitlog.NewNopLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}
 
 	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
-	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("nop"), nil
 	}
-	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("override"), nil
 	}
@@ -404,20 +407,20 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext,
-			setRequestsContexts(svc),
+			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&errorHandler{kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			logRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(kitlog.NewNopLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}
 
 	var buf bytes.Buffer
 	e := newNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
-	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		buf.WriteString("H1")
 		return nil, nil
 	}, nil)
@@ -442,7 +445,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			}
 		},
 	).
-		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 			buf.WriteString("H2")
 			return nil, nil
 		}, nil)
@@ -467,7 +470,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 
 func TestWriteBrowserSecurityHeaders(t *testing.T) {
 	w := httptest.NewRecorder()
-	writeBrowserSecurityHeaders(w)
+	endpoint_utils.WriteBrowserSecurityHeaders(w)
 	headers := w.Header()
 	require.Equal(
 		t,

@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import CustomLink from "components/CustomLink";
 import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
@@ -15,8 +18,6 @@ interface IAddIntegrationModalProps {
     integrationSubmitData: IIntegration[],
     integrationDestination: string
   ) => void;
-  serverErrors?: { base: string; email: string };
-  backendValidators: { [key: string]: string };
   integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }
@@ -29,36 +30,34 @@ const destinationOptions = [
 const AddIntegrationModal = ({
   onCancel,
   onSubmit,
-  backendValidators,
   integrations,
   testingConnection,
 }: IAddIntegrationModalProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>(
-    backendValidators
-  );
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [destination, setDestination] = useState("jira");
 
-  const onDestinationChange = (value: string) => {
-    setDestination(value);
+  const onDestinationChange = (
+    selectedDestination: SingleValue<CustomOptionType>
+  ) => {
+    setDestination(selectedDestination?.value || "jira");
   };
-
-  useEffect(() => {
-    setErrors(backendValidators);
-  }, [backendValidators]);
 
   return (
     <Modal title="Add integration" onExit={onCancel} className={baseClass}>
       <div className="form">
         {!testingConnection && (
           <>
-            <Dropdown
-              label="Ticket destination"
+            <DropdownWrapper
               name="destination"
+              label="Ticket destination"
               onChange={onDestinationChange}
               value={destination}
               options={destinationOptions}
-              classname={`${baseClass}__destination-dropdown`}
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              className={`${baseClass}__destination-dropdown`}
+              wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              isDisabled={gitOpsModeEnabled}
             />
             <CustomLink
               url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
@@ -73,6 +72,7 @@ const AddIntegrationModal = ({
           integrations={integrations}
           destination={destination}
           testingConnection={testingConnection}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
       </div>
     </Modal>

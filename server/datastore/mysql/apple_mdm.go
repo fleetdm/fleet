@@ -991,7 +991,7 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *mdmHost); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1111,7 +1111,7 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1272,9 +1272,9 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	return nil
 }
 
-func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	args := []interface{}{}
-	parts := []string{}
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
 	for _, h := range hosts {
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")
@@ -1342,7 +1342,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
-	// Hosts" and "macOS" labels.
+	// Hosts" and one of "macOS", "iOS", "iPadOS" labels.
 	labels := []struct {
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
@@ -1656,7 +1656,7 @@ INSERT INTO hosts (
 		// Upsert related host tables for the restored host just as if it were initially ingested
 		// from DEP sync. Note we are not upserting host_dep_assignments in order to preserve the
 		// existing timestamps.
-		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *host); err != nil {
+		if err := upsertHostDisplayNames(ctx, tx, *host); err != nil {
 			// TODO: Why didn't this work as expected?
 			return ctxerr.Wrap(ctx, err, "restore pending dep host display name")
 		}
@@ -3551,27 +3551,6 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 
-func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
-	})
-}
-
-func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
-	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
-			}
-		} else {
-			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
-		}
-	}
-	return nil
-}
-
 func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
 	if teamID == nil {
 		teamID = ptr.Uint(0)
@@ -3601,23 +3580,6 @@ WHERE
 		return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
 	}
 	return &profile, nil
-}
-
-func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	query, args, err := sqlx.In(
-		"DELETE FROM host_disk_encryption_keys WHERE host_id IN (?)",
-		hostIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query")
-	}
-
-	_, err = tx.ExecContext(ctx, query, args...)
-	return err
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {

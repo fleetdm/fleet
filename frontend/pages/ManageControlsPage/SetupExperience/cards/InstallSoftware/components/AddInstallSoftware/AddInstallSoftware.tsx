@@ -53,7 +53,7 @@ const AddInstallSoftware = ({
     ) : (
       <>
         {installDuringSetupCount} software will be{" "}
-        <TooltipWrapper position="top" tipContent="Software order will vary.">
+        <TooltipWrapper tipContent="Software order will vary.">
           installed during setup
         </TooltipWrapper>
         .

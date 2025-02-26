@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type HostStatus string
@@ -207,6 +209,12 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all host responses returned
+	PopulateLabels bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -366,6 +374,28 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+}
+
+type AndroidHost struct {
+	*Host
+	*android.Device
+}
+
+func (ah *AndroidHost) SetNodeKey(enterpriseSpecificID string) {
+	if ah.Host == nil || ah.Device == nil {
+		return
+	}
+	ah.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
+	// We use node_key as a unique identifier for the host table row.
+	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
+	hostNodeKey := "android/" + enterpriseSpecificID
+	ah.Host.NodeKey = &hostNodeKey
+}
+
+func (ah *AndroidHost) IsValid() bool {
+	return !(ah == nil || ah.Host == nil || ah.Device == nil ||
+		ah.Host.NodeKey == nil || ah.Device.EnterpriseSpecificID == nil ||
+		*ah.Host.NodeKey != "android/"+*ah.Device.EnterpriseSpecificID)
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
@@ -819,7 +849,7 @@ func (h *Host) FleetPlatform() string {
 
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
-	return h.Platform != "ios" && h.Platform != "ipados"
+	return h.Platform != "ios" && h.Platform != "ipados" && h.Platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
@@ -864,7 +894,8 @@ func PlatformFromHost(hostPlatform string) string {
 		// Fleet now supports Chrome via fleetd
 		hostPlatform == "chrome",
 		hostPlatform == "ios",
-		hostPlatform == "ipados":
+		hostPlatform == "ipados",
+		hostPlatform == "android":
 		return hostPlatform
 	default:
 		return ""
@@ -1271,7 +1302,7 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(parts[1])
+	version, err := VersionToSemverVersion(parts[1])
 	if err != nil {
 		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
 	}

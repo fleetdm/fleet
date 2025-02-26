@@ -207,6 +207,7 @@ const generateTableHeaders = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
+          menuAlign="right"
         />
       ),
     },

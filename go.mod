@@ -9,6 +9,7 @@ require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/RobotsAndPencils/buford v0.14.0
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
@@ -17,6 +18,7 @@ require (
 	github.com/antchfx/xmlquery v1.3.14
 	github.com/apex/log v1.9.0
 	github.com/aws/aws-sdk-go v1.44.288
+	github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign v1.8.3
 	github.com/beevik/etree v1.3.0
 	github.com/beevik/ntp v0.3.0
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb
@@ -42,11 +44,13 @@ require (
 	github.com/github/smimesign v0.2.0
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-ini/ini v1.67.0
+	github.com/go-json-experiment/json v0.0.0-20250211171154-1ae217ad3535
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
+	github.com/godbus/dbus/v5 v5.1.0
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
@@ -66,7 +70,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/kevinburke/go-bindata v3.24.0+incompatible
-	github.com/klauspost/compress v1.17.9
+	github.com/klauspost/compress v1.17.11
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v1.2.3
@@ -130,7 +134,7 @@ require (
 	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/sys v0.29.0
 	golang.org/x/term v0.27.0
 	golang.org/x/text v0.21.0
 	golang.org/x/tools v0.23.0
@@ -155,7 +159,6 @@ require (
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
@@ -166,7 +169,6 @@ require (
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign v1.8.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/cavaliercoder/go-cpio v0.0.0-20180626203310-925f9528c45e // indirect
@@ -195,9 +197,9 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/gofrs/flock v0.12.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/glog v1.2.2 // indirect
+	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect

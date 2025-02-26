@@ -1529,11 +1529,13 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
+		decryptable *bool,
+	) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
-		if host.ID != hostID {
+		if host.ID != incomingHost.ID {
 			return errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
@@ -1972,6 +1974,76 @@ func TestSanitizeSoftware(t *testing.T) {
 				Name:             "IntelliJ IDEA CE",
 				Version:          "2023.4.99.12345.67",
 				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
+		{
+			name: "Python for Windows GA dot-zero",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.150.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows GA patch release",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8150.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows alpha",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.104.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.0a4",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows beta",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.113.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.0b3",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows RC",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.122.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.0rc2",
+				Source:  "programs",
 			},
 		},
 	} {

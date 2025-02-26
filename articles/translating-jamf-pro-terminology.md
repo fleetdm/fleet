@@ -1,16 +1,14 @@
 # Translating Jamf Pro terminology & capabilities
 
 
-## Introduction
 
 Whether you are using Fleet alongside Jamf Pro to manage your Apple devices or preparing for a complete transition to Fleet as a modern, comprehensive platform for managing devices across all operating systems, this guide will help you compare and align Fleet's terminology and capabilities with those familiar from Jamf Pro.
 
 
 ## Reference table
 
-|                                |                        |                                                                                                                                                                                                                                                                                            |
-| ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Jamf                           | Fleet                  | Notes                                                                                                                                                                                                                                                                                      |
+| Jamf                          | Fleet                        | Notes                                                                                                                                                                                                                                                                                            |
+| ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |          
 | Smart Group                    | Dynamic label          | [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet)                                                                                                                                                                                                             |
 | Static Group                   | Manual label           |                                                                                                                                                                                                              |
 | Extension Attribute            | Query or policy        | Depending on your use case, a query is similar to an Extension Attribute used to gather specific information from a device. Similarly, a policy is used to return a boolean (Yes/No or True/False) response about a device.                                                                |

@@ -142,6 +142,8 @@ export const createMockOSVersionsResponse = (
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
+  created_at: "2020-01-01T00:00:00.000Z",
+  platform: "darwin",
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   self_service: true,
@@ -150,6 +152,8 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
     pending: 2,
     failed: 3,
   },
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
@@ -290,6 +294,7 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  url: "http://www.testurl1234abcd.com/testapp",
 };
 
 export const createMockFleetMaintainedAppDetails = (

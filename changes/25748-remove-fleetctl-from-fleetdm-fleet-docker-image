@@ -1,0 +1,1 @@
+* Removed `fleetctl` binary from the `fleetdm/fleet` docker image.
