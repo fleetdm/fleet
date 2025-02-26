@@ -42,15 +42,19 @@ const WindowsAutomaticEnrollmentPage = () => {
             text="Learn more"
             url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
           />
-        <p>
-        Some Intune/Entra deployments enable automatic enrollement into Intune.{" "}
-        Check to ensure <b>Automatic Enrollment</b> is not enabled, or your devices will not appear in Fleet.{" "}
-        <p>
-        In your Intune settings, select <b>Devices</b>, and under <b>Device onbarding</b>, open the <b>Enrollment</b> submenu.{" "}
-        Select <b>Automatic Enrollment</b> and ensure both <b>MDM user scope</b> and <b>Windows Information Protection (WIP) user scope</b>{" "}
-        are set to <b>None</b>.
-        </p>
-        </p>
+          <p>
+            Some Intune/Entra deployments enable automatic enrollement into
+            Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled,
+            or your devices will not appear in Fleet.{" "}
+            <p>
+              In your Intune settings, select <b>Devices</b>, and under{" "}
+              <b>Device onbarding</b>, open the <b>Enrollment</b> submenu.{" "}
+              Select <b>Automatic Enrollment</b> and ensure both{" "}
+              <b>MDM user scope</b> and{" "}
+              <b>Windows Information Protection (WIP) user scope</b> are set to{" "}
+              <b>None</b>.
+            </p>
+          </p>
         </p>
         {/* Ideally we'd use the native browser list styles and css to display
         the list numbers but this does not allow us to style the list items as we'd
@@ -98,8 +102,8 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>4.</span>
             <p>
-              At the top of the page, search for “Mobility“ and
-              select <b>Mobility (MDM and WIP)</b>.
+              At the top of the page, search for “Mobility“ and select{" "}
+              <b>Mobility (MDM and WIP)</b>.
             </p>
           </li>
           <li>
@@ -119,7 +123,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <div>
               <p>
                 Set MDM user scope to <b>All</b>, then copy the URLs below,
-                paste them in Azure AD, and select <b>Save</b>. 
+                paste them in Azure AD, and select <b>Save</b>.
               </p>
               <div className={`${baseClass}__url-inputs-wrapper`}>
                 <InputField
@@ -150,21 +154,23 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>8.</span>
             <p>
-              While on this same page, select {" "}
+              While on this same page, select{" "}
               <b>Custom MDM application settings</b> link.
             </p>
           </li>
           <li>
             <span>9.</span>
             <p>
-              Click on the <b>Application ID URI</b> which will bring you to the {" "}
-              <b>Expose an API</b> submenu with an edit button next to the text box.
+              Click on the <b>Application ID URI</b> which will bring you to the{" "}
+              <b>Expose an API</b> submenu with an edit button next to the text
+              box.
             </p>
           </li>
           <li>
             <span>10.</span>
             <p>
-              Replace with your Fleet URL (e.g. fleet.acme.com) and select <b>Save</b>.
+              Replace with your Fleet URL (e.g. fleet.acme.com) and select{" "}
+              <b>Save</b>.
             </p>
           </li>
           <li>
@@ -186,8 +192,9 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>13.</span>
             <div>
-              Again select <b>+ Add a permission</b> and then <b>Microsoft Graph</b>{" "}
-              and <b>Application permissions</b>, select the following:
+              Again select <b>+ Add a permission</b> and then{" "}
+              <b>Microsoft Graph</b> and <b>Application permissions</b>, select
+              the following:
               <ul className={`${baseClass}__permissions-list`}>
                 <li>Device &gt; Device.Read.All</li>
                 <li>Device &gt; Device.ReadWrite.All</li>
@@ -223,4 +230,3 @@ const WindowsAutomaticEnrollmentPage = () => {
 };
 
 export default WindowsAutomaticEnrollmentPage;
-
