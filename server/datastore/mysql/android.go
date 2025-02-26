@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -38,7 +40,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			detail_updated_at,
 			label_updated_at
 		) VALUES (
-   			:node_key,
+			:node_key,
 			:hostname,
 			:computer_name,
 			:platform,
@@ -76,6 +78,10 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		err = upsertHostDisplayNames(ctx, tx, *host.Host)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host display name")
+		}
+		err = ds.insertAndroidHostLabelMembershipTx(ctx, tx, host.Host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
 		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
@@ -141,7 +147,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		TeamID *uint `db:"team_id"`
 		*android.Device
 	}
-	stmt := `SELECT 
+	stmt := `SELECT
 		h.team_id,
 		ad.id,
 		ad.host_id,
@@ -169,4 +175,45 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 	}
 	result.SetNodeKey(enterpriseSpecificID)
 	return result, nil
+}
+
+func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	// Insert the host in the builtin label memberships, adding them to the "All
+	// Hosts" and "Android" labels.
+	var labels []struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = ? OR name = ?)`,
+		fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid)
+	switch {
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get builtin labels")
+	case len(labels) != 2:
+		// Builtin labels can get deleted so it is important that we check that
+		// they still exist before we continue.
+		// Note that this is the same behavior as for the iOS/iPadOS host labels.
+		level.Error(ds.logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
+		return nil
+	}
+
+	// We cannot assume IDs on labels, thus we look by name.
+	var allHostsLabelID, androidLabelID uint
+	for _, label := range labels {
+		switch label.Name {
+		case fleet.BuiltinLabelNameAllHosts:
+			allHostsLabelID = label.ID
+		case fleet.BuiltinLabelNameAndroid:
+			androidLabelID = label.ID
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)
+		ON DUPLICATE KEY UPDATE host_id = host_id`,
+		hostID, allHostsLabelID, hostID, androidLabelID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set label membership")
+	}
+	return nil
 }

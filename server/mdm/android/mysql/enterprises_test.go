@@ -20,7 +20,7 @@ func TestEnterprise(t *testing.T) {
 	}{
 		{"CreateGetEnterprise", testCreateGetEnterprise},
 		{"UpdateEnterprise", testUpdateEnterprise},
-		{"DeleteEnterprises", testDeleteEnterprises},
+		{"DeleteAllEnterprises", testDeleteEnterprises},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -75,7 +75,7 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteEnterprises(t *testing.T, ds *Datastore) {
-	err := ds.DeleteEnterprises(testCtx())
+	err := ds.DeleteAllEnterprises(testCtx())
 	require.NoError(t, err)
 	err = ds.DeleteOtherEnterprises(testCtx(), 9999)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	_, err = ds.GetEnterpriseByID(testCtx(), tempEnterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))
 
-	err = ds.DeleteEnterprises(testCtx())
+	err = ds.DeleteAllEnterprises(testCtx())
 	require.NoError(t, err)
 	_, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))

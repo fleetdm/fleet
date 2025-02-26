@@ -1027,5 +1027,5 @@ allow {
 allow {
   object.type == "android_enterprise"
   subject.global_role == admin
-  action == write
+  action == [read, write][_]
 }

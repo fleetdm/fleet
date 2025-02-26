@@ -24,14 +24,13 @@ parasails.registerPage('homepage', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
     if(window.location.hash === '#unsubscribed'){
       this.modal = 'unsubscribed';
       window.location.hash = '';
     }
   },
   mounted: async function() {
-    this.animateHeroTicker();
+    // this.animateHeroTicker();
     if(['mdm', 'eo-it', undefined].includes(this.primaryBuyingSituation)){
       this.animateBottomTicker();
     }
