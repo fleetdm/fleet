@@ -36,7 +36,7 @@ Learn more about automatically installing software [the Automatically install so
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options except automatic install can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
+> After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .deb, .rpm, or .exe) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
 ### Package metadata extraction
 
