@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import PATHS from "router/paths";
 
+import { getPathWithQueryParams } from "utilities/url";
 import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 import { IHostSummary } from "interfaces/host_summary";
@@ -8,7 +9,6 @@ import { PlatformValueOptions } from "utilities/constants";
 import DataError from "components/DataError";
 
 import HostCountCard from "../../cards/HostCountCard";
-import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "platform-host-counts";
 

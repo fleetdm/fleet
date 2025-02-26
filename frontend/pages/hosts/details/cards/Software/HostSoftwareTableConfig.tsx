@@ -19,6 +19,7 @@ import {
 } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -31,7 +32,6 @@ import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTa
 
 import InstallStatusCell from "./InstallStatusCell";
 import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
-import { getPathWithQueryParams } from "utilities/url";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
