@@ -12,6 +12,7 @@ import HostCountCard from "../../cards/HostCountCard";
 const baseClass = "platform-host-counts";
 
 interface IPlatformHostCountsProps {
+  androidDevEnabled: boolean; // TODO(android): remove when feature flag is removed
   currentTeamId: number | undefined;
   macCount: number;
   windowsCount: number;
@@ -19,6 +20,7 @@ interface IPlatformHostCountsProps {
   chromeCount: number;
   iosCount: number;
   ipadosCount: number;
+  androidCount: number;
   builtInLabels?: IHostSummary["builtin_labels"];
   errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
@@ -26,6 +28,7 @@ interface IPlatformHostCountsProps {
 }
 
 const PlatformHostCounts = ({
+  androidDevEnabled,
   currentTeamId,
   macCount,
   windowsCount,
@@ -33,6 +36,7 @@ const PlatformHostCounts = ({
   chromeCount,
   iosCount,
   ipadosCount,
+  androidCount,
   builtInLabels,
   errorHosts,
   selectedPlatform,
@@ -187,6 +191,34 @@ const PlatformHostCounts = ({
     );
   };
 
+  const renderAndroidCount = (teamId?: number) => {
+    if (!androidDevEnabled) {
+      // TODO(android): remove when feature flag is removed
+      return null;
+    }
+
+    const androidLabelId = getBuiltinLabelId("android");
+
+    if (hidePlatformCard(androidCount)) {
+      return null;
+    }
+
+    if (androidLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <HostCountCard
+        iconName="android"
+        count={androidCount}
+        title="Android"
+        path={PATHS.MANAGE_HOSTS_LABEL(androidLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
   const renderCounts = (teamId?: number) => {
     switch (selectedPlatform) {
       case "darwin":
@@ -201,7 +233,10 @@ const PlatformHostCounts = ({
         return renderIosCount(teamId);
       case "ipados":
         return renderIpadosCount(teamId);
+      case "android":
+        return renderAndroidCount(teamId);
       default:
+        // TODO(android): responsive layout with variable column widths (see figma for 2x2x3 grid)
         return (
           <>
             {renderMacCard(teamId)}
@@ -210,6 +245,7 @@ const PlatformHostCounts = ({
             {renderChromeCard(teamId)}
             {renderIosCount(teamId)}
             {renderIpadosCount(teamId)}
+            {renderAndroidCount(teamId)}
           </>
         );
     }

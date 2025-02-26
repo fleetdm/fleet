@@ -1,9 +1,11 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabsWrapper from "components/TabsWrapper";
+import CustomLink from "components/CustomLink";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import WindowsTargetForm from "../WindowsTargetForm";
-import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 import AppleOSTargetForm from "../AppleOSTargetForm";
 
 const baseClass = "platform-tabs";
@@ -18,11 +20,12 @@ interface IPlatformTabsProps {
   defaultIPadOSDeadline: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
-  selectedPlatform: OSUpdatesSupportedPlatform;
-  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  selectedPlatform: OSUpdatesTargetPlatform;
+  onSelectPlatform: (platform: OSUpdatesTargetPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
   isWindowsMdmEnabled: boolean;
+  isAndroidMdmEnabled: boolean;
 }
 
 const PlatformTabs = ({
@@ -40,23 +43,28 @@ const PlatformTabs = ({
   refetchAppConfig,
   refetchTeamConfig,
   isWindowsMdmEnabled,
+  isAndroidMdmEnabled,
 }: IPlatformTabsProps) => {
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
   // submitting.
 
-  const PLATFORM_BY_INDEX: OSUpdatesSupportedPlatform[] = isWindowsMdmEnabled
+  const platformByIndex: OSUpdatesTargetPlatform[] = isWindowsMdmEnabled
     ? ["darwin", "windows", "ios", "ipados"]
     : ["darwin", "ios", "ipados"];
 
+  if (isAndroidMdmEnabled) {
+    platformByIndex.push("android");
+  }
+
   const onTabChange = (index: number) => {
-    onSelectPlatform(PLATFORM_BY_INDEX[index]);
+    onSelectPlatform(platformByIndex[index]);
   };
 
   return (
     <div className={baseClass}>
       <TabsWrapper>
         <Tabs
-          defaultIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+          defaultIndex={platformByIndex.indexOf(selectedPlatform)}
           onSelect={onTabChange}
         >
           <TabList>
@@ -76,6 +84,11 @@ const PlatformTabs = ({
             <Tab key="iPadOS" data-text="iPadOS">
               iPadOS
             </Tab>
+            {isAndroidMdmEnabled && (
+              <Tab key="Android" data-text="Android">
+                Android
+              </Tab>
+            )}
           </TabList>
           <TabPanel>
             <AppleOSTargetForm
@@ -122,6 +135,19 @@ const PlatformTabs = ({
               refetchTeamConfig={refetchTeamConfig}
             />
           </TabPanel>
+          {isAndroidMdmEnabled && (
+            <TabPanel>
+              <div className={`${baseClass}__coming-soon`}>
+                <p>
+                  <b>Android updates are coming soon.</b>
+                </p>
+                <p>
+                  Need to encourage installation of Android updates?{" "}
+                  <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+                </p>
+              </div>
+            </TabPanel>
+          )}
         </Tabs>
       </TabsWrapper>
     </div>
