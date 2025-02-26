@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
@@ -87,7 +88,11 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
-	id, err := svc.ds.CreateEnterprise(ctx)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	id, err := svc.ds.CreateEnterprise(ctx, vc.User.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
 	}

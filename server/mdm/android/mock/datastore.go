@@ -12,7 +12,7 @@ import (
 
 var _ android.Datastore = (*Datastore)(nil)
 
-type CreateEnterpriseFunc func(ctx context.Context) (uint, error)
+type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
 type GetEnterpriseByIDFunc func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error)
 
@@ -56,11 +56,11 @@ type Datastore struct {
 	mu sync.Mutex
 }
 
-func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
+func (ds *Datastore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
 	ds.mu.Lock()
 	ds.CreateEnterpriseFuncInvoked = true
 	ds.mu.Unlock()
-	return ds.CreateEnterpriseFunc(ctx)
+	return ds.CreateEnterpriseFunc(ctx, userID)
 }
 
 func (ds *Datastore) GetEnterpriseByID(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
