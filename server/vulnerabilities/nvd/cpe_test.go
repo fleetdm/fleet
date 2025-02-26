@@ -488,6 +488,7 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	// Note: make sure to run `go test` with "-tags fts5" for this test, since it uses sqlite.
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -903,10 +904,25 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			software: fleet.Software{
 				Name:    "Python 3.14.0a1 (64-bit)",
 				Source:  "programs",
-				Version: "3.14.0-alpha1",
+				Version: "3.14.0a1",
 				Vendor:  "Python Software Foundation",
-				// should be "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*"; see #24810
-			}, cpe: "cpe:2.3:a:python:python:3.14.0-alpha1:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0b2 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0b2",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0rc1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0rc1",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
