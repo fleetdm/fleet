@@ -128,7 +128,7 @@ export const isLinuxLike = (platform: string) => {
   );
 };
 
-export const isAppleDevice = (platform: string) => {
+export const isAppleDevice = (platform = "") => {
   return HOST_APPLE_PLATFORMS.includes(
     platform as typeof HOST_APPLE_PLATFORMS[number]
   );

@@ -274,10 +274,42 @@ const HostDetailsPage = ({
     }
   );
 
+  const {
+    data: hostCertificates,
+    isLoading: isLoadingHostCertificates,
+    isError: isErrorHostCertificates,
+    refetch: refetchHostCertificates,
+  } = useQuery<
+    IGetHostCertificatesResponse,
+    Error,
+    IGetHostCertificatesResponse
+  >(
+    [
+      "host-certificates",
+      host_id,
+      DEFAULT_CERTIFICATES_PAGE,
+      DEFAULT_CERTIFICATES_PAGE_SIZE,
+    ],
+    () =>
+      hostAPI.getHostCertificates(
+        hostIdFromURL,
+        DEFAULT_CERTIFICATES_PAGE,
+        DEFAULT_CERTIFICATES_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!hostIdFromURL,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
+    hostCertificates && refetchHostCertificates();
   };
 
   const {
@@ -459,37 +491,6 @@ const HostDetailsPage = ({
     {
       keepPreviousData: true,
       staleTime: 2000,
-    }
-  );
-
-  const {
-    data: hostCertificates,
-    isLoading: isLoadingHostCertificates,
-    isError: isErrorHostCertificates,
-  } = useQuery<
-    IGetHostCertificatesResponse,
-    Error,
-    IGetHostCertificatesResponse
-  >(
-    [
-      "host-certificates",
-      host_id,
-      DEFAULT_CERTIFICATES_PAGE,
-      DEFAULT_CERTIFICATES_PAGE_SIZE,
-    ],
-    () =>
-      hostAPI.getHostCertificates(
-        hostIdFromURL,
-        DEFAULT_CERTIFICATES_PAGE,
-        DEFAULT_CERTIFICATES_PAGE_SIZE
-      ),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled:
-        !!hostIdFromURL &&
-        (host?.platform === "darwin" ||
-          host?.platform === "ios" ||
-          host?.platform === "ipados"),
     }
   );
 
@@ -957,7 +958,7 @@ const HostDetailsPage = ({
                 />
               )}
               {(isIosOrIpadosHost || isDarwinHost) &&
-                hostCertificates?.certificates.length && (
+                !!hostCertificates?.certificates.length && (
                   <CertificatesCard
                     data={hostCertificates}
                     hostPlatform={host.platform}
@@ -980,7 +981,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
-              {host?.platform === "darwin" && macadmins?.munki?.version && (
+              {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
