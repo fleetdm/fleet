@@ -7,6 +7,7 @@ import { GraphicNames } from "components/graphics";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
 import FileDetails from "components/FileDetails";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "file-uploader";
 
@@ -54,6 +55,8 @@ interface IFileUploaderProps {
     name: string;
     platform?: string;
   };
+  /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  gitopsCompatible?: boolean;
 }
 
 /**
@@ -72,6 +75,7 @@ export const FileUploader = ({
   onFileUpload,
   canEdit = false,
   fileDetails,
+  gitopsCompatible = false,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,19 +126,40 @@ export const FileUploader = ({
         {additionalInfo && (
           <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
         )}
-        <Button
-          className={`${baseClass}__upload-button`}
-          variant={buttonVariant}
-          isLoading={isLoading}
-          disabled={disabled}
-          customOnKeyDown={handleKeyDown}
-          tabIndex={0}
-        >
-          <label htmlFor="upload-file">
-            {buttonType === "link" && <Icon name="upload" />}
-            <span>{buttonMessage}</span>
-          </label>
-        </Button>
+        {gitopsCompatible ? (
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                className={`${baseClass}__upload-button`}
+                variant={buttonVariant}
+                isLoading={isLoading}
+                disabled={disabled || disableChildren}
+                customOnKeyDown={handleKeyDown}
+                tabIndex={0}
+              >
+                <label htmlFor="upload-file">
+                  {buttonType === "link" && <Icon name="upload" />}
+                  <span>{buttonMessage}</span>
+                </label>
+              </Button>
+            )}
+          />
+        ) : (
+          <Button
+            className={`${baseClass}__upload-button`}
+            variant={buttonVariant}
+            isLoading={isLoading}
+            disabled={disabled}
+            customOnKeyDown={handleKeyDown}
+            tabIndex={0}
+          >
+            <label htmlFor="upload-file">
+              {buttonType === "link" && <Icon name="upload" />}
+              <span>{buttonMessage}</span>
+            </label>
+          </Button>
+        )}
         <input
           ref={fileInputRef}
           accept={accept}
@@ -147,7 +172,7 @@ export const FileUploader = ({
   };
 
   return (
-    <Card color="gray" className={classes}>
+    <Card color="grey" className={classes}>
       {isFileSelected && fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}

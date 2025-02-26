@@ -21,3 +21,7 @@ declare module "*.pdf" {
   const value: string;
   export = value;
 }
+
+declare const featureFlags: {
+  [key: string]: type;
+};

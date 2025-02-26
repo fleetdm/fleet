@@ -288,8 +288,8 @@ const routes = (
                 path="fleet-maintained"
                 component={SoftwareFleetMaintained}
               />
-              <Route path="package" component={SoftwareCustomPackage} />
               <Route path="app-store" component={SoftwareAppStore} />
+              <Route path="package" component={SoftwareCustomPackage} />
             </Route>
             <Route
               path="add/fleet-maintained/:id"

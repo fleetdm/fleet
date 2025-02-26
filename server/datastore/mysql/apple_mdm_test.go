@@ -17,6 +17,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -4650,7 +4651,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	// host has no boostrap package command yet
 	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.Error(t, err)
-	nfe := &notFoundError{}
+	nfe := &common_mysql.NotFoundError{}
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
@@ -5560,7 +5561,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 				require.Equal(t, expectedHost.Platform, h.Platform)
 				require.Equal(t, expectedHost.TeamID, h.TeamID)
 			} else {
-				nfe := &notFoundError{}
+				nfe := &common_mysql.NotFoundError{}
 				require.ErrorAs(t, err, &nfe)
 			}
 
