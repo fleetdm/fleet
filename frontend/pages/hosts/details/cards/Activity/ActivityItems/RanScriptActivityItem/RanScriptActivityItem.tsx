@@ -26,7 +26,7 @@ const RanScriptActivityItem = ({
       isSoloActivity={isSoloActivity}
       hideCancel={hideCancel}
     >
-      <b>{activity.actor_full_name}</b>
+      <b>{activity.actor_full_name ?? "Fleet"}</b>
       <>
         {" "}
         {ranScriptPrefix}{" "}
