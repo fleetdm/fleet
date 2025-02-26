@@ -13033,11 +13033,20 @@ func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 	wantIDs := append([]uint{notAndroidHost.ID}, hostIDs...)
 	require.ElementsMatch(t, wantIDs, pluckHostIDs(listHostsResp.Hosts))
 
+	// count hosts in label
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(allLblID))
+	require.Equal(t, len(hostIDs)+1, countResp.Count)
+
 	// list android hosts
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", androidLblID), nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, len(hostIDs))
 	require.ElementsMatch(t, hostIDs, pluckHostIDs(listHostsResp.Hosts))
+
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(androidLblID))
+	require.Equal(t, len(hostIDs), countResp.Count)
 }
 
 func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
