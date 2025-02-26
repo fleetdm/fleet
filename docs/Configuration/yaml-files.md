@@ -117,6 +117,8 @@ queries:
     interval: 300
     observer_can_run: false
     automations_enabled: false
+    labels_include_any_paths:
+      - ../lib/c-suite.labels.yml
 ```
 
 #### Separate file
@@ -145,6 +147,8 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
+    labels_include_any_paths:
+    - ../lib/c-suite.labels.yml
 ```
 
 ## agent_options
