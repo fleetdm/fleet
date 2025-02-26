@@ -8298,8 +8298,16 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	require.NotZero(t, createResp.User.ID)
 	u := *createResp.User
 
+	// Request password reset when SMTP/SES is not configured
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusInternalServerError)
+	res.Body.Close()
+
+	// Configure SMTP
+	var configResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage("{\"smtp_settings\":{\"enable_smtp\":true,\"sender_address\":\"user@example.com\",\"server\":\"127.0.0.1\",\"port\":1025,\"authentication_type\":\"authtype_none\"}}"), http.StatusOK, &configResp)
+
 	// request forgot password, invalid email
-	res := s.DoRawNoAuth("POST", "/api/latest/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/forgot_password", jsonMustMarshal(t, forgotPasswordRequest{Email: "invalid@asd.com"}), http.StatusAccepted)
 	res.Body.Close()
 
 	// TODO: tested manually (adds too much time to the test), works but hitting the rate
