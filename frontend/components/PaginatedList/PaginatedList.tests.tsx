@@ -317,7 +317,8 @@ describe("PaginatedList", () => {
         isSelected={jest.fn()}
         renderItemRow={(item, onChange) => (
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onChange({
                 ...item,
                 favoriteIceCreamFlavor: `${item.favoriteIceCreamFlavor} Pie`,
