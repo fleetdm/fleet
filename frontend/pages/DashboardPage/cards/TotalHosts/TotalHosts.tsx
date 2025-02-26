@@ -1,7 +1,7 @@
 import React from "react";
 import PATHS from "router/paths";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HostCountCard from "../HostCountCard";
 
@@ -22,14 +22,12 @@ const TotalHosts = ({
 }: ITotalHostsProps): JSX.Element => {
   // build the manage hosts URL filtered by low disk space only
   // currently backend cannot filter by both low disk space and label
-  const queryParams = {
-    team_id: currentTeamId,
-  };
-  const queryString = buildQueryStringFromParams(queryParams);
   const endpoint = selectedPlatformLabelId
     ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
     : PATHS.MANAGE_HOSTS;
-  const path = `${endpoint}?${queryString}`;
+  const path = getPathWithQueryParams(endpoint, {
+    team_id: currentTeamId,
+  });
 
   return (
     <HostCountCard

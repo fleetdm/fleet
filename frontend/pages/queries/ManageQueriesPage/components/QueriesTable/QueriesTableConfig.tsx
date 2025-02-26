@@ -7,19 +7,21 @@ import PATHS from "router/paths";
 
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
-import permissionsUtils from "utilities/permissions";
-import { IUser } from "interfaces/user";
 import { secondsToDhms } from "utilities/helpers";
-import {
-  IEnhancedQuery,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+import permissionsUtils from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
 import {
   isScheduledQueryablePlatform,
   ScheduledQueryablePlatform,
   CommaSeparatedPlatformString,
 } from "interfaces/platform";
+import {
+  IEnhancedQuery,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
+import { IUser } from "interfaces/user";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -32,7 +34,6 @@ import PerformanceImpactCell from "components/TableContainer/DataTable/Performan
 import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
@@ -137,50 +138,49 @@ const generateColumnConfigs = ({
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const { id, team_id, observer_can_run } = cellProps.row.original;
         return (
           <LinkCell
             className="w400 query-name-cell"
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
-                {!isCurrentTeamObserverOrGlobalObserver &&
-                  cellProps.row.original.observer_can_run && (
-                    <div className="observer-can-run-badge">
-                      <span
-                        className="observer-can-run-icon"
-                        data-tooltip-id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                      >
-                        <Icon
-                          className="observer-can-run-query-icon"
-                          name="query"
-                          size="small"
-                          color="core-fleet-blue"
-                        />
-                      </span>
-                      <ReactTooltip5
-                        className="observer-can-run-tooltip"
-                        disableStyleInjection
-                        place="top"
-                        opacity={1}
-                        id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                        offset={8}
-                        positionStrategy="fixed"
-                      >
-                        Observers can run this query.
-                      </ReactTooltip5>
-                    </div>
-                  )}
+                {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
+                  <div className="observer-can-run-badge">
+                    <span
+                      className="observer-can-run-icon"
+                      data-tooltip-id={`observer-can-run-tooltip-${id}`}
+                    >
+                      <Icon
+                        className="observer-can-run-query-icon"
+                        name="query"
+                        size="small"
+                        color="core-fleet-blue"
+                      />
+                    </span>
+                    <ReactTooltip5
+                      className="observer-can-run-tooltip"
+                      disableStyleInjection
+                      place="top"
+                      opacity={1}
+                      id={`observer-can-run-tooltip-${id}`}
+                      offset={8}
+                      positionStrategy="fixed"
+                    >
+                      Observers can run this query.
+                    </ReactTooltip5>
+                  </div>
+                )}
                 {viewingTeamScope &&
                   // inherited
-                  cellProps.row.original.team_id !== currentTeamId && (
+                  team_id !== currentTeamId && (
                     <InheritedBadge tooltipContent="This query runs on all hosts." />
                   )}
               </>
             }
-            path={PATHS.QUERY_DETAILS(
-              cellProps.row.original.id,
-              cellProps.row.original.team_id ?? currentTeamId
-            )}
+            path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
+              team_id: team_id ?? currentTeamId,
+            })}
           />
         );
       },

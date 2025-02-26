@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
@@ -78,10 +78,10 @@ const generateTableHeaders = (
 
         const { cve } = cellProps.row.original;
 
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareVulnerabilitiesDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
-          cve
-        )}?${teamQueryParam}`;
+        const softwareVulnerabilitiesDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve),
+          { team_id: teamId }
+        );
 
         const onClickVulnerability = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row

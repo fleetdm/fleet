@@ -92,6 +92,7 @@ const filterEmptyParams = (queryParams: QueryParams) => {
  * creates a query string from a query params object. If a value is undefined, null,
  * or an empty string on the queryParams object, that key-value pair will be
  * excluded from the query string.
+ * TODO: For UI elements, replace all instances of buildQueryStringFromParams with getPathWithQueryParams
  */
 export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
@@ -105,6 +106,24 @@ export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
     ).join("&");
   }
   return queryString;
+};
+
+/**
+ * creates a path string from the root path and optional query params
+ * @param endpoint
+ * @param queryParams
+ * @returns string
+ */
+export const getPathWithQueryParams = <T>(
+  endpoint: string,
+  queryParams?: QueryParams2<T>
+) => {
+  if (!queryParams) {
+    return endpoint;
+  }
+
+  const queryString = buildQueryStringFromParams(queryParams);
+  return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
 export const reconcileSoftwareParams = ({

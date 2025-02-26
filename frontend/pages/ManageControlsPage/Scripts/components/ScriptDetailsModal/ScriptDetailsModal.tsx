@@ -32,6 +32,7 @@ import paths from "router/paths";
 import ActionsDropdown from "components/ActionsDropdown";
 import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "script-details-modal";
 
@@ -58,6 +59,7 @@ interface IScriptDetailsModalProps {
   isScriptContentError?: Error | null;
   isHidden?: boolean;
   onClickRunDetails?: (scriptExecutionId: string) => void;
+  teamIdForApi?: number;
 }
 
 const ScriptDetailsModal = ({
@@ -75,6 +77,7 @@ const ScriptDetailsModal = ({
   isScriptContentError,
   isHidden = false,
   onClickRunDetails,
+  teamIdForApi,
 }: IScriptDetailsModalProps) => {
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
@@ -272,11 +275,23 @@ const ScriptDetailsModal = ({
         {runScriptHelpText && (
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
-            <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
-            a host.
+            <CustomLink
+              text="Hosts"
+              url={getPathWithQueryParams(paths.MANAGE_HOSTS, {
+                team_id: teamIdForApi,
+              })}
+            />{" "}
+            page and select a host.
             <br />
             To run the script across multiple hosts, add a policy automation on
-            the <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
+            the{" "}
+            <CustomLink
+              text="Policies"
+              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                team_id: teamIdForApi,
+              })}
+            />{" "}
+            page.
           </div>
         )}
       </div>

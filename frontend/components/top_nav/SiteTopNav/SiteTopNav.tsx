@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 
-import { QueryParams } from "utilities/url";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { AppContext } from "context/app";
@@ -170,7 +170,9 @@ const SiteTopNav = ({
 
       const includeTeamId = (activePath: string) => {
         if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
-          return `${path}?team_id=${currentQueryParams.team_id}`;
+          return getPathWithQueryParams(path, {
+            team_id: currentQueryParams.team_id,
+          });
         }
         return activePath;
       };

@@ -3,6 +3,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
+import paths from "router/paths";
 import { IPolicyStats } from "interfaces/policy";
 import {
   CommaSeparatedPlatformString,
@@ -14,6 +15,7 @@ import softwareAPI, {
   ISoftwareTitlesResponse,
 } from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -296,8 +298,14 @@ const InstallSoftwareModal = ({
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
           <div>
-            Go to <a href={`/software/titles?team_id=${teamId}`}>Software</a> to
-            add software to this team.
+            Go to{" "}
+            <CustomLink
+              url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+                team_id: teamId,
+              })}
+              text="Software"
+            />{" "}
+            to add software to this team.
           </div>
         </div>
       );

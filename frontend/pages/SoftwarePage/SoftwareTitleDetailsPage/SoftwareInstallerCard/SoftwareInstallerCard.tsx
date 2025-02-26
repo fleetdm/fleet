@@ -10,7 +10,7 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Card from "components/Card";
 
@@ -101,11 +101,11 @@ const InstallerStatusCount = ({
   teamId,
 }: IInstallerStatusCountProps) => {
   const displayData = STATUS_DISPLAY_OPTIONS[status];
-  const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+  const linkUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
     software_title_id: softwareId,
     software_status: status,
     team_id: teamId,
-  })}`;
+  });
 
   return (
     <DataSet

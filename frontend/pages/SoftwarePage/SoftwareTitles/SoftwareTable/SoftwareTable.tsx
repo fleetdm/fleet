@@ -11,8 +11,8 @@ import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import {
-  buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import {
   ISoftwareApiParams,
@@ -248,13 +248,10 @@ const SoftwareTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
-
-      const path = `${PATHS.SOFTWARE_TITLE_DETAILS(
-        row.original.id.toString()
-      )}?${teamQueryParam}`;
+      const path = getPathWithQueryParams(
+        PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString()),
+        { team_id: teamId }
+      );
 
       router.push(path);
     }
