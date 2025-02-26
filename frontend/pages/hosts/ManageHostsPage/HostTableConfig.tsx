@@ -6,7 +6,7 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isMobilePlatform } from "interfaces/platform";
+import { isAndroid, isMobilePlatform } from "interfaces/platform";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
@@ -298,7 +298,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "os_version",
     id: "os_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO: is Android supported? what about the os versions endpoint and dashboard card?
+      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -326,7 +326,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "device_mapping",
     id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
-      // TODO: is android supported?
+      // TODO(android): is android supported?
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
       if (users.length > 1) {
@@ -467,7 +467,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "detail_updated_at",
     id: "detail_updated_at",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO: android doesn't support refetch?
+      // TODO(android): android doesn't support refetch?
       <TextCell
         value={{ timeString: cellProps.cell.value }}
         formatter={HumanTimeDiffWithFleetLaunchCutoff}
@@ -592,8 +592,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "primary_mac",
     id: "primary_mac",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO: is iOS/iPadOS supported?
-      if (cellProps.row.original.platform === "android") {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -610,8 +610,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hardware_serial",
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO: is iOS/iPadOS supported?
-      if (cellProps.row.original.platform === "android") {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;

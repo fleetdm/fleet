@@ -57,7 +57,7 @@ const displayIncompatibilityText = (err: Error) => {
 //   </>
 // );
 
-// TODO: replace with the above tipContent when Android feature flag is removed
+// TODO(android): replace with the above tipContent when Android feature flag is removed
 const tipContent = (
   <>
     Estimated compatibility based on the <br />

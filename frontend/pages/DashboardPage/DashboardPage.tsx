@@ -192,7 +192,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     IConfig
   >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
-  // TODO: remove this when the feature flag is removed
+  // TODO(android): remove this when the feature flag is removed
   const platformOptions = useMemo(() => {
     if (!config?.android_enabled) {
       return PLATFORM_DROPDOWN_OPTIONS.filter((o) => o.value !== "android");

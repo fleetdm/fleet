@@ -137,9 +137,13 @@ export const isAppleDevice = (platform: string) => {
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
 
-/* isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
+export const isAndroid = (
+  platform: string | HostPlatform
+): platform is "android" => platform === "android";
+
+/** isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
 export const isMobilePlatform = (platform: string | HostPlatform) =>
-  isIPadOrIPhone(platform) || platform === "android";
+  isIPadOrIPhone(platform) || isAndroid(platform);
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
@@ -169,6 +173,9 @@ export const platformSupportsDiskEncryption = (
   /** os_version necessary to differentiate Fedora from other rhel-like platforms */
   os_version?: string
 ) => {
+  if (isAndroid(platform)) {
+    return false;
+  }
   if (platform === "rhel") {
     return !!os_version && os_version.toLowerCase().includes("fedora");
   }
@@ -187,6 +194,9 @@ export const isOsSettingsDisplayPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
+  if (isAndroid(platform)) {
+    return false;
+  }
   if (platform === "rhel") {
     return !!os_version && os_version.toLowerCase().includes("fedora");
   }
