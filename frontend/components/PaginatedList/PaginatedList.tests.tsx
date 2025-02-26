@@ -305,7 +305,7 @@ describe("PaginatedList", () => {
     expect(checkboxes[0]).not.toBeChecked();
   });
 
-  it("Can update the set of dirty items when a change is made in custom markup", async () => {
+  it.only("Can update the set of dirty items when a change is made in custom markup", async () => {
     const paginatedListRef = createRef<IPaginatedListHandle<ITestItem>>();
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>

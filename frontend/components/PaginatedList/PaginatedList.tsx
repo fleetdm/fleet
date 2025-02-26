@@ -47,7 +47,11 @@ interface IPaginatedListProps<TItem> {
   onToggleItem: (item: TItem) => TItem;
   // The size of the page to fetch and show.
   pageSize?: number;
+  // An optional header component.
+  heading?: JSX.Element;
+  // A function to call when the list of dirty items changes.
   onUpdate?: (changedItems: TItem[]) => void;
+  // Whether the list should be disabled.
   disabled?: boolean;
 }
 
@@ -63,6 +67,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     onUpdate,
     isSelected,
     disabled = false,
+    heading,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
@@ -140,6 +145,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         </div>
       )}
       <ul className={`${baseClass}__list`}>
+        {heading && (
+          <li className={`${baseClass}__row ${baseClass}__header`}>
+            {heading}
+          </li>
+        )}
         {items.map((_item) => {
           // If an item has been marked as changed, use the changed version
           // of the item rather than the one from the page fetch.  This allows
@@ -147,7 +157,19 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           // from its page and then back again.
           const item = dirtyItems[_item[idKey]] ?? _item;
           return (
-            <li className={`${baseClass}__row`} key={item[idKey]}>
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+            <li
+              className={`${baseClass}__row`}
+              key={item[idKey]}
+              onClick={() => {
+                // When checkbox is toggled, set item as dirty.
+                // The parent is responsible for actually updating item properties via onToggleItem().
+                setDirtyItems({
+                  ...dirtyItems,
+                  [item[idKey]]: onToggleItem(item),
+                });
+              }}
+            >
               <Checkbox
                 disabled={disabled}
                 value={
@@ -156,14 +178,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                     : item[isSelected]
                 }
                 name={`item_${item[idKey]}_checkbox`}
-                onChange={() => {
-                  // When checkbox is toggled, set item as dirty.
-                  // The parent is responsible for actually updating item properties via onToggleItem().
-                  setDirtyItems({
-                    ...dirtyItems,
-                    [item[idKey]]: onToggleItem(item),
-                  });
-                }}
               >
                 {renderItemLabel ? (
                   renderItemLabel(item)

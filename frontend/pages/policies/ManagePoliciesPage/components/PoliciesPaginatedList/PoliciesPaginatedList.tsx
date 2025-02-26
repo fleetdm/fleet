@@ -165,7 +165,6 @@ function PoliciesPaginatedList(
   return (
     <div className={`${baseClass} form`}>
       <div className="form-field">
-        <div className={labelClasses}>Policies:</div>
         <div>
           <PaginatedList<IFormPolicy>
             ref={paginatedListRef}
@@ -176,6 +175,7 @@ function PoliciesPaginatedList(
             pageSize={DEFAULT_PAGE_SIZE}
             onUpdate={onUpdate}
             disabled={disabled || gitOpsModeEnabled}
+            heading={<span className={`${baseClass}__header`}>Policies</span>}
           />
           {footer}
         </div>
