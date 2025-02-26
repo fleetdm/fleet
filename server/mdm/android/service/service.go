@@ -24,7 +24,7 @@ type Service struct {
 	authz   *authz.Authorizer
 	ds      android.Datastore
 	fleetDS fleet.Datastore
-	proxy   *proxy.Proxy
+	proxy   android.Proxy
 }
 
 func NewService(
@@ -32,35 +32,31 @@ func NewService(
 	logger kitlog.Logger,
 	fleetDS fleet.Datastore,
 ) (android.Service, error) {
+	prx := proxy.NewProxy(ctx, logger)
+	return NewServiceWithProxy(logger, fleetDS, prx)
+}
+
+func NewServiceWithProxy(
+	logger kitlog.Logger,
+	fleetDS fleet.Datastore,
+	proxy android.Proxy,
+) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
-
-	prx := proxy.NewProxy(ctx, logger)
 
 	return &Service{
 		logger:  logger,
 		authz:   authorizer,
 		ds:      fleetDS.GetAndroidDS(),
 		fleetDS: fleetDS,
-		proxy:   prx,
+		proxy:   proxy,
 	}, nil
 }
 
-type defaultResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r defaultResponse) Error() error { return r.Err }
-
-func newErrResponse(err error) defaultResponse {
-	return defaultResponse{Err: err}
-}
-
-type androidEnterpriseSignupResponse struct {
-	Url string `json:"android_enterprise_signup_url"`
-	defaultResponse
+func newErrResponse(err error) android.DefaultResponse {
+	return android.DefaultResponse{Err: err}
 }
 
 func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
@@ -68,7 +64,7 @@ func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Se
 	if err != nil {
 		return newErrResponse(err)
 	}
-	return androidEnterpriseSignupResponse{Url: result.Url}
+	return android.EnterpriseSignupResponse{Url: result.Url}
 }
 
 func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetails, error) {
@@ -125,7 +121,7 @@ type enterpriseSignupCallbackRequest struct {
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
-	return defaultResponse{Err: err}
+	return android.DefaultResponse{Err: err}
 }
 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
@@ -156,10 +152,19 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
-		[]string{android.PubSubEnrollment, android.PubSubStatusReport, android.PubSubCommand, android.PubSubUsageLogs},
-		enterpriseToken,
-		enterprise.SignupName,
-		appConfig.ServerSettings.ServerURL+pubSubPushPath+"?token="+pubSubToken,
+		android.ProxyEnterprisesCreateRequest{
+			Enterprise: androidmanagement.Enterprise{
+				EnabledNotificationTypes: []string{
+					android.PubSubEnrollment,
+					android.PubSubStatusReport,
+					android.PubSubCommand,
+					android.PubSubUsageLogs,
+				},
+			},
+			EnterpriseToken: enterpriseToken,
+			SignupUrlName:   enterprise.SignupName,
+			PubSubPushURL:   appConfig.ServerSettings.ServerURL + pubSubPushPath + "?token=" + pubSubToken,
+		},
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")
@@ -222,9 +227,31 @@ func topicIDFromName(name string) (string, error) {
 	return name[lastSlash+1:], nil
 }
 
+func getEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	enterprise, err := svc.GetEnterprise(ctx)
+	if err != nil {
+		return android.DefaultResponse{Err: err}
+	}
+	return android.GetEnterpriseResponse{EnterpriseID: enterprise.EnterpriseID}
+}
+
+func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewInvalidArgumentError("enterprise", "No enterprise found").WithStatus(http.StatusNotFound)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
+	}
+	return enterprise, nil
+}
+
 func deleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	err := svc.DeleteEnterprise(ctx)
-	return defaultResponse{Err: err}
+	return android.DefaultResponse{Err: err}
 }
 
 func (svc *Service) DeleteEnterprise(ctx context.Context) error {
@@ -246,7 +273,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		}
 	}
 
-	err = svc.ds.DeleteEnterprises(ctx)
+	err = svc.ds.DeleteAllEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
 	}
@@ -263,18 +290,18 @@ type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
 }
 
-type androidEnrollmentTokenResponse struct {
+type enrollmentTokenResponse struct {
 	*android.EnrollmentToken
-	defaultResponse
+	android.DefaultResponse
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
 	if err != nil {
-		return defaultResponse{Err: err}
+		return android.DefaultResponse{Err: err}
 	}
-	return androidEnrollmentTokenResponse{EnrollmentToken: token}
+	return enrollmentTokenResponse{EnrollmentToken: token}
 }
 
 func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
