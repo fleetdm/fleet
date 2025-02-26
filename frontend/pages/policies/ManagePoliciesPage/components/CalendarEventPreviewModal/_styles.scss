@@ -78,3 +78,9 @@
     margin-top: 0; // Defer to new gap styling
   }
 }
+
+// Pop up preview immediately.
+.modal__background:has(.calendar-event-preview-modal) {
+  transition: none;
+  animation: none;
+}
