@@ -378,6 +378,8 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Transfer-Encoding", "chunked")
 	if r.done == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprint(w, "Error: No SSE data available")
@@ -386,10 +388,21 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 	w.WriteHeader(http.StatusOK)
 	w.(http.Flusher).Flush()
 
-	data, ok := <-r.done
-	if ok {
-		_, _ = fmt.Fprint(w, data)
-		w.(http.Flusher).Flush()
+	for {
+		select {
+		case data, ok := <-r.done:
+			if ok {
+				_, _ = fmt.Fprint(w, data)
+				w.(http.Flusher).Flush()
+			}
+			return
+		case <-time.After(5 * time.Second):
+			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
+			// The leading colon indicates this is a comment, and is ignored.
+			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+			_, _ = fmt.Fprint(w, ":heartbeat\n")
+			w.(http.Flusher).Flush()
+		}
 	}
 }
 
