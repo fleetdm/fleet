@@ -24,7 +24,8 @@ const CertificatesTable = ({
 }: ICertificatesTableProps) => {
   const tableConfig = generateTableConfig();
 
-  const onClickTableRow = (row: Row<IHostCertificate>) => {
+  const onClickTableRow = (row: any) => {
+    console.log(row);
     onSelectCertificate(row.original);
   };
 
@@ -41,7 +42,7 @@ const CertificatesTable = ({
   ) : null;
 
   return (
-    <TableContainer<Row<IHostCertificate>>
+    <TableContainer
       className={baseClass}
       columnConfigs={tableConfig}
       data={data}
@@ -49,7 +50,8 @@ const CertificatesTable = ({
       isAllPagesSelected={false}
       showMarkAllPages={false}
       isLoading={false}
-      onClickRow={onClickTableRow}
+      disableMultiRowSelect
+      onSelectSingleRow={onClickTableRow}
       renderTableHelpText={() => helpText}
       renderCount={() => <TableCount name="certificates" count={data.length} />}
       disablePagination
