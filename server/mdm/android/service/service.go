@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -13,11 +14,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 // We use numbers for policy names for easier mapping/indexing with Fleet DB.
-const defaultAndroidPolicyID = 1
+const (
+	defaultAndroidPolicyID   = 1
+	DefaultSignupSSEInterval = 3 * time.Second
+	SignupSSESuccess         = "Android Enterprise successfully connected"
+)
 
 type Service struct {
 	logger  kitlog.Logger
@@ -25,6 +31,9 @@ type Service struct {
 	ds      android.Datastore
 	fleetDS fleet.Datastore
 	proxy   android.Proxy
+
+	// SignupSSEInterval can be overwritten in tests.
+	SignupSSEInterval time.Duration
 }
 
 func NewService(
@@ -47,11 +56,12 @@ func NewServiceWithProxy(
 	}
 
 	return &Service{
-		logger:  logger,
-		authz:   authorizer,
-		ds:      fleetDS.GetAndroidDS(),
-		fleetDS: fleetDS,
-		proxy:   proxy,
+		logger:            logger,
+		authz:             authorizer,
+		ds:                fleetDS.GetAndroidDS(),
+		fleetDS:           fleetDS,
+		proxy:             proxy,
+		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
 }
 
@@ -155,10 +165,10 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		android.ProxyEnterprisesCreateRequest{
 			Enterprise: androidmanagement.Enterprise{
 				EnabledNotificationTypes: []string{
-					android.PubSubEnrollment,
-					android.PubSubStatusReport,
-					android.PubSubCommand,
-					android.PubSubUsageLogs,
+					string(android.PubSubEnrollment),
+					string(android.PubSubStatusReport),
+					string(android.PubSubCommand),
+					string(android.PubSubUsageLogs),
 				},
 			},
 			EnterpriseToken: enterpriseToken,
@@ -357,4 +367,88 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
 	}
 	return appConfig, nil
+}
+
+type enterpriseSSEResponse struct {
+	android.DefaultResponse
+	done chan string
+}
+
+func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Transfer-Encoding", "chunked")
+	if r.done == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, "Error: No SSE data available")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
+
+	for {
+		select {
+		case data, ok := <-r.done:
+			if ok {
+				_, _ = fmt.Fprint(w, data)
+				w.(http.Flusher).Flush()
+			}
+			return
+		case <-time.After(5 * time.Second):
+			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
+			// The leading colon indicates this is a comment, and is ignored.
+			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+			_, _ = fmt.Fprint(w, ":heartbeat\n")
+			w.(http.Flusher).Flush()
+		}
+	}
+}
+
+func enterpriseSSE(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	done, err := svc.EnterpriseSignupSSE(ctx)
+	if err != nil {
+		return android.DefaultResponse{Err: err}
+	}
+	return enterpriseSSEResponse{done: done}
+}
+
+func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error) {
+	if err := svc.authz.Authorize(ctx, &android.Enterprise{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	done := make(chan string)
+	go func() {
+		if svc.signupSSECheck(ctx, done) {
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				level.Debug(svc.logger).Log("msg", "Context cancelled during Android signup SSE")
+				return
+			case <-time.After(svc.SignupSSEInterval):
+				if svc.signupSSECheck(ctx, done) {
+					return
+				}
+			}
+		}
+	}()
+
+	return done, nil
+}
+
+func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		done <- fmt.Sprintf("Error getting app config: %v", err)
+		return true
+	}
+	if appConfig.MDM.AndroidEnabledAndConfigured {
+		done <- SignupSSESuccess
+		return true
+	}
+	return false
 }
