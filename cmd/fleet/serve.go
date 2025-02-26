@@ -750,6 +750,7 @@ the way that the Fleet server works.
 				ctx,
 				logger,
 				ds,
+				svc,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
