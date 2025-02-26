@@ -6,7 +6,8 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
@@ -58,11 +59,15 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>Issues</Tab>
-              <Tab>Versions</Tab>
+              <Tab>
+                <TabText>Issues</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Versions</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {errorMacAdmins ? (
@@ -128,7 +133,7 @@ const Munki = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );
