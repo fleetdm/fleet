@@ -49,13 +49,15 @@ module.exports = {
     if (sails.config.custom.zapierWebhookSecret !== webhookSecret) {
       throw new Error('Received unexpected webhook request with webhookSecret set to: '+webhookSecret);
     }
+    // Search for any campaigns that have a placeholder URN. If there are more than one records with a placeholder URN, throw an error.
     let adCampaignsWithPlaceholderUrns = await AdCampaign.find({
       isLatest: true,
       linkedinCampaignUrn: {startsWith: 'PLACEHOLDER-'}
     });
-    if(adCampaignsWithPlaceholderUrns.length > 2) {
+    if(adCampaignsWithPlaceholderUrns.length > 1) {
       throw new Error(`Consistency violation. When the receive-from-zapier webhook received an event from the ${eventName} zap. More than one adcampaigns with a placeholder campaign URN exist in the database.`);
     }
+
     // Zap: https://zapier.com/editor/280954803
     if(eventName === 'update-placeholder-campaign-urn') {
       assert(_.isObject(data));
@@ -69,7 +71,7 @@ module.exports = {
       await AdCampaign.updateOne({linkedinCampaignUrn: data.placeholderUrn}).set({
         linkedinCampaignUrn: data.linkedinCampaignUrn
       });
-    // Zap: https://zapier.com/editor/281086063     // «« TODO: actually publish this Zap when deployed and ready
+    // Zap: https://zapier.com/editor/281086063
     } else if (eventName === 'receive-new-customer-data') {
       assert(_.isObject(data));
       assert(_.isString(data.newMarketingStage));
@@ -84,12 +86,12 @@ module.exports = {
       // Split the LinkedIn url by slashes
       let splitLinkedinCompanyUrl = trailingSlashlessLinkedinCompanyUrl.split('/');
       // Grab the last fragment of the URL, we'll use this for the coreSignal API request to
-      let linkedinCompanyIdOrSLug = splitLinkedinCompanyUrl[splitLinkedinCompanyUrl.length - 1];
-      let matchedCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+linkedinCompanyIdOrSLug, {}, {
+      let linkedinCompanyIdOrSlug = splitLinkedinCompanyUrl[splitLinkedinCompanyUrl.length - 1];
+      let matchedCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+linkedinCompanyIdOrSlug, {}, {
         Authorization: `Bearer ${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).intercept((err)=>{
-        sails.log.info(`When the receive-from-zapier webhook received a request about a Salesforce record, a linkedin company could not be found using the provided linkedIn URL (${data.linkedinCompanyPageUrl})`, err);
+        sails.log.warn(`When the receive-from-zapier webhook received a request about a Salesforce record, a linkedin company could not be found using the provided linkedIn URL (${data.linkedinCompanyPageUrl})`, err);
         return 'couldNotMatchLinkedinId';
       });
 
@@ -110,7 +112,7 @@ module.exports = {
         });
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
-          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ sails.config.custom.zapierWebhookSecret}`,
+          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ encodeURIComponent(sails.config.custom.zapierWebhookSecret)}`,
           body: {
             campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
             name: latestCampaign.name,
@@ -151,12 +153,11 @@ module.exports = {
           linkedinCompanyIds: [ linkedinCompanyId ],
         }).fetch();
 
-        // TODO: call out to a "create campaign" Zap via HTTP, which then talks to linkedin because we don't have access to talk to the linkedin api directly
         // Then create new ad campaign in Campaign Manager
         // > For help w/ Linkedin API, see https://github.com/fleetdm/confidential/tree/main/ads
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
-          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ sails.config.custom.zapierWebhookSecret}`,
+          url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ encodeURIComponent(sails.config.custom.zapierWebhookSecret)}`,
           body: {
             campaignGroup: sails.config.custom.linkedinAbmCampaignGroupUrn,
             name: newCampaignName,
