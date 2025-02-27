@@ -622,6 +622,7 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 				}
 
 				cpeItem2.Version = fmt.Sprintf("%s%s%s", cpeItem.Version, prefix, string(numberBytes))
+				cpeItem2.Update = ""
 			}
 
 			cpeItems = append(cpeItems, &cpeItem2)
