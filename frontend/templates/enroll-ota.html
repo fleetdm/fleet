@@ -257,7 +257,7 @@
 
     <script>
       const ANDROID_GET_TOKEN_URL =
-        "{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token";
+        "{{.URLPrefix}}/api/v1/fleet/android_enterprise/enrollment_token";
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
@@ -355,9 +355,11 @@
         const enrollSecret = getEnrollmentSecret();
 
         const response = await fetch(
-          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${enrollSecret}`,
+          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+            enrollSecret
+          )}`,
           {
-            method: "POST",
+            method: "GET",
             headers: {
               "Content-Type": "application/json",
             },
@@ -406,7 +408,7 @@
           // we need to get the token and then place it in the enroll link
           try {
             const data = await getEnrollmentToken();
-            renderContent();
+            renderContent(templateId);
             if (!data.android_enrollment_url) {
               throw new Error("Failed to get enrollment token");
             }
