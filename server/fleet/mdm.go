@@ -733,6 +733,8 @@ const (
 	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
 	// NDES SCEP server. It is used by Fleet's SCEP proxy.
 	MDMAssetNDESPassword MDMAssetName = "ndes_password"
+	// MDMAssetAndroidPubSubToken is the token used to authenticate the Android PubSub messages coming from Google.
+	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token"
 )
 
 type MDMConfigAsset struct {

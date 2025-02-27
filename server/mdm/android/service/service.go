@@ -146,6 +146,7 @@ func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
 	// Skip authorization because the callback is called by Google.
 	// TODO(26218): Add some authorization here so random people can't bind random Android enterprises just for fun.
+	// This call will fail if Proxy (Google Project) is not configured.
 	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -166,6 +167,13 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	pubSubToken, err := server.GenerateRandomURLSafeText(64)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "generating pubsub token")
+	}
+	err = svc.fleetDS.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetAndroidPubSubToken,
+		Value: []byte(pubSubToken),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
 	}
 	// TODO(26219): Use ds.insertOrReplaceConfigAsset to save the token and retrieve it later via cached_mysql
 
@@ -317,6 +325,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
+	}
+
+	err = svc.fleetDS.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting pubsub token")
 	}
 
 	return nil

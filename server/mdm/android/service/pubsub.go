@@ -30,9 +30,33 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 }
 
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
+	// Authorization is done by checking the MDMAssetAndroidPubSubToken below.
+	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
 
-	// TODO(26219): Verify the token
+	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Verify the token
+	//
+	// GetAllMDMConfigAssetsByName does one DB read of the hash, but decrypted asset value is cached, so we don't pay the CPU decryption cost.
+	// If this `mdm_config_assets` access becomes a bottleneck, we can cache the decrypted value without re-checking the hash.
+	//
+	// Note: We could also check that the device belongs to our enterprise, for additional security. We would need an Android cached_mysql for that.
+	// "name": "enterprises/LC044q09r2/devices/3dc9d72fbd517bbc",
+	assets, err := svc.fleetDS.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewAuthFailedError("missing Android PubSub token in Fleet")
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting Android PubSub token")
+	}
+	goldenToken, ok := assets[fleet.MDMAssetAndroidPubSubToken]
+	if !ok || string(goldenToken.Value) != token {
+		return fleet.NewAuthFailedError("invalid Android PubSub token")
+	}
 
 	notificationType := message.Attributes["notificationType"]
 	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
@@ -52,46 +76,56 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 
 	switch android.NotificationType(notificationType) {
 	case android.PubSubEnrollment:
-		var device androidmanagement.Device
-		err := json.Unmarshal(rawData, &device)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
-		}
+		return svc.handlePubSubEnrollment(ctx, rawData)
+	case android.PubSubStatusReport:
+		return svc.handlePubSubStatusReport(ctx, rawData)
+	}
+	return nil
+}
+
+func (svc *Service) handlePubSubStatusReport(ctx context.Context, rawData []byte) error {
+	var device androidmanagement.Device
+	err := json.Unmarshal(rawData, &device)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
+	}
+	if device.AppliedState == string(android.DeviceStateDeleted) {
+		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
+		return nil
+	}
+	host, err := svc.getExistingHost(ctx, &device)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting existing Android host")
+	}
+	if host == nil {
+		level.Debug(svc.logger).Log("msg", "Device not found in Fleet. Perhaps it was deleted, "+
+			"but it is still connected via Android MDM. Re-enrolling", "device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		err = svc.enrollHost(ctx, &device)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
-			return ctxerr.Wrap(ctx, err, "enrolling Android host")
+			level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "data", rawData)
+			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 		}
-	case android.PubSubStatusReport:
-		var device androidmanagement.Device
-		err := json.Unmarshal(rawData, &device)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
-		}
-		if device.AppliedState == string(android.DeviceStateDeleted) {
-			level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
-				"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-			return nil
-		}
-		host, err := svc.getExistingHost(ctx, &device)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting existing Android host")
-		}
-		if host == nil {
-			level.Debug(svc.logger).Log("msg", "Device not found in Fleet. Perhaps it was deleted, "+
-				"but it is still connected via Android MDM. Re-enrolling", "device.name", device.Name,
-				"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-			err = svc.enrollHost(ctx, &device)
-			if err != nil {
-				level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "data", rawData)
-				return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
-			}
-		}
-		err = svc.updateHost(ctx, &device, host)
-		if err != nil {
-			level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
-			return ctxerr.Wrap(ctx, err, "enrolling Android host")
-		}
+	}
+	err = svc.updateHost(ctx, &device, host)
+	if err != nil {
+		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
+		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+	return nil
+}
+
+func (svc *Service) handlePubSubEnrollment(ctx context.Context, rawData []byte) error {
+	var device androidmanagement.Device
+	err := json.Unmarshal(rawData, &device)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
+	}
+	err = svc.enrollHost(ctx, &device)
+	if err != nil {
+		level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
+		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 	return nil
 }

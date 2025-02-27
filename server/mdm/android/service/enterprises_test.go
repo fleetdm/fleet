@@ -13,6 +13,7 @@ import (
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -141,6 +142,20 @@ func InitCommonDSMocks() *ds_mock.Store {
 	}
 	fleetDS.UserOrDeletedUserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id}, nil
+	}
+	fleetDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
+		for _, name := range assetNames {
+			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
+		}
+		return result, nil
+	}
+	fleetDS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	fleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+		return nil
 	}
 	return &fleetDS
 }
