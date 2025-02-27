@@ -235,13 +235,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 {renderItemLabel ? (
                   renderItemLabel(item)
                 ) : (
-                  <TooltipTruncatedText
-                    value={
-                      <span className={`${baseClass}__item-label`}>
-                        {item[labelKey]}
-                      </span>
-                    }
-                  />
+                  <TooltipTruncatedText value={<>{item[labelKey]}</>} />
                 )}
               </Checkbox>
               {renderItemRow &&
