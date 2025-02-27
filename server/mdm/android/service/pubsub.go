@@ -30,9 +30,9 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 }
 
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
-	notificationType := message.Attributes["notificationType"]
+	notificationType, ok := message.Attributes["notificationType"]
 	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
-	if len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
+	if !ok || len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
 		return nil
