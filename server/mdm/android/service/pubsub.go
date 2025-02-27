@@ -34,6 +34,13 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
 
+	notificationType := message.Attributes["notificationType"]
+	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
+	if len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
+		// Nothing to process
+		return nil
+	}
+
 	_, err := svc.checkIfAndroidNotConfigured(ctx)
 	if err != nil {
 		return err
@@ -56,13 +63,6 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 	goldenToken, ok := assets[fleet.MDMAssetAndroidPubSubToken]
 	if !ok || string(goldenToken.Value) != token {
 		return fleet.NewAuthFailedError("invalid Android PubSub token")
-	}
-
-	notificationType := message.Attributes["notificationType"]
-	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
-	if len(notificationType) == 0 {
-		// Nothing to process
-		return nil
 	}
 
 	var rawData []byte
