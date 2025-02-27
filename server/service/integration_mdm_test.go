@@ -13781,6 +13781,10 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
+	// No VPP apps added yet, so this is a no-op
+	err := vpp.RefreshVersions(ctx, s.ds)
+	require.NoError(t, err)
+
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
 		fmt.Sprint(team.ID))
@@ -13831,7 +13835,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2,
 				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`
 
-	err := vpp.RefreshVersions(ctx, s.ds)
+	err = vpp.RefreshVersions(ctx, s.ds)
 	require.NoError(t, err)
 
 	// 1 and 2 should be updated
@@ -13850,4 +13854,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
 	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+
+	// Refresh again. There are no version changes this time, so this is a no-op.
+	err = vpp.RefreshVersions(ctx, s.ds)
+	require.NoError(t, err)
 }
