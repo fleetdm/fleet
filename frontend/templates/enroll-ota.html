@@ -358,11 +358,6 @@
       const getEnrollmentToken = async () => {
         const enrollSecret = getEnrollmentSecret();
 
-        // TODO: remove
-        return new Promise((resolve, reject) => {
-          resolve({ token: "123456" });
-        });
-
         const response = await fetch(
           `${ANDROID_GET_TOKEN_URL}?enroll_secret=${enrollSecret}`,
           {
