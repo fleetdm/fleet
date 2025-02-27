@@ -157,8 +157,31 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+    refetch: refetchDeviceCertificates,
+  } = useQuery(
+    ["hostCertificates", deviceAuthToken],
+    () =>
+      deviceUserAPI.getDeviceCertificates(
+        deviceAuthToken,
+        DEFAULT_CERTIFICATES_PAGE,
+        DEFAULT_CERTIFICATES_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!deviceUserAPI,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
+    deviceCertificates && refetchDeviceCertificates();
   };
 
   const isRefetching = ({
@@ -253,25 +276,7 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
-  const isAppleHost = host && isAppleDevice(host.platform);
-
-  const {
-    data: deviceCertificates,
-    isLoading: isLoadingDeviceCertificates,
-    isError: isErrorDeviceCertificates,
-  } = useQuery(
-    ["hostCertificates", deviceAuthToken],
-    () =>
-      deviceUserAPI.getDeviceCertificates(
-        deviceAuthToken,
-        DEFAULT_CERTIFICATES_PAGE,
-        DEFAULT_CERTIFICATES_PAGE_SIZE
-      ),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!deviceUserAPI && isAppleHost,
-    }
-  );
+  const isAppleHost = isAppleDevice(host?.platform);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -453,7 +458,7 @@ const DeviceUserPage = ({
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
-                  {isAppleHost && deviceCertificates?.certificates.length && (
+                  {isAppleHost && !!deviceCertificates?.certificates.length && (
                     <CertificatesCard
                       isMyDevicePage
                       data={deviceCertificates}
