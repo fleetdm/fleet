@@ -74,5 +74,5 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	require.NoError(t, err)
 	bodyString := string(bodyBytes)
 	require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
-	require.Contains(t, bodyString, "/api/v1/fleet/android/enterprise/enrollment_token")
+	require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
 }
