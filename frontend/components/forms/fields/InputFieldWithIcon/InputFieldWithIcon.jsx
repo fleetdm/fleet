@@ -2,7 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
-import Icon, { IconNames } from "components/Icon/Icon";
+import { ICON_MAP } from "components/icons";
+import Icon from "components/Icon/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import InputField from "../InputField";
@@ -14,7 +15,7 @@ class InputFieldWithIcon extends InputField {
     autofocus: PropTypes.bool,
     error: PropTypes.string,
     helpText: PropTypes.oneOfType([PropTypes.array, PropTypes.string]),
-    iconSvg: IconNames,
+    iconSvg: PropTypes.oneOf(Object.keys(ICON_MAP)),
     label: PropTypes.string,
     name: PropTypes.string,
     onChange: PropTypes.func,
