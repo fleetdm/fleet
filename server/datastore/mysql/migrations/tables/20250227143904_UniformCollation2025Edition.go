@@ -53,7 +53,7 @@ func changeCollation2025(tx *sql.Tx, charset string, collation string) (err erro
 		}
 	}
 
-	return nil
+	return err
 }
 
 func Up_20250227143904(tx *sql.Tx) error {
