@@ -11,6 +11,7 @@ import {
 import softwareAPI from "services/entities/software";
 
 import { getPathWithQueryParams } from "utilities/url";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -322,7 +323,16 @@ const SoftwareInstallerCard = ({
                   />
                 </TooltipWrapper>
               )}
-            {isSelfService && <Tag icon="user" text="Self-service" />}
+            {isSelfService && (
+              <TooltipWrapper
+                showArrow
+                position="top"
+                tipContent={SELF_SERVICE_TOOLTIP}
+                underline={false}
+              >
+                <Tag icon="user" text="Self-service" />
+              </TooltipWrapper>
+            )}
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
