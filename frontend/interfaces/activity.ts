@@ -103,6 +103,8 @@ export enum ActivityType {
   DisabledActivityAutomations = "disabled_activity_automations",
   CanceledScript = "canceled_script",
   CanceledSoftwareInstall = "canceled_software_install",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */

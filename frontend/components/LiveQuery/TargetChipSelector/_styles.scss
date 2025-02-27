@@ -1,4 +1,4 @@
-.target-pill-selector {
+.target-chip-selector {
   padding: $pad-small;
   background-color: $core-white;
   border: none;
@@ -34,7 +34,7 @@
   }
 
   &:hover {
-    box-shadow: inset 0 0 0 1px $core-vibrant-blue-over;
+    background-color: $ui-vibrant-blue-10;
   }
 
   &:active {
