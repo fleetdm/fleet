@@ -32,6 +32,7 @@ import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
@@ -372,8 +373,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderPageActions = () => {
-    const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
+    const canManageAutomations = isGlobalAdmin && isPremiumTier;
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -383,13 +383,26 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     return (
       <div className={`${baseClass}__action-buttons`}>
         {canManageAutomations && (
-          <Button
-            onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations`}
-            variant="inverse"
+          <TooltipWrapper
+            underline={false}
+            tipContent={
+              <div className={`${baseClass}__header__tooltip`}>
+                To manage automations select &ldquo;All teams&rdquo;.
+              </div>
+            }
+            disableTooltip={isAllTeamsSelected}
+            position="top"
+            showArrow
           >
-            Manage automations
-          </Button>
+            <Button
+              disabled={!isAllTeamsSelected}
+              onClick={toggleManageAutomationsModal}
+              className={`${baseClass}__manage-automations`}
+              variant="inverse"
+            >
+              Manage automations
+            </Button>
+          </TooltipWrapper>
         )}
         {canAddSoftware && (
           <Button onClick={onAddSoftware} variant="brand">
