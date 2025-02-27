@@ -92,7 +92,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 			// To support creating activities with users that were deleted. This can happen
 			// for automatically installed software which uses the author of the upload as the author of
 			// the installation.
-			if user.ID != 0 {
+			if user.ID != 0 && !user.Deleted {
 				userID = &user.ID
 			}
 			userName = &user.Name

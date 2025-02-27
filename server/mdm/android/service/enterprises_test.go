@@ -10,9 +10,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
-	"github.com/fleetdm/fleet/v4/server/mock"
+	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +22,8 @@ func TestEnterprisesAuth(t *testing.T) {
 	proxy.InitCommonMocks()
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
-	svc, err := NewServiceWithProxy(logger, fleetDS, &proxy)
+	fleetSvc := mockService{}
+	svc, err := NewServiceWithProxy(logger, fleetDS, &proxy, &fleetSvc)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -123,8 +125,8 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
-func InitCommonDSMocks() *mock.Store {
-	fleetDS := mock.Store{}
+func InitCommonDSMocks() *ds_mock.Store {
+	fleetDS := ds_mock.Store{}
 	ds := android_mock.Datastore{}
 	ds.InitCommonMocks()
 
@@ -137,5 +139,18 @@ func InitCommonDSMocks() *mock.Store {
 	fleetDS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
 		return nil
 	}
+	fleetDS.UserOrDeletedUserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id}, nil
+	}
 	return &fleetDS
+}
+
+type mockService struct {
+	mock.Mock
+	fleet.Service
+}
+
+// NewActivity mocks the fleet.Service method.
+func (m *mockService) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
@@ -26,11 +27,12 @@ const (
 )
 
 type Service struct {
-	logger  kitlog.Logger
-	authz   *authz.Authorizer
-	ds      android.Datastore
-	fleetDS fleet.Datastore
-	proxy   android.Proxy
+	logger   kitlog.Logger
+	authz    *authz.Authorizer
+	ds       android.Datastore
+	fleetDS  fleet.Datastore
+	proxy    android.Proxy
+	fleetSvc fleet.Service
 
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
@@ -40,15 +42,17 @@ func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
 	fleetDS fleet.Datastore,
+	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	prx := proxy.NewProxy(ctx, logger)
-	return NewServiceWithProxy(logger, fleetDS, prx)
+	return NewServiceWithProxy(logger, fleetDS, prx, fleetSvc)
 }
 
 func NewServiceWithProxy(
 	logger kitlog.Logger,
 	fleetDS fleet.Datastore,
 	proxy android.Proxy,
+	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -61,6 +65,7 @@ func NewServiceWithProxy(
 		ds:                fleetDS.GetAndroidDS(),
 		fleetDS:           fleetDS,
 		proxy:             proxy,
+		fleetSvc:          fleetSvc,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
 }
@@ -87,7 +92,11 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
-	id, err := svc.ds.CreateEnterprise(ctx)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	id, err := svc.ds.CreateEnterprise(ctx, vc.User.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
@@ -226,6 +235,19 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrap(ctx, err, "setting android enabled and configured")
 	}
 
+	user, err := svc.fleetDS.UserOrDeletedUserByID(ctx, enterprise.UserID)
+	switch {
+	case fleet.IsNotFound(err):
+		// This should never happen.
+		level.Error(svc.logger).Log("msg", "User that created the Android enterprise was not found", "user_id", enterprise.UserID)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting user")
+	}
+
+	if err = svc.fleetSvc.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
+	}
+
 	return nil
 }
 
@@ -291,6 +313,10 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
+	}
+
+	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
 	return nil
