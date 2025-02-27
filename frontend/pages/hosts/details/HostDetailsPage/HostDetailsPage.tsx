@@ -132,7 +132,7 @@ interface IHostDetailsSubNavItem {
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
-const DEFAULT_CERTIFICATES_PAGE_SIZE = 500;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
 const HostDetailsPage = ({
@@ -219,6 +219,11 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
+  // certificates states
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
     () => teamAPI.loadAll(),
@@ -282,20 +287,19 @@ const HostDetailsPage = ({
   } = useQuery<
     IGetHostCertificatesResponse,
     Error,
-    IGetHostCertificatesResponse
+    IGetHostCertificatesResponse,
+    Array<{ scope: string; hostId: number; page: number; perPage: number }>
   >(
     [
-      "host-certificates",
-      host_id,
-      DEFAULT_CERTIFICATES_PAGE,
-      DEFAULT_CERTIFICATES_PAGE_SIZE,
+      {
+        scope: "host-certificates",
+        hostId: hostIdFromURL,
+        page: certificatePage,
+        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+      },
     ],
-    () =>
-      hostAPI.getHostCertificates(
-        hostIdFromURL,
-        DEFAULT_CERTIFICATES_PAGE,
-        DEFAULT_CERTIFICATES_PAGE_SIZE
-      ),
+    ({ queryKey: [{ page, perPage }] }) =>
+      hostAPI.getHostCertificates(hostIdFromURL, page, perPage),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
@@ -963,6 +967,12 @@ const HostDetailsPage = ({
                     data={hostCertificates}
                     hostPlatform={host.platform}
                     onSelectCertificate={onSelectCertificate}
+                    page={certificatePage}
+                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                    onNextPage={() => setCertificatePage(certificatePage + 1)}
+                    onPreviousPage={() =>
+                      setCertificatePage(certificatePage - 1)
+                    }
                   />
                 )}
             </TabPanel>

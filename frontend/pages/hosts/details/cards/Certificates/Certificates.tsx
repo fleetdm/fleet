@@ -13,15 +13,23 @@ const baseClass = "certificates-card";
 interface ICertificatesProps {
   data: IGetHostCertificatesResponse;
   hostPlatform: HostPlatform;
+  page: number;
+  pageSize: number;
   isMyDevicePage?: boolean;
   onSelectCertificate: (certificate: IHostCertificate) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
 }
 
 const CertificatesCard = ({
   data,
   hostPlatform,
+  page,
+  pageSize,
   isMyDevicePage = false,
   onSelectCertificate,
+  onNextPage,
+  onPreviousPage,
 }: ICertificatesProps) => {
   return (
     <Card
@@ -32,9 +40,13 @@ const CertificatesCard = ({
     >
       <h2>Certificates</h2>
       <CertificatesTable
-        data={data.certificates}
+        data={data}
         showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
+        page={page}
+        pageSize={pageSize}
         onSelectCertificate={onSelectCertificate}
+        onNextPage={onNextPage}
+        onPreviousPage={onPreviousPage}
       />
     </Card>
   );
