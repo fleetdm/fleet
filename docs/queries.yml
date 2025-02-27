@@ -783,7 +783,7 @@ kind: built-in
 spec:
   name: Software (macOS)
   platform: darwin
-  description: Gathers information about software installed on a device running linux.
+  description: Gathers information about software installed on a device running macOS.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -791,40 +791,27 @@ spec:
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
       name AS name,
-      version AS version,
+      bundle_version AS version,
       '' AS extension_id,
       '' AS browser,
-      'deb_packages' AS source,
+      'apps' AS source,
       '' AS release,
       '' AS vendor,
       '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
+      path AS installed_path
+    FROM apps
     UNION
     SELECT
       name AS name,
       version AS version,
       '' AS extension_id,
       '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
+      'homebrew_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
       '' AS installed_path
-    FROM rpm_packages
+    FROM homebrew_packages
     UNION
     SELECT
       name AS name,
