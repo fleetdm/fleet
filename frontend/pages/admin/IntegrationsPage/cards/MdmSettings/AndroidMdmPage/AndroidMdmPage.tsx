@@ -30,8 +30,19 @@ const TurnOnAndroidMdm = () => {
     try {
       const res = await mdmAndroidAPI.getSignupUrl();
 
+      const width = 885;
+      const height = 600;
+
+      // Calculate the center position
+      const left = window.screenX + (window.innerWidth - width) / 2;
+      const top = window.screenY + (window.innerHeight - height) / 2;
+
       // TODO: set up SSE for successful android mdm turned on here.
-      window.open(res.android_enterprise_signup_url, "_blank");
+      window.open(
+        res.android_enterprise_signup_url,
+        "_blank",
+        `width=${width},height=${height},top=${top},left=${left}`
+      );
     } catch (e) {
       renderFlash("error", "Couldn't connect. Please try again");
     }
