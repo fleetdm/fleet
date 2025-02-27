@@ -810,6 +810,7 @@ None.
     "additional_queries": null
   },
   "mdm": {
+    "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -1113,6 +1114,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "mdm": {
     "enabled_and_configured": false,
+    "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
     "macos_updates": {
