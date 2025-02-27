@@ -180,7 +180,7 @@ func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error
 	}
 
 	// To find out the enterprise's PubSub topic, we need to get the enterprise first
-	enterprise, err := p.mgmt.Enterprises.Get(enterpriseID).Do()
+	enterprise, err := p.mgmt.Enterprises.Get("enterprises/" + enterpriseID).Do()
 	if err != nil {
 		return fmt.Errorf("getting enterprise %s: %w", enterpriseID, err)
 	}
