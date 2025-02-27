@@ -92,7 +92,7 @@ const ManualEnrollMdmModal = ({
             )}
           </li>
           <li>
-            Select <b>Enroll</b> then enter your password.
+            Select <b>Install</b> then enter your password.
           </li>
           <li>
             Select <b>Done</b> to close this window and select <b>Refetch</b> on
