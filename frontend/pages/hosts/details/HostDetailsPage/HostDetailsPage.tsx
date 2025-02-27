@@ -208,10 +208,6 @@ const HostDetailsPage = ({
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
-  const [
-    selectedCertificate,
-    setSelectedCertificate,
-  ] = useState<IHostCertificate | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -220,6 +216,10 @@ const HostDetailsPage = ({
   const [activityPage, setActivityPage] = useState(0);
 
   // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
   const [certificatePage, setCertificatePage] = useState(
     DEFAULT_CERTIFICATES_PAGE
   );
@@ -298,8 +298,8 @@ const HostDetailsPage = ({
         perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
       },
     ],
-    ({ queryKey: [{ page, perPage }] }) =>
-      hostAPI.getHostCertificates(hostIdFromURL, page, perPage),
+    ({ queryKey: [{ hostId, page, perPage }] }) =>
+      hostAPI.getHostCertificates(hostId, page, perPage),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
