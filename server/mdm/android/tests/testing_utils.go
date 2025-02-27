@@ -23,6 +23,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -85,6 +86,20 @@ func (ts *WithServer) CreateCommonDSMocks() {
 	}
 	ts.FleetDS.UserOrDeletedUserByIDFunc = func(_ context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id}, nil
+	}
+	ts.FleetDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
+		for _, name := range assetNames {
+			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
+		}
+		return result, nil
+	}
+	ts.FleetDS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ts.FleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+		return nil
 	}
 }
 

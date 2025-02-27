@@ -3,6 +3,7 @@ package android
 type NotificationType string
 
 const (
+	PubSubTest         NotificationType = "test"
 	PubSubEnrollment   NotificationType = "ENROLLMENT"
 	PubSubStatusReport NotificationType = "STATUS_REPORT"
 	PubSubCommand      NotificationType = "COMMAND"
