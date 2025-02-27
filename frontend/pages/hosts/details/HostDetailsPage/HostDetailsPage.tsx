@@ -15,7 +15,7 @@ import activitiesAPI, {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
-import hostAPI from "services/entities/hosts";
+import hostAPI, { IGetHostCertificatesResponse } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -32,6 +32,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IHostUpcomingActivity } from "interfaces/activity";
+import { IHostCertificate } from "interfaces/certificates";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -40,12 +41,14 @@ import {
   HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
@@ -72,10 +75,12 @@ import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import CertificatesCard from "../cards/Certificates";
+
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
@@ -94,6 +99,7 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 
 const baseClass = "host-details";
 
@@ -124,9 +130,12 @@ interface IHostDetailsSubNavItem {
   name: string | JSX.Element;
   title: string;
   pathname: string;
+  count?: number;
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 const HostDetailsPage = ({
   router,
@@ -163,6 +172,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -206,6 +216,15 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
+
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -262,10 +281,41 @@ const HostDetailsPage = ({
     }
   );
 
+  const {
+    data: hostCertificates,
+    isLoading: isLoadingHostCertificates,
+    isError: isErrorHostCertificates,
+    refetch: refetchHostCertificates,
+  } = useQuery<
+    IGetHostCertificatesResponse,
+    Error,
+    IGetHostCertificatesResponse,
+    Array<{ scope: string; hostId: number; page: number; perPage: number }>
+  >(
+    [
+      {
+        scope: "host-certificates",
+        hostId: hostIdFromURL,
+        page: certificatePage,
+        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ hostId, page, perPage }] }) =>
+      hostAPI.getHostCertificates(hostId, page, perPage),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!hostIdFromURL,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
+    hostCertificates && refetchHostCertificates();
   };
 
   const {
@@ -708,6 +758,10 @@ const HostDetailsPage = ({
     setSelectedCancelActivity(activity);
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -732,7 +786,8 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading
+    upcomingActivitiesIsLoading ||
+    isLoadingHostCertificates
   ) {
     return <Spinner />;
   }
@@ -755,16 +810,10 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
-      name: (
-        <>
-          {failingPoliciesCount > 0 && (
-            <span className="count">{failingPoliciesCount}</span>
-          )}
-          Policies
-        </>
-      ),
+      name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+      count: failingPoliciesCount,
     },
   ];
 
@@ -803,11 +852,12 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const isIosOrIpadosHost =
-    host.platform === "ios" || host.platform === "ipados";
+  const isDarwinHost = host.platform === "darwin";
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
   return (
@@ -844,7 +894,7 @@ const HostDetailsPage = ({
           )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
-        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+        <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -853,7 +903,13 @@ const HostDetailsPage = ({
               {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
-                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+                return (
+                  <Tab key={navItem.title}>
+                    <TabText count={navItem.count} isErrorCount>
+                      {navItem.name}
+                    </TabText>
+                  </Tab>
+                );
               })}
             </TabList>
             <TabPanel className={detailsPanelClass}>
@@ -907,6 +963,21 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
+              {(isIosOrIpadosHost || isDarwinHost) &&
+                !!hostCertificates?.certificates.length && (
+                  <CertificatesCard
+                    data={hostCertificates}
+                    hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
+                    isError={isErrorHostCertificates}
+                    page={certificatePage}
+                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                    onNextPage={() => setCertificatePage(certificatePage + 1)}
+                    onPreviousPage={() =>
+                      setCertificatePage(certificatePage - 1)
+                    }
+                  />
+                )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
@@ -923,7 +994,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
-              {host?.platform === "darwin" && macadmins?.munki?.version && (
+              {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -956,7 +1027,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -980,6 +1051,7 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
+            teamIdForApi={currentTeam?.id}
           />
         )}
         {!!host && showTransferHostModal && (
@@ -1090,6 +1162,12 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancel={() => setSelectedCancelActivity(null)}
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </>

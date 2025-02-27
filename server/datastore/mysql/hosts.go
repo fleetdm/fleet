@@ -542,6 +542,7 @@ var hostRefs = []string{
 	"host_mdm_actions",
 	"host_calendar_events",
 	"upcoming_activities",
+	"host_certificates",
 	"android_devices",
 }
 

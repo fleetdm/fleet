@@ -217,10 +217,10 @@ const About = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      paddingSize="large"
+      paddingSize="xxlarge"
       className={baseClass}
     >
-      <p className="card__header">About</p>
+      <h2>About</h2>
       <div className="info-flex">
         <DataSet
           title="Added to Fleet"
