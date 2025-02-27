@@ -175,7 +175,6 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
 	}
-	// TODO(26219): Use ds.insertOrReplaceConfigAsset to save the token and retrieve it later via cached_mysql
 
 	name, topicName, err := svc.proxy.EnterprisesCreate(
 		ctx,
