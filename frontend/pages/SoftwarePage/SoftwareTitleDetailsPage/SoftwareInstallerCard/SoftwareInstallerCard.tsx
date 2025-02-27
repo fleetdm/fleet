@@ -11,6 +11,7 @@ import {
 import softwareAPI from "services/entities/software";
 
 import { getPathWithQueryParams } from "utilities/url";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -307,22 +308,31 @@ const SoftwareInstallerCard = ({
             addedTimestamp={addedTimestamp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
-            {(!softwareInstaller?.automatic_install_policies ||
-              softwareInstaller?.automatic_install_policies.length > 0) && (
+            {Array.isArray(softwareInstaller.automatic_install_policies) &&
+              softwareInstaller.automatic_install_policies.length > 0 && (
+                <TooltipWrapper
+                  showArrow
+                  position="top"
+                  tipContent="Click to see policy that triggers automatic install."
+                  underline={false}
+                >
+                  <Tag
+                    icon="refresh"
+                    text="Automatic install"
+                    onClick={() => setShowAutomaticInstallModal(true)}
+                  />
+                </TooltipWrapper>
+              )}
+            {isSelfService && (
               <TooltipWrapper
                 showArrow
                 position="top"
-                tipContent="Click to see policy that triggers automatic install."
+                tipContent={SELF_SERVICE_TOOLTIP}
                 underline={false}
               >
-                <Tag
-                  icon="refresh"
-                  text="Automatic install"
-                  onClick={() => setShowAutomaticInstallModal(true)}
-                />
+                <Tag icon="user" text="Self-service" />
               </TooltipWrapper>
             )}
-            {isSelfService && <Tag icon="user" text="Self-service" />}
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>

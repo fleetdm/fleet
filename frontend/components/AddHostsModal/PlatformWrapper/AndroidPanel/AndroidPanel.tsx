@@ -13,27 +13,24 @@ const generateUrl = (serverUrl: string, enrollSecret: string) => {
   )}`;
 };
 
-const baseClass = "ios-ipados-panel";
+const baseClass = "android-panel";
 
-interface IosIpadosPanelProps {
+interface IAndroidPanelProps {
   enrollSecret: string;
 }
 
-const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
-  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
-
-  const helpText =
-    "When the end user navigates to this URL, the enrollment profile " +
-    "will download in their browser. End users will have to install the profile " +
-    "to enroll to Fleet.";
+const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
+  const { config, isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
 
   if (!config) return null;
 
-  if (!isMacMdmEnabledAndConfigured) {
+  if (!isAndroidMdmEnabledAndConfigured) {
     return (
       <p>
-        <Link to={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}>Turn on Apple MDM</Link>{" "}
-        to enroll iOS & iPadOS hosts.
+        <Link to={PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID}>
+          Turn on Android MDM
+        </Link>{" "}
+        to enroll Android hosts.
       </p>
     );
   }
@@ -50,10 +47,9 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
         inputWrapperClass
         name="enroll-link"
         value={url}
-        helpText={helpText}
       />
     </div>
   );
 };
 
-export default IosIpadosPanel;
+export default AndroidPanel;

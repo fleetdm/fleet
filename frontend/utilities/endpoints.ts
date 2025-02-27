@@ -94,6 +94,7 @@ export default {
 
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
+  MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
