@@ -1,5 +1,5 @@
 # This workflow update the timestamp of the TUF repository at https://tuf.fleetctl.com
-name: Update TUF timestamp
+name: Update old TUF timestamp signature
 
 on:
   schedule:
