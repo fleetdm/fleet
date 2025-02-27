@@ -24,6 +24,8 @@ export interface IPaginatedListHandle<TItem> {
 interface IPaginatedListProps<TItem> {
   // Function to fetch one page of data.
   fetchPage: (pageNumber: number) => Promise<TItem[]>;
+  // Function to fetch the total # of items.
+  fetchCount?: () => Promise<number>;
   // UID property in an item. Defaults to `id`.
   idKey?: string;
   // Property to use as an item's label. Defaults to `name`.
@@ -58,6 +60,7 @@ interface IPaginatedListProps<TItem> {
 function PaginatedListInner<TItem extends Record<string, any>>(
   {
     fetchPage,
+    fetchCount,
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
@@ -75,11 +78,14 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [currentPage, setCurrentPage] = useState(0);
   // The set of items fetched via `fetchPage`.
   const [items, setItems] = useState<TItem[]>([]);
+  // The total # of items fetched via `fetchCount`.
+  const [totalItems, setTotalItems] = useState(0);
   // The set of items that have been changed in some way.
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
@@ -91,7 +97,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
 
     async function loadPage() {
       try {
-        setIsLoading(true);
+        setIsLoadingPage(true);
         setError(null);
         const result = await fetchPage(currentPage);
         if (!isCancelled) {
@@ -103,7 +109,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         }
       } finally {
         if (!isCancelled) {
-          setIsLoading(false);
+          setIsLoadingPage(false);
         }
       }
     }
@@ -114,6 +120,37 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       isCancelled = true;
     };
   }, [currentPage, fetchPage]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadCount() {
+      try {
+        if (!fetchCount) {
+          return;
+        }
+        setIsLoadingCount(true);
+        const result = await fetchCount();
+        if (!isCancelled) {
+          setTotalItems(result);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err as Error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingCount(false);
+        }
+      }
+    }
+
+    loadCount();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [fetchCount]);
 
   // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
@@ -130,6 +167,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     },
   }));
 
+  function disableNext() {
+    if (!totalItems) {
+      return items.length < pageSize;
+    }
+    return currentPage * pageSize + items.length >= totalItems;
+  }
+
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
 
@@ -139,7 +183,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   });
   return (
     <div className={classes}>
-      {isLoading && (
+      {(isLoadingPage || isLoadingCount) && (
         <div className="loading-overlay">
           <Spinner />
         </div>
@@ -207,7 +251,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       <Pagination
         className={`${baseClass}__pagination-controls`}
         disablePrev={currentPage === 0}
-        disableNext={items.length < pageSize}
+        disableNext={disableNext()}
         onNextPage={() => setCurrentPage(currentPage + 1)}
         onPrevPage={() => setCurrentPage(currentPage - 1)}
       />

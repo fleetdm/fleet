@@ -12,9 +12,13 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
-import { IPolicy } from "interfaces/policy";
-import teamPoliciesAPI from "services/entities/team_policies";
-import globalPoliciesAPI from "services/entities/global_policies";
+import { IPolicy, IPoliciesCountResponse } from "interfaces/policy";
+import teamPoliciesAPI, {
+  ITeamPoliciesCountQueryKey,
+} from "services/entities/team_policies";
+import globalPoliciesAPI, {
+  IPoliciesCountQueryKey,
+} from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
@@ -158,9 +162,39 @@ function PoliciesPaginatedList(
     });
   }, []);
 
-  const labelClasses = classnames("form-field__label", {
-    "form-fields--disabled": gitOpsModeEnabled,
-  });
+  const fetchCount = useCallback(() => {
+    let fetchPromise;
+
+    if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
+      fetchPromise = queryClient.fetchQuery(
+        [
+          {
+            scope: "globalPoliciesCount",
+            query: "",
+          },
+        ],
+        ({ queryKey }) => {
+          return globalPoliciesAPI.getCount(queryKey[0]);
+        }
+      );
+    } else {
+      fetchPromise = queryClient.fetchQuery(
+        [
+          {
+            scope: "teamPoliciesCount",
+            query: "",
+            teamId,
+            mergeInherited: false,
+          },
+        ],
+        ({ queryKey }) => {
+          return teamPoliciesAPI.getCount(queryKey[0]);
+        }
+      );
+    }
+
+    return fetchPromise.then((countResponse) => countResponse.count);
+  }, []);
 
   return (
     <div className={`${baseClass} form`}>
@@ -169,6 +203,7 @@ function PoliciesPaginatedList(
           <PaginatedList<IFormPolicy>
             ref={paginatedListRef}
             fetchPage={fetchPage}
+            fetchCount={fetchCount}
             isSelected={isSelected}
             onToggleItem={onToggleItem}
             renderItemRow={renderItemRow}
