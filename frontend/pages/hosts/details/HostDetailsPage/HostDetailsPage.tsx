@@ -42,7 +42,7 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -224,7 +224,7 @@ const HostDetailsPage = ({
     ["deviceMapping", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -253,7 +253,7 @@ const HostDetailsPage = ({
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -290,7 +290,10 @@ const HostDetailsPage = ({
             returnedHost.mdm.pending_action
           )
         );
-        if (returnedHost.refetch_requested) {
+        if (
+          returnedHost.refetch_requested &&
+          !isAndroid(returnedHost.platform)
+        ) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of

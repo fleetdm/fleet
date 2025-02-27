@@ -1340,7 +1340,7 @@ const GlobalActivityItem = ({
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
-    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
+    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name ?? "Fleet"} </b>;
 
     switch (activity.type) {
       case ActivityType.UserLoggedIn:

@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { noop } from "lodash";
 
+import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
 import { createHostsByPolicyPath } from "utilities/helpers";
@@ -82,6 +83,20 @@ const Policies = ({
             <>
               Interested in detecting device health issues on{" "}
               {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (isAndroid(hostPlatform)) {
+      return (
+        <EmptyTable
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on Android hosts?{" "}
               <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
             </>
           }
