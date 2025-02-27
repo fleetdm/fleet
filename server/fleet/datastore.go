@@ -60,6 +60,7 @@ type Datastore interface {
 	ListUsers(ctx context.Context, opt UserListOptions) ([]*User, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
+	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(ctx context.Context, user *User) error
 	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
@@ -364,6 +365,9 @@ type Datastore interface {
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
+
+	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
+	UpdateHostCertificates(ctx context.Context, hostID uint, certs []*HostCertificateRecord) error
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -1412,6 +1416,8 @@ type Datastore interface {
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	// tx is optional and can be used to pass an existing transaction.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
+	// InsertOrReplaceMDMConfigAsset inserts or updates an encrypted asset.
+	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
 
 	// GetAllMDMConfigAssetsByName returns the requested config assets.
 	//

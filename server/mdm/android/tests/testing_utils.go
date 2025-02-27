@@ -23,6 +23,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,11 +38,12 @@ const (
 
 type WithServer struct {
 	suite.Suite
-	Svc     android.Service
-	DS      *mysql.Datastore
-	FleetDS ds_mock.Store
-	Server  *httptest.Server
-	Token   string
+	Svc      android.Service
+	DS       *mysql.Datastore
+	FleetDS  ds_mock.Store
+	FleetSvc mockService
+	Server   *httptest.Server
+	Token    string
 
 	AppConfig   fleet.AppConfig
 	AppConfigMu sync.Mutex
@@ -57,13 +59,12 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.Proxy = proxy_mock.Proxy{}
 	ts.createCommonProxyMocks(t)
 
-	fleetSvc := mockService{}
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithProxy(logger, &ts.FleetDS, &ts.Proxy)
+	svc, err := service.NewServiceWithProxy(logger, &ts.FleetDS, &ts.Proxy, &ts.FleetSvc)
 	require.NoError(t, err)
 	ts.Svc = svc
 
-	ts.Server = runServerForTests(t, logger, &fleetSvc, svc)
+	ts.Server = runServerForTests(t, logger, &ts.FleetSvc, svc)
 }
 
 func (ts *WithServer) CreateCommonDSMocks() {
@@ -81,6 +82,23 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		ts.AppConfigMu.Lock()
 		ts.AppConfig.MDM.AndroidEnabledAndConfigured = configured
 		ts.AppConfigMu.Unlock()
+		return nil
+	}
+	ts.FleetDS.UserOrDeletedUserByIDFunc = func(_ context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id}, nil
+	}
+	ts.FleetDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
+		for _, name := range assetNames {
+			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
+		}
+		return result, nil
+	}
+	ts.FleetDS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+		return nil
+	}
+	ts.FleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
 }
@@ -121,6 +139,10 @@ func (m *mockService) GetSessionByKey(ctx context.Context, sessionKey string) (*
 
 func (m *mockService) UserUnauthorized(ctx context.Context, userId uint) (*fleet.User, error) {
 	return &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
+}
+
+func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error {
+	return m.Called(ctx, user, details).Error(0)
 }
 
 func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {

@@ -69,7 +69,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 
-		is                    fleet.InstallerStore
 		mdmStorage            fleet.MDMAppleStore
 		mdmPusher             nanomdm_push.Pusher
 		ssoStore              sso.SessionStore
@@ -131,8 +130,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			bootstrapPackageStore = opts[0].BootstrapPackageStore
 		}
 
-		// allow to explicitly set installer store to nil
-		is = opts[0].Is
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
 		if opts[0].DEPStorage != nil {
@@ -184,7 +181,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ssoStore,
 		lq,
 		ds,
-		is,
 		failingPolicySet,
 		&fleet.NoOpGeoIP{},
 		enrollHostLimiter,

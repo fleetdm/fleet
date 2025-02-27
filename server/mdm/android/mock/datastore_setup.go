@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Datastore) InitCommonMocks() {
-	s.CreateEnterpriseFunc = func(ctx context.Context) (uint, error) {
+	s.CreateEnterpriseFunc = func(ctx context.Context, _ uint) (uint, error) {
 		return 1, nil
 	}
 	s.UpdateEnterpriseFunc = func(ctx context.Context, enterprise *android.EnterpriseDetails) error {

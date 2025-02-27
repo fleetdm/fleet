@@ -1,4 +1,8 @@
 .about-card {
+  h2 {
+    font-size: $medium;
+    margin: 0 0 $pad-large;
+  }
 
   .truncated-tooltip {
     .about-card__device-mapping__source {
@@ -52,7 +56,7 @@
     .component__tooltip-wrapper__element {
       max-width: 350px;
     }
-  
+
     @media (min-width: $break-md) {
       max-height: 250px;
 

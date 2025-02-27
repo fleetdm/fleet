@@ -1,11 +1,4 @@
 .host-details {
-  &__tabs-wrapper {
-    .react-tabs__tab {
-      display: inline-flex;
-      flex-direction: row;
-    }
-  }
-
   // grid layout styles for the host details page
   &__details-panel {
     display: grid;
@@ -13,6 +6,7 @@
   }
 
   @media screen and (min-width: $break-md) {
+    // default grid to show for non macos, ios, or ipados hosts.
     &__details-panel.react-tabs__tab-panel--selected {
       // Must be selected to show grid
       grid-template-columns: 1fr 1fr;
@@ -21,17 +15,28 @@
         "activity agent-options"
         "activity labels"
         "users users";
-      grid-auto-flow: column;
     }
 
-    // No agent options card for i(Pad)OS, so extend Labels card vertically
+    // No agent options card for i(Pad)OS, so extend Labels card vertically.
+    // We also add the certs card to the grid layout on mac hosts
     &__details-panel--ios-grid.react-tabs__tab-panel--selected {
-      grid-template-columns: 1fr 1fr;
       grid-template-areas:
         "about about"
-        "activity labels";
-      grid-auto-flow: column;
+        "activity labels"
+        "certs certs";
     }
+
+
+    // We add the certs card to the grid layout on mac hosts
+    &__details-panel--macos-grid.react-tabs__tab-panel--selected {
+        grid-template-areas:
+          "about about"
+          "activity agent-options"
+          "activity labels"
+          "users users"
+          "certs certs";
+    }
+
 
     .about-card {
       grid-area: about;
@@ -51,6 +56,10 @@
 
     .users-card {
       grid-area: users;
+    }
+
+    .certificates-card {
+      grid-area: certs;
     }
   }
 

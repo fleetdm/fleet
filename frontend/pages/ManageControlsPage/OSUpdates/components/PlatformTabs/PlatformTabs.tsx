@@ -1,6 +1,7 @@
 import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
@@ -62,27 +63,25 @@ const PlatformTabs = ({
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           defaultIndex={platformByIndex.indexOf(selectedPlatform)}
           onSelect={onTabChange}
         >
           <TabList>
-            {/* Bolding text when the tab is active causes a layout shift so
-            we add a hidden pseudo element with the same text string */}
             <Tab key="macOS" data-text="macOS">
-              macOS
+              <TabText>macOS</TabText>
             </Tab>
             {isWindowsMdmEnabled && (
               <Tab key="Windows" data-text="Windows">
-                Windows
+                <TabText>Windows</TabText>
               </Tab>
             )}
             <Tab key="iOS" data-text="iOS">
-              iOS
+              <TabText>iOS</TabText>
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
-              iPadOS
+              <TabText>iPadOS</TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">
@@ -149,7 +148,7 @@ const PlatformTabs = ({
             </TabPanel>
           )}
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
     </div>
   );
 };

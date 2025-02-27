@@ -11,9 +11,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
-	stmt := `INSERT INTO android_enterprises (signup_name) VALUES ('')`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt)
+func (ds *Datastore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
+	// android_enterprises user_id is only set when the row is created
+	stmt := `INSERT INTO android_enterprises (signup_name, user_id) VALUES ('', ?)`
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, userID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}
@@ -22,7 +23,7 @@ func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
 }
 
 func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
-	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token FROM android_enterprises WHERE id = ?`
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE id = ?`
 	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
 	switch {

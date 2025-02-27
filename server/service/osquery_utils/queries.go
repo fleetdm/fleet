@@ -693,6 +693,20 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
 	},
+	"certificates_darwin": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1
+	FROM
+		certificates
+	WHERE
+		path = '/Library/Keychains/System.keychain';`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestHostCertificates,
+	},
 }
 
 // mdmQueries are used by the Fleet server to compliment certain MDM
@@ -2381,4 +2395,58 @@ func directIngestWindowsProfiles(
 		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
 	}
 	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
+}
+
+func directIngestHostCertificates(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it probably may indicate a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: decoding sha1")
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: extracting subject details")
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: extracting issuer details")
+		}
+
+		certs = append(certs, &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+		})
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, certs)
 }

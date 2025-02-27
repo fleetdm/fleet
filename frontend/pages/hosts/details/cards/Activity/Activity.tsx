@@ -8,7 +8,8 @@ import {
 } from "services/entities/activities";
 
 import Card from "components/Card";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -67,20 +68,17 @@ const Activity = ({
         </div>
       )}
       <h2>Activity</h2>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
         >
           <TabList>
-            <Tab>Past</Tab>
             <Tab>
-              Upcoming
-              {!!upcomingCount && (
-                <span className={`${baseClass}__upcoming-count`}>
-                  {upcomingCount}
-                </span>
-              )}
+              <TabText>Past</TabText>
+            </Tab>
+            <Tab>
+              <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel>
@@ -106,7 +104,7 @@ const Activity = ({
             />
           </TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
     </Card>
   );
 };

@@ -423,24 +423,18 @@ describe("QueriesTable", () => {
       />
     );
 
-    const numberOfCheckboxes = container.querySelectorAll(
-      "input[type='checkbox']"
-    ).length;
+    const numberOfCheckboxes = screen.queryAllByRole("checkbox").length;
 
     expect(numberOfCheckboxes).toBe(
       testTeamQueries.length + 1 // +1 for Select all checkbox
     );
 
-    const checkbox = container.querySelectorAll(
-      "input[type='checkbox']"
-    )[0] as HTMLInputElement;
+    const checkbox = screen.queryAllByRole("checkbox")[0];
 
-    await waitFor(() => {
-      waitFor(() => {
-        user.click(checkbox);
-      });
-
-      expect(checkbox.checked).toBe(true);
+    await waitFor(async () => {
+      await user.click(checkbox);
     });
+
+    expect(checkbox).toBeChecked();
   });
 });

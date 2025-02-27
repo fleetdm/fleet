@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -40,7 +41,7 @@ func (s *enterpriseTestSuite) TearDownSuite() {
 	s.WithServer.TearDownSuite()
 }
 
-func (s *enterpriseTestSuite) TestGetEnterprise() {
+func (s *enterpriseTestSuite) TestEnterprise() {
 	s.SetupTest()
 
 	// Enterprise doesn't exist.
@@ -52,8 +53,11 @@ func (s *enterpriseTestSuite) TestGetEnterprise() {
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
 	assert.Equal(s.T(), tests.EnterpriseSignupURL, signupResp.Url)
 	s.T().Logf("callbackURL: %s", s.ProxyCallbackURL)
+
+	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
 	s.DoJSON("GET", s.ProxyCallbackURL, nil, http.StatusOK, &resp, "enterpriseToken", enterpriseToken)
+	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 1)
 
 	// Now enterprise exists and we can retrieve it.
 	resp = android.GetEnterpriseResponse{}
@@ -61,7 +65,9 @@ func (s *enterpriseTestSuite) TestGetEnterprise() {
 	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
 
 	// Delete enterprise and make sure we can't find it.
+	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeDisabledAndroidMDM")).Return(nil)
 	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
+	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &resp)
 }
 
