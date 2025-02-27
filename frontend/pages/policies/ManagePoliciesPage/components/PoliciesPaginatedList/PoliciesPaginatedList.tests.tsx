@@ -33,11 +33,26 @@ const globalPoliciesHandler = http.get(baseUrl("/policies"), () => {
   });
 });
 
+const globalPoliciesCountHandler = http.get(baseUrl("/policies/count"), () => {
+  return HttpResponse.json({
+    count: globalPolicies.length,
+  });
+});
+
 const teamPoliciesHandler = http.get(baseUrl("/teams/2/policies"), () => {
   return HttpResponse.json({
     policies: teamPolicies,
   });
 });
+
+const teamPoliciesCountHandler = http.get(
+  baseUrl("/teams/2/policies/count"),
+  () => {
+    return HttpResponse.json({
+      count: teamPolicies.length,
+    });
+  }
+);
 
 describe("PoliciesPaginatedList - component", () => {
   const render = createCustomRenderer({
@@ -47,6 +62,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Lists global policies when teamId is set to 'all teams'", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const { container } = render(
       <PoliciesPaginatedList
         isSelected={jest.fn()}
@@ -71,6 +88,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Lists team policies when teamId is not set to 'all teams'", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const { container } = render(
       <PoliciesPaginatedList
         isSelected={jest.fn()}
@@ -95,6 +114,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Renders a footer", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const { container } = render(
       <PoliciesPaginatedList
         isSelected={jest.fn()}
@@ -114,6 +135,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Calls onSubmit() with the changed items when 'Save' is pressed", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const onSubmit = jest.fn();
     const { container } = render(
       <PoliciesPaginatedList
@@ -155,6 +178,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Calls onCancel() when 'Cancel' is pressed", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const onCancel = jest.fn();
     const { container } = render(
       <PoliciesPaginatedList
@@ -181,6 +206,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Allows for disabling the save button based on the changed items", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const disableSave = (changedItems: IFormPolicy[]) => {
       if (changedItems.length === 0) {
         return "No changes";
@@ -235,6 +262,8 @@ describe("PoliciesPaginatedList - component", () => {
   it("Disables the form when gitops mode is enabled", async () => {
     mockServer.use(globalPoliciesHandler);
     mockServer.use(teamPoliciesHandler);
+    mockServer.use(globalPoliciesCountHandler);
+    mockServer.use(teamPoliciesCountHandler);
     const customRender = createCustomRenderer({
       withBackendMock: true,
       context: {
