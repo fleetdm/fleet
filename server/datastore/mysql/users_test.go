@@ -150,6 +150,7 @@ func testUsersDelete(t *testing.T, ds *Datastore) {
 		returned, err := ds.UserOrDeletedUserByID(context.Background(), tt.ID)
 		require.NoError(t, err)
 		assert.Equal(t, tt.ID, returned.ID)
+		assert.True(t, returned.Deleted)
 	}
 }
 
