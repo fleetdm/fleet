@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "0 13 * * TUE" # Every Tuesday at 1 PM UTC
   workflow_dispatch: # Manual
+  pull_request: # used for testing before merging to main
 
 defaults:
   run:
