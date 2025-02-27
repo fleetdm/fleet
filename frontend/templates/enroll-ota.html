@@ -268,9 +268,9 @@
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
-        const isIPhone = /iPhone/.test(userAgent);
+        const isIPhone = /iPhone/i.test(userAgent);
         const isIPad =
-          /iPad/.test(userAgent) ||
+          /iPad/i.test(userAgent) ||
           (/Macintosh/i.test(userAgent) &&
             navigator.maxTouchPoints !== undefined &&
             navigator.maxTouchPoints > 1);
@@ -401,7 +401,7 @@
         if (platform === "android") {
           if (!ANDROID_MDM_ENABLED) {
             renderError(
-              "The Android MDM is turned off.",
+              "Android MDM is turned off.",
               "To enroll your Android device please contact your IT admin."
             );
             return;
@@ -427,7 +427,7 @@
             const description = `To enroll your ${
               platform === "ios" ? "iPhone" : "iPad"
             } please contact your IT admin.`;
-            renderError("The Apple MDM is turned off.", description);
+            renderError("Apple MDM is turned off.", description);
             return;
           }
           renderContent(templateId);
