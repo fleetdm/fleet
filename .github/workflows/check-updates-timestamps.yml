@@ -1,5 +1,5 @@
 # Checks signatures that are about to expire on https://updates.fleetdm.com.
-name: Check TUF updates timestamps
+name: "TUF expiration check: updates.fleetdm.com"
 
 on:
   pull_request:
