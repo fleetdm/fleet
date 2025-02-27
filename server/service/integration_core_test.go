@@ -11382,7 +11382,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		NodeKey: *host2Global.NodeKey,
 		LogType: "result",
 		Data: []json.RawMessage{
-			json.RawMessage(`[{
+			json.RawMessage(`{
 			  "snapshot": [],
 			  "action": "snapshot",
 			  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
@@ -11396,7 +11396,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 				"host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
 				"hostname": "` + host1Global.Hostname + `"
 			  }
-			}]`),
+			}`),
 		},
 	}
 	emptyslres := submitLogsResponse{}
