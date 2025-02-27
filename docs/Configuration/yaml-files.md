@@ -556,6 +556,7 @@ org_settings:
         group_id: 1234
     digicert:
       - name: DIGICERT_WIFI
+        url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
         profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
         certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
@@ -568,7 +569,7 @@ org_settings:
       password: 'myPassword'
     custom_scep_proxy:
       - name: SCEP_VPN
-        server_url: https://example.com/scep
+        url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
 ```
 
@@ -594,7 +595,8 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
 #### digicert
-- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed..
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
 - `profile_id` is the ID of certificate profile in DigiCert.
 - `certificate_common_name` is the certificate's CN.
@@ -609,7 +611,7 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 #### scep_proxy
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `server_url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
+- `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
 
 ### webhook_settings

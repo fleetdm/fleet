@@ -991,6 +991,7 @@ None.
     "jira": [],
     "digicert": [
       {
+        "id": 0,
         "name": "DIGICERT_WIFI",
         "api_token": "********",
         "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
@@ -1007,11 +1008,13 @@ None.
     },
     "custom_scep_proxy": [
       {
+        "id": 0,
         "name": "SCEP_WIFI",
         "server_url": "https://example.com/scep",
         "challenge": "********",
       },
       {
+        "id": 1,
         "name": "SCEP_VPN",
         "server_url": "https://example.com/scep",
         "challenge": "********",
@@ -1076,7 +1079,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1613,7 +1616,7 @@ _Available in Fleet Premium._
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | digicert | array | See [`integrations.digicert`](#integrations-digicert). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| scep_proxy | array | See [`integrations.scep_proxy`](#integrations-scep-proxy). |
+| custom_scep_proxy | array | See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
 
 <br/>
 
@@ -1695,9 +1698,9 @@ _Available in Fleet Premium._
 
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
-##### integrations.scep_proxy
+##### integrations.custom_scep_proxy
 
-`integrations.scep_proxy` is an array of objects with the following structure:
+`integrations.custom_scep_proxy` is an array of objects with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1707,7 +1710,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
 
 <br/>
 
-> Note that when making changes to the `integrations.scep_proxy` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+> Note that when making changes to the `integrations.custom_scep_proxy` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
 
 
 ##### Example request body
@@ -1748,7 +1751,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
     },
-    "scep_proxy": [
+    "custom_scep_proxy": [
       {
         "name": "SCEP_WIFI",
         "server_url": "https://example.com/scep",
