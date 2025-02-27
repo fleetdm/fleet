@@ -9795,7 +9795,6 @@ List available Fleet-maintained apps.
 
 ```json
 {
-  "count": 19,
   "fleet_maintained_apps": [
     {
       "id": 1,
