@@ -23,8 +23,12 @@ export interface IPaginatedListHandle<TItem> {
 }
 interface IPaginatedListProps<TItem> {
   // Function to fetch one page of data.
+  // Parents should memoize this function with useCallback() so that
+  // it is only called when needed.
   fetchPage: (pageNumber: number) => Promise<TItem[]>;
   // Function to fetch the total # of items.
+  // Parents should memoize this function with useCallback() so that
+  // it is only called when needed.
   fetchCount?: () => Promise<number>;
   // UID property in an item. Defaults to `id`.
   idKey?: string;
@@ -121,6 +125,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [currentPage, fetchPage]);
 
+  // Fetch the total # of items.
+  // This will generally only happen once, assuming the parent
+  // uses useCallback() to memoize the fetchCount function.
+  // To retrigger this (for example, after an item is added or removed),
+  // the parent can add dependencies to the useCallback().
   useEffect(() => {
     let isCancelled = false;
 
