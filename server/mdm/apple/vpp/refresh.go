@@ -42,7 +42,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore) error {
 		}
 	}
 
-	if len(apps) == 0 {
+	if len(appsToUpdate) == 0 {
 		// nothing to do
 		return nil
 	}
