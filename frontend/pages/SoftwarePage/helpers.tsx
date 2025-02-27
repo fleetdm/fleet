@@ -13,12 +13,6 @@ import { getErrorReason } from "interfaces/errors";
 import { ISoftwarePackage, IAppStoreApp } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
-import Radio from "components/forms/fields/Radio";
-import TooltipWrapper from "components/TooltipWrapper";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 /**
  * helper function to generate error message for secret variables based
  * on the error reason.
@@ -166,3 +160,9 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
     disabled: false,
   },
 ];
+
+export const SELF_SERVICE_TOOLTIP = (
+  <>
+    End users can install from <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+  </>
+);
