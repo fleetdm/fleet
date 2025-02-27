@@ -10,7 +10,6 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-// @ts-ignore
 import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 const baseClass = "paginated-list";
@@ -176,12 +175,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     },
   }));
 
-  function disableNext() {
+  const disableNext = () => {
     if (!totalItems) {
       return items.length < pageSize;
     }
     return currentPage * pageSize + items.length >= totalItems;
-  }
+  };
 
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
