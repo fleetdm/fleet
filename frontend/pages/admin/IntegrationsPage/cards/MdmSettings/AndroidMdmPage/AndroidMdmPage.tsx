@@ -1,8 +1,9 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
+import endpoints from "utilities/endpoints";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAndroidAPI from "services/entities/mdm_android";
@@ -21,28 +22,66 @@ import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
 const baseClass = "android-mdm-page";
 
-const TurnOnAndroidMdm = () => {
+const POPUP_WIDTH = 885;
+const POPUP_HEIGHT = 600;
+
+interface ITurnOnAndroidMdmProps {
+  router: InjectedRouter;
+}
+
+const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
   const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
+  const [setupSse, setSetupSse] = useState(false);
+
+  useEffect(() => {
+    if (setupSse) {
+      const eventSource = new EventSource(endpoints.MDM_ANDOIR_SSE_URL);
+
+      eventSource.onmessage = (event) => {
+        console.log("onmessage", event);
+        const data = JSON.parse(event.data);
+        console.log(data);
+        if (data === "Android Enterprise successfully connected") {
+          renderFlash("success", "Android MDM turned on successfully.", {
+            persistOnPageChange: true,
+          });
+          setSetupSse(false);
+          eventSource.close();
+          router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+        }
+      };
+
+      eventSource.onerror = () => {
+        console.log("error");
+        renderFlash("error", "Couldn't turn on Android MDM. Please try again.");
+        setSetupSse(false);
+        eventSource.close();
+      };
+
+      return () => {
+        eventSource.close();
+      };
+    }
+  }, [setupSse, router, renderFlash]);
 
   const onConnectMdm = async () => {
     setFetchingSignupUrl(true);
     try {
       const res = await mdmAndroidAPI.getSignupUrl();
 
-      const width = 885;
-      const height = 600;
-
       // Calculate the center position
-      const left = window.screenX + (window.innerWidth - width) / 2;
-      const top = window.screenY + (window.innerHeight - height) / 2;
+      const left = window.screenX + (window.innerWidth - POPUP_WIDTH) / 2;
+      const top = window.screenY + (window.innerHeight - POPUP_HEIGHT) / 2;
 
       // TODO: set up SSE for successful android mdm turned on here.
       window.open(
         res.android_enterprise_signup_url,
         "_blank",
-        `width=${width},height=${height},top=${top},left=${left}`
+        `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
+      setSetupSse(true);
     } catch (e) {
       renderFlash("error", "Couldn't connect. Please try again");
     }
@@ -139,7 +178,7 @@ const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
 
       <div className={`${baseClass}__content`}>
         {!isAndroidMdmEnabledAndConfigured ? (
-          <TurnOnAndroidMdm />
+          <TurnOnAndroidMdm router={router} />
         ) : (
           <TurnOffAndroidMdm
             onClickTurnOff={() => setShowTurnOffMdmModal(true)}
