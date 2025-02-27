@@ -23,6 +23,11 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
+import { IHostCertificate } from "interfaces/certificates";
+import {
+  createMockGetHostCertificatesResponse,
+  createMockHostCertificate,
+} from "__mocks__/certificatesMock";
 
 export interface ISortOption {
   key: string;
@@ -169,6 +174,14 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "host_software";
   id: number;
   softwareUpdatedAt?: string;
+}
+
+export interface IGetHostCertificatesResponse {
+  certificates: IHostCertificate[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -579,11 +592,26 @@ export default {
       HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
     );
   },
+
   uninstallHostSoftwarePackage: (hostId: number, softwareId: number) => {
     const { HOST_SOFTWARE_PACKAGE_UNINSTALL } = endpoints;
     return sendRequest(
       "POST",
       HOST_SOFTWARE_PACKAGE_UNINSTALL(hostId, softwareId)
     );
+  },
+
+  getHostCertificates: (
+    hostId: number,
+    page = 0,
+    perPage = 10
+  ): Promise<IGetHostCertificatesResponse> => {
+    const { HOST_CERTIFICATES } = endpoints;
+    const path = `${HOST_CERTIFICATES(hostId)}?${buildQueryStringFromParams({
+      page,
+      per_page: perPage,
+    })}`;
+
+    return sendRequest("GET", path);
   },
 };

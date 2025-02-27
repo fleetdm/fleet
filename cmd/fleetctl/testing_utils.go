@@ -24,6 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli/v2"
+
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 )
 
 type withDS struct {
@@ -122,7 +124,7 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 	require.NoError(t, err)

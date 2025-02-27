@@ -6,7 +6,9 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
-import deviceUserAPI from "services/entities/device_user";
+import deviceUserAPI, {
+  IGetDeviceCertificatesResponse,
+} from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
@@ -17,6 +19,8 @@ import {
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
+import { IHostCertificate } from "interfaces/certificates";
+import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -31,6 +35,7 @@ import FlashMessage from "components/FlashMessage";
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
   HOST_SUMMARY_DATA,
@@ -56,6 +61,8 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 
 const baseClass = "device-user";
 
@@ -70,6 +77,9 @@ const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
+
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 interface IDeviceUserPageProps {
   location: {
@@ -119,6 +129,15 @@ const DeviceUserPage = ({
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
 
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
     () =>
@@ -146,8 +165,39 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+    refetch: refetchDeviceCertificates,
+  } = useQuery<
+    IGetDeviceCertificatesResponse,
+    Error,
+    IGetDeviceCertificatesResponse,
+    Array<{ scope: string; token: string; page: number; perPage: number }>
+  >(
+    [
+      {
+        scope: "device-certificates",
+        token: deviceAuthToken,
+        page: certificatePage,
+        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ token, page, perPage }] }) =>
+      deviceUserAPI.getDeviceCertificates(token, page, perPage),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!deviceUserAPI,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
+    deviceCertificates && refetchDeviceCertificates();
   };
 
   const isRefetching = ({
@@ -242,6 +292,7 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
+  const isAppleHost = isAppleDevice(host?.platform);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -328,6 +379,10 @@ const DeviceUserPage = ({
     }
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -355,7 +410,7 @@ const DeviceUserPage = ({
 
     return (
       <div className="core-wrapper">
-        {!host || isLoadingHost ? (
+        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -418,12 +473,27 @@ const DeviceUserPage = ({
                     </Tab>
                   )}
                 </TabList>
-                <TabPanel>
+                <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {isAppleHost && !!deviceCertificates?.certificates.length && (
+                    <CertificatesCard
+                      isMyDevicePage
+                      data={deviceCertificates}
+                      isError={isErrorDeviceCertificates}
+                      page={certificatePage}
+                      pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                      hostPlatform={host.platform}
+                      onSelectCertificate={onSelectCertificate}
+                      onNextPage={() => setCertificatePage(certificatePage + 1)}
+                      onPreviousPage={() =>
+                        setCertificatePage(certificatePage - 1)
+                      }
+                    />
+                  )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
@@ -522,6 +592,12 @@ const DeviceUserPage = ({
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
             hideInstallDetails
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </div>

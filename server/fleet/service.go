@@ -435,6 +435,9 @@ type Service interface {
 	// the specified host.
 	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// ListHostCertificates lists the certificates installed on the specified host.
+	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
@@ -741,12 +744,6 @@ type Service interface {
 	// Geolocation
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// Installers
-
-	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
-	CheckInstallerExistence(ctx context.Context, installer Installer) error
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Software Installers

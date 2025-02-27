@@ -189,7 +189,6 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
-			var installerStore fleet.InstallerStore
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -219,14 +218,6 @@ the way that the Fleet server works.
 				}
 			} else {
 				carveStore = ds
-			}
-
-			if config.Packaging.S3.Bucket != "" {
-				var err error
-				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
-				if err != nil {
-					initFatal(err, "initializing S3 installer store")
-				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -733,7 +724,6 @@ the way that the Fleet server works.
 				ssoSessionStore,
 				liveQueryStore,
 				carveStore,
-				installerStore,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -750,6 +740,7 @@ the way that the Fleet server works.
 				ctx,
 				logger,
 				ds,
+				svc,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -1090,7 +1081,15 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
+				// TODO: need a mechanism to check if android feature is enabled
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
+					svc,
+					config.Server.URLPrefix,
+					appCfg.MDM.EnabledAndConfigured,
+					appCfg.MDM.AndroidEnabledAndConfigured,
+					os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1",
+					logger,
+				)
 			}
 
 			healthCheckers := make(map[string]health.Checker)

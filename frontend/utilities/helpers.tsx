@@ -627,6 +627,13 @@ export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
+// just a rename of hasLicenseExpired so that it can be used in other contexts.
+// TODO: change hasLicenseExpired instances to hasExpired
+/**
+ * determines if a date has expired. This will check against the current date and time.
+ */
+export const hasExpired = hasLicenseExpired;
+
 /**
  * determines if a date will expire within "x" number of days. If the date has
  * has already expired, this function will return false.
