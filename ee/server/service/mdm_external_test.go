@@ -88,7 +88,6 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		ds,
 		nil,
-		nil,
 		&fleet.NoOpGeoIP{},
 		nil,
 		depStorage,

@@ -745,12 +745,6 @@ type Service interface {
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 
-	// /////////////////////////////////////////////////////////////////////////////
-	// Installers
-
-	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
-	CheckInstallerExistence(ctx context.Context, installer Installer) error
-
 	////////////////////////////////////////////////////////////////////////////////
 	// Software Installers
 
