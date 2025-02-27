@@ -22,7 +22,7 @@ import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Button from "components/buttons/Button";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import SoftwareVppForm from "./SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "./SoftwareVppForm/SoftwareVppForm";
@@ -150,9 +150,7 @@ const SoftwareAppStoreVpp = ({
       ...(showAvailableForInstallOnly && { available_for_install: true }),
     };
 
-    router.push(
-      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(queryParams)}`
-    );
+    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
   };
 
   const onAddSoftware = async (formData: ISoftwareVppFormData) => {

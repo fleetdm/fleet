@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 interface IHostLinkProps {
   queryParams?: QueryParams;
@@ -44,9 +44,7 @@ const ViewAllHostsLink = ({
     ? PATHS.MANAGE_HOSTS_LABEL(platformLabelId)
     : PATHS.MANAGE_HOSTS;
 
-  const path = queryParams
-    ? `${endpoint}?${buildQueryStringFromParams(queryParams)}`
-    : endpoint;
+  const path = getPathWithQueryParams(endpoint, queryParams);
 
   return (
     <Link

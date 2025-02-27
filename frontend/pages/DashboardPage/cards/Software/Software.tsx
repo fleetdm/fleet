@@ -4,7 +4,7 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -57,11 +57,10 @@ const Software = ({
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id, team_id: teamId };
-
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
-      : PATHS.MANAGE_HOSTS;
+    const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+      software_id: row.original.id,
+      team_id: teamId,
+    });
 
     router.push(path);
   };

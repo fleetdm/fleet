@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { Location } from "history";
 
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
@@ -73,11 +73,9 @@ const SoftwareAddPage = ({
     (i: number): void => {
       setSidePanelOpen(false);
       // Only query param to persist between tabs is team id
-      const teamIdParam = buildQueryStringFromParams({
+      const navPath = getPathWithQueryParams(addSoftwareSubNav[i].pathname, {
         team_id: location.query.team_id,
       });
-
-      const navPath = addSoftwareSubNav[i].pathname.concat(`?${teamIdParam}`);
       router.replace(navPath);
     },
     [location.query.team_id, router, setSidePanelOpen]
@@ -88,9 +86,9 @@ const SoftwareAddPage = ({
   // is not provieded.
   if (!location.query.team_id) {
     router.replace(
-      `${location.pathname}?${buildQueryStringFromParams({
+      getPathWithQueryParams(location.pathname, {
         team_id: APP_CONTEXT_NO_TEAM_ID,
-      })}`
+      })
     );
     return null;
   }
@@ -99,9 +97,9 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
     team_id: location.query.team_id,
-  })}`;
+  });
 
   return (
     <>
