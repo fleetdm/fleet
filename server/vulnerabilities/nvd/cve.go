@@ -544,6 +544,8 @@ func checkCVEs(
 	return foundSoftwareVulns, foundOSVulns, nil
 }
 
+var pythonVersionWithUpdate = regexp.MustCompile(`(alpha|beta|rc)(\d+)`)
+
 // expandCPEAliases will generate new *wfn.Attributes from the given cpeItem.
 // It returns a slice with the given cpeItem plus the generated *wfn.Attributes.
 //
@@ -584,6 +586,44 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		if cpeItem.Vendor == "oracle" && cpeItem.Product == "virtualbox" {
 			cpeItem2 := *cpeItem
 			cpeItem2.Product = "vm_virtualbox"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// Python pre-release versions can have the pre-release part in the version field or in the
+	// update field (the technically correct place). We generate the "correct" CPEs (with the
+	// pre-release part in the update field), so we have to create an alias here with the
+	// pre-release part in the version field to cover all the cases.
+	// e.g. Python 3.14.0 alpha2 can be represented as both:
+	// 1. cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*
+	// 2. cpe:2.3:a:python:python:3.14.0a2:*:*:*:*:windows:*:*
+	// We generate CPEs like 1, but in the feed (e.g. Vulncheck) it can also appear as 2.
+	// See https://github.com/fleetdm/fleet/issues/25882.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "python" &&
+			cpeItem.Product == "python" &&
+			cpeItem.Update != "" &&
+			pythonVersionWithUpdate.MatchString(cpeItem.Update) {
+
+			cpeItem2 := *cpeItem
+			for _, submatches := range pythonVersionWithUpdate.FindAllStringSubmatchIndex(cpeItem2.Update, -1) {
+				prefixBytes := []byte{}
+				numberBytes := []byte{}
+				prefixBytes = pythonVersionWithUpdate.ExpandString(prefixBytes, "${1}", cpeItem.Update, submatches)
+				numberBytes = pythonVersionWithUpdate.ExpandString(numberBytes, "${2}", cpeItem.Update, submatches)
+				var prefix string
+				switch prefixBytes[0] {
+				case 'a':
+					prefix = string(prefixBytes[0])
+				case 'b':
+					prefix = string(prefixBytes[0])
+				case 'r':
+					prefix = string(prefixBytes)
+				}
+
+				cpeItem2.Version = fmt.Sprintf("%s%s%s", cpeItem.Version, prefix, string(numberBytes))
+			}
+
 			cpeItems = append(cpeItems, &cpeItem2)
 		}
 	}

@@ -381,6 +381,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
 		},
+		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.14.0a3",
+				},
+			},
+		},
 		"cpe:2.3:a:python:python:3.14.0a2:*:*:*:*:windows:*:*": {
 			includedCVEs: []cve{
 				{
@@ -962,6 +970,36 @@ func TestExpandCPEAliases(t *testing.T) {
 	pythonCodeExtensionAlias2.Product = "visual_studio_code"
 	pythonCodeExtensionAlias2.TargetSW = "python"
 
+	python3140Alpha2 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.14.0",
+		Update:   "alpha2",
+		TargetSW: "windows",
+	}
+	python3140Alpha2Alias1 := *python3140Alpha2
+	python3140Alpha2Alias1.Version = "3.14.0a2"
+
+	python3130Beta1 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.13.0",
+		Update:   "beta2",
+		TargetSW: "windows",
+	}
+	python3130Beta1Alias := *python3130Beta1
+	python3130Beta1Alias.Version = "3.13.0b2"
+
+	python3130RC1 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.13.0",
+		Update:   "rc1",
+		TargetSW: "windows",
+	}
+	python3130RC1Alias := *python3130RC1
+	python3130RC1Alias.Version = "3.13.0rc1"
+
 	for _, tc := range []struct {
 		name            string
 		cpeItem         *wfn.Attributes
@@ -986,6 +1024,21 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "python visual studio code extension",
 			cpeItem:         pythonCodeExtension,
 			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+		},
+		{
+			name:            "pre-release python: 3.14.0 alpha2",
+			cpeItem:         python3140Alpha2,
+			expectedAliases: []*wfn.Attributes{python3140Alpha2, &python3140Alpha2Alias1},
+		},
+		{
+			name:            "pre-release python: 3.13.0 beta1",
+			cpeItem:         python3130Beta1,
+			expectedAliases: []*wfn.Attributes{python3130Beta1, &python3130Beta1Alias},
+		},
+		{
+			name:            "pre-release python: 3.13.0 rc1",
+			cpeItem:         python3130RC1,
+			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
