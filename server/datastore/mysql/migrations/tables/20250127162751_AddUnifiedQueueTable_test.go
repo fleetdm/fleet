@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250227143904(t *testing.T) {
+// Test is for collation fix; uniQ migration didn't have a test before
+func TestUp_20250127162751(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, "SET FOREIGN_KEY_CHECKS = 0")
 	execNoErr(t, db, "DROP TABLE mdm_apple_bootstrap_packages")
