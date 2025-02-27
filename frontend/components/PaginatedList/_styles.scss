@@ -7,6 +7,11 @@
         background-color: $ui-off-white;
     }
 
+    &__pagination-controls {
+        display: flex;
+        justify-content: flex-end;
+    }
+
     .loading-overlay {
         display: flex;
         flex-grow: 1;

@@ -11,7 +11,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 // @ts-ignore
-import Pagination from "components/Pagination";
+import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 const baseClass = "paginated-list";
 
@@ -205,10 +205,11 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         })}
       </ul>
       <Pagination
-        resultsOnCurrentPage={items.length}
-        currentPage={currentPage}
-        resultsPerPage={pageSize}
-        onPaginationChange={setCurrentPage}
+        className={`${baseClass}__pagination-controls`}
+        disablePrev={currentPage === 0}
+        disableNext={items.length < pageSize}
+        onNextPage={() => setCurrentPage(currentPage + 1)}
+        onPrevPage={() => setCurrentPage(currentPage - 1)}
       />
     </div>
   );
