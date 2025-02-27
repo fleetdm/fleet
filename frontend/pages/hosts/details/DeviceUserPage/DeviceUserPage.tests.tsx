@@ -5,7 +5,11 @@ import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
-import { customDeviceHandler } from "test/handlers/device-handler";
+import {
+  customDeviceHandler,
+  defaultDeviceCertificatesHandler,
+  defaultDeviceHandler,
+} from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
 const mockRouter = {
@@ -34,12 +38,14 @@ const mockLocation = {
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
+    mockServer.use(defaultDeviceHandler);
+    mockServer.use(defaultDeviceCertificatesHandler);
+
     const render = createCustomRenderer({
       withBackendMock: true,
     });
 
-    // TODO: fix return type from render
-    const { user } = render(
+    render(
       <DeviceUserPage
         router={mockRouter}
         params={{ device_auth_token: "testToken" }}
@@ -51,14 +57,61 @@ describe("Device User Page", () => {
     await screen.findByText("About");
 
     expect(screen.queryByText(/Software/)).not.toBeInTheDocument();
+  });
 
-    // TODO: Fix this to the new copy
-    // expect(screen.getByText("No software detected")).toBeInTheDocument();
+  it("hides the certificates card if the device has no certificates", async () => {
+    mockServer.use(defaultDeviceHandler);
+    mockServer.use(defaultDeviceCertificatesHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    // waiting for the device data to render
+    await screen.findByText("About");
+
+    expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
+  });
+
+  it("hides the certificates card if the device is not an apple device (mac, iphone, ipad)", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.mdm.enrollment_status = "On (manual)";
+    host.platform = "windows";
+    host.dep_assigned_to_fleet = false;
+
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    // waiting for the device data to render
+    await screen.findByText("About");
+
+    expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
   });
 
   describe("MDM enrollment", () => {
     const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
       mockServer.use(customDeviceHandler(overrides));
+      mockServer.use(defaultDeviceCertificatesHandler);
 
       const render = createCustomRenderer({
         withBackendMock: true,

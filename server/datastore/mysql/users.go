@@ -170,7 +170,7 @@ func (ds *Datastore) UserOrDeletedUserByID(ctx context.Context, id uint) (*fleet
 }
 
 func (ds *Datastore) deletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
-	stmt := `SELECT id, name, email FROM users_deleted WHERE id = ?`
+	stmt := `SELECT id, name, email, 1 as deleted FROM users_deleted WHERE id = ?`
 	var user fleet.User
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &user, stmt, id)
 	switch {
