@@ -256,8 +256,6 @@
     <section id="main-content"></section>
 
     <script>
-      // TODO: does this need to come from server?
-      const ANDROID_ENROLL_URL = "https://enterprise.google.com/android/enroll";
       const ANDROID_GET_TOKEN_URL =
         "{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token";
       // using string comparison to satisfy the linter.
@@ -310,10 +308,8 @@
         }
       };
 
-      const setEnrollTokenUrl = (token) => {
-        document
-          .querySelector(".enroll-link")
-          .setAttribute("href", `${ANDROID_ENROLL_URL}?et=${token}`);
+      const setEnrollTokenUrl = (url) => {
+        document.querySelector(".enroll-link").setAttribute("href", url);
       };
 
       // dynmaic content rendering for ios and ipad only
@@ -410,8 +406,11 @@
           // we need to get the token and then place it in the enroll link
           try {
             const data = await getEnrollmentToken();
-            renderContent(templateId);
-            setEnrollTokenUrl(data.token);
+            renderContent();
+            if (!data.android_enrollment_url) {
+              throw new Error("Failed to get enrollment token");
+            }
+            setEnrollTokenUrl(data.android_enrollment_url);
           } catch (error) {
             renderError(
               "This URL is invalid.",
