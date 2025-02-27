@@ -959,6 +959,7 @@ func TestExpandCPEAliases(t *testing.T) {
 	}
 	python3140Alpha2Alias1 := *python3140Alpha2
 	python3140Alpha2Alias1.Version = "3.14.0a2"
+	python3140Alpha2Alias1.Update = ""
 
 	python3130Beta1 := &wfn.Attributes{
 		Vendor:   "python",
@@ -969,6 +970,7 @@ func TestExpandCPEAliases(t *testing.T) {
 	}
 	python3130Beta1Alias := *python3130Beta1
 	python3130Beta1Alias.Version = "3.13.0b2"
+	python3130Beta1Alias.Update = ""
 
 	python3130RC1 := &wfn.Attributes{
 		Vendor:   "python",
@@ -979,6 +981,7 @@ func TestExpandCPEAliases(t *testing.T) {
 	}
 	python3130RC1Alias := *python3130RC1
 	python3130RC1Alias.Version = "3.13.0rc1"
+	python3130RC1Alias.Update = ""
 
 	for _, tc := range []struct {
 		name            string
