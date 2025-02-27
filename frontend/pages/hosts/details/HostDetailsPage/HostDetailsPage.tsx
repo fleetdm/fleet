@@ -967,6 +967,7 @@ const HostDetailsPage = ({
                     data={hostCertificates}
                     hostPlatform={host.platform}
                     onSelectCertificate={onSelectCertificate}
+                    isError={isErrorHostCertificates}
                     page={certificatePage}
                     pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
                     onNextPage={() => setCertificatePage(certificatePage + 1)}

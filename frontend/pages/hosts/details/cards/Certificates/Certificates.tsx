@@ -5,6 +5,7 @@ import { HostPlatform } from "interfaces/platform";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import Card from "components/Card";
+import DataError from "components/DataError";
 
 import CertificatesTable from "./CertificatesTable";
 
@@ -15,6 +16,7 @@ interface ICertificatesProps {
   hostPlatform: HostPlatform;
   page: number;
   pageSize: number;
+  isError: boolean;
   isMyDevicePage?: boolean;
   onSelectCertificate: (certificate: IHostCertificate) => void;
   onNextPage: () => void;
@@ -24,6 +26,7 @@ interface ICertificatesProps {
 const CertificatesCard = ({
   data,
   hostPlatform,
+  isError,
   page,
   pageSize,
   isMyDevicePage = false,
@@ -31,14 +34,10 @@ const CertificatesCard = ({
   onNextPage,
   onPreviousPage,
 }: ICertificatesProps) => {
-  return (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="xxlarge"
-    >
-      <h2>Certificates</h2>
+  const renderContent = () => {
+    if (isError) return <DataError />;
+
+    return (
       <CertificatesTable
         data={data}
         showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
@@ -48,6 +47,18 @@ const CertificatesCard = ({
         onNextPage={onNextPage}
         onPreviousPage={onPreviousPage}
       />
+    );
+  };
+
+  return (
+    <Card
+      className={baseClass}
+      borderRadiusSize="xxlarge"
+      includeShadow
+      paddingSize="xxlarge"
+    >
+      <h2>Certificates</h2>
+      {renderContent()}
     </Card>
   );
 };

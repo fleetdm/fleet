@@ -6,9 +6,9 @@ import { IGetHostCertificatesResponse } from "services/entities/hosts";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import generateTableConfig from "./CertificatesTableConfig";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 const baseClass = "certificates-table";
 
