@@ -257,8 +257,8 @@ func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 	}, queryParams...)
 }
 
-func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
-	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil)
+func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
+	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil, queryParams...)
 }
 
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {

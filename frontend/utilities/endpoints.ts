@@ -40,6 +40,9 @@ export default {
   DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
   },
+  DEVICE_CERTIFICATES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/certificates`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -61,6 +64,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
   HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
+  HOST_CERTIFICATES: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/certificates`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
