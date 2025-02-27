@@ -1023,9 +1023,9 @@ allow {
 ##
 # Android
 ##
-# Global admins can connect enteprise.
+# Global admins can connect enterprise.
 allow {
   object.type == "android_enterprise"
   subject.global_role == admin
-  action == write
+  action == [read, write][_]
 }

@@ -20,6 +20,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import Icon from "components/Icon";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getPathWithQueryParams } from "utilities/url";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -75,7 +76,7 @@ const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { currentTeam, isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -422,7 +423,9 @@ const Calendars = (): JSX.Element => {
           <p>
             Now head over to{" "}
             <CustomLink
-              url={paths.MANAGE_POLICIES}
+              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                team_id: currentTeam?.id,
+              })}
               text="Policies &gt; Manage automations"
             />{" "}
             to finish setup.

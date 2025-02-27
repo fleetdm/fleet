@@ -8,12 +8,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAndroid(t *testing.T) {
 	ds := CreateMySQLDS(t)
+	TruncateTables(t, ds)
 
 	cases := []struct {
 		name string
@@ -31,6 +34,8 @@ func TestAndroid(t *testing.T) {
 }
 
 func testNewAndroidHost(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
 	const enterpriseSpecificID = "enterprise_specific_id"
 	host := createAndroidHost(enterpriseSpecificID)
 
@@ -38,6 +43,12 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
+
+	lbls, err := ds.ListLabelsForHost(testCtx(), result.Host.ID)
+	require.NoError(t, err)
+	require.Len(t, lbls, 2)
+	names := []string{lbls[0].Name, lbls[1].Name}
+	require.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid}, names)
 
 	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
 	require.NoError(t, err)
@@ -50,6 +61,22 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultCopy.Host.ID)
 	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
+
+	// create another host, this time delete the Android label
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(testCtx(), `DELETE FROM labels WHERE name = ?`, fleet.BuiltinLabelNameAndroid)
+		return err
+	})
+	const enterpriseSpecificID2 = "enterprise_specific_id2"
+	host2 := createAndroidHost(enterpriseSpecificID2)
+
+	// still passes, but no label membership was recorded
+	result, err = ds.NewAndroidHost(testCtx(), host2)
+	require.NoError(t, err)
+
+	lbls, err = ds.ListLabelsForHost(testCtx(), result.Host.ID)
+	require.NoError(t, err)
+	require.Empty(t, lbls)
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {

@@ -1,7 +1,5 @@
 # Configuring full names in Google Workspace for Fleet integration
 
-## Introduction
-
 Fleet requires user full names to be configured in your Identity Provider (IdP) using specific attributes. Since Google Workspace doesn't natively provide a full name attribute that matches Fleet's requirements, this guide will walk you through setting up automatic synchronization of full names using Google's custom attributes and Apps Script.
 
 ## What we're solving

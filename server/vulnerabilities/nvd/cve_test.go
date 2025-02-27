@@ -367,6 +367,30 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-10327"},
 			continuesToUpdate: true,
 		},
+		// CVE-2023-48795 false positive and true positive checks (see #26073)
+		"cpe:2.3:a:microsoft:powershell:7.4.3:*:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2023-48795", "CVE-2025-21171"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:openbsd:openssh:9.5:p1:*:*:*:*:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2023-48795", resolvedInVersion: "9.6"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:openbsd:openssh:9.6:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2023-48795"},
+			continuesToUpdate: true,
+		},
+		// end of CVE-2023-48795 checks
+		// CVE-2025-21171 handling
+		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+			continuesToUpdate: true,
+		},
+		// end of CVE-2025-21171 checks
 		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},
 			continuesToUpdate: true,
