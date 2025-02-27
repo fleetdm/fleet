@@ -42,6 +42,13 @@ describe("PaginatedList", () => {
     },
   ];
 
+  const fetchTinyPage = (pageNumber: number) => {
+    if (pageNumber <= 2) {
+      return Promise.resolve([items[pageNumber]]);
+    }
+    throw new Error("Invalid page number");
+  };
+
   const fetchSmallPage = (pageNumber: number) => {
     if (pageNumber === 0) {
       return Promise.resolve([items[0], items[1]]);
@@ -170,7 +177,7 @@ describe("PaginatedList", () => {
     checkPaginationIsDisabled();
   });
 
-  it("Adds pagination when > page size items are returned", async () => {
+  it("Adds pagination when > page size items are returned (without fetchCount provided)", async () => {
     const { container } = renderWithSetup(
       <PaginatedList<ITestItem>
         fetchPage={fetchSmallPage}
@@ -226,6 +233,55 @@ describe("PaginatedList", () => {
     previousButton = screen.getByRole("button", { name: /previous/i });
     expect(nextButton).toBeEnabled();
     expect(previousButton).toBeDisabled();
+  });
+
+  it("Adds pagination when > page size items are returned (with fetchCount provided)", async () => {
+    const { container } = renderWithSetup(
+      <PaginatedList<ITestItem>
+        fetchPage={fetchTinyPage}
+        fetchCount={() => Promise.resolve(3)}
+        pageSize={1}
+        onToggleItem={jest.fn()}
+        onUpdate={jest.fn()}
+        isSelected={jest.fn()}
+      />
+    );
+    await waitForLoadingToFinish(container);
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    const previousButton = screen.getByRole("button", { name: /previous/i });
+
+    // Check the first page.
+    let checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(1);
+    expect(checkboxes[0]).toHaveTextContent(items[0].name);
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(nextButton).toBeEnabled();
+    expect(previousButton).toBeDisabled();
+
+    // Move to second page.
+    await userEvent.click(nextButton);
+    await waitForLoadingToFinish(container);
+
+    // Check the second page.
+    checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(1);
+    expect(checkboxes[0]).toHaveTextContent(items[1].name);
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(nextButton).toBeEnabled();
+    expect(previousButton).toBeEnabled();
+
+    // Move to third page.
+    await userEvent.click(nextButton);
+    await waitForLoadingToFinish(container);
+
+    // Check the third page.
+    checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes).toHaveLength(1);
+    expect(checkboxes[0]).toHaveTextContent(items[2].name);
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(nextButton).toBeDisabled();
+    expect(previousButton).toBeEnabled();
   });
 
   it("Allows for custom markup in item rows", async () => {
