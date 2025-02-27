@@ -7,18 +7,13 @@ import React, {
   forwardRef,
   Ref,
 } from "react";
-import classnames from "classnames";
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
-import { IPolicy, IPoliciesCountResponse } from "interfaces/policy";
-import teamPoliciesAPI, {
-  ITeamPoliciesCountQueryKey,
-} from "services/entities/team_policies";
-import globalPoliciesAPI, {
-  IPoliciesCountQueryKey,
-} from "services/entities/global_policies";
+import { IPolicy } from "interfaces/policy";
+import teamPoliciesAPI from "services/entities/team_policies";
+import globalPoliciesAPI from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Button from "components/buttons/Button";
