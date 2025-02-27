@@ -45,7 +45,8 @@ import {
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
@@ -124,6 +125,7 @@ interface IHostDetailsSubNavItem {
   name: string | JSX.Element;
   title: string;
   pathname: string;
+  count?: number;
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
@@ -755,16 +757,10 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
-      name: (
-        <>
-          {failingPoliciesCount > 0 && (
-            <span className="count">{failingPoliciesCount}</span>
-          )}
-          Policies
-        </>
-      ),
+      name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+      count: failingPoliciesCount,
     },
   ];
 
@@ -844,7 +840,7 @@ const HostDetailsPage = ({
           )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
-        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+        <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -853,7 +849,13 @@ const HostDetailsPage = ({
               {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
-                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+                return (
+                  <Tab key={navItem.title}>
+                    <TabText count={navItem.count} isErrorCount>
+                      {navItem.name}
+                    </TabText>
+                  </Tab>
+                );
               })}
             </TabList>
             <TabPanel className={detailsPanelClass}>
@@ -956,7 +958,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -980,6 +982,7 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
+            teamIdForApi={currentTeam?.id}
           />
         )}
         {!!host && showTransferHostModal && (

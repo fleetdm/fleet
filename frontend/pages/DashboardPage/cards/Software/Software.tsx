@@ -4,11 +4,12 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { ISoftwareResponse } from "interfaces/software";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -56,11 +57,10 @@ const Software = ({
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id, team_id: teamId };
-
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
-      : PATHS.MANAGE_HOSTS;
+    const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+      software_id: row.original.id,
+      team_id: teamId,
+    });
 
     router.push(path);
   };
@@ -76,11 +76,15 @@ const Software = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>All</Tab>
-              <Tab>Vulnerable</Tab>
+              <Tab>
+                <TabText>All</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Vulnerable</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
@@ -129,7 +133,7 @@ const Software = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

@@ -6,10 +6,9 @@ import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
@@ -181,9 +180,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAppDetailsModal(true);
   };
 
-  const backToAddSoftwareUrl = `${
-    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED
-  }?${buildQueryStringFromParams({ team_id: teamId })}`;
+  const backToAddSoftwareUrl = getPathWithQueryParams(
+    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+    { team_id: teamId }
+  );
 
   const onCancel = () => {
     router.push(backToAddSoftwareUrl);
@@ -207,22 +207,19 @@ const FleetMaintainedAppDetailsPage = ({
       titleId = res.software_title_id;
 
       router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
           team_id: teamId,
           available_for_install: true,
-        })}`
+        })
       );
+
       renderFlash(
         "success",
         <>
           <b>{fleetApp?.name}</b> successfully added.
         </>
       );
-      // }
     } catch (error) {
-      // quick exit if there was an error adding the software. Skip the policy
-      // creation.
-
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
       const errorMessage = getErrorMessage(ae);
@@ -237,45 +234,7 @@ const FleetMaintainedAppDetailsPage = ({
       } else {
         renderFlash("error", DEFAULT_ERROR_MESSAGE);
       }
-
-      setShowAddFleetAppSoftwareModal(false);
-      return;
     }
-
-    // If the install type is automatic we now need to create the new policy.
-    // if (installType === "automatic" && fleetApp) {
-    //   try {
-    //     await teamPoliciesAPI.create({
-    //       name: getFleetAppPolicyName(fleetApp.name),
-    //       description: getFleetAppPolicyDescription(fleetApp.name),
-    //       query: getFleetAppPolicyQuery(fleetApp.name),
-    //       team_id: parseInt(teamId, 10),
-    //       software_title_id: titleId,
-    //       platform: "darwin",
-    //     });
-
-    //     renderFlash(
-    //       "success",
-    //       <>
-    //         <b>{fleetApp?.name}</b> successfully added.
-    //       </>,
-    //       { persistOnPageChange: true }
-    //     );
-    //   } catch (e) {
-    //     renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
-    //       persistOnPageChange: true,
-    //     });
-    //   }
-
-    //   // for automatic install we redirect on both a successful and error policy
-    //   // add because the software was already successfuly added.
-    //   router.push(
-    //     `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-    //       team_id: teamId,
-    //       available_for_install: true,
-    //     })}`
-    //   );
-    // }
 
     setShowAddFleetAppSoftwareModal(false);
   };

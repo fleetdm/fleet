@@ -2,7 +2,9 @@ import React, { useCallback, useRef } from "react";
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
+import paths from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import scriptsAPI, {
   IListScriptsQueryKey,
@@ -103,9 +105,12 @@ const PolicyRunScriptModal = ({
           <b>No scripts available for install</b>
           <div>
             Go to{" "}
-            <a href={`/controls/scripts?team_id=${teamId}`}>
-              Controls &gt; Scripts
-            </a>{" "}
+            <CustomLink
+              url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
+                team_id: teamId,
+              })}
+              text="Controls &gt; Scripts"
+            />{" "}
             to add scripts to this team.
           </div>
         </div>
