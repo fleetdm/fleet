@@ -9,7 +9,8 @@ module.exports = {
 
   inputs: {
     prompt: { type: 'string', required: true, example: 'Who is running macOS 15?' },
-    baseModel: { type: 'string', defaultsTo: 'gpt-3.5-turbo', isIn: ['gpt-3.5-turbo', 'gpt-4o', 'o1-preview', 'o3-mini-2025-01-31',] },
+    systemPrompt: { type: 'string', example: 'Who is running macOS 15?' },
+    baseModel: { type: 'string', defaultsTo: 'gpt-3.5-turbo', isIn: ['gpt-3.5-turbo', 'gpt-4o', 'o1-preview', 'o3-mini-2025-01-31', 'gpt-4o-2024-08-06'] },
     expectJson: { type: 'boolean', defaultsTo: false },
   },
 
@@ -25,7 +26,7 @@ module.exports = {
   },
 
 
-  fn: async function ({prompt, baseModel, expectJson}) {
+  fn: async function ({prompt, baseModel, expectJson, systemPrompt}) {
 
     if (!sails.config.custom.openAiSecret) {
       throw new Error('sails.config.custom.openAiSecret not set.');
@@ -37,21 +38,22 @@ module.exports = {
     let JSON_PROMPT_SUFFIX = `
 
 Please do not add any text outside of the JSON report or wrap it in a code fence.  Never use newline characters within double quotes.`;
-
+    let messages = [];
+    if(systemPrompt){
+      messages.push({ role: 'system', content: systemPrompt });
+    }
+    messages.push({role: 'user', content: prompt+(expectJson? JSON_PROMPT_SUFFIX : '')});
     // [?] API: https://platform.openai.com/docs/api-reference/chat/create
     let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
       model: baseModel,
-      messages: [ {
-        content: prompt+(expectJson? JSON_PROMPT_SUFFIX : ''),
-        role: 'user',
-      } ],
+      messages: messages,
     }, {
       Authorization: `Bearer ${sails.config.custom.openAiSecret}`
     })
     .intercept((err)=>{
       return new Error(failureMessage+'  Error details from LLM: '+err.stack);
     });
-
+    console.log(openAiResponse);
     let rawResult = openAiResponse.choices[0].message.content;
     if (!expectJson) {
       return rawResult;
