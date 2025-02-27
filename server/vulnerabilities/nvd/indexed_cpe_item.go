@@ -31,6 +31,10 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe.Version = version
 	cpe.Update = update
 
+	if cpe.Product == "python" && cpe.Vendor == "python" && cpe.Version == "3.12.0" && cpe.Update == wfn.Any {
+		cpe.Version = strings.Join(strings.Split(cpe.Version, ".")[:2], ".")
+	}
+
 	if i.Part != "" {
 		cpe.Part = i.Part
 	}
@@ -43,18 +47,18 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	return cpe.BindToFmtString()
 }
 
-var cpeUpdate = regexp.MustCompile(`(\d+\.\d+\.\d+)((?:a|b|rc)\d+)$`)
+var versionWithUpdate = regexp.MustCompile(`(\d+\.\d+\.\d+)((?:a|b|rc)\d+)$`)
 
 func parseUpdateFromVersion(originalVersion string) (version, update string) {
 	// Return the unchanged original version by default
 	version = originalVersion
 
-	if cpeUpdate.MatchString(originalVersion) {
+	if versionWithUpdate.MatchString(originalVersion) {
 		versionBytes := []byte{}
 		updateBytes := []byte{}
-		for _, submatches := range cpeUpdate.FindAllStringSubmatchIndex(originalVersion, -1) {
-			versionBytes = cpeUpdate.ExpandString(versionBytes, "${1}", originalVersion, submatches)
-			updateBytes = cpeUpdate.ExpandString(updateBytes, "${2}", originalVersion, submatches)
+		for _, submatches := range versionWithUpdate.FindAllStringSubmatchIndex(originalVersion, -1) {
+			versionBytes = versionWithUpdate.ExpandString(versionBytes, "${1}", originalVersion, submatches)
+			updateBytes = versionWithUpdate.ExpandString(updateBytes, "${2}", originalVersion, submatches)
 			version = string(versionBytes)
 			switch updateBytes[0] {
 			case 'a':

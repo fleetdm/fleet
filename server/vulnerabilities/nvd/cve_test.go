@@ -421,72 +421,19 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-12254"},
 			continuesToUpdate: true,
 		},
-		"cpe:2.3:a:python:python:3.12.0:*:*:*:*:macos:*:*": {
+		"cpe:2.3:a:python:python:3.12:*:*:*:*:*:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.12.9",
-				},
-
 				{
 					ID:                "CVE-2024-50602",
 					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-6232",
-					resolvedInVersion: "3.12.6",
 				},
 				{
 					ID:                "CVE-2025-0938",
 					resolvedInVersion: "3.12.9",
 				},
 				{
-					ID:                "CVE-2024-9287",
-					resolvedInVersion: "3.12.8",
-				},
-				{
-					ID:                "CVE-2023-6597",
-					resolvedInVersion: "3.12.1",
-				},
-				{
-					ID:                "CVE-2024-7592",
-					resolvedInVersion: "3.12.6",
-				},
-				{
-					ID:                "CVE-2023-33595",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-3219",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2024-0450",
-					resolvedInVersion: "3.12.2",
-				},
-				{
 					ID:                "CVE-2024-3220",
 					resolvedInVersion: "3.14.0",
-				},
-				{
-					ID:                "CVE-2024-0397",
-					resolvedInVersion: "3.12.3",
-				},
-				{
-					ID:                "CVE-2024-4032",
-					resolvedInVersion: "3.12.4",
-				},
-				{
-					ID:                "CVE-2024-8088",
-					resolvedInVersion: "3.12.6",
-				},
-				{
-					ID:                "CVE-2024-6923",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2023-6507",
-					resolvedInVersion: "",
 				},
 			},
 		},
