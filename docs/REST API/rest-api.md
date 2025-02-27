@@ -9799,20 +9799,17 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "version": "8.10.40",
       "platform": "darwin"
       "software_title_id": 3
     },
     {
       "id": 2,
       "name": "1Password",
-      "version": "8.10.40",
       "platform": "windows"
     },
     {
       "id": 3,
       "name": "Box Drive",
-      "version": "2.39.179",
       "platform": "darwin"
     },
     ...
