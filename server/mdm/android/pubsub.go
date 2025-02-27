@@ -1,10 +1,19 @@
 package android
 
+type NotificationType string
+
 const (
-	PubSubEnrollment   = "ENROLLMENT"
-	PubSubStatusReport = "STATUS_REPORT"
-	PubSubCommand      = "COMMAND"
-	PubSubUsageLogs    = "USAGE_LOGS"
+	PubSubTest         NotificationType = "test"
+	PubSubEnrollment   NotificationType = "ENROLLMENT"
+	PubSubStatusReport NotificationType = "STATUS_REPORT"
+	PubSubCommand      NotificationType = "COMMAND"
+	PubSubUsageLogs    NotificationType = "USAGE_LOGS"
+)
+
+type DeviceState string
+
+const (
+	DeviceStateDeleted DeviceState = "DELETED"
 )
 
 type PubSubMessage struct {

@@ -73,7 +73,14 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	})
 }
 
-func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logger) http.Handler {
+func ServeEndUserEnrollOTA(
+	svc fleet.Service,
+	urlPrefix string,
+	isMacMDMEnabled bool,
+	isAndroidMDMEnabled bool,
+	isAndroidFeatureEnabled bool, // TODO: remove android feature flag
+	logger log.Logger,
+) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
@@ -117,11 +124,17 @@ func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logge
 			return
 		}
 		if err := t.Execute(w, struct {
-			EnrollURL string
-			URLPrefix string
+			EnrollURL             string
+			URLPrefix             string
+			AndroidMDMEnabled     bool
+			MacMDMEnabled         bool
+			AndroidFeatureEnabled bool
 		}{
-			URLPrefix: urlPrefix,
-			EnrollURL: enrollURL,
+			URLPrefix:             urlPrefix,
+			EnrollURL:             enrollURL,
+			AndroidMDMEnabled:     isAndroidMDMEnabled,
+			MacMDMEnabled:         isMacMDMEnabled,
+			AndroidFeatureEnabled: isAndroidFeatureEnabled,
 		}); err != nil {
 			herr(w, "execute react template: "+err.Error())
 			return

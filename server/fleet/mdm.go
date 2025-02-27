@@ -733,6 +733,8 @@ const (
 	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
 	// NDES SCEP server. It is used by Fleet's SCEP proxy.
 	MDMAssetNDESPassword MDMAssetName = "ndes_password"
+	// MDMAssetAndroidPubSubToken is the token used to authenticate the Android PubSub messages coming from Google.
+	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 )
 
 type MDMConfigAsset struct {
@@ -801,6 +803,7 @@ const (
 	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
 	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
 	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.

@@ -34,6 +34,7 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 
 	Settings *UserSettings `json:"settings,omitempty"`
+	Deleted  bool          `json:"-" db:"deleted"`
 }
 
 type UserSettings struct {
