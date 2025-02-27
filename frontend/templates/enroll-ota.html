@@ -260,6 +260,11 @@
       const ANDROID_ENROLL_URL = "https://enterprise.google.com/android/enroll";
       const ANDROID_GET_TOKEN_URL =
         "{{.URLPrefix}}/api/v1/fleet/android/enterprise/enrollment_token";
+      // using string comparison to satisfy the linter.
+      const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
+      const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      // TODO: remove android feature flag
+      const ANDROID_FEATURE_ENABLED = "{{.AndroidFeatureEnabled}}" === "true";
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -373,16 +378,15 @@
         return await response.json();
       };
 
-      // TODO: get from server
-      const ANDROID_MDM_ENABLED = true;
-      const MAC_MDM_ENABLED = false;
-
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
         const platform = getPlatform();
 
         // quick exit if platform is unsupported
-        if (platform === "unsupported") {
+        if (
+          platform === "unsupported" ||
+          (!ANDROID_FEATURE_ENABLED && platform === "android") // TODO: remove android feature flag
+        ) {
           renderContent("unsupported-template");
           return;
         }

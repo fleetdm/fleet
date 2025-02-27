@@ -1090,7 +1090,15 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
+				// TODO: need a mechanism to check if android feature is enabled
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
+					svc,
+					config.Server.URLPrefix,
+					appCfg.MDM.EnabledAndConfigured,
+					appCfg.MDM.AndroidEnabledAndConfigured,
+					false, // TODO: remove android feature flag
+					logger,
+				)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
