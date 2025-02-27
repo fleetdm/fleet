@@ -1096,7 +1096,7 @@ the way that the Fleet server works.
 					config.Server.URLPrefix,
 					appCfg.MDM.EnabledAndConfigured,
 					appCfg.MDM.AndroidEnabledAndConfigured,
-					false, // TODO: remove android feature flag
+					appCfg.MDM.AndroidEnabledAndConfigured, // TODO: remove android feature flag
 					logger,
 				)
 			}
