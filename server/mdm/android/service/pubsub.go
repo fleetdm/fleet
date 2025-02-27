@@ -30,17 +30,39 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 }
 
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
-	// Authorization is done by checking the MDMAssetAndroidPubSubToken below.
-	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
-	svc.authz.SkipAuthorization(ctx)
-
 	notificationType := message.Attributes["notificationType"]
 	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
 	if len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
 		// Nothing to process
+		svc.authz.SkipAuthorization(ctx)
 		return nil
 	}
 
+	var rawData []byte
+	if len(message.Data) > 0 {
+		var err error
+		rawData, err = base64.StdEncoding.DecodeString(message.Data)
+		if err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return ctxerr.Wrap(ctx, err, "base64 decode message.data")
+		}
+	}
+
+	switch android.NotificationType(notificationType) {
+	case android.PubSubEnrollment:
+		return svc.handlePubSubEnrollment(ctx, token, rawData)
+	case android.PubSubStatusReport:
+		return svc.handlePubSubStatusReport(ctx, token, rawData)
+	default:
+		// Ignore unknown notification types
+		level.Debug(svc.logger).Log("msg", "Ignoring PubSub notification type", "notification", notificationType)
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+}
+
+func (svc *Service) authenticatePubSub(ctx context.Context, token string) error {
+	svc.authz.SkipAuthorization(ctx)
 	_, err := svc.checkIfAndroidNotConfigured(ctx)
 	if err != nil {
 		return err
@@ -64,26 +86,14 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 	if !ok || string(goldenToken.Value) != token {
 		return fleet.NewAuthFailedError("invalid Android PubSub token")
 	}
-
-	var rawData []byte
-	if len(message.Data) > 0 {
-		var err error
-		rawData, err = base64.StdEncoding.DecodeString(message.Data)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "base64 decode message.data")
-		}
-	}
-
-	switch android.NotificationType(notificationType) {
-	case android.PubSubEnrollment:
-		return svc.handlePubSubEnrollment(ctx, rawData)
-	case android.PubSubStatusReport:
-		return svc.handlePubSubStatusReport(ctx, rawData)
-	}
 	return nil
 }
 
-func (svc *Service) handlePubSubStatusReport(ctx context.Context, rawData []byte) error {
+func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
+	// We allow DELETED notification type to be received since user may be in the process of disabling Android MDM.
+	// Otherwise, we authenticate below in authenticatePubSub
+	svc.authz.SkipAuthorization(ctx)
+
 	var device androidmanagement.Device
 	err := json.Unmarshal(rawData, &device)
 	if err != nil {
@@ -94,6 +104,12 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, rawData []byte
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		return nil
 	}
+
+	err = svc.authenticatePubSub(ctx, token)
+	if err != nil {
+		return err
+	}
+
 	host, err := svc.getExistingHost(ctx, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting existing Android host")
@@ -116,9 +132,14 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, rawData []byte
 	return nil
 }
 
-func (svc *Service) handlePubSubEnrollment(ctx context.Context, rawData []byte) error {
+func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, rawData []byte) error {
+	err := svc.authenticatePubSub(ctx, token)
+	if err != nil {
+		return err
+	}
+
 	var device androidmanagement.Device
-	err := json.Unmarshal(rawData, &device)
+	err = json.Unmarshal(rawData, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
 	}
