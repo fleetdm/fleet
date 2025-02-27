@@ -143,7 +143,7 @@ module.exports = {
         // When the campaign actually exists in LinkedIn, Zapier will send another event to update the campaign urn in the website's database.
         let placeholderUrn = 'PLACEHOLDER-'+sails.helpers.strings.random();
         let nowAt = new Date();
-        let newCampaignName = `${data.persona} - ${nowAt.toISOString().trim('T')[0]} @ ${nowAt.toLocaleString().split(', ')[1]}`;
+        let newCampaignName = `${data.persona} - ${nowAt.toISOString().split('T')[0]} @ ${nowAt.toLocaleString(undefined, {timezone: 'America/Chicago'}).split(', ')[1]} CT`;
         // Now save an incomplete reference to the new LinkedIn campaign.
         latestCampaign = await AdCampaign.create({
           isLatest: true,
