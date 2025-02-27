@@ -174,12 +174,19 @@ func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *
 	return token, nil
 }
 
-func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
+func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error {
 	if p == nil || p.mgmt == nil {
 		return errors.New("android management service not initialized")
 	}
 
-	_, err := p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
+	// To find out the enterprise's PubSub topic, we need to get the enterprise first
+	enterprise, err := p.mgmt.Enterprises.Get(enterpriseID).Do()
+	if err != nil {
+		return fmt.Errorf("getting enterprise %s: %w", enterpriseID, err)
+	}
+	pubSubTopic := enterprise.PubsubTopic
+
+	_, err = p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_id", enterpriseID)
@@ -187,5 +194,16 @@ func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
 	case err != nil:
 		return fmt.Errorf("deleting enterprise %s: %w", enterpriseID, err)
 	}
+
+	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	if err != nil {
+		return fmt.Errorf("creating PubSub client: %w", err)
+	}
+	defer pubSubClient.Close()
+	err = pubSubClient.Topic(pubSubTopic).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("deleting PubSub topic %s: %w", pubSubTopic, err)
+	}
+
 	return nil
 }
