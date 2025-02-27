@@ -35,7 +35,7 @@
     border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
-    padding: 9.5px 12px 9.5px 36px; // New figma styling
+    padding: 9.5px 12px 9.5px $pad-medium;
     font-size: $x-small;
     text-indent: 1px;
     position: relative;
@@ -44,6 +44,10 @@
     color: $core-fleet-black;
     font-weight: $regular;
     transition: border-color 100ms;
+
+    &.input-with-icon {
+      padding-left: 36px;
+    }
 
     ::placeholder {
       color: $core-fleet-blue;

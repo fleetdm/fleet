@@ -93,8 +93,8 @@ class InputFieldWithIcon extends InputField {
 
     const inputClasses = classnames(
       `${baseClass}__input`,
-      "input-with-icon",
       className,
+      { "input-with-icon": !!iconSvg },
       { [`${baseClass}__input--error`]: error },
       { [`${baseClass}__input--password`]: type === "password" && value }
     );
