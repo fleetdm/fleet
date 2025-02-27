@@ -48,10 +48,10 @@ jobs:
       - name: Pull metadata files
         run: |
           mkdir -p keys repository staged
-          rclone cp r2://updates-staging/timestamp.json ./repository/timestamp.json
-          rclone cp r2://updates-staging/snapshot.json ./repository/snapshot.json
-          rclone cp r2://updates-staging/targets.json ./repository/targets.json
-          rclone cp r2://updates-staging/root.json ./repository/root.json
+          rclone copy r2://updates-staging/timestamp.json ./repository/timestamp.json
+          rclone copy r2://updates-staging/snapshot.json ./repository/snapshot.json
+          rclone copy r2://updates-staging/targets.json ./repository/targets.json
+          rclone copy r2://updates-staging/root.json ./repository/root.json
           cat ./repository/timestamp.json
 
       - name: Update timestamp
@@ -65,7 +65,7 @@ jobs:
       - name: Push timestamp.json
         run: |
           cat ./repository/timestamp.json
-          rclone cp ./repository/timestamp.json r2://updates-staging/timestamp.json
+          rclone copy ./repository/timestamp.json r2://updates-staging/timestamp.json
 
       - name: Take a nap until staging cache clears
         run: |
@@ -77,7 +77,7 @@ jobs:
 
       - name: Promote staging to production
         run: |
-          rclone cp r2://updates-staging/timestamp.json r2://updates/timestamp.json
+          rclone copy r2://updates-staging/timestamp.json r2://updates/timestamp.json
 
       - name: Take a nap until production cache clears
         run: |
