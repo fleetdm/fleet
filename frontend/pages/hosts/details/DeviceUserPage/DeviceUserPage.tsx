@@ -6,7 +6,9 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
-import deviceUserAPI from "services/entities/device_user";
+import deviceUserAPI, {
+  IGetDeviceCertificatesResponse,
+} from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
@@ -75,7 +77,7 @@ const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
 
-const DEFAULT_CERTIFICATES_PAGE_SIZE = 500;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
 interface IDeviceUserPageProps {
@@ -125,10 +127,15 @@ const DeviceUserPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+
+  // certificates states
   const [
     selectedCertificate,
     setSelectedCertificate,
   ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -162,14 +169,22 @@ const DeviceUserPage = ({
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
     refetch: refetchDeviceCertificates,
-  } = useQuery(
-    ["hostCertificates", deviceAuthToken],
-    () =>
-      deviceUserAPI.getDeviceCertificates(
-        deviceAuthToken,
-        DEFAULT_CERTIFICATES_PAGE,
-        DEFAULT_CERTIFICATES_PAGE_SIZE
-      ),
+  } = useQuery<
+    IGetDeviceCertificatesResponse,
+    Error,
+    IGetDeviceCertificatesResponse,
+    Array<{ scope: string; token: string; page: number; perPage: number }>
+  >(
+    [
+      {
+        scope: "device-certificates",
+        token: deviceAuthToken,
+        page: certificatePage,
+        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ token, page, perPage }] }) =>
+      deviceUserAPI.getDeviceCertificates(token, page, perPage),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
@@ -462,8 +477,15 @@ const DeviceUserPage = ({
                     <CertificatesCard
                       isMyDevicePage
                       data={deviceCertificates}
+                      isError={isErrorDeviceCertificates}
+                      page={certificatePage}
+                      pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
                       hostPlatform={host.platform}
                       onSelectCertificate={onSelectCertificate}
+                      onNextPage={() => setCertificatePage(certificatePage + 1)}
+                      onPreviousPage={() =>
+                        setCertificatePage(certificatePage - 1)
+                      }
                     />
                   )}
                 </TabPanel>
