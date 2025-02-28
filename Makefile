@@ -157,7 +157,7 @@ endif
 .help-short--test-schema:
 	@echo "Update schema.sql from current migrations"
 test-schema:
-	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
+	go run ./tools/dbutils ./server/datastore/mysql/schema.sql ./server/mdm/android/mysql/schema.sql
 dump-test-schema: test-schema
 
 # This is the base command to run Go tests.
