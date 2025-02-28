@@ -16,6 +16,8 @@ type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
 type GetEnterpriseByIDFunc func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error)
 
+type GetEnterpriseBySignupTokenFunc func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error)
+
 type GetEnterpriseFunc func(ctx context.Context) (*android.Enterprise, error)
 
 type UpdateEnterpriseFunc func(ctx context.Context, enterprise *android.EnterpriseDetails) error
@@ -34,6 +36,9 @@ type Datastore struct {
 
 	GetEnterpriseByIDFunc        GetEnterpriseByIDFunc
 	GetEnterpriseByIDFuncInvoked bool
+
+	GetEnterpriseBySignupTokenFunc        GetEnterpriseBySignupTokenFunc
+	GetEnterpriseBySignupTokenFuncInvoked bool
 
 	GetEnterpriseFunc        GetEnterpriseFunc
 	GetEnterpriseFuncInvoked bool
@@ -68,6 +73,13 @@ func (ds *Datastore) GetEnterpriseByID(ctx context.Context, ID uint) (*android.E
 	ds.GetEnterpriseByIDFuncInvoked = true
 	ds.mu.Unlock()
 	return ds.GetEnterpriseByIDFunc(ctx, ID)
+}
+
+func (ds *Datastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+	ds.mu.Lock()
+	ds.GetEnterpriseBySignupTokenFuncInvoked = true
+	ds.mu.Unlock()
+	return ds.GetEnterpriseBySignupTokenFunc(ctx, signupToken)
 }
 
 func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
