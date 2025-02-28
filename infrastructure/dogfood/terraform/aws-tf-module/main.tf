@@ -40,6 +40,7 @@ variable "fleet_calendar_periodicity" {
   default     = "30s"
   description = "The refresh period for the calendar integration."
 }
+variable "android_service_credentials" {}
 variable "dogfood_sidecar_enroll_secret" {}
 
 data "aws_caller_identity" "current" {}
