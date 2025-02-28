@@ -43,15 +43,6 @@ interface ISwDropdownField {
   value: number;
 }
 
-interface IFormPolicy {
-  name: string;
-  id: number;
-  installSoftwareEnabled: boolean;
-  swIdToInstall?: number;
-  swNameToInstall?: string;
-  platform: CommaSeparatedPlatformString;
-}
-
 export type IInstallSoftwareFormData = IFormPolicy[];
 
 interface IEnhancedSoftwareTitle extends ISoftwareTitle {
@@ -94,22 +85,6 @@ const InstallSoftwareModal = ({
   teamId,
   gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
-
-  const [formData, setFormData] = useState<IInstallSoftwareFormData>(
-    policies.map((policy) => ({
-      name: policy.name,
-      id: policy.id,
-      installSoftwareEnabled: !!policy.install_software,
-      swIdToInstall: policy.install_software?.software_title_id,
-      swNameToInstall: policy.install_software?.name,
-      platform: policy.platform,
-    }))
-  );
-
-  const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
-    (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
-  );
-
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
   const {

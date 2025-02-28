@@ -25,6 +25,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 export interface IFormPolicy extends IPolicy {
   installSoftwareEnabled: boolean;
   swIdToInstall?: number;
+  swNameToInstall?: string;
   runScriptEnabled: boolean;
   scriptIdToRun?: number;
 }
