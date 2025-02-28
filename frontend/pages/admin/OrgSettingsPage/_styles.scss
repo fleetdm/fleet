@@ -77,4 +77,8 @@
       }
     }
   }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+  }
 }

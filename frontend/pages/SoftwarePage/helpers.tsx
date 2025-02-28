@@ -13,12 +13,6 @@ import { getErrorReason } from "interfaces/errors";
 import { ISoftwarePackage, IAppStoreApp } from "interfaces/software";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
-import Radio from "components/forms/fields/Radio";
-import TooltipWrapper from "components/TooltipWrapper";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 /**
  * helper function to generate error message for secret variables based
  * on the error reason.
@@ -63,97 +57,6 @@ export const generateSecretErrMsg = (err: unknown) => {
 
 /** Corresponds to automatic_install_policies  */
 export type InstallType = "manual" | "automatic";
-
-interface IInstallTypeSection {
-  className: string;
-  installType: InstallType;
-  onChangeInstallType: (value: string) => void;
-  isCustomPackage?: boolean;
-  isExeCustomPackage?: boolean;
-}
-
-// Used in FleetAppDetailsForm and PackageForm
-export const InstallTypeSection = ({
-  className,
-  installType,
-  onChangeInstallType,
-  isCustomPackage = false,
-  isExeCustomPackage = false,
-}: IInstallTypeSection) => {
-  const isAutomaticDisabled = isExeCustomPackage;
-  const AUTOMATIC_DISABLED_TOOLTIP = (
-    <>
-      Fleet can&apos;t create a policy to detect existing installations for
-      <br /> .exe packages. To automatically install an .exe, add a custom
-      <br /> policy and enable the install software automation on the
-      <br /> <b>Policies</b> page.
-    </>
-  );
-
-  return (
-    <fieldset>
-      <legend>Install</legend>
-      <div className={`${className}__radio-input`}>
-        <Radio
-          checked={installType === "manual"}
-          id="manual-radio-btn"
-          value="manual"
-          name="install-type"
-          label="Manual"
-          onChange={onChangeInstallType}
-          helpText={
-            <>
-              Manually install on the <b>Host details</b> page for each host.
-            </>
-          }
-        />
-        <Radio
-          checked={installType === "automatic"}
-          id="automatic-radio-btn"
-          value="automatic"
-          name="install-type"
-          label="Automatic"
-          disabled={isAutomaticDisabled}
-          tooltip={isAutomaticDisabled && AUTOMATIC_DISABLED_TOOLTIP}
-          onChange={onChangeInstallType}
-          helpText={
-            <>
-              Automatically install on each host that&apos;s{" "}
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    If the host already has any version of this
-                    <br /> software, it won&apos;t be installed.
-                  </>
-                }
-              >
-                missing this software
-              </TooltipWrapper>
-              . Policy that triggers install can be customized after software is
-              added.
-            </>
-          }
-        />
-      </div>
-      {installType === "automatic" && isCustomPackage && (
-        <InfoBanner
-          color="yellow"
-          cta={
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
-              text="Learn more"
-              newTab
-            />
-          }
-        >
-          Installing software over existing installations might cause issues.
-          Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.
-        </InfoBanner>
-      )}
-    </fieldset>
-  );
-};
 
 export const getInstallType = (
   softwarePackage: ISoftwarePackage
@@ -212,9 +115,12 @@ export const generateSelectedLabels = (
 };
 
 // Used in FleetAppDetailsForm and PackageForm
-export const generateHelpText = (installType: string, customTarget: string) => {
+export const generateHelpText = (
+  automaticInstall: boolean,
+  customTarget: string
+) => {
   if (customTarget === "labelsIncludeAny") {
-    return installType === "manual" ? (
+    return !automaticInstall ? (
       <>
         Software will only be available for install on hosts that{" "}
         <b>have any</b> of these labels:
@@ -228,7 +134,7 @@ export const generateHelpText = (installType: string, customTarget: string) => {
   }
 
   // this is the case for labelsExcludeAny
-  return installType === "manual" ? (
+  return !automaticInstall ? (
     <>
       Software will only be available for install on hosts that{" "}
       <b>don&apos;t have any</b> of these labels:
@@ -254,3 +160,9 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
     disabled: false,
   },
 ];
+
+export const SELF_SERVICE_TOOLTIP = (
+  <>
+    End users can install from <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+  </>
+);

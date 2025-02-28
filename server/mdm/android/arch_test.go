@@ -9,6 +9,7 @@ import (
 
 // TestAllAndroidPackageDependencies checks that android packages are not dependent on other Fleet packages
 // to maintain decoupling and modularity.
+// If coupling is necessary, it should be done in the main server/fleet, server/service, or other package.
 func TestAllAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android...").
@@ -21,6 +22,7 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 			"github.com/fleetdm/fleet/v4/server/service/middleware/auth",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils",
+			"github.com/fleetdm/fleet/v4/server/service/middleware/log",
 			"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit",
 		).
 		ShouldNotDependOn(
@@ -30,7 +32,8 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 }
 
 // TestAndroidPackageDependencies checks that android package is NOT dependent on ANY other Fleet packages
-// to maintain decoupling and modularity.
+// to maintain decoupling and modularity. This package should only contain basic structs and interfaces.
+// If coupling is necessary, it should be done in the main server/fleet or another package.
 func TestAndroidPackageDependencies(t *testing.T) {
 	t.Parallel()
 	archtest.NewPackageTest(t, "github.com/fleetdm/fleet/v4/server/mdm/android").

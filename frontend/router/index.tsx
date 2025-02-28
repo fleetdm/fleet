@@ -64,6 +64,7 @@ import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
+import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import ScepPage from "pages/admin/IntegrationsPage/cards/MdmSettings/ScepPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
@@ -165,6 +166,7 @@ const routes = (
             <Route path="chrome" component={DashboardPage} />
             <Route path="ios" component={DashboardPage} />
             <Route path="ipados" component={DashboardPage} />
+            <Route path="android" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
@@ -197,6 +199,7 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={AppleMdmPage} />
+            <Route path="integrations/mdm/android" component={AndroidMdmPage} />
             <Route path="integrations/mdm/scep" component={ScepPage} />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect

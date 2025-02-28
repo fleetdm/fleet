@@ -1,6 +1,3 @@
-//go:build windows
-// +build windows
-
 package main
 
 import (
@@ -74,4 +71,9 @@ func blockWaitForStopEvent(channelId string) error {
 	}
 
 	return nil
+}
+
+func trayIconExists() bool {
+	log.Debug().Msg("tray icon checker is not implemented for this platform")
+	return true
 }

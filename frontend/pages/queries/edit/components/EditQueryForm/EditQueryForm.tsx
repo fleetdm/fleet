@@ -26,7 +26,6 @@ import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
   secondsToDhms,
-  TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -36,6 +35,7 @@ import {
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 
@@ -172,7 +172,7 @@ const EditQueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
@@ -341,10 +341,9 @@ const EditQueryForm = ({
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(
-            PATHS.QUERY_DETAILS(
-              response.query.id,
-              response.query.team_id ?? undefined
-            )
+            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
+              team_id: response.query.team_id,
+            })
           );
           renderFlash("success", `Successfully added query.`);
         })
@@ -366,7 +365,11 @@ const EditQueryForm = ({
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query.id));
+                router.push(
+                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
+                    team_id: apiTeamIdForQuery,
+                  })
+                );
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -510,9 +513,9 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -536,7 +539,7 @@ const EditQueryForm = ({
                   }}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingName}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -565,9 +568,9 @@ const EditQueryForm = ({
         <GitOpsModeTooltipWrapper
           position="right"
           tipOffset={16}
-          renderChildren={(dC) => {
+          renderChildren={(disableChildren) => {
             const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--gitops-mode-disabled`]: dC,
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
             });
             return (
               <div
@@ -587,7 +590,7 @@ const EditQueryForm = ({
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
-                  disableTabability={dC}
+                  disableTabability={disableChildren}
                 />
                 <Icon
                   name="pencil"
@@ -657,8 +660,10 @@ const EditQueryForm = ({
               variant="blue-green"
               onClick={() => {
                 router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
+                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    host_id: hostId,
+                    team_id: apiTeamIdForQuery,
+                  })
                 );
               }}
               disabled={disabledLiveQuery}
@@ -732,6 +737,7 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
 
+    console.log("hostId", hostId);
     return (
       <>
         <form className={`${baseClass}`} autoComplete="off">
@@ -763,7 +769,9 @@ const EditQueryForm = ({
             <div
               // including `form` class here keeps the children fields subject to the global form
               // children styles
-              className={gomEnabled ? "gitops-mode-disabled form" : "form"}
+              className={
+                gitOpsModeEnabled ? "disabled-by-gitops-mode form" : "form"
+              }
             >
               <Dropdown
                 searchable={false}
@@ -882,11 +890,11 @@ const EditQueryForm = ({
               <>
                 {savedQueryMode && (
                   <GitOpsModeTooltipWrapper
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         variant="text-link"
                         onClick={promptSaveAsNewQuery()}
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         className="save-as-new-loading"
                         isLoading={isSaveAsNewLoading}
                       >
@@ -898,7 +906,7 @@ const EditQueryForm = ({
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
-                    renderChildren={(dC) => (
+                    renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
                         variant="brand"
@@ -907,7 +915,7 @@ const EditQueryForm = ({
                             ? toggleConfirmSaveChangesModal
                             : promptSaveQuery()
                         }
-                        disabled={disableSaveFormErrors || dC}
+                        disabled={disableSaveFormErrors || disableChildren}
                         isLoading={isQueryUpdating}
                       >
                         Save
@@ -939,8 +947,10 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                      host_id: hostId,
+                      team_id: currentTeamId,
+                    })
                   );
                 }}
                 disabled={disabledLiveQuery}

@@ -1312,7 +1312,7 @@ func (man Manager) addConfigs() {
 	)
 	man.addConfigInt(
 		"vulnerabilities.max_concurrency",
-		5,
+		1,
 		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
 

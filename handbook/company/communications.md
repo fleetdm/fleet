@@ -86,7 +86,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
-### Docs
+## Docs
 
 This section details processes related to maintaining and updating the [Fleet documentation](https://fleetdm.com/docs).
 
@@ -157,6 +157,13 @@ Here are some topics for social media posts:
 
 Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/marketing#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
 
+### Articles
+
+Every fleetie can write articles for [the Fleet blog](https://fleetdm.com/articles), and every fleetie can propose ideas for articles.
+
+- To quickly propose an idea for a blog post, add it to the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993).
+- If you are writing the article yourself, make a [pull request](#making-a-pull-request) adding your post as a new `.md` file in [`articles/`](https://github.com/fleetdm/fleet/tree/main/articles).  You can use [special tags at the bottom of your file](#article-meta-tags) to control how the article looks, and you can also [embed .gifs or a video](#images).
+
 
 ### Ads
 
@@ -195,7 +202,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
 - **Be warm.**  It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and video are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple." 
+- **Confidentiality reminder.** Fleet meetings titled with "▶️" are considered public by default unless [otherwise specified](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality). All public meeting transcripts and videos are screened for confidential information before being published. If confidential information (e.g. customer names, IP addresses, GitHub secrets, etc.) is revealed via screen share or audio during the recording of a public meeting, any team member on the call that notices sensitive information should verbally say, "Pineapple, pineapple, pineapple."
 
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
@@ -206,6 +213,9 @@ Videos are transcribed, and this makes it easier to find required redactions dur
   - The agenda creation and/or prep beforehand. 
   - There is a designated notetaker during the meeting. 
   - All action items are tracked and assigned to the correct individuals. 
+
+Meetings that are currently considered public and marked with ▶️:
+- Design reviews
 
 
 ### Meeting agendas
@@ -510,8 +520,7 @@ When merging a PR to the master branch of the [Fleet repo](https://github.com/fl
 
 When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/digital-experience) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
-
-### Editing a merged pull requests 
+### Editing a merged pull request
 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
@@ -559,7 +568,7 @@ When adding or reordering a page, try to leave as much room between values as po
 
 - 
 
-### Article meta tags:
+### Article meta tags
 
 We use `<meta>` tags in Markdown articles to set metadata information about the article on the Fleet website. The values of these tags determine where the article will live, and how the article will be displayed on the website.
 

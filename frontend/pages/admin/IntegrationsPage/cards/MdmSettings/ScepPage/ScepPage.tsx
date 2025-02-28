@@ -22,6 +22,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { SCEP_SERVER_TIP_CONTENT } from "../components/ScepSection/ScepSection";
 
@@ -95,6 +96,8 @@ export const ScepCertificateContent = ({
     );
   }
 
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const disableSave =
     // all fields aren't empty
     !Object.values(formData).every((val) => val === "") &&
@@ -138,6 +141,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   error={formErrors.scepUrl}
                   placeholder="https://example.com/certsrv/mscep/mscep.dll"
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__admin-url-input`}
@@ -155,6 +159,7 @@ export const ScepCertificateContent = ({
                   parseTarget
                   error={formErrors.adminUrl}
                   placeholder="https://example.com/certsrv/mscep_admin/"
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__username-input`}
@@ -172,6 +177,7 @@ export const ScepCertificateContent = ({
                   onBlur={(e: any) => onBlur("username", e.target.value)}
                   parseTarget
                   placeholder="username@example.microsoft.com"
+                  disabled={gitOpsModeEnabled}
                 />
                 <InputField
                   inputWrapperClass={`${baseClass}__password-input`}
@@ -191,16 +197,22 @@ export const ScepCertificateContent = ({
                   placeholder="••••••••"
                   blockAutoComplete
                   error={formErrors.password}
+                  disabled={gitOpsModeEnabled}
                 />
-                <Button
-                  type="submit"
-                  variant="brand"
-                  className="button-wrap"
-                  isLoading={isSaving}
-                  disabled={disableSave}
-                >
-                  Save
-                </Button>
+                <GitOpsModeTooltipWrapper
+                  tipOffset={-8}
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      type="submit"
+                      variant="brand"
+                      className="button-wrap"
+                      isLoading={isSaving}
+                      disabled={disableSave || disableChildren}
+                    >
+                      Save
+                    </Button>
+                  )}
+                />
               </form>
             </Card>
           </li>

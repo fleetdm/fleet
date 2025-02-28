@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -21,7 +24,6 @@ import (
 var (
 	// Required env vars to use the proxy
 	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
-	androidPubSubTopic        = os.Getenv("FLEET_DEV_ANDROID_PUBSUB_TOPIC")
 	androidProjectID          string
 )
 
@@ -30,8 +32,11 @@ type Proxy struct {
 	mgmt   *androidmanagement.Service
 }
 
+// Compile-time check to ensure that Proxy implements android.Proxy.
+var _ android.Proxy = &Proxy{}
+
 func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
-	if androidServiceCredentials == "" || androidPubSubTopic == "" {
+	if androidServiceCredentials == "" {
 		return nil
 	}
 
@@ -72,25 +77,101 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 	}, nil
 }
 
-func (p *Proxy) EnterprisesCreate(enabledNotificationTypes []string, enterpriseToken string, signupUrlName string) (string, error) {
+func (p *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
 	if p == nil || p.mgmt == nil {
-		return "", errors.New("android management service not initialized")
+		return "", "", errors.New("android management service not initialized")
 	}
+
+	topicName, err := p.createPubSubTopic(ctx, req.PubSubPushURL)
+	if err != nil {
+		return "", "", fmt.Errorf("creating PubSub topic: %w", err)
+	}
+
 	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
-		EnabledNotificationTypes: enabledNotificationTypes,
-		PubsubTopic:              androidPubSubTopic,
+		EnabledNotificationTypes: req.EnabledNotificationTypes,
+		PubsubTopic:              topicName,
 	}).
 		ProjectId(androidProjectID).
-		EnterpriseToken(enterpriseToken).
-		SignupUrlName(signupUrlName).
+		EnterpriseToken(req.EnterpriseToken).
+		SignupUrlName(req.SignupUrlName).
 		Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		return "", fmt.Errorf("android enterprise %s was already created", signupUrlName)
+		return "", "", fmt.Errorf("android enterprise %s was already created", req.SignupUrlName)
 	case err != nil:
-		return "", fmt.Errorf("creating enterprise: %w", err)
+		return "", "", fmt.Errorf("creating enterprise: %w", err)
 	}
-	return enterprise.Name, nil
+	return enterprise.Name, topicName, nil
+}
+
+func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
+	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub client: %w", err)
+	}
+	defer pubSubClient.Close()
+	pubSubTopic := "a" + uuid.NewString() // PubSub topic names must start with a letter
+	topicConfig := pubsub.TopicConfig{
+		// Message retention is free for 1 day, so we default to that.
+		// Both the topic and subscription retention durations should be 1 day since Google uses whatever is longer.
+		// https://cloud.google.com/pubsub/pricing
+		RetentionDuration: 24 * time.Hour,
+	}
+	topic, err := pubSubClient.CreateTopicWithConfig(ctx, pubSubTopic, &topicConfig)
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub topic: %w", err)
+	}
+	policy, err := topic.IAM().Policy(ctx) // Ensure the topic exists before creating the subscription
+	if err != nil {
+		return "", fmt.Errorf("getting PubSub topic policy: %w", err)
+	}
+	policy.Add("serviceAccount:android-cloud-policy@system.gserviceaccount.com", "roles/pubsub.publisher")
+	if err := topic.IAM().SetPolicy(ctx, policy); err != nil {
+		return "", fmt.Errorf("setting PubSub subscription policy: %w", err)
+	}
+	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
+
+	// Note: We could add a second level of authentication for the subscription, where, upon receiving a message,
+	// Fleet server does an API call to Google to verify the message validity.
+	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
+		Topic:             topic,
+		AckDeadline:       60 * time.Second,
+		RetentionDuration: 24 * time.Hour,
+		PushConfig: pubsub.PushConfig{
+			Endpoint: pushURL,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("creating PubSub subscription: %w", err)
+	}
+
+	// TODO(fleetdm.com): Cleanup the PubSub topics not associated with enterprises (e.g. if the enterprise creation fails)
+
+	return topic.String(), nil
+}
+
+func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
+	fullPolicyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, policyName)
+	_, err := p.mgmt.Enterprises.Policies.Patch(fullPolicyName, policy).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android policy not modified", "enterprise_id", enterpriseID, "policy_name", policyName)
+	case err != nil:
+		return fmt.Errorf("patching policy %s: %w", fullPolicyName, err)
+	}
+	return nil
+}
+
+func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken,
+) (*androidmanagement.EnrollmentToken, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Do()
+	if err != nil {
+		return nil, fmt.Errorf("creating enrollment token: %w", err)
+	}
+	return token, nil
 }
 
 func (p *Proxy) EnterpriseDelete(enterpriseID string) error {

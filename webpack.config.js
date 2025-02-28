@@ -26,7 +26,7 @@ let plugins = [
   }),
   new webpack.DefinePlugin({
     featureFlags: {
-      allowGitOpsMode: JSON.stringify(process.env.ALLOW_GITOPS_MODE),
+      // e.g.: allowGitOpsMode: JSON.stringify(process.env.ALLOW_GITOPS_MODE),
     },
   }),
 ];

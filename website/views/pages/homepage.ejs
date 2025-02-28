@@ -6,6 +6,8 @@
         <div class="d-flex flex-row justify-content-start align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
+            <h1 class="<%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+          <% /*
           <h1>One agent for <br>
             <div purpose="ticker-container" class="d-flex align-items-center flex-row text-nowrap">
               every
@@ -37,6 +39,7 @@
               </div>
             </div>
           </h1>
+          */ %>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source telemetry that works the way you want' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
@@ -416,7 +419,7 @@
         <div purpose="feature">
           <img alt="Free as in free" src="/images/homepage-icon-free-48x64@2x.png">
           <h5>Free as in free</h5>
-          <p>The <a href="https://fleetdm.com/docs/get-started/faq#what-is-your-commitment-to-open-source-stewardship">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
+          <p>The <a href="https://fleetdm.com/docs/get-started/faq#what-is-your-commitment-to-open-source-stewardship">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a target="_blank" href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
         </div>
 
         <div purpose="feature" class="mr-sm-0 mb-0">

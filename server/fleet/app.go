@@ -1243,6 +1243,13 @@ type EnrollSecret struct {
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
 }
 
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
+}
+
 func (e *EnrollSecret) AuthzType() string {
 	return "enroll_secret"
 }

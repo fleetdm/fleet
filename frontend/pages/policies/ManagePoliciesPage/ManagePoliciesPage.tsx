@@ -21,7 +21,12 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
@@ -47,6 +52,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -538,38 +544,19 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.install_software !== undefined &&
-          formPolicy.installSoftwareEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.install_software === undefined &&
-          formPolicy.installSoftwareEnabled === true;
-
-        const updatedSwId =
-          prevPolicyState?.install_software?.software_title_id !== undefined &&
-          formPolicy.swIdToInstall !==
-            prevPolicyState?.install_software?.software_title_id;
-
-        return turnedOff || turnedOn || updatedSwId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
-      const responses = changedPolicies.map((changedPolicy) => {
-        return teamPoliciesAPI.update(changedPolicy.id, {
-          // "software_title_id": null will unset software install for the policy
-          // "software_title_id": X will set the value to the given integer (except 0).
-          software_title_id: changedPolicy.swIdToInstall || null,
-          team_id: teamIdForApi,
-        });
-      });
+      const responses: Promise<
+        ReturnType<typeof teamPoliciesAPI.update>
+      >[] = [];
+      responses.concat(
+        formData.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            // "software_title_id": null will unset software install for the policy
+            // "software_title_id": X will set the value to the given integer (except 0).
+            software_title_id: changedPolicy.swIdToInstall || null,
+            team_id: teamIdForApi,
+          });
+        })
+      );
       await Promise.all(responses);
       await wait(100); // prevent race
       refetchTeamPolicies();
@@ -587,34 +574,12 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
 
-        const turnedOff =
-          prevPolicyState?.run_script !== undefined &&
-          formPolicy.runScriptEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.run_script === undefined &&
-          formPolicy.runScriptEnabled === true;
-
-        const updatedRunScriptId =
-          prevPolicyState?.run_script?.id !== undefined &&
-          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
-
-        return turnedOff || turnedOn || updatedRunScriptId;
-      });
-      if (!changedPolicies.length) {
-        renderFlash("success", "No changes detected.");
-        return;
-      }
       const responses: Promise<
         ReturnType<typeof teamPoliciesAPI.update>
       >[] = [];
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
             // "script_id": null will unset running a script for the policy
             // "script_id": X will sets script X to run when the policy fails
@@ -666,19 +631,10 @@ const ManagePolicyPage = ({
       }
 
       // update changed policies calendar events enabled
-      const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-        return (
-          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
-        );
-      });
-
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            calendar_events_enabled: changedPolicy.isChecked,
+            calendar_events_enabled: changedPolicy.calendar_events_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -754,8 +710,7 @@ const ManagePolicyPage = ({
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
-  const showAutomationsDropdown =
-    canManageAutomations && hasPoliciesToAutomateOrDelete;
+  const showAutomationsDropdown = canManageAutomations;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -887,12 +842,12 @@ const ManagePolicyPage = ({
     );
   };
 
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const isCalEventsConfigured =
     (config?.integrations.google_calendar &&
       config?.integrations.google_calendar.length > 0) ??
     false;
-
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
@@ -977,6 +932,53 @@ const ManagePolicyPage = ({
     return options;
   };
 
+  let automationsDropdown = null;
+  if (showAutomationsDropdown) {
+    automationsDropdown = (
+      <div className={`${baseClass}__manage-automations-wrapper`}>
+        <DropdownWrapper
+          isDisabled={!hasPoliciesToAutomateOrDelete}
+          className={`${baseClass}__manage-automations-dropdown`}
+          name="policy-automations"
+          onChange={onSelectAutomationOption}
+          placeholder="Manage automations"
+          options={
+            hasPoliciesToAutomateOrDelete
+              ? getAutomationsDropdownOptions(!!automationsConfig)
+              : []
+          }
+          variant="button"
+          nowrapMenu
+        />
+      </div>
+    );
+    if (!hasPoliciesToAutomateOrDelete) {
+      const tipContent =
+        isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID ? (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy to this team.
+            <br />
+            For inherited policies select &ldquo;All teams&rdquo;.
+          </div>
+        ) : (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy.
+          </div>
+        );
+
+      automationsDropdown = (
+        <TooltipWrapper
+          underline={false}
+          tipContent={tipContent}
+          position="top"
+          showArrow
+        >
+          {automationsDropdown}
+        </TooltipWrapper>
+      );
+    }
+  }
+
   if (!isRouteOk) {
     return <Spinner />;
   }
@@ -1018,19 +1020,7 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {showAutomationsDropdown && (
-                <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <DropdownWrapper
-                    className={`${baseClass}__manage-automations-dropdown`}
-                    name="policy-automations"
-                    onChange={onSelectAutomationOption}
-                    placeholder="Manage automations"
-                    options={getAutomationsDropdownOptions(!!automationsConfig)}
-                    variant="button"
-                    nowrapMenu
-                  />
-                </div>
-              )}
+              {automationsDropdown}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
@@ -1057,6 +1047,8 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
+            teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showAddPolicyModal && (
@@ -1080,9 +1072,9 @@ const ManagePolicyPage = ({
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showPolicyRunScriptModal && (
@@ -1090,9 +1082,9 @@ const ManagePolicyPage = ({
             onExit={togglePolicyRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showCalendarEventsModal && (
@@ -1102,9 +1094,9 @@ const ManagePolicyPage = ({
             configured={isCalEventsConfigured}
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
-            policies={policiesAvailableToAutomate}
+            teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
-            gomEnabled={gomEnabled}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
       </div>
