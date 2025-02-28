@@ -45,7 +45,7 @@ The uninstallation process is also visible in the  **Activities** section on the
 
 ## Update the app
 
-Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the **Software** page, then re-add it.
+Currently, Fleet does not automatically update apps. To update the app, remove the app and re-add it from the Fleet-maintained list on the **Software** page, then reinstall it.
 
 ## How does Fleet maintain these apps?
 
