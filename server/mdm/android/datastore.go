@@ -6,6 +6,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// MySQLTables are the tables that are present in Android's schema.sql
+// This is an optimization/encapsulation exercise -- Android Datastore is only unit tested with the tables it uses.
+func MySQLTables() []string {
+	return []string{
+		"android_enterprises",
+		"android_devices",
+	}
+}
+
 type Datastore interface {
 	CreateEnterprise(ctx context.Context, userID uint) (uint, error)
 	GetEnterpriseByID(ctx context.Context, ID uint) (*EnterpriseDetails, error)
