@@ -61,6 +61,8 @@ locals {
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
+    FLEET_DEV_ANDROID_ENABLED                  = "1"
+    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS      = var.android_service_credentials
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
