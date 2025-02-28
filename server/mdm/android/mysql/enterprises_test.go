@@ -73,6 +73,10 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, resultEnriched)
 
+	resultEnrichedByToken, err := ds.GetEnterpriseBySignupToken(testCtx(), enterprise.SignupToken)
+	require.NoError(t, err)
+	assert.Equal(t, enterprise, resultEnrichedByToken)
+
 	result, err := ds.GetEnterprise(testCtx())
 	require.NoError(t, err)
 	assert.Equal(t, enterprise.Enterprise, *result)

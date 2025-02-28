@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
@@ -174,12 +176,19 @@ func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *
 	return token, nil
 }
 
-func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
+func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error {
 	if p == nil || p.mgmt == nil {
 		return errors.New("android management service not initialized")
 	}
 
-	_, err := p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
+	// To find out the enterprise's PubSub topic, we need to get the enterprise first
+	enterprise, err := p.mgmt.Enterprises.Get("enterprises/" + enterpriseID).Do()
+	if err != nil {
+		level.Error(p.logger).Log("msg", "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_id", enterpriseID)
+		return nil
+	}
+
+	_, err = p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_id", enterpriseID)
@@ -187,5 +196,34 @@ func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
 	case err != nil:
 		return fmt.Errorf("deleting enterprise %s: %w", enterpriseID, err)
 	}
+
+	// Delete the PubSub topic if it exists
+	if enterprise == nil || len(enterprise.PubsubTopic) == 0 {
+		return nil
+	}
+	topicID, err := getLastPart(ctx, enterprise.PubsubTopic)
+	if err != nil || len(topicID) == 0 {
+		level.Error(p.logger).Log("msg", "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
+		return nil
+	}
+
+	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	if err != nil {
+		return fmt.Errorf("creating PubSub client: %w", err)
+	}
+	defer pubSubClient.Close()
+	err = pubSubClient.Topic(topicID).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("deleting PubSub topic %s: %w", enterprise.PubsubTopic, err)
+	}
+
 	return nil
+}
+
+func getLastPart(ctx context.Context, name string) (string, error) {
+	nameParts := strings.Split(name, "/")
+	if len(nameParts) == 0 {
+		return "", ctxerr.Errorf(ctx, "invalid Google resource name: %s", name)
+	}
+	return nameParts[len(nameParts)-1], nil
 }
