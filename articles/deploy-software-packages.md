@@ -162,6 +162,6 @@ Please refer to the documentation for [managing software with GitOps](https://fl
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-23">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through adding and editing software packages in Fleet.">
