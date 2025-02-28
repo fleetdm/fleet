@@ -26,6 +26,16 @@
           max-width: $col-sm;
         }
 
+        .email__cell {
+          max-width: 171px;
+        }
+
+        @media (min-width: $break-md) {
+          .email__cell {
+            max-width: $col-md;
+          }
+        }
+
         .actions__cell {
           width: auto;
         }
