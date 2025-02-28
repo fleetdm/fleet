@@ -65,6 +65,7 @@ import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import PolicyRunScriptModal from "./components/PolicyRunScriptModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
+import { getErrorMessage } from "./helpers";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -593,47 +594,10 @@ const ManagePolicyPage = ({
       if (failedUpdates.length > 0) {
         const errorNotifications: INotification[] = failedUpdates.map(
           (result, index) => {
-            // Creates a readable JSX element from the error message
-            const readableSWandTeamErrorMessage = (): JSX.Element => {
-              // Extracts the error message from the API response
-              const apiErrorMessage = (result as PromiseRejectedResult).reason
-                .data.errors[0].reason;
-
-              // Splits the message into parts, separating software_title_id and team_id
-              const parts = apiErrorMessage.split(
-                /(software_title_id \d+|team_id \d+)/
-              );
-
-              // Maps each part of the message to a JSX element
-              const jsxElement = parts.map((part: any) => {
-                if (part.startsWith("software_title_id")) {
-                  const swId = part.split(" ")[1];
-
-                  // Finds the corresponding software in formData and replaces software_title_id part with software name
-                  const software = formData.find(
-                    (item) => item.swIdToInstall?.toString() === swId
-                  );
-                  return software ? (
-                    <>
-                      <b>{software.swNameToInstall}</b> (ID:{" "}
-                      {software.swIdToInstall})
-                    </>
-                  ) : (
-                    part
-                  );
-
-                  // Replace team_id part with current team name
-                } else if (part.startsWith("team_id")) {
-                  return <b>{currentTeamName}</b>;
-                }
-                return <>{part}</>;
-              });
-
-              return <>{jsxElement}</>;
-            };
-
-            const message = (
-              <>Could not update policy. {readableSWandTeamErrorMessage()}</>
+            const message = getErrorMessage(
+              result as PromiseRejectedResult,
+              formData,
+              currentTeamName
             );
 
             return {
