@@ -59,5 +59,5 @@ Fleet:
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
 <meta name="authorGitHubUsername" value="ghernandez345">
-<meta name="publishedOn" value="2024-10-16">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="articleTitle" value="Fleet-maintained apps">
