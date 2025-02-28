@@ -31,8 +31,8 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe.Version = version
 	cpe.Update = update
 
-	if cpe.Product == "python" && cpe.Vendor == "python" && cpe.Version == "3.12.0" && cpe.Update == wfn.Any {
-		cpe.Version = strings.Join(strings.Split(cpe.Version, ".")[:2], ".")
+	if cpe.Product == "python" && cpe.Vendor == "python" && cpe.Update == wfn.Any {
+		cpe.Update = wfn.NA
 	}
 
 	if i.Part != "" {
