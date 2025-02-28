@@ -26,8 +26,9 @@ import CustomLink from "components/CustomLink";
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
-import PoliciesPaginatedList from "../PoliciesPaginatedList/PoliciesPaginatedList";
-import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
