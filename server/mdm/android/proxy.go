@@ -11,7 +11,7 @@ type Proxy interface {
 	EnterprisesCreate(ctx context.Context, req ProxyEnterprisesCreateRequest) (string, string, error)
 	EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error
 	EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
-	EnterpriseDelete(enterpriseID string) error
+	EnterpriseDelete(ctx context.Context, enterpriseID string) error
 }
 
 type ProxyEnterprisesCreateRequest struct {
