@@ -15,20 +15,48 @@ parasails.registerPage('query-generator', {
     },
     // Syncing / loading state
     syncing: false,
-    queryResult: '',
     // Server error state
     cloudError: '',
     showGeneratedQuery: false,
+    generatedQueries: {
+      macOSQuery: undefined,
+      windowsQuery: undefined,
+      linuxQuery: undefined,
+      chromeOSQuery: undefined,
+      macOSCaveats: undefined,
+      windowsCaveats: undefined,
+      linuxCaveats: undefined,
+      chromeOSCaveats: undefined,
+    },
+    selectedTab: 'macos',
+    tablesUsedInQueries: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    // this.generatedQueries = {
+    //   "macOSQuery": "SELECT name, uuid, version, path, publisher, publisher_id, installed_at, prerelease, uid FROM vscode_extensions;",
+    //   "windowsQuery": "SELECT name, uuid, version, path, publisher, publisher_id, installed_at, prerelease, uid FROM vscode_extensions;",
+    //   "linuxQuery": "SELECT name, uuid, version, path, publisher, publisher_id, installed_at, prerelease, uid FROM vscode_extensions;",
+    //   "chromeOSQuery": "",
+    //   "macOSCaveats": "",
+    //   "windowsCaveats": "",
+    //   "linuxCaveats": "",
+    //   "chromeOSCaveats": "The vscode_extensions table is not available on ChromeOS."
+    // }
+    // this.showGeneratedQuery = true;
   },
   mounted: async function() {
-    //…
+    $('[purpose="copy-button"]').on('click', async function() {
+      let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
+      $(this).addClass('copied');
+      await setTimeout(()=>{
+        $(this).removeClass('copied');
+      }, 2000);
+      navigator.clipboard.writeText(code);
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -42,7 +70,7 @@ parasails.registerPage('query-generator', {
       io.socket.on('error', this._onQueryGenerationError);
     },
     _onQueryResultsReturned: function(response) {
-      this.queryResult = response.result;
+      this.generatedQueries = response.result;
       this.syncing = false;
       this.showGeneratedQuery = true;
       // Disable the socket event listener after we display the results.
@@ -55,7 +83,17 @@ parasails.registerPage('query-generator', {
     },
     clickResetQueryGenerator: function() {
       this.showGeneratedQuery = false;
+      this.generatedQueries = {
+        macOSQuery: undefined,
+        windowsQuery: undefined,
+        linuxQuery: undefined,
+        chromeOSQuery: undefined,
+        macOSCaveats: undefined,
+        windowsCaveats: undefined,
+        linuxCaveats: undefined,
+        chromeOSCaveats: undefined,
+      };
       this.formData.naturalLanguageQuestion = '';
-    }
+    },
   }
 });
