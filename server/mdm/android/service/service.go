@@ -306,7 +306,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	default:
-		err = svc.proxy.EnterpriseDelete(enterprise.EnterpriseID)
+		err = svc.proxy.EnterpriseDelete(ctx, enterprise.EnterpriseID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting enterprise via Google API")
 		}
