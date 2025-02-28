@@ -610,7 +610,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.8.9",
 				Vendor:           "",
 				BundleIdentifier: "com.apple.python3",
-			}, cpe: "cpe:2.3:a:python:python:3.8.9:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -619,7 +619,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.7",
 				Vendor:           "",
 				BundleIdentifier: "org.python.python",
-			}, cpe: "cpe:2.3:a:python:python:3.10.7:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -898,7 +898,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.6",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1695,7 +1695,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
