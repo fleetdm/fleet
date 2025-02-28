@@ -141,7 +141,7 @@ module.exports = {
       "linuxCaveats": "TODO",
       "chromeOSCaveats": "TODO",
     }`;
-    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'gpt-4o-2024-08-06', expectJson: true, systemPrompt: schemaFiltrationPrompt})
+    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'gpt-4o-2024-08-06', expectJson: true, systemPrompt: systemPrompt})
     .intercept((err)=>{
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
