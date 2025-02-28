@@ -44,18 +44,17 @@ const WindowsAutomaticEnrollmentPage = () => {
           />
         </p>
         <p>
-            Some Intune/Entra deployments enable automatic enrollement into
-            Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled,
-            or your devices will not appear in Fleet.{" "}
-          </p>
-          <p>
-              In your Intune settings, select <b>Devices</b>, and under{" "}
-              <b>Device onbarding</b>, open the <b>Enrollment</b> submenu.{" "}
-              Select <b>Automatic Enrollment</b> and ensure both{" "}
-              <b>MDM user scope</b> and{" "}
-              <b>Windows Information Protection (WIP) user scope</b> are set to{" "}
-              <b>None</b>.
-            </p>
+          Some Intune/Entra deployments enable automatic enrollement into
+          Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled, or
+          your devices will not appear in Fleet.{" "}
+        </p>
+        <p>
+          In your Intune settings, select <b>Devices</b>, and under{" "}
+          <b>Device onbarding</b>, open the <b>Enrollment</b> submenu. Select{" "}
+          <b>Automatic Enrollment</b> and ensure both <b>MDM user scope</b> and{" "}
+          <b>Windows Information Protection (WIP) user scope</b> are set to{" "}
+          <b>None</b>.
+        </p>
         {/* Ideally we'd use the native browser list styles and css to display
         the list numbers but this does not allow us to style the list items as we'd
         like so we write the numbers in the JSX instead. */}
