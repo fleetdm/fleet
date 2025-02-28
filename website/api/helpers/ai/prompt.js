@@ -9,7 +9,7 @@ module.exports = {
 
   inputs: {
     prompt: { type: 'string', required: true, example: 'Who is running macOS 15?' },
-    baseModel: { type: 'string', defaultsTo: 'gpt-3.5-turbo', isIn: ['gpt-3.5-turbo', 'gpt-4o', 'o1-preview', 'o3-mini-2025-01-31', 'gpt-4o-2024-08-06'] },
+    baseModel: { type: 'string', defaultsTo: 'gpt-3.5-turbo', isIn: ['gpt-3.5-turbo', 'gpt-4o', 'o1-preview', 'o3-mini-2025-01-31', 'gpt-4o-2024-08-06', 'gpt-4o-mini-2024-07-18'] },
     expectJson: { type: 'boolean', defaultsTo: false },
     systemPrompt: { type: 'string', example: 'Who is running macOS 15?' },
   },
