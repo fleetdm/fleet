@@ -872,6 +872,7 @@ module.exports.routes = {
   'GET /learn-more-about/policy-templates': '/policies',
   'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
+  'GET /learn-more-about/certificates-query': '/tables/certificates',
 
   // Sitemap
   // =============================================================================================================
