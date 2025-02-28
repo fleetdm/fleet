@@ -86,9 +86,7 @@ func main() {
 	args := []string{"compose", "exec", "-T", "mysql_test"}
 	// Command to run inside container:
 	args = append(args, "mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb")
-	for _, table := range android.MySQLTables() {
-		args = append(args, table)
-	}
+	args = append(args, android.MySQLTables()...)
 	args = append(args, "--compact", "--skip-comments")
 	cmd = exec.Command("docker", args...)
 	stdoutBuf = bytes.Buffer{}
