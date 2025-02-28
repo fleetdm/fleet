@@ -55,7 +55,8 @@ resource "aws_ecs_task_definition" "loadtest" {
           "-server_url", "http://${aws_lb.internal.dns_name}",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",
-          "--orbit_prob", "0.0"
+          "--orbit_prob", "0.0",
+          "--os_templates", "macos_14.1.2:134,windows_11:133,ubuntu_22.04:133"
         ]
       }
   ])
