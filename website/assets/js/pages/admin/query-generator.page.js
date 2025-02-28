@@ -69,7 +69,7 @@ parasails.registerPage('query-generator', {
     _onQueryResultsReturned: function(response) {
       this.generatedQueries = response.result;
       if(response.result.macOSQuery) {
-        this.selectedTab = 'macos'
+        this.selectedTab = 'macos';
       } else if(!response.result.macOSQuery){
         this.selectedTab = 'windows';
       } else if(!response.result.windowsQuery){
