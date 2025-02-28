@@ -59,6 +59,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -10730,6 +10731,8 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	t := s.T()
 
+	testCerts := []*x509.Certificate{mdmtesting.NewTestMDMAppleCertTemplate()}
+
 	// Try to refetch host that is not MDM enrolled
 	serialNumber := mdmtest.RandSerialNumber()
 	fleetHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -10750,7 +10753,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
-	const commandsSentPerRefetch = 2
+	const commandsSentPerRefetch = 3
 	commandsSent := commandsSentPerRefetch
 
 	var hostResp getHostResponse
@@ -10763,6 +10766,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Len(t, commands, commandsSent)
 	assert.ElementsMatch(t, []fleet.HostMDMCommand{
 		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
 		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
 	}, commands)
 
@@ -10789,6 +10793,9 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID,
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
+	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, testCerts)
+	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	_, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
 	require.NoError(t, err)
@@ -10807,6 +10814,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		hostResp.Host.Software[index].ID = 0
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
+
+	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
 
 	// Install the same app for iPadOS
 	hostIPad, mdmClientIPad := s.createAppleMobileHostThenEnrollMDM("ipados")
@@ -10839,6 +10848,9 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err = mdmClientIPad.AcknowledgeInstalledApplicationList(mdmClientIPad.UUID, cmd.CommandUUID,
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
+	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	cmd, err = mdmClientIPad.AcknowledgeCertificateList(mdmClientIPad.UUID, cmd.CommandUUID, testCerts)
+	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10")
 	require.NoError(t, err)
@@ -10854,6 +10866,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		hostResp.Host.Software[index].ID = 0
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
+
+	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
 
 	hostsCountTs := time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
@@ -10917,6 +10931,9 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
 	require.NoError(t, err)
+	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, []*x509.Certificate{})
+	require.NoError(t, err)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	const deviceNameRenamed = "My new iPhone"
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
@@ -10929,6 +10946,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.False(t, hostResp.Host.RefetchRequested)
 	assert.Equal(t, deviceNameRenamed, hostResp.Host.ComputerName)
 	assert.Empty(t, hostResp.Host.Software)
+
+	// TODO: add test for GET /hosts/:id/certificates endpoint, should be empty
 
 	// Mark host as unenrolled and refetch.
 	require.NoError(t, s.ds.UpdateMDMData(ctx, host.ID, false))
@@ -10976,6 +10995,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
 	require.NoError(t, err)
+	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, []*x509.Certificate{})
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
 	require.NoError(t, err)
@@ -10987,6 +11008,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.False(t, hostResp.Host.RefetchRequested)
 	require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
 	assert.Equal(t, "On (automatic)", *hostResp.Host.MDM.EnrollmentStatus)
+
+	// TODO: add test for GET /hosts/:id/certificates endpoint, should be empty
 
 	// list commands should return all the commands we sent
 	var listCmdResp listMDMAppleCommandsResponse
@@ -13758,6 +13781,10 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
+	// No VPP apps added yet, so this is a no-op
+	err := vpp.RefreshVersions(ctx, s.ds)
+	require.NoError(t, err)
+
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
 		fmt.Sprint(team.ID))
@@ -13808,7 +13835,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.appleITunesSrvData["2"] = `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "10.10.10", "trackName": "App 2", "TrackID": 2,
 				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`
 
-	err := vpp.RefreshVersions(ctx, s.ds)
+	err = vpp.RefreshVersions(ctx, s.ds)
 	require.NoError(t, err)
 
 	// 1 and 2 should be updated
@@ -13827,4 +13854,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
 	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
 	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+
+	// Refresh again. There are no version changes this time, so this is a no-op.
+	err = vpp.RefreshVersions(ctx, s.ds)
+	require.NoError(t, err)
 }

@@ -85,6 +85,10 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 	})
 }
 
+func (ds *Datastore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	return ds.insertOrReplaceConfigAsset(ctx, ds.writer(ctx), asset)
+}
+
 func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.ExtContext, asset fleet.MDMConfigAsset) error {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{asset.Name}, tx)
 	if err != nil {

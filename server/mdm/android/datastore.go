@@ -7,7 +7,7 @@ import (
 )
 
 type Datastore interface {
-	CreateEnterprise(ctx context.Context) (uint, error)
+	CreateEnterprise(ctx context.Context, userID uint) (uint, error)
 	GetEnterpriseByID(ctx context.Context, ID uint) (*EnterpriseDetails, error)
 	GetEnterprise(ctx context.Context) (*Enterprise, error)
 	UpdateEnterprise(ctx context.Context, enterprise *EnterpriseDetails) error

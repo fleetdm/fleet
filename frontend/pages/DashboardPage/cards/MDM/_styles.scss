@@ -3,7 +3,7 @@
   position: relative;
   height: 100%; // centers loading spinner
 
-  .component__tabs-wrapper .table-container__header {
+  .tab-nav .table-container__header {
     display: none;
   }
 
@@ -13,16 +13,6 @@
         thead {
           .status__header {
             width: 30%;
-          }
-
-          .hosts__header {
-            border-right: 0;
-            padding-right: 0;
-            width: 60px;
-          }
-
-          .linkToFilteredHosts__header {
-            width: 140px;
           }
         }
       }
@@ -40,6 +30,5 @@
         }
       }
     }
-
   }
 }

@@ -31,6 +31,7 @@ type EnterpriseDetails struct {
 	SignupName  string `db:"signup_name"`
 	SignupToken string `db:"signup_token"`
 	TopicID     string `db:"pubsub_topic_id"`
+	UserID      uint   `db:"user_id"`
 }
 
 type EnrollmentToken struct {

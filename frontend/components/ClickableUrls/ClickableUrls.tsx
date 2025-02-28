@@ -1,5 +1,5 @@
 import React from "react";
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 import classnames from "classnames";
 
 interface IClickableUrls {

@@ -38,7 +38,7 @@ CREATE TABLE vpp_apps (
 	  REFERENCES software_titles (id)
 	  ON DELETE SET NULL
 	  ON UPDATE CASCADE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps: %w", err)
 	}
@@ -58,7 +58,7 @@ CREATE TABLE vpp_apps_teams (
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
 	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
 	UNIQUE KEY idx_global_or_team_id_adam_id (global_or_team_id, adam_id)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps_teams: %w", err)
 	}
@@ -91,7 +91,7 @@ CREATE TABLE host_vpp_software_installs (
 	FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
 	UNIQUE INDEX idx_host_vpp_software_installs_command_uuid (command_uuid)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("failed to create table host_vpp_software_installs: %w", err)
 	}

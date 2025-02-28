@@ -27,6 +27,7 @@ func TestUsers(t *testing.T) {
 	}{
 		{"Create", testUsersCreate},
 		{"ByID", testUsersByID},
+		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
 		{"Has", testUsersHas},
 		{"List", testUsersList},
@@ -132,6 +133,25 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	}
 	assert.NotEmpty(t, users)
 	return users
+}
+
+func testUsersDelete(t *testing.T, ds *Datastore) {
+	_, err := ds.UserOrDeletedUserByID(context.Background(), 999999)
+	var nfe fleet.NotFoundError
+	assert.ErrorAs(t, err, &nfe)
+
+	users := createTestUsers(t, ds)
+	for _, tt := range users {
+		err := ds.DeleteUser(context.Background(), tt.ID)
+		assert.Nil(t, err)
+		_, err = ds.UserByID(context.Background(), tt.ID)
+		var nfe fleet.NotFoundError
+		assert.ErrorAs(t, err, &nfe)
+		returned, err := ds.UserOrDeletedUserByID(context.Background(), tt.ID)
+		require.NoError(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
+		assert.True(t, returned.Deleted)
+	}
 }
 
 func testUsersSave(t *testing.T, ds *Datastore) {
