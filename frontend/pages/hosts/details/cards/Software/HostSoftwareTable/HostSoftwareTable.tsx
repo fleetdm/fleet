@@ -13,6 +13,7 @@ import {
   APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
   isIPadOrIPhone,
+  isAndroid,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
@@ -26,6 +27,9 @@ import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -238,6 +242,20 @@ const HostSoftwareTable = ({
     },
     [onShowSoftwareDetails]
   );
+
+  if (isAndroid(platform)) {
+    return (
+      <EmptyTable
+        header="Software is not supported for this host"
+        info={
+          <>
+            Interested in viewing software for Android hosts?{" "}
+            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className={baseClass}>

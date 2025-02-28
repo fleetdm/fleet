@@ -52,6 +52,8 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
+type UserOrDeletedUserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
+
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
@@ -273,6 +275,10 @@ type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
+
+type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
+
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
@@ -936,6 +942,8 @@ type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, host
 
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
+type InsertOrReplaceMDMConfigAssetFunc func(ctx context.Context, asset fleet.MDMConfigAsset) error
+
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
 type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
@@ -1284,6 +1292,9 @@ type DataStore struct {
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
 
+	UserOrDeletedUserByIDFunc        UserOrDeletedUserByIDFunc
+	UserOrDeletedUserByIDFuncInvoked bool
+
 	SaveUserFunc        SaveUserFunc
 	SaveUserFuncInvoked bool
 
@@ -1616,6 +1627,12 @@ type DataStore struct {
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
+
+	ListHostCertificatesFunc        ListHostCertificatesFunc
+	ListHostCertificatesFuncInvoked bool
+
+	UpdateHostCertificatesFunc        UpdateHostCertificatesFunc
+	UpdateHostCertificatesFuncInvoked bool
 
 	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
 	AreHostsConnectedToFleetMDMFuncInvoked bool
@@ -2610,6 +2627,9 @@ type DataStore struct {
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
 
+	InsertOrReplaceMDMConfigAssetFunc        InsertOrReplaceMDMConfigAssetFunc
+	InsertOrReplaceMDMConfigAssetFuncInvoked bool
+
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
 
@@ -3169,6 +3189,13 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	s.UserByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) UserOrDeletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	s.mu.Lock()
+	s.UserOrDeletedUserByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserOrDeletedUserByIDFunc(ctx, id)
 }
 
 func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
@@ -3946,6 +3973,20 @@ func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.H
 	s.IsHostConnectedToFleetMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsHostConnectedToFleetMDMFunc(ctx, host)
+}
+
+func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostCertificatesFunc(ctx, hostID, opts)
+}
+
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+	s.mu.Lock()
+	s.UpdateHostCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostCertificatesFunc(ctx, hostID, certs)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
@@ -6263,6 +6304,13 @@ func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MD
 	s.InsertMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMConfigAssetsFunc(ctx, assets, tx)
+}
+
+func (s *DataStore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	s.mu.Lock()
+	s.InsertOrReplaceMDMConfigAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertOrReplaceMDMConfigAssetFunc(ctx, asset)
 }
 
 func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {

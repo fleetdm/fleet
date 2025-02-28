@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IFleetMaintainedApp } from "interfaces/software";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -31,11 +31,10 @@ export const generateTableConfig = (
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, id } = cellProps.row.original;
 
-        const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
-          id
-        )}?${buildQueryStringFromParams({
-          team_id: teamId,
-        })}`;
+        const path = getPathWithQueryParams(
+          PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(id),
+          { team_id: teamId }
+        );
 
         return <SoftwareNameCell name={name} path={path} router={router} />;
       },

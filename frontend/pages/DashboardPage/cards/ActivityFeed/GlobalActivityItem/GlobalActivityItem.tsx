@@ -1076,6 +1076,12 @@ const TAGGED_TEMPLATES = {
   disabledActivityAutomations: () => {
     return <> disabled activity automations.</>;
   },
+  enabledAndroidMdm: () => {
+    return <> turned on Android MDM.</>;
+  },
+  disabledAndroidMdm: () => {
+    return <> turned off Android MDM.</>;
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1314,6 +1320,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledActivityAutomations: {
       return TAGGED_TEMPLATES.disabledActivityAutomations();
     }
+    case ActivityType.EnabledAndroidMdm: {
+      return TAGGED_TEMPLATES.enabledAndroidMdm();
+    }
+    case ActivityType.DisabledAndroidMdm: {
+      return TAGGED_TEMPLATES.disabledAndroidMdm();
+    }
 
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -1340,7 +1352,7 @@ const GlobalActivityItem = ({
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
-    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
+    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name ?? "Fleet"} </b>;
 
     switch (activity.type) {
       case ActivityType.UserLoggedIn:

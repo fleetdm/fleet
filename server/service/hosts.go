@@ -1057,6 +1057,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
+	// TODO(android): add android to this list?
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
@@ -1065,15 +1066,18 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 		doAppRefetch := true
 		doDeviceInfoRefetch := true
+		doCertsRefetch := true
 		for _, cmd := range commands {
 			switch cmd.CommandType {
 			case fleet.RefetchDeviceCommandUUIDPrefix:
 				doDeviceInfoRefetch = false
 			case fleet.RefetchAppsCommandUUIDPrefix:
 				doAppRefetch = false
+			case fleet.RefetchCertsCommandUUIDPrefix:
+				doCertsRefetch = false
 			}
 		}
-		if !doAppRefetch && !doDeviceInfoRefetch {
+		if !doAppRefetch && !doDeviceInfoRefetch && !doCertsRefetch {
 			// Nothing to do.
 			return nil
 		}
@@ -1081,7 +1085,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err != nil {
 			return err
 		}
-		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2)
+		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
 			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
@@ -1091,6 +1095,15 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
 				HostID:      host.ID,
 				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			})
+		}
+		if doCertsRefetch {
+			if err := svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
+			}
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 			})
 		}
 		if doDeviceInfoRefetch {
@@ -2702,4 +2715,78 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Host Certificates
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostCertificatesRequest struct {
+	ID uint `url:"id"`
+	fleet.ListOptions
+}
+
+var listHostCertificatesSortCols = map[string]bool{
+	"common_name":     true,
+	"not_valid_after": true,
+}
+
+func (r *listHostCertificatesRequest) ValidateRequest() error {
+	if r.ListOptions.OrderKey != "" && !listHostCertificatesSortCols[r.ListOptions.OrderKey] {
+		return badRequest("invalid order key")
+	}
+	return nil
+}
+
+type listHostCertificatesResponse struct {
+	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
+	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Err          error                           `json:"error,omitempty"`
+}
+
+func (r listHostCertificatesResponse) Error() error { return r.Err }
+
+func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listHostCertificatesRequest)
+	res, meta, err := svc.ListHostCertificates(ctx, req.ID, req.ListOptions)
+	if err != nil {
+		return listHostCertificatesResponse{Err: err}, nil
+	}
+	if res == nil {
+		res = []*fleet.HostCertificatePayload{}
+	}
+	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
+}
+
+func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, nil, ctxerr.Wrap(ctx, err, "failed to load host")
+		}
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// query/after not supported, always include pagination info
+	opts.MatchQuery = ""
+	opts.After = ""
+	opts.IncludeMetadata = true
+	// default sort order is common name ascending
+	if opts.OrderKey == "" {
+		opts.OrderKey = "common_name"
+	}
+
+	certs, meta, err := svc.ds.ListHostCertificates(ctx, hostID, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	payload := make([]*fleet.HostCertificatePayload, 0, len(certs))
+	for _, cert := range certs {
+		payload = append(payload, cert.ToPayload())
+	}
+	return payload, meta, nil
 }

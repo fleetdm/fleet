@@ -118,6 +118,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledAndroidMDM{},
+	ActivityTypeDisabledAndroidMDM{},
 	ActivityTypeEnabledWindowsMDMMigration{},
 	ActivityTypeDisabledWindowsMDMMigration{},
 
@@ -2189,4 +2191,18 @@ func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
 
 func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when NDES SCEP proxy configuration is edited in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeEnabledAndroidMDM struct{}
+
+func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
+func (a ActivityTypeEnabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns on MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledAndroidMDM struct{}
+
+func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
+func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
 }

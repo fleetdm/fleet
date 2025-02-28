@@ -20,7 +20,7 @@ func TestEnterprise(t *testing.T) {
 	}{
 		{"CreateGetEnterprise", testCreateGetEnterprise},
 		{"UpdateEnterprise", testUpdateEnterprise},
-		{"DeleteEnterprises", testDeleteEnterprises},
+		{"DeleteAllEnterprises", testDeleteEnterprises},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -35,13 +35,15 @@ func testCreateGetEnterprise(t *testing.T, ds *Datastore) {
 	_, err := ds.GetEnterpriseByID(testCtx(), 9999)
 	assert.True(t, fleet.IsNotFound(err))
 
-	id, err := ds.CreateEnterprise(testCtx())
+	const userID = uint(10)
+	id, err := ds.CreateEnterprise(testCtx(), userID)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
 	result, err := ds.GetEnterpriseByID(testCtx(), id)
 	require.NoError(t, err)
 	assert.Equal(t, android.Enterprise{ID: id}, result.Enterprise)
+	assert.Equal(t, userID, result.UserID)
 }
 
 func testUpdateEnterprise(t *testing.T, ds *Datastore) {
@@ -57,7 +59,8 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 	err := ds.UpdateEnterprise(testCtx(), enterprise)
 	assert.Error(t, err)
 
-	id, err := ds.CreateEnterprise(testCtx())
+	const userID = uint(10)
+	id, err := ds.CreateEnterprise(testCtx(), userID)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
@@ -65,6 +68,7 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 	err = ds.UpdateEnterprise(testCtx(), enterprise)
 	require.NoError(t, err)
 
+	enterprise.UserID = userID
 	resultEnriched, err := ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, resultEnriched)
@@ -75,7 +79,7 @@ func testUpdateEnterprise(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteEnterprises(t *testing.T, ds *Datastore) {
-	err := ds.DeleteEnterprises(testCtx())
+	err := ds.DeleteAllEnterprises(testCtx())
 	require.NoError(t, err)
 	err = ds.DeleteOtherEnterprises(testCtx(), 9999)
 	require.NoError(t, err)
@@ -86,7 +90,7 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	assert.Equal(t, enterprise, result)
 
 	// Create enteprise without enterprise_id
-	id, err := ds.CreateEnterprise(testCtx())
+	id, err := ds.CreateEnterprise(testCtx(), 10)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
@@ -108,7 +112,7 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	_, err = ds.GetEnterpriseByID(testCtx(), tempEnterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))
 
-	err = ds.DeleteEnterprises(testCtx())
+	err = ds.DeleteAllEnterprises(testCtx())
 	require.NoError(t, err)
 	_, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))
@@ -123,11 +127,13 @@ func createEnterprise(t *testing.T, ds *Datastore) *android.EnterpriseDetails {
 		},
 		SignupName: "signupUrls/C97372c91c6a85139",
 	}
-	id, err := ds.CreateEnterprise(testCtx())
+	const userID = uint(10)
+	id, err := ds.CreateEnterprise(testCtx(), userID)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
 
 	enterprise.ID = id
+	enterprise.UserID = userID
 	err = ds.UpdateEnterprise(testCtx(), enterprise)
 	require.NoError(t, err)
 	return enterprise

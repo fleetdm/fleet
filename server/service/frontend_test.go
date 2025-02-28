@@ -56,7 +56,7 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 
 	logger := log.NewLogfmtLogger(os.Stdout)
-	h := ServeEndUserEnrollOTA(svc, "", logger)
+	h := ServeEndUserEnrollOTA(svc, "", true, true, true, logger)
 	ts := httptest.NewServer(h)
 	t.Cleanup(func() {
 		ts.Close()
@@ -74,4 +74,5 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	require.NoError(t, err)
 	bodyString := string(bodyBytes)
 	require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
+	require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
 }

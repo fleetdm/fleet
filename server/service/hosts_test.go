@@ -665,6 +665,9 @@ func TestHostAuth(t *testing.T) {
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
 	}
+	ds.ListHostCertificatesFunc = func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -811,6 +814,11 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.HostSoftwareTitleListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ListHostCertificates(ctx, 1, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+			_, _, err = svc.ListHostCertificates(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}

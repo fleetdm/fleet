@@ -542,6 +542,7 @@ var hostRefs = []string{
 	"host_mdm_actions",
 	"host_calendar_events",
 	"upcoming_activities",
+	"host_certificates",
 	"android_devices",
 }
 
@@ -4155,6 +4156,7 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
+		// TODO(android): add android to this list?
 		platforms = []string{"", "darwin", "windows", "ios", "ipados"}
 		teamIDs   []uint
 	)

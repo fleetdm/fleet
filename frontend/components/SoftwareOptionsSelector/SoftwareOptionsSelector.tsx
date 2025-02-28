@@ -6,6 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
@@ -56,14 +57,7 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={
-          !isSelfServiceDisabled && (
-            <>
-              End users can install from <b>Fleet Desktop</b> {">"}{" "}
-              <b>Self-service</b>.
-            </>
-          )
-        }
+        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
         disabled={isSelfServiceDisabled}
       >
         Self-service
@@ -84,19 +78,15 @@ const SoftwareOptionsSelector = ({
         </Checkbox>
       )}
       {formData.automaticInstall && isCustomPackage && (
-        <InfoBanner
-          color="yellow"
-          cta={
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
-              text="Learn more"
-              newTab
-            />
-          }
-        >
+        <InfoBanner color="yellow">
           Installing software over existing installations might cause issues.
           Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.
+          Please create a test team in Fleet to verify a smooth installation.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
+            text="Learn more"
+            newTab
+          />
         </InfoBanner>
       )}
     </div>
