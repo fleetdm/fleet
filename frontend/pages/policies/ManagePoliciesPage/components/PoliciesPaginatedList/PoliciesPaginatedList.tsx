@@ -88,6 +88,7 @@ function PoliciesPaginatedList(
     if (paginatedListRef.current) {
       changedItems = paginatedListRef.current.getDirtyItems();
     }
+    console.log("changedItems", changedItems);
     onSubmit(changedItems);
   };
 
