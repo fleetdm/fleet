@@ -1750,71 +1750,73 @@ var (
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
-		{
-			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
-			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
-			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
-			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
-					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// 243 -> 2024.3
-				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
-				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
-					return
-				}
-				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
-					return
-				}
+		// {
+		// 	// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
+		// 	// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
+		// 	// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
+		// 	// here for the dash ensures that string splitting in the mutator always works without a bounds check.
+		// 	checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+		// 		return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
+		// 			strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
+		// 	},
+		// 	mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+		// 		fmt.Printf("[JVE_LOG]\ts.Version: %v\n", s.Version)
+		// 		// 243 -> 2024.3
+		// 		eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
+		// 		yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
+		// 		if err != nil {
+		// 			level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+		// 			return
+		// 		}
+		// 		yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
+		// 		if err != nil {
+		// 			level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+		// 			return
+		// 		}
 
-				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
-				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
-				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
-				// startup due to being expired, so that CVE can't be exploited.
-				yearBasedMinorVersion -= 1
-				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
-					yearBasedMajorVersion -= 1
-					yearBasedMinorVersion = 4
-				}
+		// 		// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
+		// 		// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+		// 		// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+		// 		// startup due to being expired, so that CVE can't be exploited.
+		// 		yearBasedMinorVersion -= 1
+		// 		if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
+		// 			yearBasedMajorVersion -= 1
+		// 			yearBasedMinorVersion = 4
+		// 		}
 
-				// pass through minor and patch version for EAP to tell different EAP builds apart
-				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
-				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
-			},
-		},
+		// 		// pass through minor and patch version for EAP to tell different EAP builds apart
+		// 		eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
+		// 		s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
+		// 	},
+		// },
 		{
 			// Python versions on Windows encode ABI and release information in a way that's incompatible with NVD lookups
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
 			},
 			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				versionComponents := strings.Split(s.Version, ".")
-				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
-				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
-				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
+				fmt.Printf("[JVE_LOG]\tosquery s.Version: %v\n", s.Version)
+				// versionComponents := strings.Split(s.Version, ".")
+				// patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
+				// releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
+				// releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
 
-				candidateSuffix := ""
-				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
-				case "10":
-					candidateSuffix = "a" + releaseSerial
-				case "11":
-					candidateSuffix = "b" + releaseSerial
-				case "12":
-					candidateSuffix = "rc" + releaseSerial
-				} // default
+				// candidateSuffix := ""
+				// switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
+				// case "10":
+				// 	candidateSuffix = "a" + releaseSerial
+				// case "11":
+				// 	candidateSuffix = "b" + releaseSerial
+				// case "12":
+				// 	candidateSuffix = "rc" + releaseSerial
+				// } // default
 
-				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
-					patchVersion = "0"
-				}
+				// if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
+				// 	patchVersion = "0"
+				// }
 
-				versionComponents[2] = patchVersion + candidateSuffix
-				s.Version = strings.Join(versionComponents[0:3], ".")
+				// versionComponents[2] = patchVersion + candidateSuffix
+				// s.Version = strings.Join(versionComponents[0:3], ".")
 			},
 		},
 	}

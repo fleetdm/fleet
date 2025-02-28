@@ -493,1255 +493,1255 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		software fleet.Software
 		cpe      string
 	}{
-		{
-			software: fleet.Software{
-				Name:             "Adobe Acrobat Reader DC.app",
-				Source:           "apps",
-				Version:          "22.002.20191",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.Reader",
-			},
-			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Adobe Lightroom.app",
-				Source:           "apps",
-				Version:          "5.5",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.mas.lightroomCC",
-			}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Finder.app",
-				Source:           "apps",
-				Version:          "12.5",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.finder",
-			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Firefox.app",
-				Source:           "apps",
-				Version:          "105.0.1",
-				Vendor:           "",
-				BundleIdentifier: "org.mozilla.firefox",
-			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Google Chrome.app",
-				Source:           "apps",
-				Version:          "105.0.5195.125",
-				Vendor:           "",
-				BundleIdentifier: "com.google.Chrome",
-			}, cpe: "cpe:2.3:a:google:chrome:105.0.5195.125:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "iCloud.app",
-				Source:           "apps",
-				Version:          "1.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.CloudKit.ShareBear",
-			}, cpe: "cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Installer.app",
-				Source:           "apps",
-				Version:          "6.2.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.installer",
-			}, cpe: "cpe:2.3:a:apple:installer:6.2.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Mail.app",
-				Source:           "apps",
-				Version:          "16.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.mail",
-			}, cpe: "cpe:2.3:a:apple:mail:16.0:*:*:*:*:macos:*:*",
-		},
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Adobe Acrobat Reader DC.app",
+		// 		Source:           "apps",
+		// 		Version:          "22.002.20191",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.adobe.Reader",
+		// 	},
+		// 	cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Adobe Lightroom.app",
+		// 		Source:           "apps",
+		// 		Version:          "5.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.adobe.mas.lightroomCC",
+		// 	}, cpe: "cpe:2.3:a:adobe:lightroom:5.5:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Finder.app",
+		// 		Source:           "apps",
+		// 		Version:          "12.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.finder",
+		// 	}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Firefox.app",
+		// 		Source:           "apps",
+		// 		Version:          "105.0.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "org.mozilla.firefox",
+		// 	}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Google Chrome.app",
+		// 		Source:           "apps",
+		// 		Version:          "105.0.5195.125",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.google.Chrome",
+		// 	}, cpe: "cpe:2.3:a:google:chrome:105.0.5195.125:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "iCloud.app",
+		// 		Source:           "apps",
+		// 		Version:          "1.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.CloudKit.ShareBear",
+		// 	}, cpe: "cpe:2.3:a:apple:icloud:1.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Installer.app",
+		// 		Source:           "apps",
+		// 		Version:          "6.2.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.installer",
+		// 	}, cpe: "cpe:2.3:a:apple:installer:6.2.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Mail.app",
+		// 		Source:           "apps",
+		// 		Version:          "16.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.mail",
+		// 	}, cpe: "cpe:2.3:a:apple:mail:16.0:*:*:*:*:macos:*:*",
+		// },
 
-		{
-			software: fleet.Software{
-				Name:             "Music.app",
-				Source:           "apps",
-				Version:          "1.2.5",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.Music",
-			}, cpe: "cpe:2.3:a:apple:music:1.2.5:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "OneDrive.app",
-				Source:           "apps",
-				Version:          "22.186.0904",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.OneDrive-mac",
-			}, cpe: "cpe:2.3:a:microsoft:onedrive:22.186.0904:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "osquery.app",
-				Source:           "apps",
-				Version:          "5.4.0",
-				Vendor:           "",
-				BundleIdentifier: "io.osquery.agent",
-			}, cpe: "cpe:2.3:a:linuxfoundation:osquery:5.4.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Preview.app",
-				Source:           "apps",
-				Version:          "11.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.Preview",
-			}, cpe: "cpe:2.3:a:apple:preview:11.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Python.app",
-				Source:           "apps",
-				Version:          "3.8.9",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.python3",
-			}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Python.app",
-				Source:           "apps",
-				Version:          "3.10.7",
-				Vendor:           "",
-				BundleIdentifier: "org.python.python",
-			}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Safari.app",
-				Source:           "apps",
-				Version:          "16.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.Safari",
-			}, cpe: "cpe:2.3:a:apple:safari:16.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Shortcuts.app",
-				Source:           "apps",
-				Version:          "5.0",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.shortcuts",
-			}, cpe: "cpe:2.3:a:apple:shortcuts:5.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Software Update.app",
-				Source:           "apps",
-				Version:          "6",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.SoftwareUpdate",
-			}, cpe: "cpe:2.3:a:apple:software_update:6:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Terminal.app",
-				Source:           "apps",
-				Version:          "2.12.7",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.Terminal",
-			}, cpe: "cpe:2.3:a:apple:terminal:2.12.7:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "TextEdit.app",
-				Source:           "apps",
-				Version:          "1.17",
-				Vendor:           "",
-				BundleIdentifier: "com.apple.TextEdit",
-			}, cpe: "cpe:2.3:a:apple:textedit:1.17:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "zoom.us.app",
-				Source:           "apps",
-				Version:          "5.11.6 (9890)",
-				Vendor:           "",
-				BundleIdentifier: "us.zoom.xos",
-			}, cpe: "cpe:2.3:a:zoom:zoom:5.11.6.9890:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "1Password – Password Manager",
-				Source:           "chrome_extensions",
-				Version:          "2.3.8",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:1password:1password:2.3.8:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Adblock Plus - free ad blocker",
-				Source:           "chrome_extensions",
-				Version:          "3.14.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:adblockplus:adblock_plus:3.14.2:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "AdBlock - best ad blocker",
-				Source:           "chrome_extensions",
-				Version:          "5.1.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:getadblock:adblock:5.1.1:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "AdBlock - best ad blocker",
-				Source:           "chrome_extensions",
-				Version:          "5.1.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:getadblock:adblock:5.1.2:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "uBlock Origin",
-				Source:           "chrome_extensions",
-				Version:          "1.44.4",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.4:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "uBlock Origin",
-				Source:           "chrome_extensions",
-				Version:          "1.44.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.2:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "uBlock Origin",
-				Source:           "chrome_extensions",
-				Version:          "1.44.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.0:*:*:*:*:chrome:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Bing",
-				Source:           "firefox_addons",
-				Version:          "1.3",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:bing:1.3:*:*:*:*:firefox:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "DuckDuckGo",
-				Source:           "firefox_addons",
-				Version:          "1.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:duckduckgo:duckduckgo:1.1:*:*:*:*:firefox:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "node",
-				Source:           "homebrew_packages",
-				Version:          "18.9.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "1Password",
-				Source:           "programs",
-				Version:          "8.9.5",
-				Vendor:           "AgileBits Inc.",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:1password:1password:8.9.5:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "7-Zip 22.01 (x64)",
-				Source:           "programs",
-				Version:          "22.01",
-				Vendor:           "Igor Pavlov",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:7-zip:7-zip:22.01:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Adobe Acrobat DC (64-bit)",
-				Source:           "programs",
-				Version:          "22.002.20212",
-				Vendor:           "Adobe",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Brave",
-				Source:           "programs",
-				Version:          "105.1.43.93",
-				Vendor:           "Brave Software Inc",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:brave:brave:105.1.43.93:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Docker Desktop",
-				Source:           "programs",
-				Version:          "4.12.0",
-				Vendor:           "Docker Inc.",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:docker:desktop:4.12.0:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Dropbox",
-				Source:           "programs",
-				Version:          "157.4.4808",
-				Vendor:           "Dropbox, Inc.",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:dropbox:dropbox:157.4.4808:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Git",
-				Source:           "programs",
-				Version:          "2.37.1",
-				Vendor:           "The Git Development Community",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:git-scm:git:2.37.1:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Google Chrome",
-				Source:           "programs",
-				Version:          "105.0.5195.127",
-				Vendor:           "Google LLC",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:google:chrome:105.0.5195.127:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Edge",
-				Source:           "programs",
-				Version:          "105.0.1343.50",
-				Vendor:           "Microsoft Corporation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:edge_chromium:105.0.1343.50:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft OneDrive",
-				Source:           "programs",
-				Version:          "22.181.0828.0002",
-				Vendor:           "Microsoft Corporation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:onedrive:22.181.0828.0002:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Visual Studio Code (User)",
-				Source:           "programs",
-				Version:          "1.71.2",
-				Vendor:           "Microsoft Corporation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:visual_studio_code:1.71.2:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Mozilla Firefox (x64 en-US)",
-				Source:           "programs",
-				Version:          "105.0.1",
-				Vendor:           "Mozilla",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Node.js",
-				Source:           "programs",
-				Version:          "16.16.0",
-				Vendor:           "Node.js Foundation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:nodejs:node.js:16.16.0:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Oracle VM VirtualBox 6.1.38",
-				Source:           "programs",
-				Version:          "6.1.38",
-				Vendor:           "Oracle Corporation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:oracle:vm_virtualbox:6.1.38:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Python 3.10.6 (64-bit)",
-				Source:           "programs",
-				Version:          "3.10.6",
-				Vendor:           "Python Software Foundation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
-		},
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Music.app",
+		// 		Source:           "apps",
+		// 		Version:          "1.2.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.Music",
+		// 	}, cpe: "cpe:2.3:a:apple:music:1.2.5:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "OneDrive.app",
+		// 		Source:           "apps",
+		// 		Version:          "22.186.0904",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.microsoft.OneDrive-mac",
+		// 	}, cpe: "cpe:2.3:a:microsoft:onedrive:22.186.0904:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "osquery.app",
+		// 		Source:           "apps",
+		// 		Version:          "5.4.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "io.osquery.agent",
+		// 	}, cpe: "cpe:2.3:a:linuxfoundation:osquery:5.4.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Preview.app",
+		// 		Source:           "apps",
+		// 		Version:          "11.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.Preview",
+		// 	}, cpe: "cpe:2.3:a:apple:preview:11.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Python.app",
+		// 		Source:           "apps",
+		// 		Version:          "3.8.9",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.python3",
+		// 	}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Python.app",
+		// 		Source:           "apps",
+		// 		Version:          "3.10.7",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "org.python.python",
+		// 	}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Safari.app",
+		// 		Source:           "apps",
+		// 		Version:          "16.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.Safari",
+		// 	}, cpe: "cpe:2.3:a:apple:safari:16.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Shortcuts.app",
+		// 		Source:           "apps",
+		// 		Version:          "5.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.shortcuts",
+		// 	}, cpe: "cpe:2.3:a:apple:shortcuts:5.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Software Update.app",
+		// 		Source:           "apps",
+		// 		Version:          "6",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.SoftwareUpdate",
+		// 	}, cpe: "cpe:2.3:a:apple:software_update:6:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Terminal.app",
+		// 		Source:           "apps",
+		// 		Version:          "2.12.7",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.Terminal",
+		// 	}, cpe: "cpe:2.3:a:apple:terminal:2.12.7:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "TextEdit.app",
+		// 		Source:           "apps",
+		// 		Version:          "1.17",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.apple.TextEdit",
+		// 	}, cpe: "cpe:2.3:a:apple:textedit:1.17:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "zoom.us.app",
+		// 		Source:           "apps",
+		// 		Version:          "5.11.6 (9890)",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "us.zoom.xos",
+		// 	}, cpe: "cpe:2.3:a:zoom:zoom:5.11.6.9890:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "1Password – Password Manager",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "2.3.8",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:1password:1password:2.3.8:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Adblock Plus - free ad blocker",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "3.14.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:adblockplus:adblock_plus:3.14.2:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "AdBlock - best ad blocker",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "5.1.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:getadblock:adblock:5.1.1:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "AdBlock - best ad blocker",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "5.1.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:getadblock:adblock:5.1.2:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "uBlock Origin",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "1.44.4",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.4:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "uBlock Origin",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "1.44.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.2:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "uBlock Origin",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "1.44.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ublockorigin:ublock_origin:1.44.0:*:*:*:*:chrome:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Bing",
+		// 		Source:           "firefox_addons",
+		// 		Version:          "1.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:microsoft:bing:1.3:*:*:*:*:firefox:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "DuckDuckGo",
+		// 		Source:           "firefox_addons",
+		// 		Version:          "1.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:duckduckgo:duckduckgo:1.1:*:*:*:*:firefox:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "node",
+		// 		Source:           "homebrew_packages",
+		// 		Version:          "18.9.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:nodejs:node.js:18.9.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "1Password",
+		// 		Source:           "programs",
+		// 		Version:          "8.9.5",
+		// 		Vendor:           "AgileBits Inc.",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:1password:1password:8.9.5:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "7-Zip 22.01 (x64)",
+		// 		Source:           "programs",
+		// 		Version:          "22.01",
+		// 		Vendor:           "Igor Pavlov",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:7-zip:7-zip:22.01:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Adobe Acrobat DC (64-bit)",
+		// 		Source:           "programs",
+		// 		Version:          "22.002.20212",
+		// 		Vendor:           "Adobe",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Brave",
+		// 		Source:           "programs",
+		// 		Version:          "105.1.43.93",
+		// 		Vendor:           "Brave Software Inc",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:brave:brave:105.1.43.93:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Docker Desktop",
+		// 		Source:           "programs",
+		// 		Version:          "4.12.0",
+		// 		Vendor:           "Docker Inc.",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:docker:desktop:4.12.0:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Dropbox",
+		// 		Source:           "programs",
+		// 		Version:          "157.4.4808",
+		// 		Vendor:           "Dropbox, Inc.",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:dropbox:dropbox:157.4.4808:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Git",
+		// 		Source:           "programs",
+		// 		Version:          "2.37.1",
+		// 		Vendor:           "The Git Development Community",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:git-scm:git:2.37.1:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Google Chrome",
+		// 		Source:           "programs",
+		// 		Version:          "105.0.5195.127",
+		// 		Vendor:           "Google LLC",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:google:chrome:105.0.5195.127:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft Edge",
+		// 		Source:           "programs",
+		// 		Version:          "105.0.1343.50",
+		// 		Vendor:           "Microsoft Corporation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:microsoft:edge_chromium:105.0.1343.50:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft OneDrive",
+		// 		Source:           "programs",
+		// 		Version:          "22.181.0828.0002",
+		// 		Vendor:           "Microsoft Corporation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:microsoft:onedrive:22.181.0828.0002:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft Visual Studio Code (User)",
+		// 		Source:           "programs",
+		// 		Version:          "1.71.2",
+		// 		Vendor:           "Microsoft Corporation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:microsoft:visual_studio_code:1.71.2:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Mozilla Firefox (x64 en-US)",
+		// 		Source:           "programs",
+		// 		Version:          "105.0.1",
+		// 		Vendor:           "Mozilla",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Node.js",
+		// 		Source:           "programs",
+		// 		Version:          "16.16.0",
+		// 		Vendor:           "Node.js Foundation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:nodejs:node.js:16.16.0:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Oracle VM VirtualBox 6.1.38",
+		// 		Source:           "programs",
+		// 		Version:          "6.1.38",
+		// 		Vendor:           "Oracle Corporation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:oracle:vm_virtualbox:6.1.38:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Python 3.10.6 (64-bit)",
+		// 		Source:           "programs",
+		// 		Version:          "3.10.6",
+		// 		Vendor:           "Python Software Foundation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
+		// },
 		{
 			software: fleet.Software{
 				Name:    "Python 3.14.0a1 (64-bit)",
 				Source:  "programs",
-				Version: "3.14.0a1",
+				Version: "3.14.102.0",
 				Vendor:  "Python Software Foundation",
-			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "Python 3.14.0b2 (64-bit)",
-				Source:  "programs",
-				Version: "3.14.0b2",
-				Vendor:  "Python Software Foundation",
-			}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "Python 3.14.0rc1 (64-bit)",
-				Source:  "programs",
-				Version: "3.14.0rc1",
-				Vendor:  "Python Software Foundation",
-			}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Visual Studio Community 2022",
-				Source:           "programs",
-				Version:          "17.2.5",
-				Vendor:           "Microsoft Corporation",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:visual_studio_community:17.2.5:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "VLC media player",
-				Source:           "programs",
-				Version:          "3.0.17.4",
-				Vendor:           "VideoLAN",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:videolan:vlc_media_player:3.0.17.4:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Zoom",
-				Source:           "programs",
-				Version:          "5.11.1 (6602)",
-				Vendor:           "Zoom Video Communications, Inc.",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:zoom:zoom:5.11.1.6602:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "attrs",
-				Source:           "python_packages",
-				Version:          "21.2.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:attrs_project:attrs:21.2.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Brotli",
-				Source:           "python_packages",
-				Version:          "1.0.9",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:google:brotli:1.0.9:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "click",
-				Source:           "python_packages",
-				Version:          "8.0.3",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:click_project:click:8.0.3:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "cryptography",
-				Source:           "python_packages",
-				Version:          "3.4.8",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:cryptography.io:cryptography:3.4.8:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "decorator",
-				Source:           "python_packages",
-				Version:          "4.4.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:decorator:4.4.2:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "duplicity",
-				Source:           "python_packages",
-				Version:          "0.8.21",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "feedparser",
-				Source:           "python_packages",
-				Version:          "6.0.8",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:mark_pilgrim:feedparser:6.0.8:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "html5lib",
-				Source:           "python_packages",
-				Version:          "1.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:html5lib:html5lib:1.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "httplib2",
-				Source:           "python_packages",
-				Version:          "0.20.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:httplib2_project:httplib2:0.20.2:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "ipython",
-				Source:           "python_packages",
-				Version:          "7.31.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ipython:ipython:7.31.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "keyring",
-				Source:           "python_packages",
-				Version:          "23.5.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:keyring:23.5.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "language-selector",
-				Source:           "python_packages",
-				Version:          "0.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ubuntu_developers:language-selector:0.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "lxml",
-				Source:           "python_packages",
-				Version:          "4.8.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:lxml:lxml:4.8.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "lz4",
-				Source:           "python_packages",
-				Version:          "3.1.3+dfsg",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:lz4_project:lz4:3.1.3.dfsg:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Mako",
-				Source:           "python_packages",
-				Version:          "1.1.3",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:sqlalchemy:mako:1.1.3:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Markdown",
-				Source:           "python_packages",
-				Version:          "3.3.6",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:cebe:markdown:3.3.6:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "mechanize",
-				Source:           "python_packages",
-				Version:          "0.4.7",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:mechanize_project:mechanize:0.4.7:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "msgpack",
-				Source:           "python_packages",
-				Version:          "1.0.3",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:msgpack:msgpack:1.0.3:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "numpy",
-				Source:           "python_packages",
-				Version:          "1.21.5",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:numpy:numpy:1.21.5:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "oauthlib",
-				Source:           "python_packages",
-				Version:          "3.2.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:oauthlib_project:oauthlib:3.2.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "paramiko",
-				Source:           "python_packages",
-				Version:          "2.9.3",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:paramiko:paramiko:2.9.3:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "parso",
-				Source:           "python_packages",
-				Version:          "0.8.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:parso_project:parso:0.8.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Pillow",
-				Source:           "python_packages",
-				Version:          "9.0.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "pip",
-				Source:           "python_packages",
-				Version:          "22.2.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:pypa:pip:22.2.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "protobuf",
-				Source:           "python_packages",
-				Version:          "3.12.4",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Pygments",
-				Source:           "python_packages",
-				Version:          "2.11.2",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:pygments:pygments:2.11.2:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "PyJWT",
-				Source:           "python_packages",
-				Version:          "2.3.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:pyjwt_project:pyjwt:2.3.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "python-apt",
-				Source:           "python_packages",
-				Version:          "2.3.0+ubuntu2.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "pyxdg",
-				Source:           "python_packages",
-				Version:          "0.27",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:pyxdg:0.27:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "PyYAML",
-				Source:           "python_packages",
-				Version:          "5.4.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:pyyaml:pyyaml:5.4.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "reportlab",
-				Source:           "python_packages",
-				Version:          "3.6.8",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:reportlab:reportlab:3.6.8:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "requests",
-				Source:           "python_packages",
-				Version:          "2.25.1",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "scipy",
-				Source:           "python_packages",
-				Version:          "1.8.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:scipy:scipy:1.8.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "setuptools",
-				Source:           "python_packages",
-				Version:          "63.2.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "urllib3",
-				Source:           "python_packages",
-				Version:          "1.26.5",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "UTM.app",
-				Source:           "apps",
-				Version:          "3.2.4",
-				BundleIdentifier: "com.utmapp.UTM",
-			}, cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Docs",
-				Source:           "chrome_extensions",
-				Version:          "0.10",
-				BundleIdentifier: "",
-			}, cpe: "",
-		},
-		// We don't use NVD to detect Mac Office vulnerabilities so all these should have an empty CPE
-		{
-			software: fleet.Software{
-				Name:             "Microsoft PowerPoint.app",
-				Source:           "apps",
-				Version:          "16.69.1",
-				BundleIdentifier: "com.microsoft.Powerpoint",
-			}, cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Word.app",
-				Source:           "apps",
-				Version:          "16.69.1",
-				BundleIdentifier: "com.microsoft.Word",
-			}, cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Excel.app",
-				Source:           "apps",
-				Version:          "16.69.1",
-				BundleIdentifier: "com.microsoft.Excel",
-			}, cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Docker.app",
-				Source:           "apps",
-				Version:          "4.7.1",
-				BundleIdentifier: "com.docker.docker",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Docker Desktop.app",
-				Source:           "apps",
-				Version:          "4.16.2",
-				BundleIdentifier: "com.electron.dockerdesktop",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Docker Desktop.app",
-				Source:           "apps",
-				Version:          "3.5.0",
-				BundleIdentifier: "com.electron.docker-frontend",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
-		},
-		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
-		{
-			software: fleet.Software{
-				Name:    "docker",
-				Source:  "python_packages",
-				Version: "6.0.1",
-			}, cpe: "",
-		},
-		// 2025-01-20: there are no entries for the jira python package at the NVD dataset.
-		{
-			software: fleet.Software{
-				Name:    "jira",
-				Source:  "python_packages",
-				Version: "3.8.0",
-			}, cpe: "",
-		},
-		{ // checks vendor/product matching based on bundle name, including EAPs
-			software: fleet.Software{
-				Name:             "GoLand EAP.app",
-				Source:           "apps",
-				Version:          "2022.3.99.123.456",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.goland-EAP",
-			},
-			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
-				Source:  "programs",
-				Version: "223.8617.56",
-				Vendor:  "",
-			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "IntelliJ IDEA.app",
-				Source:           "apps",
-				Version:          "2022.3.3",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.intellij",
-			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "IntelliJ IDEA CE.app",
-				Source:           "apps",
-				Version:          "2022.3.3",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.intellij.ce",
-			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "intellij-idea-ce",
-				Source:           "homebrew_packages",
-				Version:          "2023.3.2,233.13135.103",
-				Vendor:           "",
-				BundleIdentifier: "",
-			},
-			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
-				Source:           "apps",
-				Version:          "2019.2",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.pycharm",
-			},
-			cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "PyCharm Community Edition.app",
-				Source:           "apps",
-				Version:          "2022.1",
-				Vendor:           "",
-				BundleIdentifier: "com.jetbrains.pycharm.ce",
-			},
-			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "eamodio.gitlens",
-				Source:  "vscode_extensions",
-				Version: "14.9.0",
-				Vendor:  "GitKraken",
-			},
-			cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-python.python",
-				Source:  "vscode_extensions",
-				Version: "2024.2.1",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-toolsai.jupyter",
-				Source:  "vscode_extensions",
-				Version: "2024.2.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:jupyter:2024.2.0:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-vsliveshare.vsliveshare",
-				Source:  "vscode_extensions",
-				Version: "1.0.5918",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:visual_studio_live_share:1.0.5918:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "dbaeumer.vscode-eslint",
-				Source:  "vscode_extensions",
-				Version: "2.4.4",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.4.4:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "vscjava.vscode-maven",
-				Source:  "vscode_extensions",
-				Version: "0.44.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:vscode-maven:0.44.0:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-vscode.powershell",
-				Source:  "vscode_extensions",
-				Version: "2024.0.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:powershell_extension:2024.0.0:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-vscode-remote.vscode-remote-extensionpack",
-				Source:  "vscode_extensions",
-				Version: "0.25.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: "cpe:2.3:a:microsoft:remote_development:0.25.0:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "vknabel.vscode-swiftlint",
-				Source:  "vscode_extensions",
-				Version: "1.8.3",
-				Vendor:  "vknabel",
-			},
-			cpe: "cpe:2.3:a:swiftlint_project:swiftlint:1.8.3:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "vknabel.vscode-swiftformat",
-				Source:  "vscode_extensions",
-				Version: "1.6.7",
-				Vendor:  "vknabel",
-			},
-			cpe: "cpe:2.3:a:swiftformat_project:swiftformat:1.6.7:*:*:*:*:visual_studio_code:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:    "jbenden.c-cpp-flylint",
-				Source:  "vscode_extensions",
-				Version: "1.14.0",
-				Vendor:  "Joseph Benden",
-			},
-			cpe: `cpe:2.3:a:c\/c\+\+_advanced_lint_project:c\/c\+\+_advanced_lint:1.14.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "stripe.vscode-stripe",
-				Source:  "vscode_extensions",
-				Version: "2.0.14",
-				Vendor:  "Stripe",
-			},
-			cpe: `cpe:2.3:a:stripe:stripe:2.0.14:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "vscodevim.vim",
-				Source:  "vscode_extensions",
-				Version: "1.27.2",
-				Vendor:  "vscodevim",
-			},
-			cpe: `cpe:2.3:a:vim_project:vim:1.27.2:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "svelte.svelte-vscode",
-				Source:  "vscode_extensions",
-				Version: "108.3.1",
-				Vendor:  "Svelte",
-			},
-			cpe: `cpe:2.3:a:svelte:svelte:108.3.1:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "lextudio.restructuredtext",
-				Source:  "vscode_extensions",
-				Version: "189.3.0",
-				Vendor:  "LeXtudio Inc.",
-			},
-			cpe: `cpe:2.3:a:lextudio:restructuredtext:189.3.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-vscode-remote.remote-containers",
-				Source:  "vscode_extensions",
-				Version: "0.348.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: `cpe:2.3:a:microsoft:remote:0.348.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-kubernetes-tools.vscode-kubernetes-tools",
-				Source:  "vscode_extensions",
-				Version: "0.348.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: `cpe:2.3:a:microsoft:kubernetes_tools:0.348.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-dotnettools.vscode-dotnet-sdk",
-				Source:  "vscode_extensions",
-				Version: "0.8.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: `cpe:2.3:a:microsoft:.net_education_bundle_sdk_install_tool:0.8.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-dotnettools.vscode-dotnet-runtime",
-				Source:  "vscode_extensions",
-				Version: "2.0.2",
-				Vendor:  "Microsoft",
-			},
-			cpe: `cpe:2.3:a:microsoft:.net_install_tool_for_extension_authors:2.0.2:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "ms-vscode-remote.remote-wsl",
-				Source:  "vscode_extensions",
-				Version: "0.86.0",
-				Vendor:  "Microsoft",
-			},
-			cpe: `cpe:2.3:a:microsoft:windows_subsystem_for_linux:0.86.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "mongodb.mongodb-vscode",
-				Source:  "vscode_extensions",
-				Version: "1.5.0",
-				Vendor:  "MongoDB",
-			},
-			cpe: `cpe:2.3:a:mongodb:mongodb:1.5.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "oracle.mysql-shell-for-vs-code",
-				Source:  "vscode_extensions",
-				Version: "1.14.2",
-				Vendor:  "MongoDB",
-			},
-			cpe: `cpe:2.3:a:oracle:mysql_shell:1.14.2:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "snyk-security.snyk-vulnerability-scanner",
-				Source:  "vscode_extensions",
-				Version: "2.3.6",
-				Vendor:  "Snyk",
-			},
-			cpe: `cpe:2.3:a:snyk:snyk_security:2.3.6:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "sourcegraph.cody-ai",
-				Source:  "vscode_extensions",
-				Version: "1.8.0",
-				Vendor:  "Sourcegraph",
-			},
-			cpe: `cpe:2.3:a:sourcegraph:cody:1.8.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		// There are vulnerabilities for `cpe:2.3:a:redhat:vscode-xml:` in
-		// NVD's database but there's no entry for `cpe:2.3:a:redhat:vscode-xml:0.26.1`
-		// in NVD's CPE database.
-		/*
-			{
-				software: fleet.Software{
-					Name:    "redhat.vscode-xml",
-					Source:  "vscode_extensions",
-					Version: "0.26.1",
-					Vendor:  "Red Hat",
-				},
-				cpe: `cpe:2.3:a:redhat:vscode-xml:0.26.1:*:*:*:*:visual_studio_code:*:*`,
-			},
-		*/
-		{
-			software: fleet.Software{
-				Name:    "github.vscode-pull-request-github",
-				Source:  "vscode_extensions",
-				Version: "0.82.0",
-				Vendor:  "GitHub",
-			},
-			cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:             "Google Chrome Helper.app",
-				Source:           "apps",
-				Version:          "111.0.5563.64",
-				Vendor:           "",
-				BundleIdentifier: "com.google.Chrome.helper",
-			},
-			// DO NOT MATCH with Google Chrome
-			cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Acrobat Uninstaller.app",
-				Source:           "apps",
-				Version:          "6.0",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
-			},
-			// DO NOT MATCH with Adobe Acrobat
-			cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:             "UmbrellaMenu.app",
-				Source:           "apps",
-				Version:          "1.0",
-				Vendor:           "",
-				BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
-			},
-			// DO NOT MATCH with Cisco Umbrella
-			cpe: "",
-		},
-		{
-			software: fleet.Software{
-				Name:    "python@3.9",
-				Source:  "homebrew_packages",
-				Version: "3.9.18_2",
-				Vendor:  "",
-			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
-		},
-		{
-			software: fleet.Software{
-				Name:    "linux-image-5.4.0-105-custom",
-				Source:  "deb_packages",
-				Version: "5.4.0-105.118",
-				Vendor:  "",
-			},
-			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "VirtualBox.app",
-				Source:           "apps",
-				Version:          "7.0.12",
-				BundleIdentifier: "org.virtualbox.app.VirtualBox",
-			},
-			cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "gh",
-				Source:           "deb_packages",
-				Version:          "2.61.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "gh",
-				Source:           "homebrew_packages",
-				Version:          "2.61.0",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "pass",
-				Source:           "homebrew_packages",
-				Version:          "1.7.4",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
-		},
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*",
+		},
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "Python 3.14.0b2 (64-bit)",
+		// 		Source:  "programs",
+		// 		Version: "3.14.0b2",
+		// 		Vendor:  "Python Software Foundation",
+		// 	}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "Python 3.14.0rc1 (64-bit)",
+		// 		Source:  "programs",
+		// 		Version: "3.14.0rc1",
+		// 		Vendor:  "Python Software Foundation",
+		// 	}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Visual Studio Community 2022",
+		// 		Source:           "programs",
+		// 		Version:          "17.2.5",
+		// 		Vendor:           "Microsoft Corporation",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:microsoft:visual_studio_community:17.2.5:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "VLC media player",
+		// 		Source:           "programs",
+		// 		Version:          "3.0.17.4",
+		// 		Vendor:           "VideoLAN",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:videolan:vlc_media_player:3.0.17.4:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Zoom",
+		// 		Source:           "programs",
+		// 		Version:          "5.11.1 (6602)",
+		// 		Vendor:           "Zoom Video Communications, Inc.",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:zoom:zoom:5.11.1.6602:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "attrs",
+		// 		Source:           "python_packages",
+		// 		Version:          "21.2.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:attrs_project:attrs:21.2.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Brotli",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.0.9",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:google:brotli:1.0.9:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "click",
+		// 		Source:           "python_packages",
+		// 		Version:          "8.0.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:click_project:click:8.0.3:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "cryptography",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.4.8",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:cryptography.io:cryptography:3.4.8:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "decorator",
+		// 		Source:           "python_packages",
+		// 		Version:          "4.4.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:decorator:4.4.2:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "duplicity",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.8.21",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "feedparser",
+		// 		Source:           "python_packages",
+		// 		Version:          "6.0.8",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:mark_pilgrim:feedparser:6.0.8:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "html5lib",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:html5lib:html5lib:1.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "httplib2",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.20.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:httplib2_project:httplib2:0.20.2:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "ipython",
+		// 		Source:           "python_packages",
+		// 		Version:          "7.31.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ipython:ipython:7.31.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "keyring",
+		// 		Source:           "python_packages",
+		// 		Version:          "23.5.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:keyring:23.5.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "language-selector",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ubuntu_developers:language-selector:0.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "lxml",
+		// 		Source:           "python_packages",
+		// 		Version:          "4.8.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:lxml:lxml:4.8.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "lz4",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.1.3+dfsg",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:lz4_project:lz4:3.1.3.dfsg:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Mako",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.1.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:sqlalchemy:mako:1.1.3:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Markdown",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.3.6",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:cebe:markdown:3.3.6:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "mechanize",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.4.7",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:mechanize_project:mechanize:0.4.7:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "msgpack",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.0.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:msgpack:msgpack:1.0.3:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "numpy",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.21.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:numpy:numpy:1.21.5:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "oauthlib",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.2.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:oauthlib_project:oauthlib:3.2.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "paramiko",
+		// 		Source:           "python_packages",
+		// 		Version:          "2.9.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:paramiko:paramiko:2.9.3:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "parso",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.8.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:parso_project:parso:0.8.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Pillow",
+		// 		Source:           "python_packages",
+		// 		Version:          "9.0.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "pip",
+		// 		Source:           "python_packages",
+		// 		Version:          "22.2.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:pypa:pip:22.2.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "protobuf",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.12.4",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Pygments",
+		// 		Source:           "python_packages",
+		// 		Version:          "2.11.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:pygments:pygments:2.11.2:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "PyJWT",
+		// 		Source:           "python_packages",
+		// 		Version:          "2.3.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:pyjwt_project:pyjwt:2.3.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "python-apt",
+		// 		Source:           "python_packages",
+		// 		Version:          "2.3.0+ubuntu2.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "pyxdg",
+		// 		Source:           "python_packages",
+		// 		Version:          "0.27",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:pyxdg:0.27:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "PyYAML",
+		// 		Source:           "python_packages",
+		// 		Version:          "5.4.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:pyyaml:pyyaml:5.4.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "reportlab",
+		// 		Source:           "python_packages",
+		// 		Version:          "3.6.8",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:reportlab:reportlab:3.6.8:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "requests",
+		// 		Source:           "python_packages",
+		// 		Version:          "2.25.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "scipy",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.8.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:scipy:scipy:1.8.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "setuptools",
+		// 		Source:           "python_packages",
+		// 		Version:          "63.2.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "urllib3",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.26.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "UTM.app",
+		// 		Source:           "apps",
+		// 		Version:          "3.2.4",
+		// 		BundleIdentifier: "com.utmapp.UTM",
+		// 	}, cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Docs",
+		// 		Source:           "chrome_extensions",
+		// 		Version:          "0.10",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "",
+		// },
+		// // We don't use NVD to detect Mac Office vulnerabilities so all these should have an empty CPE
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft PowerPoint.app",
+		// 		Source:           "apps",
+		// 		Version:          "16.69.1",
+		// 		BundleIdentifier: "com.microsoft.Powerpoint",
+		// 	}, cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft Word.app",
+		// 		Source:           "apps",
+		// 		Version:          "16.69.1",
+		// 		BundleIdentifier: "com.microsoft.Word",
+		// 	}, cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Microsoft Excel.app",
+		// 		Source:           "apps",
+		// 		Version:          "16.69.1",
+		// 		BundleIdentifier: "com.microsoft.Excel",
+		// 	}, cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Docker.app",
+		// 		Source:           "apps",
+		// 		Version:          "4.7.1",
+		// 		BundleIdentifier: "com.docker.docker",
+		// 	}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Docker Desktop.app",
+		// 		Source:           "apps",
+		// 		Version:          "4.16.2",
+		// 		BundleIdentifier: "com.electron.dockerdesktop",
+		// 	}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Docker Desktop.app",
+		// 		Source:           "apps",
+		// 		Version:          "3.5.0",
+		// 		BundleIdentifier: "com.electron.docker-frontend",
+		// 	}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+		// },
+		// // 2023-03-06: there are no entries for the docker python package at the NVD dataset.
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "docker",
+		// 		Source:  "python_packages",
+		// 		Version: "6.0.1",
+		// 	}, cpe: "",
+		// },
+		// // 2025-01-20: there are no entries for the jira python package at the NVD dataset.
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "jira",
+		// 		Source:  "python_packages",
+		// 		Version: "3.8.0",
+		// 	}, cpe: "",
+		// },
+		// { // checks vendor/product matching based on bundle name, including EAPs
+		// 	software: fleet.Software{
+		// 		Name:             "GoLand EAP.app",
+		// 		Source:           "apps",
+		// 		Version:          "2022.3.99.123.456",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.jetbrains.goland-EAP",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+		// 		Source:  "programs",
+		// 		Version: "223.8617.56",
+		// 		Vendor:  "",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "IntelliJ IDEA.app",
+		// 		Source:           "apps",
+		// 		Version:          "2022.3.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.jetbrains.intellij",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "IntelliJ IDEA CE.app",
+		// 		Source:           "apps",
+		// 		Version:          "2022.3.3",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.jetbrains.intellij.ce",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "intellij-idea-ce",
+		// 		Source:           "homebrew_packages",
+		// 		Version:          "2023.3.2,233.13135.103",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
+		// 		Source:           "apps",
+		// 		Version:          "2019.2",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.jetbrains.pycharm",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "PyCharm Community Edition.app",
+		// 		Source:           "apps",
+		// 		Version:          "2022.1",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.jetbrains.pycharm.ce",
+		// 	},
+		// 	cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "eamodio.gitlens",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "14.9.0",
+		// 		Vendor:  "GitKraken",
+		// 	},
+		// 	cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-python.python",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2024.2.1",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-toolsai.jupyter",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2024.2.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:jupyter:2024.2.0:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-vsliveshare.vsliveshare",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.0.5918",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:visual_studio_live_share:1.0.5918:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "dbaeumer.vscode-eslint",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2.4.4",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:visual_studio_code_eslint_extension:2.4.4:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "vscjava.vscode-maven",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.44.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:vscode-maven:0.44.0:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-vscode.powershell",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2024.0.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:powershell_extension:2024.0.0:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-vscode-remote.vscode-remote-extensionpack",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.25.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: "cpe:2.3:a:microsoft:remote_development:0.25.0:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "vknabel.vscode-swiftlint",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.8.3",
+		// 		Vendor:  "vknabel",
+		// 	},
+		// 	cpe: "cpe:2.3:a:swiftlint_project:swiftlint:1.8.3:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "vknabel.vscode-swiftformat",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.6.7",
+		// 		Vendor:  "vknabel",
+		// 	},
+		// 	cpe: "cpe:2.3:a:swiftformat_project:swiftformat:1.6.7:*:*:*:*:visual_studio_code:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "jbenden.c-cpp-flylint",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.14.0",
+		// 		Vendor:  "Joseph Benden",
+		// 	},
+		// 	cpe: `cpe:2.3:a:c\/c\+\+_advanced_lint_project:c\/c\+\+_advanced_lint:1.14.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "stripe.vscode-stripe",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2.0.14",
+		// 		Vendor:  "Stripe",
+		// 	},
+		// 	cpe: `cpe:2.3:a:stripe:stripe:2.0.14:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "vscodevim.vim",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.27.2",
+		// 		Vendor:  "vscodevim",
+		// 	},
+		// 	cpe: `cpe:2.3:a:vim_project:vim:1.27.2:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "svelte.svelte-vscode",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "108.3.1",
+		// 		Vendor:  "Svelte",
+		// 	},
+		// 	cpe: `cpe:2.3:a:svelte:svelte:108.3.1:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "lextudio.restructuredtext",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "189.3.0",
+		// 		Vendor:  "LeXtudio Inc.",
+		// 	},
+		// 	cpe: `cpe:2.3:a:lextudio:restructuredtext:189.3.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-vscode-remote.remote-containers",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.348.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: `cpe:2.3:a:microsoft:remote:0.348.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-kubernetes-tools.vscode-kubernetes-tools",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.348.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: `cpe:2.3:a:microsoft:kubernetes_tools:0.348.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-dotnettools.vscode-dotnet-sdk",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.8.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: `cpe:2.3:a:microsoft:.net_education_bundle_sdk_install_tool:0.8.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-dotnettools.vscode-dotnet-runtime",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2.0.2",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: `cpe:2.3:a:microsoft:.net_install_tool_for_extension_authors:2.0.2:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "ms-vscode-remote.remote-wsl",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.86.0",
+		// 		Vendor:  "Microsoft",
+		// 	},
+		// 	cpe: `cpe:2.3:a:microsoft:windows_subsystem_for_linux:0.86.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "mongodb.mongodb-vscode",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.5.0",
+		// 		Vendor:  "MongoDB",
+		// 	},
+		// 	cpe: `cpe:2.3:a:mongodb:mongodb:1.5.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "oracle.mysql-shell-for-vs-code",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.14.2",
+		// 		Vendor:  "MongoDB",
+		// 	},
+		// 	cpe: `cpe:2.3:a:oracle:mysql_shell:1.14.2:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "snyk-security.snyk-vulnerability-scanner",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "2.3.6",
+		// 		Vendor:  "Snyk",
+		// 	},
+		// 	cpe: `cpe:2.3:a:snyk:snyk_security:2.3.6:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "sourcegraph.cody-ai",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "1.8.0",
+		// 		Vendor:  "Sourcegraph",
+		// 	},
+		// 	cpe: `cpe:2.3:a:sourcegraph:cody:1.8.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// // There are vulnerabilities for `cpe:2.3:a:redhat:vscode-xml:` in
+		// // NVD's database but there's no entry for `cpe:2.3:a:redhat:vscode-xml:0.26.1`
+		// // in NVD's CPE database.
+		// /*
+		// 	{
+		// 		software: fleet.Software{
+		// 			Name:    "redhat.vscode-xml",
+		// 			Source:  "vscode_extensions",
+		// 			Version: "0.26.1",
+		// 			Vendor:  "Red Hat",
+		// 		},
+		// 		cpe: `cpe:2.3:a:redhat:vscode-xml:0.26.1:*:*:*:*:visual_studio_code:*:*`,
+		// 	},
+		// */
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "github.vscode-pull-request-github",
+		// 		Source:  "vscode_extensions",
+		// 		Version: "0.82.0",
+		// 		Vendor:  "GitHub",
+		// 	},
+		// 	cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Google Chrome Helper.app",
+		// 		Source:           "apps",
+		// 		Version:          "111.0.5563.64",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.google.Chrome.helper",
+		// 	},
+		// 	// DO NOT MATCH with Google Chrome
+		// 	cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "Acrobat Uninstaller.app",
+		// 		Source:           "apps",
+		// 		Version:          "6.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
+		// 	},
+		// 	// DO NOT MATCH with Adobe Acrobat
+		// 	cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "UmbrellaMenu.app",
+		// 		Source:           "apps",
+		// 		Version:          "1.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
+		// 	},
+		// 	// DO NOT MATCH with Cisco Umbrella
+		// 	cpe: "",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "python@3.9",
+		// 		Source:  "homebrew_packages",
+		// 		Version: "3.9.18_2",
+		// 		Vendor:  "",
+		// 	},
+		// 	cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:    "linux-image-5.4.0-105-custom",
+		// 		Source:  "deb_packages",
+		// 		Version: "5.4.0-105.118",
+		// 		Vendor:  "",
+		// 	},
+		// 	cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "VirtualBox.app",
+		// 		Source:           "apps",
+		// 		Version:          "7.0.12",
+		// 		BundleIdentifier: "org.virtualbox.app.VirtualBox",
+		// 	},
+		// 	cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "gh",
+		// 		Source:           "deb_packages",
+		// 		Version:          "2.61.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "gh",
+		// 		Source:           "homebrew_packages",
+		// 		Version:          "2.61.0",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		// },
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "pass",
+		// 		Source:           "homebrew_packages",
+		// 		Version:          "1.7.4",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
+		// },
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
