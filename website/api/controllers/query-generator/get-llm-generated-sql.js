@@ -58,7 +58,7 @@ module.exports = {
     \`\`\`
 
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o-mini-2024-07-18', true)
+    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o-mini-2024-07-18', true, 'Please only respond in valid JSON with no codefences or backticks.')
     .intercept((err)=>{
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
