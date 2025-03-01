@@ -226,6 +226,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	host.Host.ComputerName = svc.getComputerName(device)
 	host.Host.Hostname = svc.getComputerName(device)
+	host.Host.Platform = "android"
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
