@@ -212,11 +212,11 @@ function PoliciesPaginatedList(
           {footer}
         </div>
       </div>
-      <GitOpsModeTooltipWrapper
-        position="right"
-        tipOffset={8}
-        renderChildren={(disableChildren) => (
-          <div className="modal-cta-wrap">
+      <div className="modal-cta-wrap">
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
             <TooltipWrapper
               showArrow
               position="top"
@@ -235,12 +235,12 @@ function PoliciesPaginatedList(
                 Save
               </Button>
             </TooltipWrapper>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        )}
-      />
+          )}
+        />
+        <Button onClick={onCancel} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
