@@ -230,6 +230,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
+	host.Host.CPUType = device.HardwareInfo.Hardware
+	host.Host.HardwareModel = svc.getComputerName(device)
+	host.Host.HardwareVendor = device.HardwareInfo.Brand
 	host.LabelUpdatedAt = time.Time{}
 	if device.LastStatusReportTime != "" {
 		lastStatusReportTime, err := time.Parse(time.RFC3339, device.LastStatusReportTime)
@@ -267,6 +270,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			Build:           device.SoftwareInfo.AndroidBuildNumber,
 			Memory:          device.MemoryInfo.TotalRam,
 			HardwareSerial:  device.HardwareInfo.SerialNumber,
+			CPUType:         device.HardwareInfo.Hardware,
+			HardwareModel:   svc.getComputerName(device),
+			HardwareVendor:  device.HardwareInfo.Brand,
 			LabelUpdatedAt:  time.Time{},
 			DetailUpdatedAt: time.Time{},
 		},
