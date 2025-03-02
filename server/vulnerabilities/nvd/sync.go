@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -185,27 +186,21 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 	return nil
 }
 
-// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
-// them to the database.
-func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
-	if !license.IsPremium(ctx) {
-		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
-		return nil
-	}
+func CVEMetaFromNVDFeedFiles(vulnPath string, logger log.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
-		return fmt.Errorf("get nvd cve feeds: %w", err)
+		return nil, fmt.Errorf("get nvd cve feeds: %w", err)
 	}
-
-	metaMap := make(map[string]fleet.CVEMeta)
 
 	for _, file := range files {
 
 		// Load json files one at a time. Attempting to load them all uses too much memory, > 1 GB.
 		dict, err := cvefeed.LoadJSONDictionary(file)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for cve := range dict {
@@ -236,12 +231,18 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		}
 	}
 
+	return metaMap, nil
+}
+
+func CVEMetaFromEPSSFeedFiles(vulnPath string, logger log.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
 	// load epss scores
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
 	epssScores, err := parseEPSSScoresFile(path)
 	if err != nil {
-		return fmt.Errorf("parse epss scores: %w", err)
+		return nil, fmt.Errorf("parse epss scores: %w", err)
 	}
 
 	for _, epssScore := range epssScores {
@@ -254,16 +255,22 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		metaMap[epssScore.CVE] = score
 	}
 
+	return metaMap, nil
+}
+
+func CVEMetaFromCISAFeedFiles(vulnPath string, logger log.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
 	// load known exploits
-	path = filepath.Join(vulnPath, cisaKnownExploitsFilename)
+	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var catalog knownExploitedVulnerabilitiesCatalog
 	if err := json.Unmarshal(b, &catalog); err != nil {
-		return fmt.Errorf("unmarshal cisa known exploited vulnerabilities catalog: %w", err)
+		return nil, fmt.Errorf("unmarshal cisa known exploited vulnerabilities catalog: %w", err)
 	}
 
 	for _, vuln := range catalog.Vulnerabilities {
@@ -281,6 +288,47 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			meta.CISAKnownExploit = ptr.Bool(false)
 		}
 		metaMap[cve] = meta
+	}
+
+	return metaMap, nil
+}
+
+func CVEMetaFromFiles(vulnPath string, logger log.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
+	nvdMeta, err := CVEMetaFromNVDFeedFiles(vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("nvd meta: %w", err)
+	}
+
+	epssMeta, err := CVEMetaFromEPSSFeedFiles(vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("epss meta: %w", err)
+	}
+
+	cisaMeta, err := CVEMetaFromCISAFeedFiles(vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("cisa meta: %w", err)
+	}
+
+	maps.Copy(metaMap, nvdMeta)
+	maps.Copy(metaMap, epssMeta)
+	maps.Copy(metaMap, cisaMeta)
+
+	return metaMap, nil
+}
+
+// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
+// them to the database.
+func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
+	if !license.IsPremium(ctx) {
+		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
+		return nil
+	}
+
+	metaMap, err := CVEMetaFromFiles(vulnPath, logger)
+	if err != nil {
+		return err
 	}
 
 	if len(metaMap) == 0 {
