@@ -44,7 +44,7 @@ var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed macos_vulnerable-software.json
+	//go:embed macos_vulnerable-software.json.bz2
 	macOSVulnerableSoftwareFS embed.FS
 
 	//go:embed vscode_extensions_vulnerable.software
@@ -66,9 +66,9 @@ var (
 )
 
 func loadMacOSVulnerableSoftware() {
-	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable-software.json")
+	bz2, err := macOSVulnerableSoftwareFS.Open("macos_vulnerable-software.json.bz2")
 	if err != nil {
-		log.Fatal("reading vulnerable macOS software file: ", err)
+		log.Fatal("open vulnerable macOS software file: ", err)
 	}
 
 	type vulnerableSoftware struct {
@@ -76,7 +76,7 @@ func loadMacOSVulnerableSoftware() {
 	}
 
 	var vs vulnerableSoftware
-	if err := json.Unmarshal(macOSVulnerableSoftwareData, &vs); err != nil {
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&vs); err != nil { //nolint:gosec
 		log.Fatal("unmarshaling vulnerable macOS software: ", err)
 	}
 
