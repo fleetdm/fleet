@@ -38,14 +38,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed macos_vulnerable-software.yml
+	//go:embed macos_vulnerable-software.json
 	macOSVulnerableSoftwareFS embed.FS
 
 	//go:embed vscode_extensions_vulnerable.software
@@ -67,35 +66,21 @@ var (
 )
 
 func loadMacOSVulnerableSoftware() {
-	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable-software.yml")
+	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable-software.json")
 	if err != nil {
 		log.Fatal("reading vulnerable macOS software file: ", err)
 	}
 
-	type yamlSoftware struct {
-		Name             string `yaml:"name"`
-		Version          string `yaml:"version"`
-		BundleIdentifier string `yaml:"bundle_identifier"`
-		Source           string `yaml:"source"`
-	}
-
 	type vulnerableSoftware struct {
-		Software []yamlSoftware `yaml:"software"`
+		Software []fleet.Software `json:"software"`
 	}
 
 	var vs vulnerableSoftware
-	if err := yaml.Unmarshal(macOSVulnerableSoftwareData, &vs); err != nil {
+	if err := json.Unmarshal(macOSVulnerableSoftwareData, &vs); err != nil {
 		log.Fatal("unmarshaling vulnerable macOS software: ", err)
 	}
 
-	for _, sw := range vs.Software {
-		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
-			Name:             sw.Name,
-			Version:          sw.Version,
-			BundleIdentifier: sw.BundleIdentifier,
-			Source:           sw.Source,
-		})
-	}
+	macosVulnerableSoftware = vs.Software
 
 	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
