@@ -3,10 +3,11 @@ import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
 import LinkCell from "../LinkCell";
 
 const baseClass = "software-name-cell";
@@ -29,11 +30,7 @@ const installIconMap: Record<InstallType, installIconConfig> = {
   },
   selfService: {
     iconName: "user",
-    tooltip: (
-      <>
-        End users can install from <b>Fleet Desktop {">"} Self-service</b>.
-      </>
-    ),
+    tooltip: SELF_SERVICE_TOOLTIP,
   },
   automatic: {
     iconName: "refresh",

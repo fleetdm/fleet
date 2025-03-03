@@ -69,6 +69,7 @@ import AutomaticSelfService from "./AutomaticSelfService";
 import User from "./User";
 import InfoOutline from "./InfoOutline";
 import GitOpsMode from "./GitOpsMode";
+import Android from "./Android";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -133,6 +134,7 @@ export const ICON_MAP = {
   iPadOS,
   ios: iOS,
   iOS,
+  android: Android,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,

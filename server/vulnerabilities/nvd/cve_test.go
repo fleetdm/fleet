@@ -367,6 +367,30 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-10327"},
 			continuesToUpdate: true,
 		},
+		// CVE-2023-48795 false positive and true positive checks (see #26073)
+		"cpe:2.3:a:microsoft:powershell:7.4.3:*:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2023-48795", "CVE-2025-21171"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:openbsd:openssh:9.5:p1:*:*:*:*:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2023-48795", resolvedInVersion: "9.6"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:openbsd:openssh:9.6:*:*:*:*:*:*": {
+			excludedCVEs:      []string{"CVE-2023-48795"},
+			continuesToUpdate: true,
+		},
+		// end of CVE-2023-48795 checks
+		// CVE-2025-21171 handling
+		"cpe:2.3:a:microsoft:powershell:7.5.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2025-21171"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:powershell:7.5.0:rc.1:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-21171"}},
+			continuesToUpdate: true,
+		},
+		// end of CVE-2025-21171 checks
 		"cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2024-37051", resolvedInVersion: "2023.1.6"}},
 			continuesToUpdate: true,
@@ -381,26 +405,58 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.0:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{{ID: "CVE-2018-12356", resolvedInVersion: "1.7.2"}},
 		},
-		"cpe:2.3:a:python:python:3.14.0a2:*:*:*:*:windows:*:*": {
+		"cpe:2.3:a:python:python:3.12.0:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2024-12254"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.13.0:*:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2024-12254"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2024-12254"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*": {
+			excludedCVEs:      []string{"CVE-2024-12254"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:python:python:3.12.0:-:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.14.0a3",
+					ID:                "CVE-2024-7592",
+					resolvedInVersion: "3.12.6",
 				},
-			},
-		},
-		"cpe:2.3:a:python:python:3.12.0:*:*:*:*:windows:*:*": {
-			includedCVEs: []cve{
+				{
+					ID:                "CVE-2024-6923",
+					resolvedInVersion: "3.12.5",
+				},
+				{
+					ID:                "CVE-2024-0397",
+					resolvedInVersion: "3.12.3",
+				},
+				{
+					// This one might be an issue with feed generation (outputting an OR
+					// incorrectly). TODO: investigate this further.
+					ID:                "CVE-2024-50602",
+					resolvedInVersion: "",
+				},
+				{
+					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.12.9",
+				},
 				{
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "3.12.8",
 				},
 				{
-					ID:                "CVE-2024-6232",
-					resolvedInVersion: "3.12.6",
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.12.9",
 				},
 				{
-					ID:                "CVE-2023-6507",
+					ID: "CVE-2023-6507",
+					// TODO: fix missing version here (according to vulncheck it was fixed in
+					// 3.12.1, but the generated feed data doesn't have this value)
 					resolvedInVersion: "",
 				},
 				{
@@ -412,28 +468,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.12.4",
 				},
 				{
-					ID:                "CVE-2024-7592",
-					resolvedInVersion: "3.12.6",
-				},
-				{
-					ID:                "CVE-2024-6923",
+					ID:                "CVE-2024-3219",
 					resolvedInVersion: "3.12.5",
 				},
 				{
 					ID:                "CVE-2024-0450",
 					resolvedInVersion: "3.12.2",
-				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.12.9",
-				},
-				{
-					ID:                "CVE-2024-0397",
-					resolvedInVersion: "3.12.3",
-				},
-				{
-					ID:                "CVE-2024-4030",
-					resolvedInVersion: "3.12.4",
 				},
 				{
 					ID:                "CVE-2023-6597",
@@ -444,62 +484,33 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.14.0",
 				},
 				{
-					ID:                "CVE-2024-3219",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2023-33595",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-50602",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.12.9",
+					ID:                "CVE-2024-6232",
+					resolvedInVersion: "3.12.6",
 				},
 			},
 		},
-		"cpe:2.3:a:python:python:3.13.0:*:*:*:*:windows:*:*": {
+		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{
-					ID:                "CVE-2024-9287",
-					resolvedInVersion: "3.13.1",
-				},
-				{
-					ID:                "CVE-2024-6232",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2023-6507",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-50602",
-					resolvedInVersion: "",
-				},
-				{
 					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.13.2",
+					resolvedInVersion: "3.14.0a3",
 				},
 				{
-					ID:                "CVE-2023-38898",
+					ID:                "CVE-2024-9287",
 					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2024-7592",
-					resolvedInVersion: "",
-				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.13.2",
-				},
-				{
-					ID:                "CVE-2024-3220",
-					resolvedInVersion: "3.14.0",
 				},
 			},
+		},
+		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2024-12254",
+					resolvedInVersion: "3.14.0a3",
+				},
+			},
+		},
+		"cpe:2.3:a:python:python:3.14.0:alpha3:*:*:*:macos:*:*": {
+			excludedCVEs: []string{"CVE-2024-12254"},
 		},
 	}
 
@@ -962,6 +973,39 @@ func TestExpandCPEAliases(t *testing.T) {
 	pythonCodeExtensionAlias2.Product = "visual_studio_code"
 	pythonCodeExtensionAlias2.TargetSW = "python"
 
+	python3140Alpha2 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.14.0",
+		Update:   "alpha2",
+		TargetSW: "windows",
+	}
+	python3140Alpha2Alias1 := *python3140Alpha2
+	python3140Alpha2Alias1.Version = "3.14.0a2"
+	python3140Alpha2Alias1.Update = ""
+
+	python3130Beta1 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.13.0",
+		Update:   "beta2",
+		TargetSW: "windows",
+	}
+	python3130Beta1Alias := *python3130Beta1
+	python3130Beta1Alias.Version = "3.13.0b2"
+	python3130Beta1Alias.Update = ""
+
+	python3130RC1 := &wfn.Attributes{
+		Vendor:   "python",
+		Product:  "python",
+		Version:  "3.13.0",
+		Update:   "rc1",
+		TargetSW: "windows",
+	}
+	python3130RC1Alias := *python3130RC1
+	python3130RC1Alias.Version = "3.13.0rc1"
+	python3130RC1Alias.Update = ""
+
 	for _, tc := range []struct {
 		name            string
 		cpeItem         *wfn.Attributes
@@ -986,6 +1030,21 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "python visual studio code extension",
 			cpeItem:         pythonCodeExtension,
 			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+		},
+		{
+			name:            "pre-release python: 3.14.0 alpha2",
+			cpeItem:         python3140Alpha2,
+			expectedAliases: []*wfn.Attributes{python3140Alpha2, &python3140Alpha2Alias1},
+		},
+		{
+			name:            "pre-release python: 3.13.0 beta1",
+			cpeItem:         python3130Beta1,
+			expectedAliases: []*wfn.Attributes{python3130Beta1, &python3130Beta1Alias},
+		},
+		{
+			name:            "pre-release python: 3.13.0 rc1",
+			cpeItem:         python3130RC1,
+			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

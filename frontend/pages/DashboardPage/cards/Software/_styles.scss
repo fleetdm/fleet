@@ -19,7 +19,7 @@
   .form-field--dropdown {
     margin: 0;
   }
-  .component__tabs-wrapper .table-container__header {
+  .tab-nav .table-container__header {
     display: none;
   }
   &__empty-software {
@@ -52,7 +52,6 @@
           padding-right: 0;
         }
         .hosts_count__header {
-          border-right: 0;
           padding-right: 0;
           width: 60px;
         }

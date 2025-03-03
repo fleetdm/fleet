@@ -34,7 +34,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
-> It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
+> It may take up to two hours for Fleet to collect and store the disk encryption keys from all hosts.
 
 * Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
 
@@ -73,6 +73,36 @@ How to view the disk encryption key:
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
 > The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
+
+## Use disk encryption key to login
+
+Disk encryption keys are used to login to workstations (hosts) when the end user forgets their password or when the host is returned to the organization after an end user leaves. 
+
+### macOS
+
+1. With the macOS host in front of you, restart the host and select the end user's account.
+
+2. Select the question mark icon **(?)** next to the password field and select **Restart and show password reset options**. If you don't see the **(?)** icon, try entering any incorrect password several times.
+
+3. Follow the instructions on the Mac to enter the disk encryption (recovery) key.
+
+### Linux 
+
+1. With the Linux host in front of you, restart it.
+
+2. When prompted to unlock the disk, enter the disk encryption key.
+
+3. On the **Host details** page in Fleet, find the local user's username in the **Users** table.
+
+4. Next, add the following script to Fleet (deletes the local password (passphrase)):
+
+```
+passwd -d <username>
+```
+
+5. Head back to the **Host details** page and select **Actions > Run script** to run the script.
+
+#### 
 
 ## Migrate macOS hosts
 
