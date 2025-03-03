@@ -109,7 +109,7 @@ If the story is tied to a customer feature request, the Head of Product Design (
 
 Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
 
-If the ticket was designed for a different team than the one that takes it into a sprint the primary designer should be transferred to the designer matching the team doing the work. The new designer should be ramped up on the story or bug to be able to field product questions and the new primary contact for the team to sync with during standup.
+If the issue was drafted by a different product group's designer than it is assigned to during a sprint, the product designer listed in the issue is changed to the new product group's designer. The new product designer should be ramped up on the story or bug so they are prepared to answers questions during stand up.
 
 
 ### Revise a draft currently in development
