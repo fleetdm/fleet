@@ -1592,8 +1592,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		sanitizeSoftware(host, s, logger)
-
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
