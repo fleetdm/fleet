@@ -461,6 +461,8 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 
 // runAllJobs runs all jobs in the schedule.
 func (s *Schedule) runAllJobs() {
+	// Clear errors from the schedule before each run.
+	s.errors = make(fleet.CronScheduleErrors)
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
