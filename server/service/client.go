@@ -574,6 +574,12 @@ func (c *Client) ApplyGroup(
 			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
 		}
 
+		// Keep any existing GitOps mode config rather than attempting to set via Gitops.
+		specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
+			GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
+			RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
+		}
+
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 		}
