@@ -181,11 +181,6 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var (
-	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
-)
-
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
@@ -194,7 +189,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("A software installer with the supplied ID %d does not exist", *softwareInstallerID),
+					Message: fmt.Sprintf("Software installer with ID %d does not exist", *softwareInstallerID),
 				})
 			}
 			return ctxerr.Wrap(ctx, err, "querying software installer")
