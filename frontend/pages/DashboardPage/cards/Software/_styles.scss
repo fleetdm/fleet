@@ -80,6 +80,10 @@
           white-space: nowrap;
           text-overflow: ellipsis;
           width: 30%;
+
+          .text-cell {
+            max-width: 100px;
+          }
         }
 
         .hosts_count__cell {
