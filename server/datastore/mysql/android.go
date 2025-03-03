@@ -170,6 +170,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
+		// TODO(mna): update host_mdm to set enrolled back to true
+
 		err = ds.androidDS.UpdateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android device")
