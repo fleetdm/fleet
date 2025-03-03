@@ -1372,6 +1372,8 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
+      case ActivityType.UserFailedLogin:
+        return "";
 
       default:
         return DEFAULT_ACTOR_DISPLAY;
