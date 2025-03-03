@@ -279,7 +279,7 @@ func TestClearScheduleErrors(t *testing.T) {
 	os.Setenv("TEST_CRON_NO_RECOVER", "0")
 	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx := context.Background()
 	errored := false
 
 	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
