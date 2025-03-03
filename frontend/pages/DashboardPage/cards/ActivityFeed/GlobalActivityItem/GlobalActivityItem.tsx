@@ -1352,7 +1352,9 @@ const GlobalActivityItem = ({
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
-    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name ?? "Fleet"} </b>;
+    const DEFAULT_ACTOR_DISPLAY = (
+      <b>{activity.fleet_initiated ? "Fleet" : activity.actor_full_name} </b>
+    );
 
     switch (activity.type) {
       case ActivityType.UserLoggedIn:
@@ -1372,9 +1374,6 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-      case ActivityType.UserFailedLogin:
-      case ActivityType.FleetEnrolled:
-        return "";
 
       default:
         return DEFAULT_ACTOR_DISPLAY;
