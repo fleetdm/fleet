@@ -343,14 +343,22 @@ software:
       labels_include_any:
         - Engineering
         - Customer Support
+      ensure: present
+      minimum_version: 1.2.3
   app_store_apps:
     - app_store_id: '1091189122'
       labels_include_any:
         - Product
         - Marketing
+      minimum_version: 1.2.3
+  fleet_maintained_apps:
+    - fleet_maintained_app_id: darwin/lack
+      ensure: present
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+Use `ensure` to specify whether software is installed. Use `present` to automatically install software on all hosts. 
 
 ### packages
 
@@ -360,6 +368,10 @@ Use `labels_include_any` to target hosts that have any label in the array or `la
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `ensure` specifies whether software is installed. Use `present` to automatically install software on all hosts. 
+- `minimum_version` specifies the minimum version that should be installed. Software below the minimum version will be updated. Currently, this must be a semantic version.
+
+
 
 #### Example
 
@@ -374,6 +386,8 @@ uninstall_script:
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
 self_service: true
+ensure: present
+minimum_version: 1.2.3
 ```
 
 ### app_store_apps
@@ -383,6 +397,11 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+
+- `ensure` specifies whether software is installed. Use `present` to automatically install software on all hosts. 
+
+- `minimum_version` specifies the minimum version that should be installed. Software below the minimum version will be updated. Currently, this must be a semantic version.
+
 
 ## org_settings and team_settings
 
