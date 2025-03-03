@@ -344,7 +344,7 @@ software:
         - Engineering
         - Customer Support
       ensure: present
-      minimum_version: 1.2.3
+      minimum_version: '1.2.3'
   app_store_apps:
     - app_store_id: '1091189122'
       labels_include_any:
