@@ -1373,6 +1373,7 @@ const GlobalActivityItem = ({
           DEFAULT_ACTOR_DISPLAY
         );
       case ActivityType.UserFailedLogin:
+      case ActivityType.FleetEnrolled:
         return "";
 
       default:
