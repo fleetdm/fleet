@@ -86,6 +86,7 @@ const InstallSoftwareModal = ({
   gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
+
   const {
     data: titlesAvailableForInstall,
     isLoading: isTitlesAvailableForInstallLoading,
@@ -135,9 +136,18 @@ const InstallSoftwareModal = ({
     item: IFormPolicy,
     { value }: ISwDropdownField
   ) => {
+    // Software name needed for error message rendering
+    const findSwNameById = () => {
+      const foundTitle = titlesAvailableForInstall?.find(
+        (title) => title.id === value
+      );
+      return foundTitle ? foundTitle.name : "";
+    };
+
     return {
       ...item,
       swIdToInstall: value,
+      swNameToInstall: findSwNameById(),
     };
   };
 

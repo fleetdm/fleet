@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
@@ -19,10 +20,24 @@ func (s *Datastore) InitCommonMocks() {
 	s.GetEnterpriseByIDFunc = func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
 		return &android.EnterpriseDetails{}, nil
 	}
+	s.GetEnterpriseBySignupTokenFunc = func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+		if signupToken == "signup_token" {
+			return &android.EnterpriseDetails{}, nil
+		}
+		return nil, &notFoundError{errors.New("not found")}
+	}
 	s.DeleteAllEnterprisesFunc = func(ctx context.Context) error {
 		return nil
 	}
 	s.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
 		return nil
 	}
+}
+
+type notFoundError struct {
+	error
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
 }

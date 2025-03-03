@@ -34,7 +34,7 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 * Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
-> It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
+> It may take up to two hours for Fleet to collect and store the disk encryption keys from all hosts.
 
 * Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. 
 

@@ -37,6 +37,9 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			memory,
 			team_id,
 			hardware_serial,
+			cpu_type,
+			hardware_model,
+			hardware_vendor,
 			detail_updated_at,
 			label_updated_at
 		) VALUES (
@@ -49,6 +52,9 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			:memory,
 			:team_id,
 			:hardware_serial,
+			:cpu_type,
+			:hardware_model,
+			:hardware_vendor,
 			:detail_updated_at,
 			:label_updated_at
 		) ON DUPLICATE KEY UPDATE
@@ -60,14 +66,28 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			memory = VALUES(memory),
 			team_id = VALUES(team_id),
 			hardware_serial = VALUES(hardware_serial),
+			cpu_type = VALUES(cpu_type),
+			hardware_model = VALUES(hardware_model),
+			hardware_vendor = VALUES(hardware_vendor),
 			detail_updated_at = VALUES(detail_updated_at),
 			label_updated_at = VALUES(label_updated_at)
 		`
-		stmt, args, err := sqlx.Named(stmt, host)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "could not bind parameters for new Android host")
-		}
-		result, err := tx.ExecContext(ctx, stmt, args...)
+		result, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
+			"node_key":          host.NodeKey,
+			"hostname":          host.Hostname,
+			"computer_name":     host.ComputerName,
+			"platform":          host.Platform,
+			"os_version":        host.OSVersion,
+			"build":             host.Build,
+			"memory":            host.Memory,
+			"team_id":           host.TeamID,
+			"hardware_serial":   host.HardwareSerial,
+			"cpu_type":          host.CPUType,
+			"hardware_model":    host.HardwareModel,
+			"hardware_vendor":   host.HardwareVendor,
+			"detail_updated_at": host.DetailUpdatedAt,
+			"label_updated_at":  host.LabelUpdatedAt,
+		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host")
 		}
@@ -121,14 +141,28 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			os_version = :os_version,
 			build = :build,
 			memory = :memory,
-			hardware_serial = :hardware_serial
+			hardware_serial = :hardware_serial,
+			cpu_type = :cpu_type,
+			hardware_model = :hardware_model,
+			hardware_vendor = :hardware_vendor
 		WHERE id = :id
 		`
-		stmt, args, err := sqlx.Named(stmt, host)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "could not bind parameters for updating Android host")
-		}
-		_, err = tx.ExecContext(ctx, stmt, args...)
+		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
+			"id":                host.Host.ID,
+			"team_id":           host.TeamID,
+			"detail_updated_at": host.DetailUpdatedAt,
+			"label_updated_at":  host.LabelUpdatedAt,
+			"hostname":          host.Hostname,
+			"computer_name":     host.ComputerName,
+			"platform":          host.Platform,
+			"os_version":        host.OSVersion,
+			"build":             host.Build,
+			"memory":            host.Memory,
+			"hardware_serial":   host.HardwareSerial,
+			"cpu_type":          host.CPUType,
+			"hardware_model":    host.HardwareModel,
+			"hardware_vendor":   host.HardwareVendor,
+		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
