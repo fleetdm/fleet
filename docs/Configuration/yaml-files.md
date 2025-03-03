@@ -351,9 +351,6 @@ software:
         - Product
         - Marketing
       minimum_version: 1.2.3
-  fleet_maintained_apps:
-    - fleet_maintained_app_id: darwin/lack
-      ensure: present
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
