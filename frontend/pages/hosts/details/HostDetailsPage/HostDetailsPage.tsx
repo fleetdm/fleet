@@ -857,8 +857,8 @@ const HostDetailsPage = ({
   const isAndroidHost = isAndroid(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
-    [`${baseClass}__details-panel--ios-grid`]:
-      isIosOrIpadosHost || isAndroidHost,
+    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
