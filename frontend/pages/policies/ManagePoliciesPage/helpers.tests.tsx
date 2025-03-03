@@ -1,5 +1,5 @@
 import React from "react";
-import { getErrorMessage } from "./helpers";
+import { getInstallSoftwareErrorMessage } from "./helpers";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 
 describe("getErrorMessage", () => {
@@ -75,7 +75,11 @@ describe("getErrorMessage", () => {
 
     const currentTeamName = "1a - Workstations (canary)";
 
-    const result = getErrorMessage(mockResult, mockFormData, currentTeamName);
+    const result = getInstallSoftwareErrorMessage(
+      mockResult,
+      mockFormData,
+      currentTeamName
+    );
     const resultString = renderToString(result);
 
     expect(resultString).toBe(
@@ -97,7 +101,7 @@ describe("getErrorMessage", () => {
       status: "rejected",
     };
 
-    const result = getErrorMessage(mockResult, mockFormData);
+    const result = getInstallSoftwareErrorMessage(mockResult, mockFormData);
     const resultString = renderToString(result);
 
     expect(resultString).toBe(
@@ -119,7 +123,7 @@ describe("getErrorMessage", () => {
       status: "rejected",
     };
 
-    const result = getErrorMessage(mockResult, mockFormData);
+    const result = getInstallSoftwareErrorMessage(mockResult, mockFormData);
     const resultString = renderToString(result);
 
     expect(resultString).toBe(
