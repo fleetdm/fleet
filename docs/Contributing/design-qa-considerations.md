@@ -42,6 +42,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 - Run Script
 - Edit Script
 - Remove Script
+- Vulnerability Scans
 
 ## Policy
 
