@@ -11,7 +11,7 @@ export const getInstallSoftwareErrorMessage = (
 ): JSX.Element => {
   const apiErrorMessage = result.reason.data.errors[0].reason;
   const parts = apiErrorMessage.split(
-    /(Software title with ID \d+|team ID \d+)/
+    /(Software title with ID \d+|team ID \d+)/i
   );
 
   const jsxElement = parts.map((part: string) => {
@@ -42,7 +42,7 @@ export const getRunScriptErrorMessage = (
   currentTeamName?: string
 ): JSX.Element => {
   const apiErrorMessage = result.reason.data.errors[0].reason;
-  const parts = apiErrorMessage.split(/(Script with ID \d+|team ID \d+)/);
+  const parts = apiErrorMessage.split(/(Script with ID \d+|team ID \d+)/i);
 
   const jsxElement = parts.map((part: string) => {
     if (part.startsWith("Script with ID")) {
