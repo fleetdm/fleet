@@ -335,6 +335,8 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
+	// TODO(mna): mark all Android hosts as unenrolled in host_mdm
+
 	err = svc.fleetDS.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting pubsub token")

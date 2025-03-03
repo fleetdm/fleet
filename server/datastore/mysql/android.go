@@ -104,6 +104,9 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
+		// TODO(mna): create entry in host_mdm as enrolled (manually), because
+		// currently all android hosts are necessarily MDM-enrolled when created.
+
 		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
