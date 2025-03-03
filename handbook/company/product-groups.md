@@ -197,7 +197,7 @@ User stories are small and independently valuable.
 
 #### Defining "done"
 
-To successfully deliver a user story, the people working on it need to know what "done" means. 
+To successfully deliver a user story, the people working on it need to know what "done" means.
 
 Every user story has a product and engineering checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively specify, estimate, implement, and test the change. The Product Designer is the DRI for completing the product checklist, and the Engineering Manager (EM) is the DRI for completing the engineering checklist.
 
@@ -361,9 +361,9 @@ When a critical bug is identified, we will then follow the patch release process
 
 ## Feature fest
 
-To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis. 
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis.
 
-Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting. 
+Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting.
 
 Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact).
 
@@ -382,7 +382,7 @@ To prioritize a new feature, it must meet one of these criteria:
 2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
 3. Contributes to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
 4. High priority customer request (customer request, workflow blocking, etc.)
-5. Prospect request in an order form 
+5. Prospect request in an order form
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
@@ -476,16 +476,16 @@ Remove the “:reproduce” label, add the following labels:
 1. The relevant product group (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`). Make your best guess, and product design will change if necessary.
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates that it is a new bug to be triaged.
-3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release. 
+3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
 > **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
 
-After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. 
+After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated.
 
-It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation. 
+It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation.
 
 If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 
@@ -564,7 +564,7 @@ How to escalate:
 
 ### Changing of the guard
 
-The on-call developer changes each week on Wednesday.
+The on-call developer changes each week on Mondays.
 
 A Slack reminder should notify the on-call of the handoff. Please do the following:
 
@@ -688,11 +688,11 @@ All participants are expected to review the user story and associated designs an
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
 
-Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster. 
+Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
 > In addition to design reviews, Fleeties or community member can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
-Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
 
 After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
 
