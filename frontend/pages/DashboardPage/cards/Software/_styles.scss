@@ -83,7 +83,7 @@
         }
 
         .hosts_count__cell {
-          width: auto;
+          width: auto; // Never truncates hosts count
         }
 
         .id__cell {
