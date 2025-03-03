@@ -1766,6 +1766,30 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:microsoft:teams:1.6.00.22155:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Source:  "apps",
+				Version: "24.11.10",
+			},
+			cpe: "cpe:2.3:a:citrix:workspace:2411.10:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "RELEASE.2025-02-28T09-55-16Z_1",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2025-02-28T09-55-16Z:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "20200310000000",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2020-03-10T00-00-00Z:*:*:*:*:macos:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
@@ -1813,5 +1837,304 @@ func TestContainsNonASCII(t *testing.T) {
 
 	for _, tc := range testCases {
 		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
+	}
+}
+
+func TestSanitizeSoftware(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		s         *fleet.Software
+		sanitized *fleet.Software
+	}{
+		{
+			name: "Microsoft Teams.app on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.00.622155",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.6.00.22155",
+			},
+		},
+		{
+			name: "Microsoft Teams not on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+		},
+		{
+			name: "Other.app on macOS",
+			s: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Citrix Workspace on Windows",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace on Mac",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace with correct versioning",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+		},
+		{
+			name: "MS Teams classic on MacOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.00.634263",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.6.00.34263",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio with trailing garbage",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "JetBrains non-EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
+		{
+			name: "Python for Windows GA dot-zero",
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.150.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows GA patch release",
+			s: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8150.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows alpha",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.104.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.0a4",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows beta",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.113.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.0b3",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows RC",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.122.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.0rc2",
+				Source:  "programs",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutateSoftware(tc.s, log.NewNopLogger())
+			require.Equal(t, tc.sanitized, tc.s)
+		})
 	}
 }
