@@ -32,7 +32,7 @@ const InstalledSoftwareActivityItem = ({
       onShowDetails={onShowDetails}
     >
       <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
-      on this host {self_service && "(self-service)"}.{" "}
+      on this host{self_service && " (self-service)"}.{" "}
     </ActivityItem>
   );
 };
