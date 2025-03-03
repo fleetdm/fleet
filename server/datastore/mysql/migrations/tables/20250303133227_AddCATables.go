@@ -25,7 +25,10 @@ func Up_20250303133227(tx *sql.Tx) error {
 	_, err = tx.Exec(`
 	ALTER TABLE host_mdm_managed_certificates
 	ADD COLUMN not_valid_after DATETIME(6) NULL
-`)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to add not_valid_after column to host_mdm_managed_certificates table: %s", err)
+	}
 	return nil
 }
 

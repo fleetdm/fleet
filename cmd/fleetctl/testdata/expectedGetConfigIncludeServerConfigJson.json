@@ -146,7 +146,9 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null
+      "ndes_scep_proxy": null,
+      "custom_scep_proxy": null,
+      "digicert": null
     },
     "update_interval": {
       "osquery_detail": "1h0m0s",
