@@ -1357,45 +1357,45 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		// 	},
 		// 	cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
 		// },
-		// {
-		// 	software: fleet.Software{
-		// 		Name:    "IntelliJ IDEA Community Edition 2022.3.2",
-		// 		Source:  "programs",
-		// 		Version: "223.8617.56",
-		// 		Vendor:  "",
-		// 	},
-		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
-		// },
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "IntelliJ IDEA.app",
-		// 		Source:           "apps",
-		// 		Version:          "2022.3.3",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "com.jetbrains.intellij",
-		// 	},
-		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
-		// },
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "IntelliJ IDEA CE.app",
-		// 		Source:           "apps",
-		// 		Version:          "2022.3.3",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "com.jetbrains.intellij.ce",
-		// 	},
-		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
-		// },
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "intellij-idea-ce",
-		// 		Source:           "homebrew_packages",
-		// 		Version:          "2023.3.2,233.13135.103",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "",
-		// 	},
-		// 	cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
-		// },
+		{
+			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA CE.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "intellij-idea-ce",
+				Source:           "homebrew_packages",
+				Version:          "2023.3.2,233.13135.103",
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:macos:*:*",
+		},
 		// {
 		// 	software: fleet.Software{
 		// 		Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
@@ -1742,6 +1742,30 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		// 		BundleIdentifier: "",
 		// 	}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
 		// },
+		{
+			software: fleet.Software{
+				Name:    "Cloudflare WARP",
+				Source:  "programs",
+				Version: "25.1.861.0",
+			}, cpe: "cpe:2.3:a:cloudflare:warp:2025.1.861.0:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "25016.1904.3401.2239",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:25016.1904.3401.2239:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should be mutated
+				Version: "1.00.622155",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:1.6.00.22155:*:*:*:*:macos:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).

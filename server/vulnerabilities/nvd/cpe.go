@@ -187,6 +187,7 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 // changes are done here rather than in sanitizeSoftware to ensure that software versions visible in the UI are the
 // raw version strings.
 var (
+	macOSMSTeamsVersion  = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
 	softwareTransformers = []struct {
 		matches func(*fleet.Software) bool
 		mutate  func(*fleet.Software, log.Logger)
@@ -226,13 +227,11 @@ var (
 				s.Version = fmt.Sprintf("%d.%d.%s", yearBasedMajorVersion, yearBasedMinorVersion, "999")
 			},
 		},
-
 		{
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
 			},
 			mutate: func(s *fleet.Software, l kitlog.Logger) {
-				fmt.Printf("[JVE_LOG]\tmutating s.Version: %v\n", s.Version)
 				versionComponents := strings.Split(s.Version, ".")
 				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
 				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
@@ -256,6 +255,39 @@ var (
 				s.Version = strings.Join(versionComponents[0:3], ".")
 
 				fmt.Printf("[JVE_LOG]\tmutated s.Version: %v\n", s.Version)
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "Cloudflare WARP" && s.Source == "programs"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				// Perform some sanity check on the version before mutating it.
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+				_, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				// In case Cloudflare starts returning the full year.
+				if len(parts[0]) == 4 {
+					return
+				}
+				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+				}
 			},
 		},
 	}

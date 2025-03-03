@@ -1634,9 +1634,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 }
 
 var (
-	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
-	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
-	softwareSanitizers  = []struct {
+	// macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName         = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+	softwareSanitizers = []struct {
 		checkSoftware  func(*fleet.Host, *fleet.Software) bool
 		mutateSoftware func(*fleet.Software, log.Logger)
 	}{
@@ -1650,41 +1650,43 @@ var (
 		// Teams uses a completely different versioning scheme, which is documented at the URL
 		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
 		// the same versioning scheme discussed above.
-		{
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
-					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
-				}
-			},
-		},
+		// {
+		// 	checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+		// 		return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
+		// 	},
+		// 	mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+		// 		fmt.Printf("[JVE_LOG]\tTeams s.Version: %v\n", s.Version)
+		// 		if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+		// 			s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+		// 		}
+		// 	},
+		// },
 		// In the Windows Registry, Cloudflare WARP defines its major version with the last two digits, e.g. `23.9.248.0`.
 		// On NVD, the vulnerabilities are reported using the full year, e.g. `2023.9.248.0`.
-		{
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// Perform some sanity check on the version before mutating it.
-				parts := strings.Split(s.Version, ".")
-				if len(parts) <= 1 {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
-					return
-				}
-				_, err := strconv.Atoi(parts[0])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
-					return
-				}
-				// In case Cloudflare starts returning the full year.
-				if len(parts[0]) == 4 {
-					return
-				}
-				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
-			},
-		},
+		// {
+		// 	checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+		// 		return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
+		// 	},
+		// 	mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+		// 		fmt.Printf("[JVE_LOG]\ts.Version: %v\n", s.Version)
+		// 		// Perform some sanity check on the version before mutating it.
+		// 		parts := strings.Split(s.Version, ".")
+		// 		if len(parts) <= 1 {
+		// 			level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+		// 			return
+		// 		}
+		// 		_, err := strconv.Atoi(parts[0])
+		// 		if err != nil {
+		// 			level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+		// 			return
+		// 		}
+		// 		// In case Cloudflare starts returning the full year.
+		// 		if len(parts[0]) == 4 {
+		// 			return
+		// 		}
+		// 		s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+		// 	},
+		// },
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
 				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
@@ -1720,20 +1722,20 @@ var (
 				s.Version = strings.Join(newParts, ".")
 			},
 		},
-		{
-			// Trim the "RELEASE." prefix from Minio versions.
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// trim the "RELEASE." prefix from the version
-				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
-				// trim any unexpected trailing characters
-				if idx := strings.Index(s.Version, "_"); idx != -1 {
-					s.Version = s.Version[:idx]
-				}
-			},
-		},
+		// {
+		// 	// Trim the "RELEASE." prefix from Minio versions.
+		// 	checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
+		// 		return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
+		// 	},
+		// 	mutateSoftware: func(s *fleet.Software, logger log.Logger) {
+		// 		// trim the "RELEASE." prefix from the version
+		// 		s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+		// 		// trim any unexpected trailing characters
+		// 		if idx := strings.Index(s.Version, "_"); idx != -1 {
+		// 			s.Version = s.Version[:idx]
+		// 		}
+		// 	},
+		// },
 		{
 			// Convert the timestamp to NVD's format for Minio versions.
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
