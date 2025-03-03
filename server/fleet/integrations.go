@@ -353,6 +353,16 @@ type GoogleCalendarIntegration struct {
 	ApiKey map[string]string `json:"api_key_json"`
 }
 
+type DigiCertIntegration struct {
+	Name                               string   `json:"name"`
+	URL                                string   `json:"url"`
+	APIToken                           string   `json:"api_token"`
+	ProfileID                          string   `json:"profile_id"`
+	CertificateCommonName              string   `json:"certificate_common_name"`
+	CertificateSubjectAlternativeNames []string `json:"certificate_subject_alternative_names"`
+	CertificateSeatID                  string   `json:"certificate_seat_id"`
+}
+
 // NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyIntegration struct {
 	URL      string `json:"url"`
@@ -361,13 +371,21 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
+type CustomSCEPProxyIntegration struct {
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	Challenge string `json:"challenge"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration           `json:"jira"`
-	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	Jira           []*JiraIntegration                 `json:"jira"`
+	Zendesk        []*ZendeskIntegration              `json:"zendesk"`
+	GoogleCalendar []*GoogleCalendarIntegration       `json:"google_calendar"`
+	DigiCert       optjson.Slice[DigiCertIntegration] `json:"digicert"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
-	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
+	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
+	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {
