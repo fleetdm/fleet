@@ -118,7 +118,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 		assert.Equal(t, EnterpriseID, enterpriseID)
 		return nil
 	}
-	ts.Proxy.EnterpriseDeleteFunc = func(enterpriseID string) error {
+	ts.Proxy.EnterpriseDeleteFunc = func(ctx context.Context, enterpriseID string) error {
 		assert.Equal(t, EnterpriseID, enterpriseID)
 		return nil
 	}

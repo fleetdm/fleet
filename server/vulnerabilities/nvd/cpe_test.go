@@ -488,6 +488,7 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	// Note: make sure to run `go test` with "-tags fts5" for this test, since it uses sqlite.
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -609,7 +610,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.8.9",
 				Vendor:           "",
 				BundleIdentifier: "com.apple.python3",
-			}, cpe: "cpe:2.3:a:python:python:3.8.9:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -618,7 +619,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.7",
 				Vendor:           "",
 				BundleIdentifier: "org.python.python",
-			}, cpe: "cpe:2.3:a:python:python:3.10.7:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -897,16 +898,31 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.6",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
 				Name:    "Python 3.14.0a1 (64-bit)",
 				Source:  "programs",
-				Version: "3.14.0-alpha1",
+				Version: "3.14.0a1",
 				Vendor:  "Python Software Foundation",
-				// should be "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*"; see #24810
-			}, cpe: "cpe:2.3:a:python:python:3.14.0-alpha1:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0b2 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0b2",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0rc1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.0rc1",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1679,7 +1695,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{

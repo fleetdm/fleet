@@ -268,6 +268,15 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW != "windows"
 			},
 		},
+		// CVE-2024-12254 only targets Mac/Linux operating systems
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-12254": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW == "windows"
+			},
+		},
 		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{

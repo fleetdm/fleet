@@ -32,7 +32,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	// These endpoints should do custom one-time authentication by verifying that a valid secret token is provided with the request.
 	ne := newNoAuthEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
-	ne.GET("/api/_version_/fleet/android_enterprise/{id:[0-9]+}/connect", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
+	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
 	ne.POST(pubSubPushPath, pubSubPushEndpoint, pubSubPushRequest{})
 
