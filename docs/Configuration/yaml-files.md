@@ -353,6 +353,10 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
+- `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
+- `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
+- `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
+- `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
 
 Use `labels_include_all_paths` to target hosts that have all labels, `labels_include_any_paths` to target hosts that have any label, or `labels_exclude_any_paths` to target hosts that don't have any of the labels. Only one of `labels_include_all_paths`, `labels_include_any_paths`, or `labels_exclude_any_paths` can be specified. If none are specified, all hosts are targeted.
 
@@ -583,7 +587,7 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-In addition, you can configure your the SCEP server to help your end users connect to Wi-Fi. Learn more about SCEP and NDES in Fleet [here](https://fleetdm.com/guides/ndes-scep-proxy).
+In addition, you can configure your certificate authorities (CA) to help your end users connect to Wi-Fi. Learn more about certificate authorities in Fleet [here](https://fleetdm.com/guides/certificate-authorities).
 
 #### Example
 
@@ -603,11 +607,23 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
+    digicert:
+      - name: DIGICERT_WIFI
+        url: https://one.digicert.com
+        api_token: $DIGICERT_API_TOKEN
+        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_subject_alternative_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
     ndes_scep_proxy:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: 'myPassword'
+    custom_scep_proxy:
+      - name: SCEP_VPN
+        url: https://example.com/scep
+        challenge: $SCEP_VPN_CHALLENGE
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
@@ -631,11 +647,25 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
+#### digicert
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
+- `api_token` is the token used to authenticate requests to DigiCert.
+- `profile_id` is the ID of certificate profile in DigiCert.
+- `certificate_common_name` is the certificate's CN.
+- `certificate_subject_alternative_name` is the certificate's SAN name.
+- `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
+
 #### ndes_scep_proxy
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
+
+#### scep_proxy
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
+- `challenge` is the static challenge password used to authenticate requests to SCEP server.
 
 ### webhook_settings
 
