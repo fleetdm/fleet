@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"strings"
@@ -144,10 +145,24 @@ type enterpriseSignupCallbackRequest struct {
 	EnterpriseToken string `query:"enterpriseToken"`
 }
 
+type enterpriseSignupCallbackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (res enterpriseSignupCallbackResponse) Error() error { return res.Err }
+
+//go:embed enterpriseCallback.html
+var enterpriseCallbackHTML []byte
+
+func (res enterpriseSignupCallbackResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	w.Write(enterpriseCallbackHTML)
+}
+
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.SignupToken, req.EnterpriseToken)
-	return android.DefaultResponse{Err: err}
+	return enterpriseSignupCallbackResponse{Err: err}
 }
 
 // EnterpriseSignupCallback handles the callback from Google UI during signup flow.
