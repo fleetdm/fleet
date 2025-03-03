@@ -25,5 +25,40 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 - Remove ABM Token
 - Add VPP Token
 - Remove VPP Token
+- Add minimum version OS Updates
+- Remove minimum version OS Updates
+- Add Profile
+- Remove Profile
+- Add Bootstrap Package
+- Remove Bootstrap Package
+- Setup Experience Software / scripts
 
 ## Software
+
+- Add Software to team
+- Remove Software from team
+- Edit Software (Scripts / binary)
+- Add Script
+- Run Script
+- Edit Script
+- Remove Script
+
+## Policy
+
+- Add Policy
+- Remove Policy
+- Add install automation
+- Add Calendar automation
+
+## Query
+
+- Add Query
+- Remove Query
+- Edit Query
+
+## Labels
+
+- Add Automatic Label
+- Remove Automatic Label
+- Add Manual Label
+- Remove Manual Label
