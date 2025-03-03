@@ -384,7 +384,7 @@ post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
 self_service: true
 ensure: present
-minimum_version: 1.2.3
+minimum_version: '1.2.3'
 ```
 
 ### app_store_apps
