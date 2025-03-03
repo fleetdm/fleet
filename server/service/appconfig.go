@@ -367,7 +367,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	caStatus, err := svc.validateAppConfigCAs(ctx, newAppConfig, oldAppConfig, appConfig, invalid)
+	caStatus := svc.validateAppConfigCAs(ctx, newAppConfig, oldAppConfig, appConfig, invalid)
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -882,7 +882,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 }
 
 func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet.AppConfig, oldAppConfig *fleet.AppConfig,
-	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) (appConfigCAStatus, error) {
+	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) appConfigCAStatus {
 
 	var invalidLicense bool
 	fleetLicense, _ := license.FromContext(ctx)
@@ -903,7 +903,7 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 	}
 	result := appConfigCAStatus{}
 	if invalidLicense {
-		return result, nil
+		return result
 	}
 
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
@@ -982,15 +982,18 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 			result.digicert[ca.Name] = caStatusDeleted
 		}
 	default:
+		if len(newAppConfig.Integrations.DigiCert.Value) > 0 {
+			additionalDigiCertValidationNeeded = true
+		}
 		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "digicert", allCANames, invalid) {
+				additionalDigiCertValidationNeeded = false
 				continue
 			}
 			ca.URL = fleet.Preprocess(ca.URL)
 			ca.ProfileID = fleet.Preprocess(ca.ProfileID)
 			appConfig.Integrations.DigiCert.Value = append(appConfig.Integrations.DigiCert.Value, ca)
-			additionalDigiCertValidationNeeded = true
 		}
 	}
 
@@ -1001,7 +1004,8 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 		appConfig.Integrations.CustomSCEPProxy = oldAppConfig.Integrations.CustomSCEPProxy
 		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
 			if _, ok := allCANames[ca.Name]; ok {
-				invalid.Append("integrations.digicert.name", "CA name must be unique")
+				// This issue is caused by the new DigiCert CA added above
+				invalid.Append("integrations.digicert.name", fmt.Sprintf("CA name must be unique: %s", ca.Name))
 				continue
 			}
 			allCANames[ca.Name] = struct{}{}
@@ -1013,24 +1017,29 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 			result.customSCEPProxy[ca.Name] = caStatusDeleted
 		}
 	default:
+		if len(newAppConfig.Integrations.CustomSCEPProxy.Value) > 0 {
+			additionalCustomSCEPValidationNeeded = true
+		}
 		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
+				additionalCustomSCEPValidationNeeded = false
 				continue
 			}
 			ca.URL = fleet.Preprocess(ca.URL)
 			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
-			additionalCustomSCEPValidationNeeded = true
 		}
 	}
 
 	if additionalDigiCertValidationNeeded {
+		svc.logger.Log("msg", "TODO")
 		// do more stuff
 	}
 	if additionalCustomSCEPValidationNeeded {
+		svc.logger.Log("msg", "TODO")
 		// do more stuff
 	}
-	return result, nil
+	return result
 }
 
 func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {
@@ -1047,11 +1056,11 @@ func validateCAName(name string, caType string, allCANames map[string]struct{}, 
 		return false
 	}
 	if !isAlphanumeric(name) {
-		invalid.Append("integrations."+caType+".name", "CA name can only contain alphanumeric [A-Za-z0-9_] characters")
+		invalid.Append("integrations."+caType+".name", fmt.Sprintf("CA name can only contain alphanumeric [A-Za-z0-9_] characters: %s", name))
 		return false
 	}
 	if _, ok := allCANames[name]; ok {
-		invalid.Append("integrations."+caType+".name", "CA name must be unique")
+		invalid.Append("integrations."+caType+".name", fmt.Sprintf("CA name must be unique: %s", name))
 		return false
 	}
 	allCANames[name] = struct{}{}
