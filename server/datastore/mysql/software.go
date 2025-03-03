@@ -2592,7 +2592,7 @@ last_vpp_install AS (
 						SELECT
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels,
-							SUM(CASE 
+							SUM(CASE
 							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
 							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 							ELSE 0 END) as count_host_updated_after_labels
@@ -2778,7 +2778,7 @@ last_vpp_install AS (
 						SELECT
 							COUNT(*) AS count_installer_labels,
 							COUNT(lm.label_id) AS count_host_labels,
-							SUM(CASE 
+							SUM(CASE
 							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
 							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 							ELSE 0 END) as count_host_updated_after_labels
@@ -3139,8 +3139,10 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.InstallUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		if result.Status() != fleet.SoftwareInstallPending {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.InstallUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
