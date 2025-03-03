@@ -1472,13 +1472,25 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 
 	vulnerableSoftware := make([]map[string]string, 0, vCount)
+	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+	var softwareLimit int
 
-	for i := 0; i < vCount; i++ {
+	switch {
+	case a.softwareCount.vulnerable < 0: // Sequential assignment
+		softwareLimit = len(macosVulnerableSoftware)
+	case a.softwareCount.vulnerable == 0: // No vulnerable software
+		softwareLimit = 0
+	default: // Random assignment
+		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
+	}
+
+	for i := range softwareLimit {
 		var sw fleet.Software
+
 		if a.softwareCount.vulnerable < 0 {
-			sw = macosVulnerableSoftware[i] // Sequential assignment
+			sw = macosVulnerableSoftware[i]
 		} else {
-			sw = macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))] // Random assignment
+			sw = macosVulnerableSoftware[randomIndices[i]]
 		}
 
 		var lastOpenedAt string
