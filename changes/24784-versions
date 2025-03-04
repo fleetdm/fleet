@@ -1,0 +1,1 @@
+- Updated Fleet's software ingestion logic to avoid storing modified software versions.
