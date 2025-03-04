@@ -76,7 +76,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
 | Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
 | Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
-| Edit organization settings                            |          |            |            | ✅    | ✅      |
+| Edit organization settings\***                            |          |            |            | ✅    | ✅      |
 | Edit agent options                                              |          |            |            | ✅    | ✅      |
 | Edit agent options for hosts assigned to teams\*            |          |            |            | ✅    | ✅      |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          |            | ✅         | ✅    |         |
@@ -104,6 +104,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 \* Applies only to Fleet Premium
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
+
+\*** GitOps users do not have access to modify `gitops` settings.
 
 ## Team user permissions
 
