@@ -26,17 +26,22 @@
         "certs certs";
     }
 
+    // No agent options card for Android, so extend Labels card vertically.
+    &__details-panel--android-grid.react-tabs__tab-panel--selected {
+      grid-template-areas:
+        "about about"
+        "labels labels";
+    }
 
     // We add the certs card to the grid layout on mac hosts
     &__details-panel--macos-grid.react-tabs__tab-panel--selected {
-        grid-template-areas:
-          "about about"
-          "activity agent-options"
-          "activity labels"
-          "users users"
-          "certs certs";
+      grid-template-areas:
+        "about about"
+        "activity agent-options"
+        "activity labels"
+        "users users"
+        "certs certs";
     }
-
 
     .about-card {
       grid-area: about;

@@ -75,28 +75,11 @@ module.exports = {
     } else if (eventName === 'receive-new-customer-data') {
       assert(_.isObject(data));
       assert(_.isString(data.newMarketingStage));
-      assert(_.isString(data.name));
-      assert(_.isString(data.website));
-      assert(_.isString(data.linkedinCompanyPageUrl));
       assert(_.isString(data.persona) && AdCampaign.validate('persona', data.persona));
-
-      // Enrich to obtain linkedin company ID using provided data.
-      // Remove any trailing slashes from the LinkedIn URL.
-      let trailingSlashlessLinkedinCompanyUrl = _.trim(data.linkedinCompanyPageUrl, '/');
-      // Split the LinkedIn url by slashes
-      let splitLinkedinCompanyUrl = trailingSlashlessLinkedinCompanyUrl.split('/');
-      // Grab the last fragment of the URL, we'll use this for the coreSignal API request to
-      let linkedinCompanyIdOrSlug = splitLinkedinCompanyUrl[splitLinkedinCompanyUrl.length - 1];
-      let matchedCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+linkedinCompanyIdOrSlug, {}, {
-        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
-        'content-type': 'application/json'
-      }).intercept((err)=>{
-        sails.log.warn(`When the receive-from-zapier webhook received a request about a Salesforce record, a linkedin company could not be found using the provided linkedIn URL (${data.linkedinCompanyPageUrl})`, err);
-        return 'couldNotMatchLinkedinId';
-      });
+      assert(data.linkedinCompanyId);
 
       // (FUTURE: make field for this and have it already in CRM so this step isn't necessary)
-      let linkedinCompanyId = matchedCompanyPageInfo.id;
+      let linkedinCompanyId = data.linkedinCompanyId;
 
       // Check if we have enough space in our current active campaign.
       // If so, then use it and update its inventory.  Otherwise, prepare to create
@@ -110,6 +93,9 @@ module.exports = {
         let filterCriteriaForLatestCampaign = latestCampaign.linkedinCompanyIds.map((id)=>{
           return `urn:li:organization:${id}`;
         });
+        // Append the new organization to the end of the the filterCriteria
+        filterCriteriaForLatestCampaign.push(`urn:li:organization:${linkedinCompanyId}`);
+        // Send a request to update this campaign.
         await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           url: `https://hooks.zapier.com/hooks/catch/3627242/2wdx23r?webhookSecret=${ encodeURIComponent(sails.config.custom.zapierWebhookSecret)}`,

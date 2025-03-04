@@ -44,7 +44,7 @@ var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed macos_vulnerable.software
+	//go:embed macos_vulnerable-software.json.bz2
 	macOSVulnerableSoftwareFS embed.FS
 
 	//go:embed vscode_extensions_vulnerable.software
@@ -66,23 +66,22 @@ var (
 )
 
 func loadMacOSVulnerableSoftware() {
-	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable.software")
+	bz2, err := macOSVulnerableSoftwareFS.Open("macos_vulnerable-software.json.bz2")
 	if err != nil {
-		log.Fatal("reading vulnerable macOS software file: ", err)
+		log.Fatal("open vulnerable macOS software file: ", err)
 	}
-	lines := bytes.Split(macOSVulnerableSoftwareData, []byte("\n"))
-	for _, line := range lines {
-		parts := bytes.Split(line, []byte("##"))
-		if len(parts) < 2 {
-			log.Println("skipping", string(line))
-			continue
-		}
-		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
-			Name:    strings.TrimSpace(string(parts[0])),
-			Version: strings.TrimSpace(string(parts[1])),
-			Source:  "apps",
-		})
+
+	type vulnerableSoftware struct {
+		Software []fleet.Software `json:"software"`
 	}
+
+	var vs vulnerableSoftware
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&vs); err != nil { //nolint:gosec
+		log.Fatal("unmarshaling vulnerable macOS software: ", err)
+	}
+
+	macosVulnerableSoftware = vs.Software
+
 	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
 
@@ -1417,6 +1416,7 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
+	// Common Software
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
@@ -1439,6 +1439,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
 	}
+
+	// Unique Software
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1460,25 +1462,56 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
-	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
-	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		sw := macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))]
+
+	// Vulnerable Software
+	var vCount int
+	if a.softwareCount.vulnerable < 0 {
+		vCount = len(macosVulnerableSoftware)
+	} else {
+		vCount = a.softwareCount.vulnerable
+	}
+
+	vulnerableSoftware := make([]map[string]string, 0, vCount)
+	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+	var softwareLimit int
+
+	switch {
+	case a.softwareCount.vulnerable < 0: // Sequential assignment
+		softwareLimit = len(macosVulnerableSoftware)
+	case a.softwareCount.vulnerable == 0: // No vulnerable software
+		softwareLimit = 0
+	default: // Random assignment
+		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
+	}
+
+	for i := range softwareLimit {
+		var sw fleet.Software
+
+		if a.softwareCount.vulnerable < 0 {
+			sw = macosVulnerableSoftware[i]
+		} else {
+			sw = macosVulnerableSoftware[randomIndices[i]]
+		}
+
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		randomVulnerableSoftware[i] = map[string]string{
+
+		vulnerableSoftware = append(vulnerableSoftware, map[string]string{
 			"name":              sw.Name,
 			"version":           sw.Version,
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
 			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
-		}
+		})
 	}
+
+	// Combine all software
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
-	software = append(software, randomVulnerableSoftware...)
+	software = append(software, vulnerableSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
 		return true
@@ -1486,6 +1519,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
+
 	return software
 }
 
@@ -2499,7 +2533,9 @@ func main() {
 		// report software to Fleet, so the initial reads/inserts can be expensive).
 		linuxUniqueSoftwareTitle = flag.Bool("linux_unique_software_title", false, "Make name of software items on linux hosts unique. WARNING: This will generate massive amounts of titles which is not realistic but serves to test performance of software ingestion when processing large number of titles.")
 
-		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+		// This flag can be used to set the number of vulnerable software items reported by each host picked randomly from the
+		// list of vulnerable software.  Use -1 to load all vulnerable software.
+		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
 		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")

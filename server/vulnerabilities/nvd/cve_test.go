@@ -424,6 +424,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		"cpe:2.3:a:python:python:3.12.0:-:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
 				{
+					ID:                "CVE-2025-1795",
+					resolvedInVersion: "3.12.3",
+				},
+				{
 					ID:                "CVE-2024-7592",
 					resolvedInVersion: "3.12.6",
 				},
@@ -499,7 +503,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "",
 				},
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -507,10 +516,22 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					ID:                "CVE-2024-12254",
 					resolvedInVersion: "3.14.0a3",
 				},
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha3:*:*:*:macos:*:*": {
 			excludedCVEs: []string{"CVE-2024-12254"},
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
+			},
+			continuesToUpdate: true,
 		},
 	}
 

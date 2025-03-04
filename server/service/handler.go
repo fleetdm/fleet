@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -958,7 +959,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	}
 
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
-		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
+		POST("/api/_version_/fleet/login", loginEndpoint, endpoints.LoginRequest{})
 	ne.WithCustomMiddleware(limiter.Limit("mfa", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/sessions", sessionCreateEndpoint, sessionCreateRequest{})
 

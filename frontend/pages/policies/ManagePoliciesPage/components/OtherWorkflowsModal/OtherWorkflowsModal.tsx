@@ -26,7 +26,9 @@ import CustomLink from "components/CustomLink";
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
-import PoliciesPaginatedList from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
@@ -349,47 +351,47 @@ const OtherWorkflowsModal = ({
             />
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
-          <div className="form-field">
-            {availablePolicies?.length ? (
-              <PoliciesPaginatedList
-                isSelected={(item) => {
-                  return newPolicyIds?.indexOf(item.id) > -1;
-                }}
-                onToggleItem={(item) => {
-                  const updatedPolicyIds = newPolicyIds.slice();
-                  const index = newPolicyIds?.indexOf(item.id);
-                  if (index > -1) {
-                    updatedPolicyIds.splice(index, 1);
-                  } else {
-                    updatedPolicyIds.push(item.id);
-                  }
-                  setNewPolicyIds(updatedPolicyIds);
-                  return item;
-                }}
-                footer={
-                  <p className={`${baseClass}__help-text`}>
-                    The workflow will be triggered when hosts fail these
-                    policies.{" "}
-                    <CustomLink
-                      url="https://www.fleetdm.com/learn-more-about/policy-automations"
-                      text="Learn more"
-                      newTab
-                      disableKeyboardNavigation={!isPolicyAutomationsEnabled}
-                    />
-                  </p>
+        </div>
+        <div className="form-field">
+          {availablePolicies?.length ? (
+            <PoliciesPaginatedList
+              isSelected={(item: IFormPolicy) => {
+                return newPolicyIds?.indexOf(item.id) > -1;
+              }}
+              onToggleItem={(item: IFormPolicy) => {
+                const updatedPolicyIds = newPolicyIds.slice();
+                const index = newPolicyIds?.indexOf(item.id);
+                if (index > -1) {
+                  updatedPolicyIds.splice(index, 1);
+                } else {
+                  updatedPolicyIds.push(item.id);
                 }
-                isUpdating={isUpdating}
-                onSubmit={onUpdateOtherWorkflows}
-                onCancel={onExit}
-                teamId={teamId}
-              />
-            ) : (
-              <>
-                <b>You have no policies.</b>
-                <p>Add a policy to turn on automations.</p>
-              </>
-            )}
-          </div>
+                setNewPolicyIds(updatedPolicyIds);
+                return item;
+              }}
+              footer={
+                <p className={`${baseClass}__help-text`}>
+                  The workflow will be triggered when hosts fail these policies.{" "}
+                  <CustomLink
+                    url="https://www.fleetdm.com/learn-more-about/policy-automations"
+                    text="Learn more"
+                    newTab
+                    disableKeyboardNavigation={!isPolicyAutomationsEnabled}
+                  />
+                </p>
+              }
+              isUpdating={isUpdating}
+              onSubmit={onUpdateOtherWorkflows}
+              onCancel={onExit}
+              teamId={teamId}
+              disabled={!isPolicyAutomationsEnabled}
+            />
+          ) : (
+            <>
+              <b>You have no policies.</b>
+              <p>Add a policy to turn on automations.</p>
+            </>
+          )}
         </div>
       </div>
     </Modal>
