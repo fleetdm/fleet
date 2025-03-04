@@ -1018,6 +1018,8 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 			result.digicert[ca.Name] = caStatusDeleted
 		}
 	default:
+		// We clear DigiCert CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.DigiCert.Value = nil
 		if len(svc.config.Server.PrivateKey) == 0 {
 			invalid.Append("integrations.digicert",
 				"Cannot encrypt DigiCert API token. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
@@ -1075,10 +1077,12 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 			result.customSCEPProxy[ca.Name] = caStatusDeleted
 		}
 	default:
+		// We clear custom SCEP CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.CustomSCEPProxy.Value = nil
 		if len(svc.config.Server.PrivateKey) == 0 {
 			invalid.Append("integrations.custom_scep_proxy",
-				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
-					"com/learn-more-about/fleet-server-private-key")
+				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: "+
+					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
 			break
 		}
 		additionalCustomSCEPValidationNeeded = true
