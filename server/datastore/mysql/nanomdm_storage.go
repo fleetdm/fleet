@@ -192,6 +192,16 @@ func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document str
 	return s.ds.ExpandEmbeddedSecrets(ctx, document)
 }
 
+// ClearQueue in NanoMDMStorage overrides the implementation in
+// nanomdm_mysql.MySQLStorage. It does call
+// nanomdm_mysql.MySQLStorage.ClearQueue, but expands on its behavior.
+func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
+	if err := s.ds.ClearMDMUpcomingActivitiesDB(r.Context, s.db, r.ID); err != nil {
+		return err
+	}
+	return s.MySQLStorage.ClearQueue(r)
+}
+
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewMDMAppleDEPStorage() (*NanoDEPStorage, error) {
