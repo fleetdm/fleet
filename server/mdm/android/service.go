@@ -6,7 +6,7 @@ import (
 
 type Service interface {
 	EnterpriseSignup(ctx context.Context) (*SignupDetails, error)
-	EnterpriseSignupCallback(ctx context.Context, enterpriseID uint, enterpriseToken string) error
+	EnterpriseSignupCallback(ctx context.Context, signupToken string, enterpriseToken string) error
 	GetEnterprise(ctx context.Context) (*Enterprise, error)
 	DeleteEnterprise(ctx context.Context) error
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)

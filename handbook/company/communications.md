@@ -810,7 +810,7 @@ In responding to security questionnaires, Fleet endeavors to provide full transp
 
 ## Getting a contract reviewed
 
-The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
+All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) will review all contracts within **2 business days**. 
 
 > If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
