@@ -84,7 +84,6 @@ org_settings:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
       enable_activities_webhook: true
 policies:
-  - path: ./lib/all/policies/mac-enrollment-profile-up-to-date.yml
 queries:
   - path: ./lib/all/queries/collect-fleetd-information.yml
   - path: ./lib/all/queries/collect-operating-system-information.yml
