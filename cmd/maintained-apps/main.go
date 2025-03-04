@@ -28,8 +28,9 @@ type brewIngester struct {
 }
 
 type inputApp struct {
-	Name       string `json:"name"`
-	Identifier string `json:"identifier"`
+	Name             string `json:"name"`
+	Identifier       string `json:"identifier"`
+	UniqueIdentifier string `json:"unique_identifier"`
 }
 
 type Ingester interface {
@@ -47,6 +48,11 @@ type outputApp struct {
 	InstallScriptRef   string `json:"install_script_ref"`
 	UninstallScriptRef string `json:"uninstall_script_ref"`
 	Sha256             string `json:"sha256"`
+}
+
+type outputFile struct {
+	Versions []*outputApp      `json:"versions"`
+	Refs     map[string]string `json:"refs"`
 }
 
 func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*outputApp, error) {
@@ -84,8 +90,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*outputApp,
 		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
 	}
 
-	fmt.Printf("body: %v\n", string(body))
-
 	var cask brewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
@@ -103,6 +107,8 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*outputApp,
 
 	out.Version = cask.Version
 	out.InstallerURL = cask.URL
+	out.UniqueIdentifier = app.UniqueIdentifier
+	// TODO(JVE): add missing fields to output
 
 	return out, nil
 }
@@ -133,6 +139,8 @@ func main() {
 		if err := i.IngestApps(ctx); err != nil {
 			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
 		}
+
+		// TODO(JVE): open PR
 	}
 }
 
@@ -144,6 +152,7 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "reading embedded data directory")
 	}
 
+	// TODO(JVE): probably can introduce some concurrency here
 	for _, f := range files {
 		fileBytes, err := i.inputData.ReadFile(f.Name())
 		if err != nil {
@@ -155,21 +164,30 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "unmarshal app input file")
 		}
 
-		fmt.Printf("appsData: %v\n\n", input)
 		if input.Identifier != "" {
 			outApp, err := i.ingestOne(ctx, input)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "ingesting app")
 			}
 
-			outBytes, err := json.Marshal(outApp)
+			outFile := outputFile{
+				Versions: []*outputApp{outApp},
+			}
+
+			outBytes, err := json.MarshalIndent(outFile, "", "  ")
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
 			}
 
 			fmt.Printf("outBytes: %v\n", string(outBytes))
 
-			// TODO(JVE): write the output to the output directory
+			// Overwrite the file, since right now we're only caring about 1 version (latest). If we
+			// care about previous data, it will be in our Git history.
+			if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.Identifier), outBytes, 0o644); err != nil {
+				return ctxerr.Wrap(ctx, err, "writing output json file")
+			}
+
+			// TODO(JVE): update the output apps.json file
 
 		}
 
@@ -178,7 +196,8 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 	return nil
 }
 
-// brew specific types. this probably doesn't go here.
+// TODO(JVE): brew specific types. move this + ingester logic to a file in the
+// ee/maintained-apps/inputs/darwin directory.
 
 type brewCask struct {
 	Token                string          `json:"token"`
