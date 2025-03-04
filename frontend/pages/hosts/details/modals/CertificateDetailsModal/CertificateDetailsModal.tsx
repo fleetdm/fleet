@@ -168,7 +168,7 @@ const CertificateDetailsModal = ({
                     orientation="horizontal"
                   />
                 )}
-                {key_strength && (
+                {!!key_strength && (
                   <DataSet
                     title="Key size"
                     value={key_strength}

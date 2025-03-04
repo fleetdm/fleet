@@ -167,6 +167,15 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 ### Cloud providers
 
+#### Render
+
+(Or any other PaaS)
+
+###### Up to 300 hosts
+
+See https://fleetdm.com/docs/deploy/deploy-fleet#render
+
+
 #### AWS
 
 ##### Example configuration breakpoints

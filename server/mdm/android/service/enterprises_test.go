@@ -110,8 +110,10 @@ func TestEnterprisesAuth(t *testing.T) {
 	}
 
 	t.Run("unauthorized", func(t *testing.T) {
-		err := svc.EnterpriseSignupCallback(context.Background(), 1, "token")
+		err := svc.EnterpriseSignupCallback(context.Background(), "signup_token", "token")
 		checkAuthErr(t, false, err)
+		err = svc.EnterpriseSignupCallback(context.Background(), "bad_token", "token")
+		checkAuthErr(t, true, err)
 	})
 }
 

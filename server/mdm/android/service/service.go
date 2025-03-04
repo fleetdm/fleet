@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"strings"
@@ -101,7 +102,13 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
 
-	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/%d/connect", appConfig.ServerSettings.ServerURL, id)
+	// signupToken is used to authenticate the signup callback URL -- to ensure that the callback came from our Android enterprise signup flow
+	signupToken, err := server.GenerateRandomURLSafeText(32)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating Android enterprise signup token")
+	}
+
+	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/connect/%s", appConfig.ServerSettings.ServerURL, signupToken)
 	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
@@ -111,7 +118,8 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		Enterprise: android.Enterprise{
 			ID: id,
 		},
-		SignupName: signupDetails.Name,
+		SignupName:  signupDetails.Name,
+		SignupToken: signupToken,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating enterprise")
@@ -133,20 +141,37 @@ func (svc *Service) checkIfAndroidAlreadyConfigured(ctx context.Context) (*fleet
 }
 
 type enterpriseSignupCallbackRequest struct {
-	ID              uint   `url:"id"`
+	SignupToken     string `url:"token"`
 	EnterpriseToken string `query:"enterpriseToken"`
+}
+
+type enterpriseSignupCallbackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (res enterpriseSignupCallbackResponse) Error() error { return res.Err }
+
+//go:embed enterpriseCallback.html
+var enterpriseCallbackHTML []byte
+
+func (res enterpriseSignupCallbackResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	_, _ = w.Write(enterpriseCallbackHTML)
 }
 
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
-	err := svc.EnterpriseSignupCallback(ctx, req.ID, req.EnterpriseToken)
-	return android.DefaultResponse{Err: err}
+	err := svc.EnterpriseSignupCallback(ctx, req.SignupToken, req.EnterpriseToken)
+	return enterpriseSignupCallbackResponse{Err: err}
 }
 
-func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enterpriseToken string) error {
-	// Skip authorization because the callback is called by Google.
-	// TODO(26218): Add some authorization here so random people can't bind random Android enterprises just for fun.
-	// This call will fail if Proxy (Google Project) is not configured.
+// EnterpriseSignupCallback handles the callback from Google UI during signup flow.
+// signupToken is for authentication with Fleet
+// enterpriseToken is for authentication with Google
+func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken string, enterpriseToken string) error {
+	// Authorization is done by GetEnterpriseBySignupToken below.
+	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
+	// Also, this method call will fail if Proxy (Google Project) is not configured.
 	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -154,11 +179,10 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return err
 	}
 
-	enterprise, err := svc.ds.GetEnterpriseByID(ctx, id)
+	enterprise, err := svc.ds.GetEnterpriseBySignupToken(ctx, signupToken)
 	switch {
 	case fleet.IsNotFound(err):
-		return fleet.NewInvalidArgumentError("id",
-			fmt.Sprintf("Enterprise with ID %d not found", id)).WithStatus(http.StatusNotFound)
+		return authz.ForbiddenWithInternal("invalid signup token", nil, nil, nil)
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
@@ -232,7 +256,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, id uint, enter
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 
-	err = svc.ds.DeleteOtherEnterprises(ctx, id)
+	err = svc.ds.DeleteOtherEnterprises(ctx, enterprise.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting temp enterprises")
 	}
@@ -306,7 +330,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	default:
-		err = svc.proxy.EnterpriseDelete(enterprise.EnterpriseID)
+		err = svc.proxy.EnterpriseDelete(ctx, enterprise.EnterpriseID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting enterprise via Google API")
 		}

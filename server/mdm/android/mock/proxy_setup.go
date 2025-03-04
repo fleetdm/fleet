@@ -8,7 +8,7 @@ import (
 )
 
 func (p *Proxy) InitCommonMocks() {
-	p.EnterpriseDeleteFunc = func(enterpriseID string) error {
+	p.EnterpriseDeleteFunc = func(ctx context.Context, enterpriseID string) error {
 		return nil
 	}
 	p.SignupURLsCreateFunc = func(callbackURL string) (*android.SignupDetails, error) {

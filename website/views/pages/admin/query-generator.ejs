@@ -1,22 +1,80 @@
 <div id="query-generator" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content">
+      <div purpose="page-headline">
+        <h2>Query robot 🤖</h2>
+        <p>Not great with SQL? Our query robot can help you.</p>
+      </div>
+      <div purpose="query-form">
+        <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
+          <div purpose="form" class="form-group">
+            <label for="instructions">Ask a question about your device</label>
+            <textarea class="form-control" type="textarea" :disabled="showGeneratedQuery" id="instructions" placeholder="E.g., is Filevault enabled?" :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
+            <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
+          </div>
+          <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/query-generator">reload this page and try again</a>.</cloud-error>
 
-      <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" v-if="!showGeneratedQuery">
-        <h3 class="mb-4">Query generator</h3>
-        <div class="form-group">
-          <label for="email-address">Ask a question about your devices to generate queries</label>
-          <textarea class="form-control" type="textarea" id="email-address"  :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
-          <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
+          <div purpose="note" v-if="!showGeneratedQuery">
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+            <div>
+              <p>This will take at least 30 seconds to generate.</p>
+            </div>
+          </div>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left" v-if="!cloudError && !showGeneratedQuery">Generate query</ajax-button>
+        </ajax-form>
+      </div>
+      <div v-show="showGeneratedQuery">
+        <h3>Here you go!</h3>
+        <p class="mb-2">Paste this into osqueryi or Fleet to try it out.</p>
+        <div purpose="codeblock">
+          <div purpose="codeblock-tabs" >
+            <a purpose="codeblock-tab" :class="[ selectedTab === 'macos' ? 'selected' : '']" @click="selectedTab = 'macos'" v-if="generatedQueries.macOSQuery">Apple</a>
+            <a purpose="codeblock-tab" :class="[ selectedTab === 'windows' ? 'selected' : '']"  @click="selectedTab = 'windows'" v-if="generatedQueries.windowsQuery">Windows</a>
+            <a purpose="codeblock-tab" :class="[ selectedTab === 'linux' ? 'selected' : '']"  @click="selectedTab = 'linux'" v-if="generatedQueries.linuxQuery">Linux</a>
+            <a purpose="codeblock-tab" :class="[ selectedTab === 'chromeos' ? 'selected' : '']"  @click="selectedTab = 'chromeos'" v-if="generatedQueries.chromeOSQuery">ChromeOS</a>
+            <div purpose="copy-button-tab">
+              <div purpose="copy-button"></div>
+            </div>
+          </div>
+          <pre v-show="selectedTab === 'macos'"><code class="hljs sql"> {{generatedQueries.macOSQuery}}</code></pre>
+          <pre v-show="selectedTab === 'windows'"><code class="hljs sql"> {{generatedQueries.windowsQuery}}</code></pre>
+          <pre v-show="selectedTab === 'linux'"><code class="hljs sql"> {{generatedQueries.linuxQuery}}</code></pre>
+          <pre v-show="selectedTab === 'chromeos'"><code class="hljs sql"> {{generatedQueries.chromeOSQuery}}</code></pre>
         </div>
-        <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/admin/query-generator">reload this page and try again</a>.</cloud-error>
-        <ajax-button purpose="submit-button" style="min-width: 200px; max-width: 200px;" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-right" v-if="!cloudError">Generate queries</ajax-button>
-      </ajax-form>
-
-      <div v-else>
-        <h3 class="mb-4">Generated Query:</h3>
-        <pre><code>{{queryResult}}</code></pre>
-        <div class="btn btn-sm btn-primary" @click="clickResetQueryGenerator()">Generate another</div>
+        <div purpose="caveats">
+          <div v-if="selectedTab === 'macos' && (generatedQueries.macOSCaveats !== undefined && generatedQueries.macOSCaveats !== '')">
+            <h3>Caveats</h3>
+            <ul>
+              <li><p>{{generatedQueries.macOSCaveats}}</p></li>
+            </ul>
+          </div>
+          <div v-if="selectedTab === 'windows' && (generatedQueries.windowsCaveats !== undefined && generatedQueries.windowsCaveats !== '')">
+            <h3>Caveats</h3>
+            <ul>
+              <li><p>{{generatedQueries.windowsCaveats}}</p></li>
+            </ul>
+          </div>
+          <div v-if="selectedTab === 'linux' && (generatedQueries.linuxCaveats !== undefined && generatedQueries.linuxCaveats !== '')">
+            <h3>Caveats</h3>
+            <ul>
+              <li><p>{{generatedQueries.linuxCaveats}}</p></li>
+            </ul>
+          </div>
+          <div v-if="selectedTab === 'chromeos' && (generatedQueries.chromeOSCaveats !== undefined && generatedQueries.chromeOSCaveats !== '')">
+            <h3>Caveats</h3>
+            <ul>
+              <li><p>{{generatedQueries.chromeOSCaveats}}</p></li>
+            </ul>
+          </div>
+        </div>
+        <div purpose="note">
+          <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+          <div>
+            <p>These AI-generated results may be incorrect. I have been known to hallucinate from time to time.
+        Check Fleet’s <a href="/tables" target="_blank">data tables</a>.</p>
+          </div>
+        </div>
+        <div class="btn btn-sm btn-primary" purpose="reset-button" @click="clickResetQueryGenerator()" v-if="">Start over</div>
       </div>
 
     </div>
