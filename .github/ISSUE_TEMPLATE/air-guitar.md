@@ -1,7 +1,7 @@
 ---
 name: 🎸  Air guitar
 about: Request wireframes to be designed right away
-title: ''
+title: '🎸 ____________'
 labels: '~air-guitar~,:product'
 assignees: ''
 
