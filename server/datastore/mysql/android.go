@@ -24,7 +24,12 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	}
 	ds.setTimesToNonZero(host)
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new Android host get app config")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
 		stmt := `
 		INSERT INTO hosts (
@@ -104,8 +109,11 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
-		// TODO(mna): create entry in host_mdm as enrolled (manually), because
-		// currently all android hosts are necessarily MDM-enrolled when created.
+		// create entry in host_mdm as enrolled (manually), because currently all
+		// android hosts are necessarily MDM-enrolled when created.
+		if err := upsertHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
+		}
 
 		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
@@ -132,7 +140,12 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	}
 	ds.setTimesToNonZero(host)
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update Android host get app config")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
 			team_id = :team_id,
@@ -170,7 +183,12 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
-		// TODO(mna): update host_mdm to set enrolled back to true
+		// TODO(android): can we avoid this call when update is called only to update host info
+		// (not due to a re-enroll)?
+		// update host_mdm to set enrolled back to true
+		if err := upsertHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host MDM info")
+		}
 
 		err = ds.androidDS.UpdateDeviceTx(ctx, tx, host.Device)
 		if err != nil {

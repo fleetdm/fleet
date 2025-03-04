@@ -102,6 +102,8 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	if device.AppliedState == string(android.DeviceStateDeleted) {
 		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
+
+		// TODO(mna): should that delete the host from Fleet? Or at least set host_mdm to unenrolled?
 		return nil
 	}
 
