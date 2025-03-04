@@ -118,7 +118,7 @@ interface ITurnOffAndroidMdmProps {
 
 const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
   const { data, isLoading, isError } = useQuery(
-    ["androidEnterprise"],
+    ["android_enterprise"],
     () => mdmAndroidAPI.getAndroidEnterprise(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
