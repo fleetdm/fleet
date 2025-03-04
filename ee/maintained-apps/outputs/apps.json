@@ -1,7 +1,7 @@
 {
+  "version": 2,
   "apps": [
     {
-      "version": 2,
       "name": "1Password",
       "slug": "1password/darwin",
       "platform": "darwin",
@@ -9,7 +9,6 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
-      "version": 2,
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -17,7 +16,6 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
-      "version": 2,
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -25,7 +23,6 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
-      "version": 2,
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
@@ -33,7 +30,6 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
-      "version": 2,
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -41,7 +37,6 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "version": 2,
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
@@ -49,7 +44,6 @@
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
-      "version": 2,
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -57,7 +51,6 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
-      "version": 2,
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
@@ -65,7 +58,6 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
-      "version": 2,
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
@@ -73,7 +65,6 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
-      "version": 2,
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -81,7 +72,6 @@
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
-      "version": 2,
       "name": "Microsoft Excel",
       "slug": "microsoft-excel/darwin",
       "platform": "darwin",
@@ -89,7 +79,6 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
-      "version": 2,
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -97,7 +86,6 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
-      "version": 2,
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
@@ -105,7 +93,6 @@
       "description": "Microsoft Word is the industry-standard word processor for creating, editing, and sharing professional documents."
     },
     {
-      "version": 2,
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -113,7 +100,6 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
-      "version": 2,
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -121,7 +107,6 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
-      "version": 2,
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
@@ -129,7 +114,6 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
-      "version": 2,
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -137,7 +121,6 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
-      "version": 2,
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -145,7 +128,6 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
-      "version": 2,
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
@@ -153,7 +135,6 @@
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
-      "version": 2,
       "name": "Zoom for IT Admins",
       "slug": "zoom-for-it-admins/darwin",
       "platform": "darwin",
