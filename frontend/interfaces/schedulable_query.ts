@@ -94,6 +94,7 @@ export interface ICreateQueryRequestBody {
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
+  labels_include_any?: string[];
 }
 
 // response is ISchedulableQuery
