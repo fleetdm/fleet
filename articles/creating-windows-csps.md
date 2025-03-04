@@ -1,7 +1,3 @@
-# Creating Windows CSPs
-
-## Introduction
-
 Deploying Windows configurations profiles (aka Configuration Service Providers (CSPs)) for Windows devices can feel daunting, especially if you're new to the process or accustomed to ClickOps and other UI-driven approaches. The scarcity of straightforward documentation and guides can make it feel like you're venturing into a configuration rabbit hole.
 
 ![Rabbit Hole](../website/assets/images/articles/down-the-rabbit-hole.png)
@@ -14,9 +10,9 @@ This guide will help you understand the building blocks to crafting CSPs of vary
 
 ### What is ADMX and why should you care?
 
+From [Microsoft](https://learn.microsoft.com/en-us/windows/client-management/understanding-admx-backed-policies):
+
 >“Mobile Device Management (MDM) policy configurations allow access of a selected set of Group Policy administrative templates (ADMX policies) for Windows PCs via the Policy configuration service provider (CSP). This expanded access ensures that enterprises can keep their devices compliant and prevent the risk of compromising security of their devices managed through the cloud.”
->
-> -- <cite>[Microsoft Learn](https://learn.microsoft.com/en-us/windows/client-management/understanding-admx-backed-policies)</cite>
 
 In an ADMX policy, an administrative template contains the metadata of a Windows Group Policy. Each setting in a Group Policy corresponds to a specific registry value. These Group Policy settings are defined in an XML file format known as an ADMX file. MDM doesn’t use the same tools as Group Policy, the traditional way to control Windows settings. Instead, it uses the Policy CSP to read the ADMX instructions.
 
@@ -153,46 +149,45 @@ Pay attention to the verbs `<Add>` vs `<Replace>` when creating as these need to
 
 ## Migrating from Intune
 
-You may be wondering how this translates to migrating Windows configuration profiles from Intune to Fleet. Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) that set registry keys that tell your system(s) which configuration to enforce. Intune CSPs can mostly be found in the registry under the `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes\<id>` key.
+Intune uses Windows [CSPs](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) that set registry keys that tell your system(s) which configuration to enforce. Intune CSPs can mostly be found in the registry under the `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes\<id>` key.
 
-The steps below will describe how to get the CSP from Intune and format it as a CSP that Fleet can import.
+How to get the CSP from Intune and format it as a configuration profile for Fleet.
 
-1. Export from Intune (note there are many ways to export from Intune, this is just one example):
-   1. Navigate to your Intune admin center > Devices > Configuration Profiles
-   1. Click on three dots next to Settings Catalog Profile
-   1. Click on Export JSON to download a JSON file with the CSP settings
-1. Identifying CSPs:
-   1. Open your exported Intune JSON from the steps above
-   1. Every `settingDefinitionId` JSON element will contain the CSP that was set via Intune.
-      > For example `device_vendor_msft_policy_config_internetexplorer_disablefirstrunwizard` is the CSP for disabling the first run wizard in Internet Explorer. Note that this looks almost identical to the `LocURI` that Fleet wants in the CSP XML: `./Device/Vendor/MSFT/Policy/Config/InternetExplorer/DisableFirstRunWizard`.
-   1. Make a list of every `settingDefinitionId` you want to migrate to Fleet
-1. Create your policy CSP file:
-   1. Create a new `policy.xml` file with as many of the below code blocks as CSPs that you want to migrate:
+### Step 1: Export from Intune
 
-      ```xml
-        <Replace>
-          <Item>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-            </Meta>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Policy/Config/CHANGEME_AREANAME/CHANGEME_POLICYNAME</LocURI>
-            </Target>
-            <Data><![CDATA[CHANGEME]]</Data>
-          </Item>
-      </Replace>
-      ```
+1. Navigate to your Intune admin center and select **Devices > Configuration Profiles**.
+2. Select the three dots next to **Settings Catalog Profile**.
+3. Select the **Export JSON** to download a JSON file with the CSP settings.
 
-1. Query for the correct XML `<Data>` block:
-   1. Log into an intune-managed device
-   1. Navigate to the registry editor
-   1. Go to `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes`
-   1. ctrl+f for the `settingDefinitionId` (CSP) from your list in step 2:
-      - The `NodeURI` of the Registry key will be the `LocURI` in the CSP XML
-      - The `ExpectedValue` of the Registry key will be the `<Data>` block in the CSP XML[^1]
-   1. Repeat for every CSP you want to migrate
+### Step 2: Identify Intune CSPs
 
-Alternatively, you can use this PowerShell one-liner to get the CSPs from the Registry, which you can script together to loop through every CSP:
+1. Open your exported Intune JSON from the steps above in the text editor of your choice.
+2. Every `settingDefinitionId` JSON element will contain the CSP that was set via Intune. For example `device_vendor_msft_policy_config_internetexplorer_disablefirstrunwizard`, is the CSP for disabling the first run wizard in Internet Explorer. Note that this looks almost identical to the `LocURI` that Fleet wants in a configuration profile: `./Device/Vendor/MSFT/Policy/Config/InternetExplorer/DisableFirstRunWizard`.
+3. Make a list of every `settingDefinitionId` you want to migrate to Fleet
+
+### Step 3: Create your configuration profile:
+
+1. Create a new `configuraion-profile.xml` file with as many of the below code blocks as CSPs that you want to migrate:
+
+```xml
+  <Replace>
+    <Item>
+      <Meta>
+        <Format xmlns="syncml:metinf">chr</Format>
+      </Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/CHANGEME_AREANAME/CHANGEME_POLICYNAME</LocURI>
+      </Target>
+      <Data><![CDATA[CHANGEME]]</Data>
+    </Item>
+</Replace>
+```
+
+2. Find the correct `<Data>` block, by logging into a Windows host enrolled to Intune, opening the Registry Editor, and heading to `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes`. Then, search for the `settingDefinitionId` (CSP) from your list in step 2:
+ - The `NodeURI` of the Registry key will be the `LocURI` in the CSP XML
+ - The `ExpectedValue` of the Registry key will be the `<Data>` block in the CSP XML[^1]
+
+Alternatively, you can use this PowerShell one-liner to get the CSPs from the Windows Registry, which you can script together to loop through every CSP:
 
   ```powershell
   $inputString = "disablefirstrunwizard"; Get-ChildItem -Path 'HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes' -Recurse | Get-ItemProperty | Where-Object { $_.NodeUri -like "*$inputString*" } | Select-Object NodeUri, ExpectedValue | Format-List
