@@ -996,7 +996,9 @@ None.
         "api_token": "********",
         "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_user_principal_names": [
+          "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        ]
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
       }
     ],
@@ -1675,9 +1677,8 @@ _Available in Fleet Premium._
 | api_token        | string | API token used to authenticate requests to DigiCert. |
 | profile_id       | string  | The ID of certificate profile in DigiCert. |
 | certificate_common_name      | string  | The certificate's common name. |
-| certificate_subject_alternative_name     | string  | The certificate's SAN name. |
+| certificate_user_principal_names    | array  | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
 | certificate_seat_id     | string  | The ID of the DigiCert seat. Seats are license units in DigiCert. |
-
 
 <br/>
 
