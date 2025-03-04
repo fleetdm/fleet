@@ -63,3 +63,17 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 - Remove Automatic Label
 - Add Manual Label
 - Remove Manual Label
+
+## Host
+
+- Enroll to fleet from package
+- Deleted from fleet
+- DEP Enrollment
+- BYOD Enrollment
+- ABM ghost host before enrolled
+- Wiped host
+- Locked host
+- Host that succeeds all policies
+- Host with a failing policy
+- Online Host
+- Offline Host
