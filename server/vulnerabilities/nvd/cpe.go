@@ -236,8 +236,18 @@ var (
 			matches: func(s *fleet.Software) bool {
 				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
 			},
-			mutate: func(s *fleet.Software, l kitlog.Logger) {
+			mutate: func(s *fleet.Software, logger kitlog.Logger) {
 				versionComponents := strings.Split(s.Version, ".")
+				// Python 3 versions on Windows should always look like 3.14.102.0; if they don't we
+				// should bail out to avoid bad indexing panics.
+				if len(versionComponents) < 4 {
+					level.Debug(logger).Log("msg", "expected 4 version components", "gotCount", len(versionComponents))
+					return
+				}
+				if len(versionComponents[2]) < 3 {
+					level.Debug(logger).Log("msg", "got a patch version component with unexpected length", "gotPatchVersion", versionComponents[2])
+					return
+				}
 				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
 				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
 				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
