@@ -36,6 +36,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -339,25 +340,29 @@ type TestServerOpts struct {
 	KeyValueStore         fleet.KeyValueStore
 	EnableSCEPProxy       bool
 	WithDEPWebview        bool
+	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
 	}
-	var rs fleet.QueryResultStore
-	if len(opts) > 0 && opts[0].Rs != nil {
-		rs = opts[0].Rs
-	}
-	var lq fleet.LiveQueryStore
-	if len(opts) > 0 && opts[0].Lq != nil {
-		lq = opts[0].Lq
-	}
 	cfg := config.TestConfig()
 	if len(opts) > 0 && opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
 	}
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
+	svc, ctx := NewTestService(t, ds, cfg, opts...)
+	return RunServerForTestsWithServiceWithDS(t, ctx, ds, svc, opts...)
+}
+
+func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fleet.Datastore, svc fleet.Service,
+	opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	var cfg config.FleetConfig
+	if len(opts) > 0 && opts[0].FleetConfig != nil {
+		cfg = *opts[0].FleetConfig
+	} else {
+		cfg = config.TestConfig()
+	}
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -423,7 +428,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, nil, WithLoginRateLimit(throttled.PerMin(1000)))
+	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
+		featureRoutes = opts[0].FeatureRoutes
+	}
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -449,6 +458,18 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		server.Close()
 	})
 	return users, server
+}
+
+func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	var rs fleet.QueryResultStore
+	if len(opts) > 0 && opts[0].Rs != nil {
+		rs = opts[0].Rs
+	}
+	var lq fleet.LiveQueryStore
+	if len(opts) > 0 && opts[0].Lq != nil {
+		lq = opts[0].Lq
+	}
+	return newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
 }
 
 func testSESPluginConfig() config.FleetConfig {

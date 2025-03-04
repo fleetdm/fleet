@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
@@ -112,16 +113,6 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 // Login
 ////////////////////////////////////////////////////////////////////////////////
 
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	// If false/omitted, users that require email verification (Fleet MFA) to log in will fail to log in, rather than
-	// sending an MFA email, since the MFA email will land the user in a browser and complete the login there, rather
-	// than e.g. in the CLI that initiated the login. As with SSO, the expected behavior for users with MFA is to log
-	// in with MFA, then grab an API token for use elsewhere.
-	SupportsEmailVerification bool `json:"supports_email_verification"`
-}
-
 type loginResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
 	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
@@ -141,7 +132,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 func (r loginMfaResponse) Error() error { return r.Err }
 
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*loginRequest)
+	req := request.(*endpoints.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)

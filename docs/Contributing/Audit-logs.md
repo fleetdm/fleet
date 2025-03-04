@@ -1578,6 +1578,96 @@ Generated when NDES SCEP proxy configuration is edited in Fleet.
 
 This activity does not contain any detail fields.
 
+## added_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## deleted_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## edited_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## added_digicert
+
+Generated when DigiCert certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## deleted_digicert
+
+Generated when DigiCert certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## edited_digicert
+
+Generated when DigiCert certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled
