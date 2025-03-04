@@ -615,7 +615,7 @@ const DeviceUserPage = ({
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">
-          <ul className="site-nav-list">
+          <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
