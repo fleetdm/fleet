@@ -854,9 +854,11 @@ const HostDetailsPage = ({
 
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isAndroidHost = isAndroid(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
@@ -919,31 +921,33 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <ActivityCard
-                activeTab={activeActivityTab}
-                activities={
-                  activeActivityTab === "past"
-                    ? pastActivities
-                    : upcomingActivities
-                }
-                isLoading={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsFetching
-                    : upcomingActivitiesIsFetching
-                }
-                isError={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsError
-                    : upcomingActivitiesIsError
-                }
-                upcomingCount={upcomingActivities?.count || 0}
-                onChangeTab={onChangeActivityTab}
-                onNextPage={() => setActivityPage(activityPage + 1)}
-                onPreviousPage={() => setActivityPage(activityPage - 1)}
-                onShowDetails={onShowActivityDetails}
-                onCancel={onCancelActivity}
-              />
-              {!isIosOrIpadosHost && (
+              {!isAndroidHost && (
+                <ActivityCard
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onCancel={onCancelActivity}
+                />
+              )}
+              {!isIosOrIpadosHost && !isAndroidHost && (
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
@@ -954,7 +958,7 @@ const HostDetailsPage = ({
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              {!isIosOrIpadosHost && (
+              {!isIosOrIpadosHost && !isAndroidHost && (
                 <UsersCard
                   users={host?.users || []}
                   usersState={usersState}
