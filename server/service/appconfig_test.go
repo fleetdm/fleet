@@ -1741,7 +1741,7 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.ErrorContains(t, err, "private key")
 }
 
-func TestValidateAppConfigCAs(t *testing.T) {
+func TestAppConfigCAs(t *testing.T) {
 	t.Parallel()
 
 	type myTest struct {
@@ -1770,7 +1770,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		mt := newTest()
 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 		mt.newAppConfig = &fleet.AppConfig{}
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		assert.Empty(t, mt.invalid.Errors)
 		assert.Empty(t, status.ndes)
 		assert.Empty(t, status.digicert)
@@ -1780,14 +1780,14 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		mt.newAppConfig = &fleet.AppConfig{}
 		mt.newAppConfig.Integrations.DigiCert.Set = true
 		mt.newAppConfig.Integrations.DigiCert.Valid = true
-		status = mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "digicert", ErrMissingLicense.Error())
 
 		mt.invalid = &fleet.InvalidArgumentError{}
 		mt.newAppConfig = &fleet.AppConfig{}
 		mt.newAppConfig.Integrations.CustomSCEPProxy.Set = true
 		mt.newAppConfig.Integrations.CustomSCEPProxy.Valid = true
-		status = mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "custom_scep_proxy", ErrMissingLicense.Error())
 	})
 
@@ -1795,8 +1795,9 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		mt := newTest()
 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		mt.oldAppConfig = mt.newAppConfig
+		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig = &fleet.AppConfig{}
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		assert.Empty(t, mt.invalid.Errors)
 		assert.Empty(t, status.ndes)
 		assert.Empty(t, status.digicert)
@@ -1807,7 +1808,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 	t.Run("missing server private key", func(t *testing.T) {
 		mt := newTest()
 		mt.svc.config.Server.PrivateKey = ""
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert", "private key")
 
 		// TODO: Test custom SCEP
@@ -1845,7 +1846,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 			t.Run(tc.testName, func(t *testing.T) {
 				mt := newTest()
 				mt.newAppConfig = getAppConfigWithDigiCertIntegration(tc.name)
-				status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+				status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 				checkExpectedCAValidationError(t, mt.invalid, status, tc.errorContains...)
 			})
 		}
@@ -1854,13 +1855,13 @@ func TestValidateAppConfigCAs(t *testing.T) {
 	t.Run("invalid digicert URL", func(t *testing.T) {
 		mt := newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = ""
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
 			"empty url")
 
 		mt = newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "nonhttp://bad.com"
-		status = mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
 			"URL must be https or http")
 	})
@@ -1869,7 +1870,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		mt := newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
 			mt.newAppConfig.Integrations.DigiCert.Value[0])
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
 			"name is already used by another DigiCert certificate authority")
 	})
@@ -1878,7 +1879,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		mt := newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = append(mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames,
 			"another")
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
 			"one certificate user principal name")
 	})
@@ -1886,13 +1887,13 @@ func TestValidateAppConfigCAs(t *testing.T) {
 	t.Run("digicert API token not set", func(t *testing.T) {
 		mt := newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = fleet.MaskedPassword
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set")
 	})
 
 	t.Run("digicert happy path -- add one", func(t *testing.T) {
 		mt := newTest()
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		assert.Empty(t, mt.invalid.Errors)
 		require.Len(t, status.digicert, 1)
 		assert.Equal(t, caStatusAdded, status.digicert[mt.newAppConfig.Integrations.DigiCert.Value[0].Name])
@@ -1903,6 +1904,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 	t.Run("digicert happy path -- delete one", func(t *testing.T) {
 		mt := newTest()
 		mt.oldAppConfig = mt.newAppConfig
+		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig = &fleet.AppConfig{
 			Integrations: fleet.Integrations{
 				DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
@@ -1911,20 +1913,21 @@ func TestValidateAppConfigCAs(t *testing.T) {
 				},
 			},
 		}
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		assert.Empty(t, mt.invalid.Errors)
 		require.Len(t, status.digicert, 1)
 		assert.Equal(t, caStatusDeleted, status.digicert[mt.oldAppConfig.Integrations.DigiCert.Value[0].Name])
-		assert.Empty(t, mt.appConfig.Integrations.DigiCert.Value)
+		assert.False(t, mt.appConfig.Integrations.DigiCert.Valid)
 	})
 
 	t.Run("digicert API token not set on modify", func(t *testing.T) {
 		mt := newTest()
 		mt.oldAppConfig.Integrations.DigiCert.Value = append(mt.oldAppConfig.Integrations.DigiCert.Value,
 			mt.newAppConfig.Integrations.DigiCert.Value[0])
+		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "https://new.com"
 		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = ""
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set when modifying")
 	})
 
@@ -1996,7 +1999,8 @@ func TestValidateAppConfigCAs(t *testing.T) {
 				},
 			},
 		}
-		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		mt.appConfig = mt.oldAppConfig.Copy()
+		status := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		assert.Empty(t, mt.invalid.Errors)
 		require.Len(t, status.digicert, 3)
 		assert.Equal(t, caStatusAdded, status.digicert["add"])

@@ -367,7 +367,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	caStatus := svc.validateAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
+	caStatus := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -915,7 +915,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
+func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
 	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) appConfigCAStatus {
 
 	var invalidLicense bool
