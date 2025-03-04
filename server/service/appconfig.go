@@ -643,7 +643,40 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	default:
 		// No change, no activity.
 	}
-	// TODO(#26603): Add activity for DigiCert and custom SCEP proxies
+	for caName, status := range caStatus.digicert {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added DigiCert CA")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
+			}
+		case caStatusDeleted:
+			// TODO(#26603): Delete API token
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
+			}
+		}
+	}
+	for caName, status := range caStatus.customSCEPProxy {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added Custom SCEP Proxy")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
+			}
+		case caStatusDeleted:
+			// TODO(#26603): Delete challenge
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
+			}
+		}
+	}
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
 		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
@@ -1075,7 +1108,6 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 				case newCA.Equals(&oldCA):
 					// same
 					found = true
-					break
 				case newCA.Name == oldCA.Name:
 					// changed
 					if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
@@ -1086,7 +1118,6 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 					}
 					// check that API Key is set
 					found = true
-					break
 				}
 			}
 			if !found {
