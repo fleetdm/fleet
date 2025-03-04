@@ -234,7 +234,13 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
+			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://didsomeonesaygitops.biz",
+			},
+		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
@@ -326,6 +332,9 @@ software:
 	assert.Empty(t, enrolledSecrets)
 	assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
 	assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+	// GitOps should not overwrite GitOps UI Mode.
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
