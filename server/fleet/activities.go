@@ -2202,7 +2202,7 @@ func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details s
 type ActivityAddedCustomSCEPProxy struct{}
 
 func (a ActivityAddedCustomSCEPProxy) ActivityName() string {
-	return "added_scep_proxy"
+	return "added_custom_scep_proxy"
 }
 func (a ActivityAddedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when SCEP certificate authority configuration is added in Fleet.", `This activity contains the following fields:
@@ -2214,7 +2214,7 @@ func (a ActivityAddedCustomSCEPProxy) Documentation() (activity string, details 
 type ActivityDeletedCustomSCEPProxy struct{}
 
 func (a ActivityDeletedCustomSCEPProxy) ActivityName() string {
-	return "deleted_scep_proxy"
+	return "deleted_custom_scep_proxy"
 }
 func (a ActivityDeletedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when SCEP certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
@@ -2226,7 +2226,7 @@ func (a ActivityDeletedCustomSCEPProxy) Documentation() (activity string, detail
 type ActivityEditedCustomSCEPProxy struct{}
 
 func (a ActivityEditedCustomSCEPProxy) ActivityName() string {
-	return "edited_scep_proxy"
+	return "edited_custom_scep_proxy"
 }
 func (a ActivityEditedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when SCEP certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
