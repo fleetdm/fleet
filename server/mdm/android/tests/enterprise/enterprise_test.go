@@ -2,13 +2,11 @@ package enterprise_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -112,42 +110,4 @@ func (s *enterpriseTestSuite) TestEnterpriseSSE() {
 	data, err = io.ReadAll(resp.Body)
 	assert.NoError(s.T(), err)
 	assert.Contains(s.T(), string(data), assert.AnError.Error())
-}
-
-func (s *enterpriseTestSuite) TestEnterpriseSignupCallback() {
-	s.SetupTest()
-
-	mysql.ExecAdhocSQL(s.T(), s.DS, "INSERT INTO android_enterprises (signup_name, user_id) VALUES ('', ?)")
-
-	// TODO: setup database. add seed data to android_enterprises table
-	// user := &fleet.User{
-	// 	ID: 1,
-	// }
-	// id, err := s.DS.CreateEnterprise(user.ID)
-	// enterprise := &fleet.AndroidEnterprise{
-	// 	ID:        tests.EnterpriseID,
-	// 	Token:     "enterpriseToken",
-	// 	CreatedAt: time.Now(),
-	// 	UpdatedAt: time.Now(),
-	// }
-	// err := s.WithServer.FleetDS.enterprise(context.Background(), enterprise)
-	// require.NoError(s.T(), err)
-
-	// Test happy path assuming enterprise exists
-	s.FleetDS.GetAndroidDS().GetEnterpriseBySignupTokenFunc = func(_ ctx.Context, signupToken string) (*android.EnterpriseDetails, error) {
-		return android.EnterpriseDetails{
-			android.Enterprise: {ID: 1, EnterpriseID: "test-enterprise"},
-			SignupToken:        "12345",
-			SignupName:         "test-enterprise-signup",
-			TopicID:            "test-topic-id",
-			UserID:             1,
-		}
-	}
-
-	resp := s.Do("GET", fmt.Sprintf("/api/v1/fleet/android_enterprise/connect/%s", "test-token"), nil, http.StatusOK)
-	assert.Equal(s.T(), "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(s.T(), err)
-	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
-	assert.Contains(s.T(), string(body), "window.close()")
 }

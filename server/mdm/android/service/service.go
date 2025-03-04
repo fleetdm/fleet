@@ -156,7 +156,7 @@ var enterpriseCallbackHTML []byte
 
 func (res enterpriseSignupCallbackResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.Write(enterpriseCallbackHTML)
+	_, _ = w.Write(enterpriseCallbackHTML)
 }
 
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
