@@ -13880,10 +13880,10 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	require.NoError(t, resp.Err)
 
 	// Create a couple of hosts
-	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	key := setOrbitEnrollment(t, mdmHost, s.ds)
 	mdmHost.OrbitNodeKey = &key
-	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	mdmHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	key2 := setOrbitEnrollment(t, mdmHost2, s.ds)
 	mdmHost2.OrbitNodeKey = &key2
 
@@ -13941,7 +13941,6 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), hostActivitiesResp.Activities[0].Type)
 	host2VppAppExecID := hostActivitiesResp.Activities[0].UUID
 
-	_, _, _, _ = mdmDevice, mdmDevice2, scriptExecID, host2VppAppExecID
 	// turn off MDM for host 1
 	var delMDMResp mdmAppleCommandRemoveEnrollmentProfileResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusOK, &delMDMResp)
