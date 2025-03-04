@@ -94,7 +94,7 @@ resource "google_cloud_run_service" "default" {
         }
         image = var.image
         ports {
-          name           = "http1"
+          name           = "h2c"
           container_port = 8080
         }
         env {
