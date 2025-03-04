@@ -13,6 +13,21 @@
       min-width: 235px;
     }
 
+    &__filters {
+      display: flex;
+      align-items: center;
+
+      .children-wrapper {
+        gap: $pad-small;
+      }
+    }
+
+    .stackable-header {
+      .table-container__search {
+        width: initial;
+      }
+    }
+
     .data-table-block {
       .data-table__table {
         thead {

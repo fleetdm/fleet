@@ -6,6 +6,7 @@ import { AxiosError } from "axios";
 import hostAPI, {
   IGetHostSoftwareResponse,
   IHostSoftwareQueryKey,
+  IHostSoftwareQueryParams,
 } from "services/entities/hosts";
 import deviceAPI, {
   IDeviceSoftwareQueryKey,
@@ -13,14 +14,25 @@ import deviceAPI, {
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
 
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareFilterFromQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
@@ -61,6 +73,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   vulnerable?: string;
+  exploit?: string;
+  min_cvss_score?: string;
+  max_cvss_score?: string;
   available_for_install?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
@@ -71,6 +86,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
   const vulnerable = queryParams.vulnerable === "true";
+  const minCvssScore = queryParams.min_cvss_score;
+  const maxCvssScore = queryParams.max_cvss_score;
+  const exploit = queryParams.exploit;
   const availableForInstall = queryParams.available_for_install === "true";
 
   return {
@@ -80,6 +98,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_direction: sortDirection,
     per_page: pageSize,
     vulnerable,
+    min_cvss_score: minCvssScore,
+    max_cvss_score: maxCvssScore,
+    exploit,
     available_for_install: availableForInstall,
   };
 };
@@ -100,19 +121,29 @@ const HostSoftware = ({
   hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const isUnsupported =
-    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
+
+  const isUnsupported =
+    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
 
   const {
     data: hostSoftwareRes,
@@ -222,6 +253,31 @@ const HostSoftware = ({
     [id, renderFlash, refetchSoftware]
   );
 
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const newQueryParams: IHostSoftwareQueryParams = {
+      query: queryParams.query,
+      order_direction: queryParams.order_direction,
+      order_key: queryParams.order_key,
+      per_page: queryParams.per_page,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: location.pathname,
+        routeTemplate: "",
+        queryParams: newQueryParams,
+      })
+    );
+    toggleSoftwareFiltersModal();
+  };
+
   const onSelectAction = useCallback(
     (software: IHostSoftware, action: string) => {
       switch (action) {
@@ -315,10 +371,20 @@ const HostSoftware = ({
             page={queryParams.page}
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
+            vulnFilters={softwareVulnFilters}
+            onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
             onShowSoftwareDetails={onShowSoftwareDetails}
+          />
+        )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={softwareVulnFilters}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </>
