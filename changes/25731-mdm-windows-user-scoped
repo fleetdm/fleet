@@ -1,3 +1,0 @@
-- Added validations to UI and CLI for Windows MDM profiles; Fleet currently supports only
-  device-scoped profiles for Windows and will reject user-scoped profiles (i.e. any profile where the LocURI
-  begins with `./User/Vendor`).
