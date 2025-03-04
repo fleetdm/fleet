@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -354,13 +355,23 @@ type GoogleCalendarIntegration struct {
 }
 
 type DigiCertIntegration struct {
-	Name                               string   `json:"name"`
-	URL                                string   `json:"url"`
-	APIToken                           string   `json:"api_token"`
-	ProfileID                          string   `json:"profile_id"`
-	CertificateCommonName              string   `json:"certificate_common_name"`
-	CertificateSubjectAlternativeNames []string `json:"certificate_subject_alternative_names"`
-	CertificateSeatID                  string   `json:"certificate_seat_id"`
+	Name                          string   `json:"name"`
+	URL                           string   `json:"url"`
+	APIToken                      string   `json:"api_token"`
+	ProfileID                     string   `json:"profile_id"`
+	CertificateCommonName         string   `json:"certificate_common_name"`
+	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
+	CertificateSeatID             string   `json:"certificate_seat_id"`
+}
+
+func (d *DigiCertIntegration) Equals(other *DigiCertIntegration) bool {
+	return d.Name == other.Name &&
+		d.URL == other.URL &&
+		(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) &&
+		d.ProfileID == other.ProfileID &&
+		d.CertificateCommonName == other.CertificateCommonName &&
+		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
+		d.CertificateSeatID == other.CertificateSeatID
 }
 
 // NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.

@@ -13,6 +13,7 @@ func Up_20250303133227(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE IF NOT EXISTS ca_config_assets (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		type enum('digicert','custom_scep_proxy') NOT NULL,
 		name VARCHAR(255) NOT NULL,
 		value BLOB NOT NULL,
 	    created_at DATETIME(6) NOT NULL DEFAULT NOW(6),

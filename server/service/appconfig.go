@@ -367,7 +367,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	caStatus := svc.validateAppConfigCAs(ctx, newAppConfig, oldAppConfig, appConfig, invalid)
+	caStatus := svc.validateAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -643,6 +643,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	default:
 		// No change, no activity.
 	}
+	// TODO(#26603): Add activity for DigiCert and custom SCEP proxies
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
 		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
@@ -881,7 +882,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet.AppConfig, oldAppConfig *fleet.AppConfig,
+func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
 	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) appConfigCAStatus {
 
 	var invalidLicense bool
@@ -901,7 +902,10 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 		appConfig.Integrations.CustomSCEPProxy.Valid = false
 		invalidLicense = true
 	}
-	result := appConfigCAStatus{}
+	result := appConfigCAStatus{
+		digicert:        make(map[string]caStatusType),
+		customSCEPProxy: make(map[string]caStatusType),
+	}
 	if invalidLicense {
 		return result
 	}
@@ -960,34 +964,43 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 		}
 	}
 
-	// Make sure:
-	// - NDES is not used as name
-	// - names are unique across DigiCert/SCEP CAs
+	var (
+		allCANames                           = make(map[string]struct{})
+		additionalDigiCertValidationNeeded   bool
+		additionalCustomSCEPValidationNeeded bool
+	)
 
-	// Validate CA names
-	allCANames := make(map[string]struct{})
-
-	var additionalDigiCertValidationNeeded bool
 	switch {
 	case !newAppConfig.Integrations.DigiCert.Set:
 		// Nothing to set -- keep the old value
 		appConfig.Integrations.DigiCert = oldAppConfig.Integrations.DigiCert
+		// Populate allCANames so we can check for uniqueness against custom SCEP proxy names
 		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
 			allCANames[ca.Name] = struct{}{}
 		}
-	case !newAppConfig.Integrations.DigiCert.Valid:
+	case !newAppConfig.Integrations.DigiCert.Valid || len(newAppConfig.Integrations.DigiCert.Value) == 0:
 		// User is explicitly clearing this setting
 		appConfig.Integrations.DigiCert.Valid = false
 		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
 			result.digicert[ca.Name] = caStatusDeleted
 		}
 	default:
-		if len(newAppConfig.Integrations.DigiCert.Value) > 0 {
-			additionalDigiCertValidationNeeded = true
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.digicert",
+				"Cannot encrypt DigiCert API token. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
+					"com/learn-more-about/fleet-server-private-key")
+			break
 		}
+		additionalDigiCertValidationNeeded = true
 		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "digicert", allCANames, invalid) {
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			if len(ca.CertificateUserPrincipalNames) > 1 {
+				invalid.Append("integrations.digicert.certificate_user_principal_names",
+					"DigiCert CA can only have one certificate user principal name")
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
@@ -997,7 +1010,6 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 		}
 	}
 
-	var additionalCustomSCEPValidationNeeded bool
 	switch {
 	case !newAppConfig.Integrations.CustomSCEPProxy.Set:
 		// Nothing to set -- keep the old value
@@ -1006,20 +1018,25 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 			if _, ok := allCANames[ca.Name]; ok {
 				// This issue is caused by the new DigiCert CA added above
 				invalid.Append("integrations.digicert.name", fmt.Sprintf("CA name must be unique: %s", ca.Name))
+				additionalDigiCertValidationNeeded = false
 				continue
 			}
 			allCANames[ca.Name] = struct{}{}
 		}
-	case !newAppConfig.Integrations.CustomSCEPProxy.Valid:
+	case !newAppConfig.Integrations.CustomSCEPProxy.Valid || len(newAppConfig.Integrations.CustomSCEPProxy.Value) == 0:
 		// User is explicitly clearing this setting
 		appConfig.Integrations.CustomSCEPProxy.Valid = false
 		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
 			result.customSCEPProxy[ca.Name] = caStatusDeleted
 		}
 	default:
-		if len(newAppConfig.Integrations.CustomSCEPProxy.Value) > 0 {
-			additionalCustomSCEPValidationNeeded = true
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.custom_scep_proxy",
+				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
+					"com/learn-more-about/fleet-server-private-key")
+			break
 		}
+		additionalCustomSCEPValidationNeeded = true
 		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
@@ -1031,13 +1048,68 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig fleet
 		}
 	}
 
+	// if additional validation is needed, get all the config assets from DB
+
 	if additionalDigiCertValidationNeeded {
-		svc.logger.Log("msg", "TODO")
-		// do more stuff
+		oldCAs := oldAppConfig.Integrations.DigiCert.Value
+		remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
+		for _, oldCA := range oldCAs {
+			var found bool
+			for _, newCA := range newAppConfig.Integrations.DigiCert.Value {
+				if oldCA.Name == newCA.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result.digicert[oldCA.Name] = caStatusDeleted
+			} else {
+				remainingOldCAs = append(remainingOldCAs, oldCA)
+			}
+		}
+
+		for _, newCA := range appConfig.Integrations.DigiCert.Value {
+			var found bool
+			for _, oldCA := range remainingOldCAs {
+				switch {
+				case newCA.Equals(&oldCA):
+					// same
+					found = true
+					break
+				case newCA.Name == oldCA.Name:
+					// changed
+					if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
+						invalid.Append("integrations.digicert.api_token",
+							fmt.Sprintf("DigiCert API token must be set when modifying an existing CA: %s", newCA.Name))
+					} else {
+						result.digicert[newCA.Name] = caStatusEdited
+					}
+					// check that API Key is set
+					found = true
+					break
+				}
+			}
+			if !found {
+				if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
+					invalid.Append("integrations.digicert.api_token",
+						fmt.Sprintf("DigiCert API token must be set on CA: %s", newCA.Name))
+				} else {
+					result.digicert[newCA.Name] = caStatusAdded
+				}
+				// check that API Key is set
+			}
+			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
+		}
+		// TODO(#26603): Save/encrypt all added/edited API keys
+		/* We keep API tokens unencrypted for now for frontend testing
+		for i := range appConfig.Integrations.DigiCert.Value {
+			appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
+		}
+		*/
 	}
+
 	if additionalCustomSCEPValidationNeeded {
-		svc.logger.Log("msg", "TODO")
-		// do more stuff
+		svc.logger.Log("msg", "TODO for #26603")
 	}
 	return result
 }
