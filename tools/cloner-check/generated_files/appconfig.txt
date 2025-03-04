@@ -104,7 +104,7 @@ github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	URL	string
 github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	APIToken	string
 github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	ProfileID	string
 github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	CertificateCommonName	string
-github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	CertificateSubjectAlternativeNames	[]string
+github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	CertificateUserPrincipalNames	[]string
 github.com/fleetdm/fleet/v4/server/fleet/DigiCertIntegration	CertificateSeatID	string
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	NDESSCEPProxy	optjson.Any[github.com/fleetdm/fleet/v4/server/fleet.NDESSCEPProxyIntegration]
 github.com/fleetdm/fleet/v4/pkg/optjson/Any[github.com/fleetdm/fleet/v4/server/fleet.NDESSCEPProxyIntegration]	Set	bool
