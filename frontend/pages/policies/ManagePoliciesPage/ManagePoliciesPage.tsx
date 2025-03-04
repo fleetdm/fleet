@@ -65,7 +65,10 @@ import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import PolicyRunScriptModal from "./components/PolicyRunScriptModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
-import { getErrorMessage } from "./helpers";
+import {
+  getInstallSoftwareErrorMessage,
+  getRunScriptErrorMessage,
+} from "./helpers";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -594,7 +597,7 @@ const ManagePolicyPage = ({
       if (failedUpdates.length > 0) {
         const errorNotifications: INotification[] = failedUpdates.map(
           (result, index) => {
-            const message = getErrorMessage(
+            const message = getInstallSoftwareErrorMessage(
               result as PromiseRejectedResult,
               formData,
               currentTeamName
@@ -610,8 +613,6 @@ const ManagePolicyPage = ({
           }
         );
 
-        console.log("errorNotifications", errorNotifications);
-        // Assuming renderFlash can handle an array of notifications
         renderMultiFlash({
           notifications: errorNotifications,
         });
@@ -635,23 +636,79 @@ const ManagePolicyPage = ({
     try {
       setIsUpdatingPolicies(true);
 
-      const responses: Promise<
-        ReturnType<typeof teamPoliciesAPI.update>
-      >[] = [];
-      responses.concat(
-        formData.map((changedPolicy) => {
-          return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id": null will unset running a script for the policy
-            // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || null,
-            team_id: teamIdForApi,
-          });
+      const changedPolicies = formData.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+
+        const turnedOff =
+          prevPolicyState?.run_script !== undefined &&
+          formPolicy.scriptIdToRun === null;
+
+        const turnedOn =
+          prevPolicyState?.run_script === undefined &&
+          formPolicy.scriptIdToRun !== null;
+
+        const updatedScriptId =
+          prevPolicyState?.run_script?.id !== undefined &&
+          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
+
+        return turnedOff || turnedOn || updatedScriptId;
+      });
+
+      if (!changedPolicies.length) {
+        renderFlash("success", "No changes detected.");
+        return;
+      }
+
+      const promises = formData.map((changedPolicy) =>
+        teamPoliciesAPI.update(changedPolicy.id, {
+          // "script_id": null will unset running a script for the policy
+          // "script_id": X will sets script X to run when the policy fails
+          script_id: changedPolicy.scriptIdToRun || null,
+          team_id: teamIdForApi,
         })
       );
-      await Promise.all(responses);
-      await wait(100);
+
+      // Allows for all API calls to settle even if there is an error on one
+      const results = await Promise.allSettled(promises);
+
+      const successfulUpdates = results.filter(
+        (result) => result.status === "fulfilled"
+      );
+      const failedUpdates = results.filter(
+        (result) => result.status === "rejected"
+      );
+
+      // Renders API error reason for each error in a single message
+      if (failedUpdates.length > 0) {
+        const errorNotifications: INotification[] = failedUpdates.map(
+          (result, index) => {
+            const message = getRunScriptErrorMessage(
+              result as PromiseRejectedResult,
+              formData,
+              currentTeamName
+            );
+
+            return {
+              id: `error-${index}`,
+              alertType: "error",
+              isVisible: true,
+              message,
+              persistOnPageChange: false,
+            };
+          }
+        );
+
+        renderMultiFlash({
+          notifications: errorNotifications,
+        });
+      } else if (successfulUpdates.length > 0) {
+        // Only render success message if there are no failures
+        renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+      }
+
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
