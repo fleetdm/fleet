@@ -75,7 +75,8 @@ interface ILabelChooserProps {
   labels: ILabelSummary[];
   selectedLabels: Record<string, boolean>;
   selectedCustomTarget: string;
-  customTargetOptions: IDropdownOption[];
+  customTargetOptions?: IDropdownOption[];
+  customHelpText?: ReactNode;
   dropdownHelpText?: ReactNode;
   onSelectCustomTarget: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
@@ -85,10 +86,11 @@ const LabelChooser = ({
   isError,
   isLoading,
   labels,
+  customHelpText,
   dropdownHelpText,
   selectedLabels,
   selectedCustomTarget,
-  customTargetOptions,
+  customTargetOptions = [],
   onSelectCustomTarget,
   onSelectLabel,
 }: ILabelChooserProps) => {
@@ -136,14 +138,18 @@ const LabelChooser = ({
 
   return (
     <div className={`${baseClass}__custom-label-chooser`}>
-      <Dropdown
-        value={selectedCustomTarget}
-        options={customTargetOptions}
-        searchable={false}
-        onChange={onSelectCustomTarget}
-      />
+      {customTargetOptions.length ? (
+        <Dropdown
+          value={selectedCustomTarget}
+          options={customTargetOptions}
+          searchable={false}
+          onChange={onSelectCustomTarget}
+        />
+      ) : null}
       <div className={`${baseClass}__description`}>
-        {getHelpText(selectedCustomTarget)}
+        {customTargetOptions.length
+          ? getHelpText(selectedCustomTarget)
+          : customHelpText}
       </div>
       <div className={`${baseClass}__checkboxes`}>{renderLabels()}</div>
     </div>
@@ -153,9 +159,10 @@ const LabelChooser = ({
 interface ITargetLabelSelectorProps {
   selectedTargetType: string;
   selectedCustomTarget: string;
-  customTargetOptions: IDropdownOption[];
+  customTargetOptions?: IDropdownOption[];
   selectedLabels: Record<string, boolean>;
   labels: ILabelSummary[];
+  customHelpText?: ReactNode;
   /** set this prop to show a help text. If it is included then it will override
    * the selected options defined `helpText`
    */
@@ -171,9 +178,10 @@ interface ITargetLabelSelectorProps {
 const TargetLabelSelector = ({
   selectedTargetType,
   selectedCustomTarget,
-  customTargetOptions,
+  customTargetOptions = [],
   selectedLabels,
   dropdownHelpText,
+  customHelpText,
   className,
   labels,
   isLoadingLabels = false,
@@ -198,6 +206,7 @@ const TargetLabelSelector = ({
           isLoading={isLoadingLabels}
           labels={labels || []}
           selectedLabels={selectedLabels}
+          customHelpText={customHelpText}
           dropdownHelpText={dropdownHelpText}
           onSelectCustomTarget={onSelectCustomTarget}
           onSelectLabel={onSelectLabel}
