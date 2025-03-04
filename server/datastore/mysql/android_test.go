@@ -90,6 +90,9 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			Memory:         1024,
 			TeamID:         nil,
 			HardwareSerial: "hardware_serial",
+			CPUType:        "cpu_type",
+			HardwareModel:  "hardware_model",
+			HardwareVendor: "hardware_vendor",
 		},
 		Device: &android.Device{
 			DeviceID:             "device_id",
@@ -129,6 +132,9 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.Build = "build_updated"
 	host.Host.Memory = 2048
 	host.Host.HardwareSerial = "hardware_serial_updated"
+	host.Host.CPUType = "cpu_type_updated"
+	host.Host.HardwareModel = "hardware_model_updated"
+	host.Host.HardwareVendor = "hardware_vendor_updated"
 	host.Device.AndroidPolicyID = ptr.Uint(2)
 	err = ds.UpdateAndroidHost(testCtx(), host)
 	require.NoError(t, err)
