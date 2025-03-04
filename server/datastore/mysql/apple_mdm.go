@@ -1470,6 +1470,12 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
+		// clear up the MDM-dependent upcoming activities as it won't be able
+		// to process them anymore
+		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
+		}
+
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
 
@@ -5854,6 +5860,18 @@ WHERE
 	_, err := tx.ExecContext(ctx, deleteUpcomingMDMActivities, hostUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing upcoming activities")
+	}
+
+	// get the host ID for that uuid
+	var hostID uint
+	if err := sqlx.GetContext(ctx, tx, &hostID, "SELECT id FROM hosts WHERE uuid = ?", hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load host ID by UUID")
+	}
+
+	// ensure that if there's an activity waiting to be activated, it does get
+	// activated
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 	return nil
 }

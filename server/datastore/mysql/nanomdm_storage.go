@@ -196,9 +196,17 @@ func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document str
 // nanomdm_mysql.MySQLStorage. It does call
 // nanomdm_mysql.MySQLStorage.ClearQueue, but expands on its behavior.
 func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
-	if err := s.ds.ClearMDMUpcomingActivitiesDB(r.Context, s.db, r.ID); err != nil {
+	err := common_mysql.WithRetryTxx(r.Context, s.db, func(tx sqlx.ExtContext) error {
+		if err := s.ds.ClearMDMUpcomingActivitiesDB(r.Context, tx, r.ID); err != nil {
+			return err
+		}
+		return nil
+	}, s.logger)
+
+	if err != nil {
 		return err
 	}
+
 	return s.MySQLStorage.ClearQueue(r)
 }
 
