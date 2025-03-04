@@ -275,11 +275,11 @@ const CalendarEventsModal = ({
         <PoliciesPaginatedList
           ref={paginatedListRef}
           isSelected="calendar_events_enabled"
-          onToggleItem={(item) => {
+          onToggleItem={(item: IFormPolicy) => {
             item.calendar_events_enabled = !item.calendar_events_enabled;
             return item;
           }}
-          renderItemRow={(item) => {
+          renderItemRow={(item: IFormPolicy) => {
             return (
               <Button
                 variant="text-icon"
