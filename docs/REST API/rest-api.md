@@ -9605,7 +9605,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_include_any        | array     | body | Target hosts that have any label in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label in the array. |
 | minimum_version | string | body | Automatically create policy that triggers install if software version is below defined minimum version. |
 
