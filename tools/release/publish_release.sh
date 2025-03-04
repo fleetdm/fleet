@@ -557,15 +557,15 @@ publish() {
             fi
             show_spinner 200
             dogfood_deploy=$(gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url')
-            latest_npm=$(npm view fleetctl --json | jq -r '.version')
-            latest_local=$(jq -r '.version' tools/fleetctl-npm/package.json)
+            latest_npm=$(npm view fleetctl --json | jq -r '.version' | sed -e 's/^v//')
+            latest_local=$(jq -r '.version' tools/fleetctl-npm/package.json | sed -e 's/^v//')
 
-            if [ node -e "console.log(require('compare-versions').compareVersions('${latest_local}', '${latest_npm}'))" = "1" ]; then
-                # We're publishing the latest version
-                cd tools/fleetctl-npm && npm publish
-            else
+            if [ "$(node -e "console.log(require('compare-versions').compareVersions('${latest_local}', '${latest_npm}'))")" = "-1" ]; then
                 # We're publishing a patch to an older version
                 cd tools/fleetctl-npm && npm publish "--tag=v${target_version}"
+            else
+                # We're publishing the latest version
+                cd tools/fleetctl-npm && npm publish
             fi
 
 
