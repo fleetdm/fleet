@@ -17,6 +17,7 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
+      showHeaderCTA: true,
     }
   },
 
