@@ -5865,6 +5865,9 @@ WHERE
 	// get the host ID for that uuid
 	var hostID uint
 	if err := sqlx.GetContext(ctx, tx, &hostID, "SELECT id FROM hosts WHERE uuid = ?", hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "load host ID by UUID")
 	}
 
