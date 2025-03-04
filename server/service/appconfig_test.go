@@ -1837,7 +1837,7 @@ func TestValidateAppConfigCAs(t *testing.T) {
 			{
 				testName:      "invalid characters",
 				name:          "a/b",
-				errorContains: []string{"integrations.digicert.name", "CA name can only contain alphanumeric"},
+				errorContains: []string{"integrations.digicert.name", "Only letters, numbers and underscores allowed"},
 			},
 		}
 
@@ -1851,12 +1851,27 @@ func TestValidateAppConfigCAs(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid digicert URL", func(t *testing.T) {
+		mt := newTest()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = ""
+		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
+			"empty url")
+
+		mt = newTest()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "nonhttp://bad.com"
+		status = mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
+			"URL must be https or http")
+	})
+
 	t.Run("duplicate digicert integration name", func(t *testing.T) {
 		mt := newTest()
 		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
 			mt.newAppConfig.Integrations.DigiCert.Value[0])
 		status := mt.svc.validateAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name", "CA name must be unique")
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
+			"name is already used by another DigiCert certificate authority")
 	})
 
 	t.Run("digicert more than 1 user principal name", func(t *testing.T) {

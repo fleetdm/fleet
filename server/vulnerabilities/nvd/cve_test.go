@@ -609,7 +609,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	}
 
 	t.Run("find_vulns_on_cpes", func(t *testing.T) {
-		t.Skip("BOZO REMOVE")
 		t.Parallel()
 
 		ds := new(mock.Store)

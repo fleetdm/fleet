@@ -1031,13 +1031,24 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
+			// Validate URL
+			ca.URL = fleet.Preprocess(ca.URL)
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.digicert.url", err.Error())
+				additionalDigiCertValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.digicert.url", "digicert URL must be https or http")
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+
 			if len(ca.CertificateUserPrincipalNames) > 1 {
 				invalid.Append("integrations.digicert.certificate_user_principal_names",
 					"DigiCert CA can only have one certificate user principal name")
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
-			ca.URL = fleet.Preprocess(ca.URL)
 			ca.ProfileID = fleet.Preprocess(ca.ProfileID)
 			appConfig.Integrations.DigiCert.Value = append(appConfig.Integrations.DigiCert.Value, ca)
 		}
@@ -1050,7 +1061,8 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
 			if _, ok := allCANames[ca.Name]; ok {
 				// This issue is caused by the new DigiCert CA added above
-				invalid.Append("integrations.digicert.name", fmt.Sprintf("CA name must be unique: %s", ca.Name))
+				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
@@ -1077,6 +1089,16 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 				continue
 			}
 			ca.URL = fleet.Preprocess(ca.URL)
+			// Validate URL
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
 			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
 		}
 	}
@@ -1110,13 +1132,12 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 					found = true
 				case newCA.Name == oldCA.Name:
 					// changed
-					if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
+					if newCA.URL != oldCA.URL && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
 						invalid.Append("integrations.digicert.api_token",
-							fmt.Sprintf("DigiCert API token must be set when modifying an existing CA: %s", newCA.Name))
+							fmt.Sprintf("DigiCert API token must be set when modifying URL of an existing CA: %s", newCA.Name))
 					} else {
 						result.digicert[newCA.Name] = caStatusEdited
 					}
-					// check that API Key is set
 					found = true
 				}
 			}
@@ -1127,7 +1148,6 @@ func (svc *Service) validateAppConfigCAs(ctx context.Context, newAppConfig *flee
 				} else {
 					result.digicert[newCA.Name] = caStatusAdded
 				}
-				// check that API Key is set
 			}
 			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
 		}
@@ -1159,11 +1179,15 @@ func validateCAName(name string, caType string, allCANames map[string]struct{}, 
 		return false
 	}
 	if !isAlphanumeric(name) {
-		invalid.Append("integrations."+caType+".name", fmt.Sprintf("CA name can only contain alphanumeric [A-Za-z0-9_] characters: %s", name))
+		invalid.Append("integrations."+caType+".name",
+			fmt.Sprintf("Couldn’t edit integrations.%s. Invalid characters in the \"name\" field. Only letters, "+
+				"numbers and underscores allowed. %s",
+				caType, name))
 		return false
 	}
 	if _, ok := allCANames[name]; ok {
-		invalid.Append("integrations."+caType+".name", fmt.Sprintf("CA name must be unique: %s", name))
+		invalid.Append("integrations."+caType+".name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+			"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", name))
 		return false
 	}
 	allCANames[name] = struct{}{}
