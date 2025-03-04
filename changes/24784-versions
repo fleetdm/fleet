@@ -1,1 +1,2 @@
-- Updated Fleet's software ingestion logic to avoid storing modified software versions.
+- Moved software version transformations for vulnerability matching out of software ingestion to
+  ensure software inventory versions match what osquery reports. 

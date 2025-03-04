@@ -904,9 +904,9 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			software: fleet.Software{
 				Name:    "Python 3.14.0a1 (64-bit)",
 				Source:  "programs",
-				Version: "3.14.102.0",
+				Version: "3.14.101.0",
 				Vendor:  "Python Software Foundation",
-			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1751,8 +1751,9 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:    "Microsoft Teams.app",
-				Source:  "apps",
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should not be mutated
 				Version: "25016.1904.3401.2239",
 			},
 			cpe: "cpe:2.3:a:microsoft:teams:25016.1904.3401.2239:*:*:*:*:macos:*:*",
@@ -1840,7 +1841,7 @@ func TestContainsNonASCII(t *testing.T) {
 	}
 }
 
-func TestSanitizeSoftware(t *testing.T) {
+func TestMutateSoftware(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		s         *fleet.Software
