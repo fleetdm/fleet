@@ -263,6 +263,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Sign up',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
@@ -271,6 +272,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
