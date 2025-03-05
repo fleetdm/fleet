@@ -310,7 +310,7 @@ type GetAndroidDSFunc func() android.Datastore
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
@@ -4099,11 +4099,11 @@ func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost)
 	return s.NewAndroidHostFunc(ctx, host)
 }
 
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
 	s.mu.Lock()
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host)
+	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
 }
 
 func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
